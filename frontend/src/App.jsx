@@ -6,6 +6,7 @@ import Login from './pages/Login.jsx';
 import Register from './pages/Register.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import Wallet from './pages/Wallet.jsx';
+import Exchange from './pages/Exchange.jsx';
 
 /**
  * ============================================================================
@@ -16,6 +17,7 @@ import Wallet from './pages/Wallet.jsx';
  * Estructura de Rutas:
  * - "/" & "/index.html" & "/index" -> MainLayout (Header + Landing + Footer + BackToTop)
  * - "/wallet" & "/wallet.html" -> MainLayout (Billetera FinTech React 2026)
+ * - "/exchange" & "/exchange.html" -> MainLayout (Exchange Oficial FIFO 2026)
  * - "/login" & "/login.html" -> Login (Vista de autenticación independiente)
  * - "/register" & "/register.html" -> Register (Wizard de registro independiente)
  * - "/forgot-password" & "/forgot-password.html" -> ForgotPassword (Recuperación)
@@ -32,6 +34,8 @@ function App() {
         <Route path="index" element={<Home />} />
         <Route path="wallet" element={<Wallet />} />
         <Route path="wallet.html" element={<Wallet />} />
+        <Route path="exchange" element={<Exchange />} />
+        <Route path="exchange.html" element={<Exchange />} />
       </Route>
 
       {/* Rutas directas para compatibilidad total con WebView, Service Workers y Servidores */}
@@ -39,6 +43,8 @@ function App() {
       <Route path="/index" element={<MainLayout><Home /></MainLayout>} />
       <Route path="/wallet" element={<MainLayout><Wallet /></MainLayout>} />
       <Route path="/wallet.html" element={<MainLayout><Wallet /></MainLayout>} />
+      <Route path="/exchange" element={<MainLayout><Exchange /></MainLayout>} />
+      <Route path="/exchange.html" element={<MainLayout><Exchange /></MainLayout>} />
 
       {/* Rutas de Autenticación Independientes (Sin Header/Footer) */}
       <Route path="/login" element={<Login />} />

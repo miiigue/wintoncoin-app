@@ -59,12 +59,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 <ul>
                     <li><a href="/contract_interaction.html" class="nav-link"><span class="icon">🏠</span> Resumen</a></li>
                     <li><a href="/como-funciona.html" class="nav-link"><span class="icon">❓</span> ¿Cómo funciona?</a></li>
-                    <li><a href="/p2p.html" class="nav-link"><span class="icon">💱</span> Vende o Compra BLUE</a></li>
+                    <li><a href="/exchange" class="nav-link"><span class="icon">💱</span> Exchange Oficial (BLUE / USDT)</a></li>
                     <li><a href="/history.html" class="nav-link"><span class="icon">📜</span> Historial</a></li>
                     <li><a href="/transactions.html" class="nav-link"><span class="icon">💸</span> Transacciones</a></li>
                     <li><a href="/referrals.html" class="nav-link"><span class="icon">👥</span> Referidos</a></li>
                     <li><a href="/booster-profile.html" class="nav-link"><span class="icon">🚀</span> Perfil de Impulsor</a></li>
-                    <li><a href="/estado-cuenta.html" class="nav-link"><span class="icon">📊</span> Billetera Web3</a></li>
+                    <li><a href="/wallet" class="nav-link"><span class="icon">📊</span> Billetera Winton</a></li>
                     <li><a href="/causa-solidaria.html" class="nav-link"><span class="icon">❤️</span> Donaciones</a></li>
                     <li><a href="/momentum-landing.html" class="nav-link"><span class="icon">⚡</span> Winton Momentum</a></li>
                     <li><a href="/love.html" class="nav-link"><span class="icon">💖</span> Página L.O.V.</a></li>

@@ -1,0 +1,451 @@
+/**
+ * ============================================================================
+ * [WINTONCOIN] - ESTILOS DEL EXCHANGE FIFO OFICIAL (React 2026)
+ * ============================================================================
+ * Diseño de vanguardia: Dark Mode FinTech, Glassmorphism, Microinteracciones
+ * y adaptación perfecta para dispositivos móviles y escritorio.
+ * ============================================================================
+ */
+
+.exchangeContainer {
+  min-height: 100vh;
+  background: radial-gradient(circle at top right, #111827 0%, #030712 100%);
+  color: #f8fafc;
+  padding: 1.5rem 1rem 5rem 1rem;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.innerWrapper {
+  max-width: 580px;
+  margin: 0 auto;
+}
+
+/* CABECERA DEL EXCHANGE */
+.exchangeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.backBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #cbd5e1;
+  padding: 0.5rem 0.85rem;
+  border-radius: 12px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: all 0.2s ease;
+}
+
+.backBtn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+}
+
+.parityBadge {
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #10b981;
+  padding: 0.4rem 0.85rem;
+  border-radius: 9999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.pulseDot {
+  width: 7px;
+  height: 7px;
+  background-color: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #10b981;
+  animation: pulseAnim 2s infinite;
+}
+
+@keyframes pulseAnim {
+  0% { transform: scale(0.95); opacity: 0.7; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.95); opacity: 0.7; }
+}
+
+/* HERO TITLE */
+.heroTitleSection {
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.mainTitle {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 0 0 0.4rem 0;
+  background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.subTitle {
+  font-size: 0.9rem;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* NAVEGACIÓN POR TABS */
+.tabsNav {
+  display: flex;
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 4px;
+  margin-bottom: 1.5rem;
+}
+
+.tabBtn {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  padding: 0.75rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+}
+
+.tabBtnActive {
+  background: #3b82f6;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.35);
+}
+
+/* TARJETA PRINCIPAL DE INTERCAMBIO (SWAP CARD) */
+.swapCard {
+  background: rgba(30, 41, 59, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(16px);
+  border-radius: 24px;
+  padding: 1.5rem;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.5);
+  margin-bottom: 1.5rem;
+}
+
+.inputGroup {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.inputHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8rem;
+  color: #94a3b8;
+  margin-bottom: 0.5rem;
+}
+
+.balanceLink {
+  color: #38bdf8;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.balanceLink:hover {
+  text-decoration: underline;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.tokenInput {
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  font-size: 1.75rem;
+  font-weight: 700;
+  width: 100%;
+  outline: none;
+  font-family: inherit;
+}
+
+.tokenInput::placeholder {
+  color: #475569;
+}
+
+.tokenBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 0.4rem 0.8rem;
+  border-radius: 12px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.tokenIconBlue {
+  color: #38bdf8;
+}
+
+.tokenIconUsdt {
+  color: #10b981;
+}
+
+/* SEPARADOR DE INTERCAMBIO */
+.swapArrowWrapper {
+  display: flex;
+  justify-content: center;
+  margin: -0.5rem 0;
+  position: relative;
+  z-index: 2;
+}
+
+.swapArrowCircle {
+  width: 38px;
+  height: 38px;
+  background: #1e293b;
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+
+/* DETALLES DE TRANSACCIÓN */
+.rateDetails {
+  background: rgba(15, 23, 42, 0.4);
+  border-radius: 14px;
+  padding: 0.85rem 1rem;
+  margin: 1rem 0;
+  font-size: 0.85rem;
+}
+
+.rateRow {
+  display: flex;
+  justify-content: space-between;
+  color: #94a3b8;
+  margin-bottom: 0.4rem;
+}
+
+.rateRow:last-child {
+  margin-bottom: 0;
+}
+
+.rateRow strong {
+  color: #f1f5f9;
+}
+
+.burnCheckboxRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  background: rgba(147, 51, 234, 0.12);
+  border: 1px solid rgba(147, 51, 234, 0.3);
+  padding: 0.85rem;
+  border-radius: 14px;
+  margin-bottom: 1.25rem;
+  font-size: 0.85rem;
+  color: #e2e8f0;
+}
+
+.burnCheckboxRow input {
+  margin-top: 2px;
+  cursor: pointer;
+  accent-color: #9333ea;
+  width: 16px;
+  height: 16px;
+}
+
+/* BOTÓN DE ACCIÓN */
+.actionBtn {
+  width: 100%;
+  background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+  color: #ffffff;
+  border: none;
+  padding: 1rem;
+  border-radius: 16px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 8px 20px -5px rgba(37, 99, 235, 0.4);
+}
+
+.actionBtn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 25px -5px rgba(37, 99, 235, 0.5);
+}
+
+.actionBtn:disabled {
+  background: #334155;
+  color: #64748b;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.btnSellColor {
+  background: linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%);
+  box-shadow: 0 8px 20px -5px rgba(14, 165, 233, 0.4);
+}
+
+/* SECCIÓN DE LA COLA FIFO (ORDER BOOK DEPTH) */
+.queueCard {
+  background: rgba(30, 41, 59, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.queueCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.queueCardTitle {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #f1f5f9;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.queueList {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.queueItem {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.85rem;
+}
+
+.queueItemMine {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.35);
+}
+
+.queueItemLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.queuePos {
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #94a3b8;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.queuePosMine {
+  background: #3b82f6;
+  color: #ffffff;
+}
+
+.queueItemInfo {
+  display: flex;
+  flex-direction: column;
+}
+
+.queueItemName {
+  font-weight: 600;
+  color: #e2e8f0;
+}
+
+.queueItemTime {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.queueItemRight {
+  text-align: right;
+}
+
+.queueItemAmount {
+  font-weight: 700;
+  color: #38bdf8;
+}
+
+.cancelBtn {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #ef4444;
+  padding: 0.25rem 0.55rem;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 0.25rem;
+  transition: all 0.2s ease;
+}
+
+.cancelBtn:hover {
+  background: #ef4444;
+  color: #ffffff;
+}
+
+.emptyQueue {
+  text-align: center;
+  padding: 1.5rem 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+/* MODAL DE RESULTADO / ÉXITO */
+.successToast {
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #10b981;
+  padding: 0.85rem 1rem;
+  border-radius: 14px;
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}

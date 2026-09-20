@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import mockFinancialService from '../modules/mockFinancialService';
 import styles from './Wallet.module.css';
 
@@ -127,6 +128,50 @@ function Wallet() {
               </span>
             </div>
           </div>
+        </div>
+
+        {/* ACCESOS DIRECTOS AL EXCHANGE OFICIAL FIFO */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+          <Link
+            to="/exchange?tab=sell"
+            style={{
+              background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
+              color: '#ffffff',
+              padding: '0.85rem 0.5rem',
+              borderRadius: '16px',
+              textAlign: 'center',
+              textDecoration: 'none',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              boxShadow: '0 4px 15px rgba(14, 165, 233, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            <span>💱</span> Vender en Exchange
+          </Link>
+          <Link
+            to="/exchange?tab=buy"
+            style={{
+              background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+              color: '#ffffff',
+              padding: '0.85rem 0.5rem',
+              borderRadius: '16px',
+              textAlign: 'center',
+              textDecoration: 'none',
+              fontWeight: 700,
+              fontSize: '0.9rem',
+              boxShadow: '0 4px 15px rgba(59, 130, 246, 0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.4rem',
+            }}
+          >
+            <span>🛒</span> Comprar BLUE
+          </Link>
         </div>
 
         {/* ACCIÓN RÁPIDA: PAGAR DEUDA CON SALDO GANADO (COMPENSACIÓN EN 1 TOQUE) */}

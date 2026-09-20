@@ -12,6 +12,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 
+### 2026-09-20 — Frontend React SPA 2026: Construcción de la Interfaz Oficial del Exchange FIFO (`Exchange.jsx`), Retiro del P2P Antiguo y Conexión Directa con la Billetera
+* **Diagnóstico & Resoluciones de Experiencia de Usuario**:
+  - *Retiro del P2P Antiguo*: Se identificó que la pantalla legacy `p2p.html` mostraba monedas locales fiat (ARS, COP, VES, etc.) y anuncios manuales obsoletos que contradecían el modelo económico oficial 2026 (paridad estricta 1:1 BLUE/USDT). Se eliminaron los enlaces a esa pantalla del menú lateral y de los perfiles.
+  - *Construcción de la Pantalla Oficial del Exchange (`Exchange.jsx` y `Exchange.module.css`)*: Se creó la interfaz oficial en React (Vite SPA) con paridad fija 1 BLUE = 1 USDT. Incluye pestaña de Venta para trabajadores con saldo liberado post-parking, pestaña de Compra con opción inteligente de auto-quema atómica para liquidar deuda RED en 1 solo paso, y visualizador en tiempo real de la Cola FIFO con profundidad de mercado y gestión de cancelaciones.
+  - *Servicio Reactivo (`mockExchangeService.js`)*: Motor de libro de órdenes FIFO que sincroniza compras, ventas, cruces atómicos y protección de Buena Fe en espera de mercado.
+  - *Conexión Directa*: La Billetera React (`Wallet.jsx`) incorpora una barra de accesos directos (*"Vender em Exchange"* y *"Comprar BLUE"*) y el menú lateral enlaza a la ruta `/exchange`.
+* **Impacto Operativo**:
+  - Entrega por primera vez a los usuarios una interfaz gráfica real, intuitiva y de nivel bancario para operar en el Exchange oficial de WintonCoin.
+
+---
+
 ### 2026-09-20 — Arquitectura FinTech & Protocolo WintonCoin: Análisis de Liquidez y Maduración en Opción C: Iliquidez Temporal en Exchange y Protocolo de Vencimiento de Garantías (ANTIGRAVITY-042)
 * **Diagnóstico & Resoluciones Forenses**:
   - *Iliquidez Temporal en Exchange*: Si al invocar `repayWithCollateral()` no existen vendedores de BLUE disponibles, la transacción no revierte ni pierde fondos; los USDT pasan a una orden de compra prioritaria en la cola FIFO del Exchange, otorgando al usuario el estatus protector de "Cobertura de Buena Fe" (cero mora y cero penalizaciones). Al madurar los 30 días de parking de otros trabajadores y entrar ventas de BLUE, el cruce y la quema se ejecutan automáticamente. Si el usuario gana BLUE trabajando mientras espera en cola, el trabajo quema la deuda y la orden de compra se cancela devolviéndole su USDT íntegro.
