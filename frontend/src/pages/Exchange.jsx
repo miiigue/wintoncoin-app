@@ -223,7 +223,7 @@ export default function Exchange() {
               </div>
             </div>
 
-            {/* Opción inteligente: Auto-Quema para pagar deuda RED */}
+            {/* Opción inteligente: Auto-Quema para amortizar compromiso RED */}
             {finState.credit.debtRed > 0 && (
               <label className={styles.burnCheckboxRow}>
                 <input
@@ -232,9 +232,9 @@ export default function Exchange() {
                   onChange={(e) => setAutoBurnRed(e.target.checked)}
                 />
                 <div>
-                  <strong>⚡ Pagar mi Deuda RED al Instante</strong>
+                  <strong>⚡ Amortizar mi Compromiso RED al Instante</strong>
                   <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
-                    Usa los BLUE comprados para cancelar tu deuda de {finState.credit.debtRed.toFixed(2)} RED en una sola transacción sin pasos adicionales.
+                    Usa los BLUE comprados para saldar tu compromiso de {finState.credit.debtRed.toFixed(2)} RED en una sola transacción sin pasos adicionales.
                   </div>
                 </div>
               </label>

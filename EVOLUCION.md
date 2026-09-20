@@ -12,6 +12,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 
+### 2026-09-20 — Frontend React SPA 2026: Actualización de Terminología Oficial en Billetera y Exchange (Cero Deuda / Cero Crédito)
+* **Diagnóstico & Resoluciones**:
+  - *Cumplimiento de Política Cero Deuda / Cero Crédito*: Se erradicaron por completo las palabras "deuda" y "crédito" en todas las vistas de React (`Wallet.jsx` y `Exchange.jsx`), sustituyéndolas por el término oficial institucional: **"Compromiso RED"**.
+  - *Ajuste Exacto de Etiquetas Solicitadas por Miguel*:
+    - "Saldo Total WintonCoin" simplificado a: **"Saldo Total"**.
+    - "Compromisos RED y Línea de Crédito" cambiado a: **"Compromiso y Límite RED"**.
+    - "Deuda RED Activa" cambiado a: **"Compromiso RED"**.
+    - "Límite de Confianza" cambiado a: **"Límite RED Aprobado"**.
+    - "Capacidad Disponible" cambiado a: **"RED Disponible"**.
+    - "Rastreador de Parking (Garantía de 30 Días)" y "2 Lotes Activos" simplificado a: **"BLUE en Parking"**.
+    - En el Exchange: "⚡ Pagar mi Deuda RED al Instante" actualizado a: **"⚡ Amortizar mi Compromiso RED al Instante"**.
+* **Impacto Operativo**:
+  - Unifica la interfaz con la visión legal y económica FinTech 2026: comunicación transparente, positiva y libre de connotaciones de deuda tradicional.
+
+---
+
 ### 2026-09-20 — Seguridad & UX FinTech: Implementación de Auth Guard Inmediato en Head para Redirección a login.html sin Sesión Activa
 * **Diagnóstico & Resoluciones Forenses**:
   - *Causa Raíz del Error*: Al limpiar datos de navegación en el teléfono, el almacenamiento local queda vacío (`token` y `username` nulos). Al abrir el dashboard (`contract_interaction.html`), el script legacy detenía su ejecución con un `return;` tras invocar una alerta modal, dejando el DOM congelado con datos dummy ("Usuario", "0 BLUE iou", "Quedan -- cupos") y sin registrar los eventos del menú hamburguesa ni de cierre de sesión, impidiendo al usuario salir o interactuar.

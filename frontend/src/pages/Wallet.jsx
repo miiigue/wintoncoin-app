@@ -52,7 +52,7 @@ function Wallet() {
       setModalType(null);
       setAmountInput('');
       showToast(
-        `✅ Deuda compensada con éxito. Ganaste +${res.bonusIou.toFixed(2)} BLUE IOU de Bono del Club Winton!`
+        `✅ Compromiso amortizado con éxito. Ganaste +${res.bonusIou.toFixed(2)} BLUE IOU de Bono del Club Winton!`
       );
     } catch (err) {
       alert(err.message || 'Error al procesar la compensación');
@@ -114,7 +114,7 @@ function Wallet() {
         {/* HERO CARD: SALDO TOTAL BLUE & DESGLOSE */}
         <div className={styles.heroCard}>
           <div className={styles.heroHeader}>
-            <span className={styles.heroLabel}>Saldo Total WintonCoin</span>
+            <span className={styles.heroLabel}>Saldo Total</span>
             <span className={styles.gasQuotaBadge}>
               ⛽ Gas Gratis: {computed.gasTxsRemaining} tx hoy
             </span>
@@ -130,7 +130,7 @@ function Wallet() {
               </span>
             </div>
             <div>
-              <span className={styles.subItemLabel}>En Parking de Garantía (30d)</span>
+              <span className={styles.subItemLabel}>BLUE en Parking</span>
               <span className={`${styles.subItemValue} ${styles.parkingColor}`}>
                 {computed.totalParkingBlue.toFixed(2)} BLUE
               </span>
@@ -182,19 +182,19 @@ function Wallet() {
           </Link>
         </div>
 
-        {/* ACCIÓN RÁPIDA: PAGAR DEUDA CON SALDO GANADO (COMPENSACIÓN EN 1 TOQUE) */}
+        {/* ACCIÓN RÁPIDA: COMPENSAR COMPROMISO CON SALDO GANADO (COMPENSACIÓN EN 1 TOQUE) */}
         {credit.debtRed > 0 && computed.totalParkingBlue > 0 && (
           <div className={styles.routeABanner}>
             <div className={styles.routeATitleRow}>
               <span className={styles.routeATitle}>
-                ⚡ Pagar Deuda con mis Ganancias
+                ⚡ Compensar Compromiso con mis Ganancias
               </span>
               {user.tierLevel >= 4 && (
                 <span className={styles.lifoBadge}>Optimización Inteligente LIFO</span>
               )}
             </div>
             <p className={styles.routeADesc}>
-              Tienes una deuda de <strong>{credit.debtRed.toFixed(2)} RED</strong>. Puedes saldarla de inmediato usando tu saldo ganado en tareas sin gastar de tu bolsillo.
+              Tienes un compromiso de <strong>{credit.debtRed.toFixed(2)} RED</strong>. Puedes amortizarlo de inmediato usando tu saldo ganado en tareas sin gastar de tu bolsillo.
               {user.tierLevel >= 4 && ' Por ser Nivel 4, el sistema descuenta tu ingreso más nuevo para proteger el que vence pronto para el Exchange.'}
             </p>
             <button
@@ -204,32 +204,32 @@ function Wallet() {
                 setModalType('routeA');
               }}
             >
-              Liquidar Deuda Ahora en 1 Toque
+              Compensar Compromiso en 1 Toque
             </button>
           </div>
         )}
 
-        {/* SECCIÓN DE DEUDA RED & LÍNEA DE CRÉDITO */}
+        {/* SECCIÓN DE COMPROMISO Y LÍMITE RED */}
         <div className={styles.creditCard}>
           <div className={styles.sectionTitle}>
-            <span>Compromisos RED y Línea de Crédito</span>
+            <span>Compromiso y Límite RED</span>
             <span style={{ fontSize: '0.8rem', color: '#38bdf8' }}>Nivel {user.tierLevel} ({user.tierName})</span>
           </div>
           <div className={styles.creditGrid}>
             <div className={styles.creditBox}>
-              <div className={styles.creditBoxTitle}>Deuda RED Activa</div>
+              <div className={styles.creditBoxTitle}>Compromiso RED</div>
               <div className={`${styles.creditBoxValue} ${styles.debtColor}`}>
                 {credit.debtRed.toFixed(2)} RED
               </div>
             </div>
             <div className={styles.creditBox}>
-              <div className={styles.creditBoxTitle}>Límite de Confianza</div>
+              <div className={styles.creditBoxTitle}>Límite RED Aprobado</div>
               <div className={`${styles.creditBoxValue} ${styles.limitColor}`}>
                 {credit.effectiveLimitRed.toFixed(2)} RED
               </div>
             </div>
             <div className={styles.creditBox}>
-              <div className={styles.creditBoxTitle}>Capacidad Disponible</div>
+              <div className={styles.creditBoxTitle}>RED Disponible</div>
               <div className={`${styles.creditBoxValue} ${styles.unlockedColor}`}>
                 {computed.availableCreditCapacity.toFixed(2)} RED
               </div>
@@ -251,7 +251,7 @@ function Wallet() {
           </div>
           <div className={styles.creditGrid}>
             <div className={styles.creditBox}>
-              <div className={styles.creditBoxTitle}>Pignorado por Deuda Excedente</div>
+              <div className={styles.creditBoxTitle}>Pignorado por Compromiso Excedente</div>
               <div className={styles.creditBoxValue} style={{ color: '#f87171' }}>
                 {computed.pignoratedUsdt.toFixed(2)} USDT
               </div>
@@ -286,11 +286,10 @@ function Wallet() {
           </div>
         </div>
 
-        {/* SECCIÓN RASTREADOR DE PARKING (LOTES EN GARANTÍA DE 30 DÍAS) */}
+        {/* SECCIÓN BLUE EN PARKING */}
         <div className={styles.parkingTrackerCard}>
           <div className={styles.sectionTitle}>
-            <span>Rastreador de Parking (Garantía de 30 Días)</span>
-            <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>{blue.parkingLots.length} Lotes Activos</span>
+            <span>BLUE en Parking</span>
           </div>
           <div className={styles.lotsList}>
             {blue.parkingLots.map((lot) => {
@@ -371,17 +370,17 @@ function Wallet() {
 
       </div>
 
-      {/* MODAL DE PAGO DE DEUDA CON SALDO GANADO */}
+      {/* MODAL DE COMPENSACIÓN DE COMPROMISO CON SALDO GANADO */}
       {modalType === 'routeA' && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <h3 className={styles.modalTitle}>Liquidar Deuda con mis Ganancias</h3>
+            <h3 className={styles.modalTitle}>Compensar Compromiso con mis Ganancias</h3>
             <p className={styles.modalDesc}>
-              Vas a extinguir parte o la totalidad de tu deuda RED usando tu saldo ganado en tareas.
+              Vas a amortizar parte o la totalidad de tu compromiso RED usando tu saldo ganado en tareas.
               {user.tierLevel >= 4 && ' Por beneficio de tu nivel, se descontará tu ingreso más reciente para proteger tu saldo próximo a vencer.'}
             </p>
             <div className={styles.inputGroup}>
-              <label className={styles.inputLabel}>Monto a liquidar (RED / BLUE):</label>
+              <label className={styles.inputLabel}>Monto a amortizar (RED / BLUE):</label>
               <input
                 type="number"
                 className={styles.textInput}
@@ -409,7 +408,7 @@ function Wallet() {
           <div className={styles.modalContent}>
             <h3 className={styles.modalTitle}>Retirar Garantía USDT</h3>
             <p className={styles.modalDesc}>
-              Este monto corresponde a tu capital libre que no está respaldando ninguna deuda. El retiro se transferirá de forma inmediata a tu billetera personal.
+              Este monto corresponde a tu capital libre que no está respaldando ningún compromiso. El retiro se transferirá de forma inmediata a tu billetera personal.
             </p>
             <div className={styles.inputGroup}>
               <label className={styles.inputLabel}>Monto a retirar en USDT:</label>
