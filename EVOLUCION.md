@@ -20,6 +20,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Conexión Directa*: La Billetera React (`Wallet.jsx`) incorpora una barra de accesos directos (*"Vender em Exchange"* y *"Comprar BLUE"*) y el menú lateral enlaza a la ruta `/exchange`.
 * **Impacto Operativo**:
   - Entrega por primera vez a los usuarios una interfaz gráfica real, intuitiva y de nivel bancario para operar en el Exchange oficial de WintonCoin.
+* **Evidencia**: Commit `d3f1999` (rama `demo`). Compilación `build:demo` limpia en `dist-demo/` apuntando a `https://wintoncoin-backend-demo.onrender.com`.
 
 ---
 
