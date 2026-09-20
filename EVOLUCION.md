@@ -12,6 +12,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 
+### 2026-09-20 — Frontend Vite Build & Rutas Estáticas: Solución de 404 en Demo con Creación de wallet.html y exchange.html y Ajuste de Etiquetas en Menú
+* **Diagnóstico & Resoluciones**:
+  - *Causa del Error 404*: En servidores estáticos de producción/demo (como Render/Cloudflare/Nginx), las rutas directas `/exchange` y `/wallet` devolvían 404 al no existir archivos físicos HTML correspondientes registrados en `rollupOptions.input` de Vite.
+  - *Puntos de Entrada Físicos*: Se crearon `frontend/wallet.html` y `frontend/exchange.html` con montaje de React SPA y se registraron formalmente en `frontend/vite.config.js` cumpliendo la regla de actualización obligatoria de Vite.
+  - *Ajuste de Etiquetas Solicitadas por Miguel*:
+    - Se renombró el enlace del Exchange en el menú lateral y perfil a: **`Exchange BLUE/USDT`** con ruta `/exchange.html`.
+    - Se renombró el enlace de la Billetera a: **`Billetera Web3`** (removiendo el iconito) con ruta `/wallet.html`.
+  - *Compilación Demo*: `npm run build:demo` empaquetó exitosamente `dist-demo/wallet.html` y `dist-demo/exchange.html` (código 0).
+* **Impacto Operativo**:
+  - Garantiza navegación estática 100% funcional y sin 404 en cualquier navegador o teléfono móvil en `demo.wintoncoin.com`.
+
+---
+
 ### 2026-09-20 — Frontend React SPA 2026: Construcción de la Interfaz Oficial del Exchange FIFO (`Exchange.jsx`), Retiro del P2P Antiguo y Conexión Directa con la Billetera
 * **Diagnóstico & Resoluciones de Experiencia de Usuario**:
   - *Retiro del P2P Antiguo*: Se identificó que la pantalla legacy `p2p.html` mostraba monedas locales fiat (ARS, COP, VES, etc.) y anuncios manuales obsoletos que contradecían el modelo económico oficial 2026 (paridad estricta 1:1 BLUE/USDT). Se eliminaron los enlaces a esa pantalla del menú lateral y de los perfiles.

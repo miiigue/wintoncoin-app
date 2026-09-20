@@ -113,7 +113,7 @@ export default function Exchange() {
       <div className={styles.innerWrapper}>
         {/* CABECERA SUPERIOR */}
         <div className={styles.exchangeHeader}>
-          <Link to="/wallet" className={styles.backBtn}>
+          <Link to="/wallet.html" className={styles.backBtn}>
             ← Billetera
           </Link>
           <div className={styles.parityBadge}>

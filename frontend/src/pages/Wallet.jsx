@@ -133,7 +133,7 @@ function Wallet() {
         {/* ACCESOS DIRECTOS AL EXCHANGE OFICIAL FIFO */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
           <Link
-            to="/exchange?tab=sell"
+            to="/exchange.html?tab=sell"
             style={{
               background: 'linear-gradient(135deg, #0ea5e9 0%, #0284c7 100%)',
               color: '#ffffff',
@@ -153,7 +153,7 @@ function Wallet() {
             <span>💱</span> Vender en Exchange
           </Link>
           <Link
-            to="/exchange?tab=buy"
+            to="/exchange.html?tab=buy"
             style={{
               background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
               color: '#ffffff',

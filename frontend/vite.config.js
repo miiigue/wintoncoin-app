@@ -127,7 +127,11 @@ export default defineConfig(({ mode }) => ({
         ofrecerAyuda: resolve(__dirname, 'ofrecer-ayuda.html'),
         pedirAyuda: resolve(__dirname, 'pedir-ayuda.html'),
 
-        // P2P
+        // Web3 React SPA 2026 (Oficial)
+        wallet: resolve(__dirname, 'wallet.html'),
+        exchange: resolve(__dirname, 'exchange.html'),
+
+        // P2P Legacy
         p2p: resolve(__dirname, 'p2p.html'),
         p2pHistory: resolve(__dirname, 'p2p-history.html'),
 
