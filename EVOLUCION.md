@@ -18,6 +18,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Ciclo de Vida de la Garantía en Vault*: Durante la vigencia de los compromisos, los 150 USDT se conservan como garantía preventiva; si el usuario paga con su propio trabajo antes de la fecha límite, los 150 USDT se liberan al 100% de inmediato. Si llega la fecha de vencimiento sin pago por trabajo, la garantía pasa automáticamente al Exchange para liquidar la deuda, protegiendo la solvencia del protocolo y saneando al usuario sin cobros destructivos.
 * **Impacto Operativo**:
   - Garantiza la resiliencia del sistema ante fluctuaciones de liquidez y establece el ciclo de vida perfecto del colateral: incentiva el pago por trabajo propio y activa la liquidación protectora solo al vencerse.
+* **Evidencia**: Commit `061ca9f` (rama `demo`). Compilación `build:demo` limpia en `dist-demo/` apuntando a `https://wintoncoin-backend-demo.onrender.com`.
 
 ---
 
