@@ -25,6 +25,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - En el Exchange: "⚡ Pagar mi Deuda RED al Instante" actualizado a: **"⚡ Amortizar mi Compromiso RED al Instante"**.
 * **Impacto Operativo**:
   - Unifica la interfaz con la visión legal y económica FinTech 2026: comunicación transparente, positiva y libre de connotaciones de deuda tradicional.
+* **Evidencia**: Commit `6f1f92f` (rama `demo`). Compilación `build:demo` limpia.
 
 ---
 
