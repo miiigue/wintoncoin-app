@@ -22,6 +22,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Compilación Demo*: `npm run build:demo` empaquetó exitosamente `dist-demo/wallet.html` y `dist-demo/exchange.html` (código 0).
 * **Impacto Operativo**:
   - Garantiza navegación estática 100% funcional y sin 404 en cualquier navegador o teléfono móvil en `demo.wintoncoin.com`.
+* **Evidencia**: Commit `576d3e6` (rama `demo`). Compilación `build:demo` limpia en `dist-demo/wallet.html` y `dist-demo/exchange.html`.
 
 ---
 
