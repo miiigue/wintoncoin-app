@@ -20,6 +20,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Preservación de Destino*: El parámetro `returnTo` permite que, tras iniciar sesión, el usuario vuelva automáticamente a la página que deseaba consultar.
 * **Impacto Operativo**:
   - Elimina de raíz cualquier pantalla rota o congelada por falta de sesión; garantiza una experiencia bancaria profesional idéntica a Binance o Revolut: sin sesión activa, la app abre directamente en el inicio de sesión.
+* **Evidencia**: Commit `656308e` (rama `demo`). Compilación `build:demo` limpia.
 
 ---
 
