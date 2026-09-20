@@ -91,6 +91,12 @@ function Wallet() {
     }
   };
 
+  // Manejo del Reinicio de la Simulación Demo
+  const handleResetDemo = () => {
+    mockFinancialService.resetToDefault();
+    showToast('🔄 Simulación reiniciada a sus valores originales');
+  };
+
   const { user, blue, credit, collateral, computed, transactions } = data;
 
   return (
@@ -100,7 +106,29 @@ function Wallet() {
         {/* ENCABEZADO DE USUARIO & ESTATUS DEL CLUB */}
         <div className={styles.userHeader}>
           <div className={styles.userInfo}>
-            <h2 className={styles.userName}>{user.name}</h2>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
+              <h2 className={styles.userName}>{user.name}</h2>
+              <button
+                onClick={handleResetDemo}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.08)',
+                  border: '1px solid rgba(255, 255, 255, 0.15)',
+                  color: '#94a3b8',
+                  padding: '3px 8px',
+                  borderRadius: '16px',
+                  fontSize: '0.72rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  fontWeight: 600,
+                  transition: 'all 0.2s',
+                }}
+                title="Reiniciar balances y transacciones del simulador"
+              >
+                🔄 Reiniciar Datos
+              </button>
+            </div>
             <div className={styles.smartAccountTag}>
               <span>Smart Account:</span>
               <code>{user.smartAccountAddress}</code>
@@ -236,8 +264,10 @@ function Wallet() {
             </div>
             <div className={styles.creditBox}>
               <div className={styles.creditBoxTitle}>Vencimiento</div>
-              <div className={styles.creditBoxValue} style={{ color: '#fbbf24', fontSize: '1rem' }}>
-                En {credit.daysUntilDue} días
+              <div className={styles.creditBoxValue} style={{ color: '#fbbf24', fontSize: '0.92rem' }}>
+                {credit.debtRed > 0
+                  ? `${(credit.dueAmountRed || credit.debtRed).toFixed(2)} RED en ${credit.daysUntilDue} días`
+                  : 'Al día'}
               </div>
             </div>
           </div>

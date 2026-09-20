@@ -11,6 +11,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 - **Hitos**: cambios grandes que alteran comportamiento, seguridad o arquitectura.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
+- **Impacto**: qué problema resolvió y qué habilita hacer.
+
+---
+
+### 2026-09-20 — Frontend React SPA 2026: Remoción de Footer en Vistas Web3, Formato Detallado de Vencimiento RED y Reinicio de Simulación Mock
+* **Diagnóstico & Resoluciones**:
+  - *Remoción de Footer en Vistas Web3*: En `App.jsx`, las rutas de `/wallet` y `/exchange` se separaron de `MainLayout`, eliminando el footer corporativo y el botón flotante de volver arriba en favor de una experiencia nativa de aplicación financiera (estándar Binance/Uniswap).
+  - *Lógica de Vencimiento Multi-Tramo*: En `Wallet.jsx`, se modificó el bloque de vencimiento para especificar el monto exacto del tramo próximo a expirar: `60.00 RED en 18 días` (en lugar de solo indicar los días), reflejando con precisión que tras el compromiso global coexisten vencimientos individuales.
+  - *Reinicio Instantáneo de Simulación*: Se implementó `resetToDefault()` en `mockFinancialService.js` y un botón interactivo `🔄 Reiniciar Datos` en la cabecera de la Billetera para restablecer balances y transacciones iniciales en 1 toque.
+* **Impacto Operativo**:
+  - Interfaz 100% limpia sin pie de página invasivo y transparencia absoluta en las fechas y montos de vencimiento de compromisos RED.
+
+---
 
 ### 2026-09-20 — Frontend React SPA 2026: Actualización de Terminología Oficial en Billetera y Exchange (Cero Deuda / Cero Crédito)
 * **Diagnóstico & Resoluciones**:

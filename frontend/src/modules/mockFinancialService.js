@@ -15,9 +15,15 @@
 class MockFinancialService {
   constructor() {
     this.listeners = new Set();
+    this.state = this.getInitialState();
+    this.isProcessing = false;
+  }
 
-    // Estado financiero inicial del usuario (Perfil de Demostración Nivel 4)
-    this.state = {
+  /**
+   * Retorna el estado inicial canónico del perfil de prueba para reinicios.
+   */
+  getInitialState() {
+    return {
       user: {
         id: 'usr_789421',
         name: 'Miguel (VIP Tester)',
@@ -53,11 +59,12 @@ class MockFinancialService {
           },
         ],
       },
-      // Línea de Crédito y Compromisos RED
+      // Línea y Compromisos RED
       credit: {
-        effectiveLimitRed: 100.00, // Límite de crédito de confianza Nivel 4
+        effectiveLimitRed: 100.00, // Límite aprobado Nivel 4
         debtRed: 60.00, // Compromisos vivos totales
-        overdueDebtRed: 0.00, // Compromisos formalmente vencidos (en mora)
+        dueAmountRed: 60.00, // Monto del próximo vencimiento
+        overdueDebtRed: 0.00, // Compromisos vencidos
         daysUntilDue: 18,
       },
       // Garantías en USDT (Vault de Colateral)
@@ -84,7 +91,15 @@ class MockFinancialService {
         },
       ],
     };
-    this.isProcessing = false;
+  }
+
+  /**
+   * Reinicia todos los balances y transacciones del simulador a su estado original.
+   */
+  resetToDefault() {
+    this.state = this.getInitialState();
+    this.notify();
+    return this.getCalculatedState();
   }
 
   /**
@@ -379,4 +394,9 @@ class MockFinancialService {
 
 // Instancia singleton para toda la Single Page Application
 export const mockFinancialService = new MockFinancialService();
+
+if (typeof window !== 'undefined') {
+  window.resetFinancialDemo = () => mockFinancialService.resetToDefault();
+}
+
 export default mockFinancialService;

@@ -27,24 +27,18 @@ import Exchange from './pages/Exchange.jsx';
 function App() {
   return (
     <Routes>
-      {/* Vistas con Layout Maestro (Header y Footer globales) */}
+      {/* Vistas Corporativas / Landing con Layout Maestro (Header y Footer globales) */}
       <Route path="/" element={<MainLayout />}>
         <Route index element={<Home />} />
         <Route path="index.html" element={<Home />} />
         <Route path="index" element={<Home />} />
-        <Route path="wallet" element={<Wallet />} />
-        <Route path="wallet.html" element={<Wallet />} />
-        <Route path="exchange" element={<Exchange />} />
-        <Route path="exchange.html" element={<Exchange />} />
       </Route>
 
-      {/* Rutas directas para compatibilidad total con WebView, Service Workers y Servidores */}
-      <Route path="/index.html" element={<MainLayout><Home /></MainLayout>} />
-      <Route path="/index" element={<MainLayout><Home /></MainLayout>} />
-      <Route path="/wallet" element={<MainLayout><Wallet /></MainLayout>} />
-      <Route path="/wallet.html" element={<MainLayout><Wallet /></MainLayout>} />
-      <Route path="/exchange" element={<MainLayout><Exchange /></MainLayout>} />
-      <Route path="/exchange.html" element={<MainLayout><Exchange /></MainLayout>} />
+      {/* Aplicación Web3 FinTech (Billetera & Exchange) - Sin Footer de marketing innecesario */}
+      <Route path="/wallet" element={<Wallet />} />
+      <Route path="/wallet.html" element={<Wallet />} />
+      <Route path="/exchange" element={<Exchange />} />
+      <Route path="/exchange.html" element={<Exchange />} />
 
       {/* Rutas de Autenticación Independientes (Sin Header/Footer) */}
       <Route path="/login" element={<Login />} />
