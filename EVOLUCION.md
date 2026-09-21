@@ -24,6 +24,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Batería de Pruebas*: Creación de `CollateralVault.test.js` con 7 pruebas unitarias aprobadas. Suite global consolidada con 81 pruebas pasando al 100% (`TokensAndTreasury.test.js`, `CollateralVault.test.js`, `WintonFifoExchange.test.js`).
 * **Impacto Operativo**:
   - Bóveda de garantías matemáticamente solvente, no confiscatoria, y lista para integrarse con CoreProtocol V4.
+* **Evidencia**: Commit `664801c` (rama `demo`). 81/81 tests aprobados.
 
 ---
 
