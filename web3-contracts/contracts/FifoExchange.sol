@@ -9,12 +9,12 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
- * @title WintonFifoExchange
+ * @title FifoExchange
  * @notice Fixed-Rate 1:1 FIFO Matching Exchange entre BLUE y USDT (ambos a 6 decimales).
  * @dev Implementación conforme a la especificación formal V3.3.6 con contabilidad de doble entrada,
  * almacenamiento compacto de 3 slots por orden, guardas explícitas de desbordamiento,
- * timelock estricto de 48 horas sin concurrencia. WintonFifoExchange no posee dependencia directa
- * de RED ni de WintonProtocol. El comportamiento interno de los ERC-20 utilizados constituye una
+ * timelock estricto de 48 horas sin concurrencia. FifoExchange no posee dependencia directa
+ * de RED ni de CoreProtocol. El comportamiento interno de los ERC-20 utilizados constituye una
  * dependencia externa de integración y debe respetar las hipótesis de custodia del Exchange.
  *
  * HIPÓTESIS Y SUPUESTOS DE INTEGRACIÓN ERC-20:
@@ -28,7 +28,7 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
  *    - El dominio físico de las órdenes está acotado por type(uint64).max. Cada orden creada
  *      incrementa nextOrderId, impidiendo desbordamiento en blueOrderIds o usdtOrderIds.
  */
-contract WintonFifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
+contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     // =========================================================================

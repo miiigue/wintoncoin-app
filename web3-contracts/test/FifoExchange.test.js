@@ -1,7 +1,7 @@
 const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
-describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)", function () {
+describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)", function () {
     let owner, user1, user2, user3, treasury, attacker;
     let blueToken, usdtToken, redToken, exchange;
     const initialFeeBps = 0; // 0 BPS inicial conforme a V3.3.6
@@ -12,14 +12,14 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
 
         // 1. Desplegar Mocks con 6 decimales exactos
         const MockERC20Factory = await ethers.getContractFactory("MockERC20");
-        blueToken = await MockERC20Factory.deploy("Winton BLUE", "BLUE", 6);
+        blueToken = await MockERC20Factory.deploy("BLUE Token", "BLUE", 6);
         await blueToken.waitForDeployment();
 
         usdtToken = await MockERC20Factory.deploy("Tether USDT", "USDT", 6);
         await usdtToken.waitForDeployment();
 
-        // 2. Desplegar WintonFifoExchange
-        const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+        // 2. Desplegar FifoExchange
+        const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
         exchange = await ExchangeFactory.deploy(
             await blueToken.getAddress(),
             await usdtToken.getAddress(),
@@ -57,7 +57,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
         });
 
         it("Debe revertir si BLUE o USDT tienen dirección zero", async function () {
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             await expect(
                 ExchangeFactory.deploy(ethers.ZeroAddress, await usdtToken.getAddress(), treasury.address, 0)
             ).to.be.revertedWithCustomError(exchange, "ZeroAddress");
@@ -68,21 +68,21 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
         });
 
         it("Debe revertir si BLUE y USDT son el mismo token", async function () {
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             await expect(
                 ExchangeFactory.deploy(await blueToken.getAddress(), await blueToken.getAddress(), treasury.address, 0)
             ).to.be.revertedWithCustomError(exchange, "IdenticalTokens");
         });
 
         it("Debe revertir si la tesorería es address(0) o address(this)", async function () {
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             await expect(
                 ExchangeFactory.deploy(await blueToken.getAddress(), await usdtToken.getAddress(), ethers.ZeroAddress, 0)
             ).to.be.revertedWithCustomError(exchange, "ZeroAddress");
         });
 
         it("Debe revertir si initialFeeBps > MAX_FEE_BPS (500)", async function () {
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             await expect(
                 ExchangeFactory.deploy(await blueToken.getAddress(), await usdtToken.getAddress(), treasury.address, 501)
             ).to.be.revertedWithCustomError(exchange, "FeeExceedsMax");
@@ -93,7 +93,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
             const token18 = await Mock18.deploy("18 Dec", "DEC18", 18);
             await token18.waitForDeployment();
 
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             await expect(
                 ExchangeFactory.deploy(await token18.getAddress(), await usdtToken.getAddress(), treasury.address, 0)
             ).to.be.revertedWithCustomError(exchange, "InvalidDecimals");
@@ -781,7 +781,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
 
         // 3 & 4. Revert ante depósito con discrepancia de monto recibido
         it("3. Revert por depósito que recibe menos de amount en BLUE (DepositAmountMismatch)", async function () {
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             const badExchange = await ExchangeFactory.deploy(
                 await feeTokenMock.getAddress(),
                 await usdtToken.getAddress(),
@@ -797,7 +797,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
         });
 
         it("4. Revert por depósito que recibe menos de amount en USDT (DepositAmountMismatch)", async function () {
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             const badExchange = await ExchangeFactory.deploy(
                 await blueToken.getAddress(),
                 await feeTokenMock.getAddress(),
@@ -893,7 +893,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
 
         // 9. Treasury no puede ser BLUE
         it("9. Treasury no puede ser BLUE (constructor y proposeTreasuryUpdate)", async function () {
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             await expect(
                 ExchangeFactory.deploy(await blueToken.getAddress(), await usdtToken.getAddress(), await blueToken.getAddress(), 0)
             ).to.be.revertedWithCustomError(exchange, "InvalidTreasuryAddress");
@@ -905,7 +905,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
 
         // 10. Treasury no puede ser USDT
         it("10. Treasury no puede ser USDT (constructor y proposeTreasuryUpdate)", async function () {
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             await expect(
                 ExchangeFactory.deploy(await blueToken.getAddress(), await usdtToken.getAddress(), await usdtToken.getAddress(), 0)
             ).to.be.revertedWithCustomError(exchange, "InvalidTreasuryAddress");
@@ -957,7 +957,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
             await reentrantBlue.waitForDeployment();
 
             // Desplegar instancia de Exchange con reentrantBlue y usdtToken normal
-            const ExchangeFactory = await ethers.getContractFactory("WintonFifoExchange");
+            const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
             const attackExchange = await ExchangeFactory.deploy(
                 await reentrantBlue.getAddress(),
                 await usdtToken.getAddress(),
@@ -1039,7 +1039,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
             function validateOfficialDeploymentFee(feeBps) {
                 if (feeBps !== 0) {
                     throw new Error(
-                        `ERROR CRÍTICO: El lanzamiento oficial de WintonCoin exige INITIAL_FEE_BPS = 0 (detectado: ${feeBps} BPS). ` +
+                        `ERROR CRÍTICO: El lanzamiento oficial exige INITIAL_FEE_BPS = 0 (detectado: ${feeBps} BPS). ` +
                         `No se permite desplegar la instancia oficial con comisiones iniciales activas.`
                     );
                 }
@@ -1061,7 +1061,7 @@ describe("WintonFifoExchange — Suite de Pruebas Unitarias y de Integración (V
 
         // 16. Violación de invariante: matchOrders revierte con InvalidMatchAmount si gross == 0
         it("16. matchOrders revierte formalmente con InvalidMatchAmount() si una orden activa tiene gross == 0", async function () {
-            const HarnessFactory = await ethers.getContractFactory("WintonFifoExchangeHarness");
+            const HarnessFactory = await ethers.getContractFactory("FifoExchangeHarness");
             const harness = await HarnessFactory.deploy(
                 await blueToken.getAddress(),
                 await usdtToken.getAddress(),

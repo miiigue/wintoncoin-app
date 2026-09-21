@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "../WintonFifoExchange.sol";
+import "../FifoExchange.sol";
 
 /**
  * @title MockERC20
@@ -134,16 +134,16 @@ contract MockReentrantERC20 is ERC20 {
 }
 
 /**
- * @title WintonFifoExchangeHarness
- * @notice Harness para pruebas adversariales y validación de violaciones de invariantes en WintonFifoExchange.
+ * @title FifoExchangeHarness
+ * @notice Harness para pruebas adversariales y validación de violaciones de invariantes en FifoExchange.
  */
-contract WintonFifoExchangeHarness is WintonFifoExchange {
+contract FifoExchangeHarness is FifoExchange {
     constructor(
         address _blue,
         address _usdt,
         address _treasury,
         uint16 _initialFeeBps
-    ) WintonFifoExchange(_blue, _usdt, _treasury, _initialFeeBps) {}
+    ) FifoExchange(_blue, _usdt, _treasury, _initialFeeBps) {}
 
     function setOrderRemainingAmount(uint64 orderId, uint128 remaining) external {
         orders[orderId].remainingAmount = remaining;

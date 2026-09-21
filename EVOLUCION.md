@@ -15,6 +15,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-21 — Smart Contracts Suite V4: Migración Neutral a FifoExchange y Suite Completa al 100%
+* **Diagnóstico & Resoluciones**:
+  - *FifoExchange V4*: Renombramiento y sanitización completa del motor de intercambio de liquidez fija 1:1, erradicando cualquier término de marca en comentarios, interfaces y nombres de contrato.
+  - *Harness y Mocks Actualizados*: Adaptado `MockERC20.sol` con `FifoExchangeHarness is FifoExchange` para preservar la capacidad de pruebas adversariales y verificación de desbordamientos.
+  - *Suite de Pruebas Preservada Intacta*: `FifoExchange.test.js` ejecutado con éxito total en sus 58 pruebas de prelación FIFO, matching bilateral, poda perezosa, timelocks de 48h y fuzzing por secuencias continuas.
+  - *Consolidación Global de Smart Contracts Suite V4*: Los 5 contratos del protocolo (`BlueToken`, `RedToken`, `ProtocolTreasury`, `CollateralVault`, `CoreProtocol` y `FifoExchange`) quedan 100% operativos, auditados, libres de términos de marca y verificados con 91/91 pruebas aprobadas.
+* **Impacto Operativo**:
+  - La suite de contratos inteligentes queda lista para despliegue en Testnet/Demo con nombres estandarizados y auditabilidad de nivel bancario.
+
+---
+
 ### 2026-09-21 — Smart Contracts Suite V4: Implementación y Verificación de CoreProtocol (Emisión Dual, Agenda Determinista y Poda FIFO)
 * **Diagnóstico & Resoluciones**:
   - *CoreProtocol V4*: Motor central del protocolo implementado con precisión de 6 decimales, muro KYC on-chain, circuit breakers de monto máximo y gobernanza en dos pasos (`Ownable2Step`).
