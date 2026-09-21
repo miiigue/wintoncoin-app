@@ -15,6 +15,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-21 — Smart Contracts Suite V4: Implementación y Verificación de CollateralVault (Garantías Segregadas y Cero Confiscación Arbitraria)
+* **Diagnóstico & Resoluciones**:
+  - *CollateralVault V4*: Bóveda de USDT segregada (6 decimales) bajo estándar OpenZeppelin v5 (`SafeERC20`, `Ownable2Step`, `ReentrancyGuard`, `Pausable`).
+  - *Fórmula Canónica de Cobertura y Retiros*: El retiro de colateral se condiciona exclusivamente a la garantía libre (`getFreeCollateral = max(0, totalDeposited - requiredCollateral)`), permitiendo al usuario retirar excedentes sin requerir saldar la totalidad de los compromisos no vencidos.
+  - *Resolución de la Trampa de Liquidez*: Incorporada la función `repayWithCollateral`, que permite utilizar la garantía depositada para comprar BLUE y amortizar compromisos de forma directa sin exigir depósitos adicionales de efectivo.
+  - *Cero Confiscación Arbitraria*: Sustitución de la función legada `liquidate()` por `liquidateDelinquent`, acotada estrictamente a la morosidad real certificada y con aplicación obligatoria a la extinción del compromiso.
+  - *Batería de Pruebas*: Creación de `CollateralVault.test.js` con 7 pruebas unitarias aprobadas. Suite global consolidada con 81 pruebas pasando al 100% (`TokensAndTreasury.test.js`, `CollateralVault.test.js`, `WintonFifoExchange.test.js`).
+* **Impacto Operativo**:
+  - Bóveda de garantías matemáticamente solvente, no confiscatoria, y lista para integrarse con CoreProtocol V4.
+
+---
+
 ### 2026-09-21 — Smart Contracts Suite V4: Erradicación del Término 'Winton' en Contratos y Funcionalidades
 * **Diagnóstico & Resoluciones**:
   - *Cumplimiento de Directriz Expresa*: Se eliminó toda mención de la palabra 'winton' en contratos, funciones, variables y metadatos de tokens.
