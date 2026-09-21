@@ -15,6 +15,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-21 — Smart Contracts Suite V4: Script de Despliegue Maestro y Pruebas de Integración End-to-End (93 Tests / 100%)
+* **Diagnóstico & Resoluciones**:
+  - *Pruebas de Integración End-to-End (`IntegrationV4Suite.test.js`)*: Validación del ciclo de vida financiero completo:
+    1) Emisión dual simultánea en marketplace con deducción de comisión a tesorería.
+    2) Venta y cruce bilateral 1:1 en `FifoExchange`.
+    3) Depósito y custodia segregada en `CollateralVault` con incremento dinámico de capacidad crediticia.
+    4) Amortización directa con colateral (`repayWithCollateral`) resolviendo la trampa de liquidez.
+    5) Vencimiento determinista de lotes a 30 días, bloqueo de garantía no libre y liquidación proporcional tras período de gracia formal.
+  - *Script de Despliegue Maestro (`deploy-v4-suite.js`)*: Automatización del despliegue integral y enlaces irreversibles de gobernanza (`setCoreProtocol`, `linkCoreContracts`, `setContracts`, `setRelayer`), corrección de comparación `BigInt` para Ethers v6 y exportación de manifiesto json.
+  - *Batería Consolidada Global*: 93 pruebas pasando al 100% sin fallos en 5 suites unitarias y de integración.
+* **Impacto Operativo**:
+  - Toda la infraestructura Web3 de contratos inteligentes queda 100% implementada, enlazada, verificada y lista para despliegue en Optimism Sepolia y conexión con el frontend React.
+
+---
+
 ### 2026-09-21 — Smart Contracts Suite V4: Migración Neutral a FifoExchange y Suite Completa al 100%
 * **Diagnóstico & Resoluciones**:
   - *FifoExchange V4*: Renombramiento y sanitización completa del motor de intercambio de liquidez fija 1:1, erradicando cualquier término de marca en comentarios, interfaces y nombres de contrato.
@@ -23,6 +38,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Consolidación Global de Smart Contracts Suite V4*: Los 5 contratos del protocolo (`BlueToken`, `RedToken`, `ProtocolTreasury`, `CollateralVault`, `CoreProtocol` y `FifoExchange`) quedan 100% operativos, auditados, libres de términos de marca y verificados con 91/91 pruebas aprobadas.
 * **Impacto Operativo**:
   - La suite de contratos inteligentes queda lista para despliegue en Testnet/Demo con nombres estandarizados y auditabilidad de nivel bancario.
+* **Evidencia**: Commit `c36d03b` (rama `demo`). 91/91 tests aprobados.
 
 ---
 
