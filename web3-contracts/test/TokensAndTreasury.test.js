@@ -2,13 +2,13 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
-describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", function () {
-    let owner, protocolSigner, user1, user2, founders;
+describe("Suite V4: Tokens (BLUE, RED) y ProtocolTreasury — Pruebas Unitarias", function () {
+    let owner, protocolSigner, user1, user2, corporateWallet;
     let blueToken, redToken, treasury;
     const ONE_TOKEN = 1_000_000n; // 6 decimales (1 token = 1,000,000 unidades base)
 
     beforeEach(async function () {
-        [owner, protocolSigner, user1, user2, founders] = await ethers.getSigners();
+        [owner, protocolSigner, user1, user2, corporateWallet] = await ethers.getSigners();
 
         // 1. Desplegar BlueToken V4
         const BlueTokenFactory = await ethers.getContractFactory("BlueToken");
@@ -20,13 +20,13 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
         redToken = await RedTokenFactory.deploy();
         await redToken.waitForDeployment();
 
-        // 3. Desplegar WintonTreasury V4 enlazando BlueToken
-        const TreasuryFactory = await ethers.getContractFactory("WintonTreasury");
+        // 3. Desplegar ProtocolTreasury V4 enlazando BlueToken
+        const TreasuryFactory = await ethers.getContractFactory("ProtocolTreasury");
         treasury = await TreasuryFactory.deploy(await blueToken.getAddress());
         await treasury.waitForDeployment();
 
-        // Configurar foundersWallet
-        await treasury.setFoundersWallet(founders.address);
+        // Configurar corporateTreasuryWallet
+        await treasury.setCorporateTreasuryWallet(corporateWallet.address);
     });
 
     // ========================================================================
@@ -34,31 +34,31 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
     // ========================================================================
     describe("BlueToken V4 — Estándar y Reglas de Emisión", function () {
         it("Debe inicializarse con nombre, símbolo y 6 decimales exactos", async function () {
-            expect(await blueToken.name()).to.equal("Winton BLUE");
+            expect(await blueToken.name()).to.equal("BLUE Token");
             expect(await blueToken.symbol()).to.equal("BLUE");
             expect(await blueToken.decimals()).to.equal(6);
             expect(await blueToken.totalSupply()).to.equal(0n);
         });
 
-        it("Permite enlazar WintonProtocol una única vez (Patrón de Bloqueo Inmutable)", async function () {
-            await expect(blueToken.setWintonProtocol(protocolSigner.address))
+        it("Permite enlazar el protocolo central una única vez (Patrón de Bloqueo Inmutable)", async function () {
+            await expect(blueToken.setCoreProtocol(protocolSigner.address))
                 .to.emit(blueToken, "ProtocolSet")
                 .withArgs(protocolSigner.address);
 
-            expect(await blueToken.wintonProtocol()).to.equal(protocolSigner.address);
+            expect(await blueToken.coreProtocol()).to.equal(protocolSigner.address);
             expect(await blueToken.protocolLocked()).to.be.true;
 
             // Intentar reconfigurar debe revertir
-            await expect(blueToken.setWintonProtocol(user1.address))
+            await expect(blueToken.setCoreProtocol(user1.address))
                 .to.be.revertedWith("BLUE: Protocol reference is already locked");
         });
 
         it("Solo el protocolo enlazado puede mintear tokens BLUE", async function () {
-            await blueToken.setWintonProtocol(protocolSigner.address);
+            await blueToken.setCoreProtocol(protocolSigner.address);
 
             // Llamada no autorizada revierte
             await expect(blueToken.connect(user1).mint(user1.address, 100n * ONE_TOKEN))
-                .to.be.revertedWith("BLUE: Unauthorized. Caller is not WintonProtocol");
+                .to.be.revertedWith("BLUE: Unauthorized. Caller is not core protocol");
 
             // Llamada autorizada tiene éxito
             await blueToken.connect(protocolSigner).mint(user1.address, 100n * ONE_TOKEN);
@@ -67,12 +67,12 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
         });
 
         it("Solo el protocolo enlazado puede quemar tokens BLUE", async function () {
-            await blueToken.setWintonProtocol(protocolSigner.address);
+            await blueToken.setCoreProtocol(protocolSigner.address);
             await blueToken.connect(protocolSigner).mint(user1.address, 100n * ONE_TOKEN);
 
             // Quema no autorizada revierte
             await expect(blueToken.connect(user1).burn(user1.address, 40n * ONE_TOKEN))
-                .to.be.revertedWith("BLUE: Unauthorized. Caller is not WintonProtocol");
+                .to.be.revertedWith("BLUE: Unauthorized. Caller is not core protocol");
 
             // Quema autorizada
             await blueToken.connect(protocolSigner).burn(user1.address, 40n * ONE_TOKEN);
@@ -81,7 +81,7 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
         });
 
         it("Permite transferencias ordinarias limpias sin llamadas económicas externas", async function () {
-            await blueToken.setWintonProtocol(protocolSigner.address);
+            await blueToken.setCoreProtocol(protocolSigner.address);
             await blueToken.connect(protocolSigner).mint(user1.address, 100n * ONE_TOKEN);
 
             // Transferencia ordinaria entre user1 y user2
@@ -101,25 +101,25 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
     // ========================================================================
     describe("RedToken V4 — Compromisos No Transferibles", function () {
         it("Debe inicializarse con nombre, símbolo y 6 decimales exactos", async function () {
-            expect(await redToken.name()).to.equal("Winton RED Commitment");
+            expect(await redToken.name()).to.equal("RED Commitment Token");
             expect(await redToken.symbol()).to.equal("RED");
             expect(await redToken.decimals()).to.equal(6);
             expect(await redToken.totalSupply()).to.equal(0n);
         });
 
-        it("Permite enlazar WintonProtocol una única vez y bloquea reconfiguraciones", async function () {
-            await expect(redToken.setWintonProtocol(protocolSigner.address))
+        it("Permite enlazar el protocolo central una única vez y bloquea reconfiguraciones", async function () {
+            await expect(redToken.setCoreProtocol(protocolSigner.address))
                 .to.emit(redToken, "ProtocolSet")
                 .withArgs(protocolSigner.address);
 
             expect(await redToken.protocolLocked()).to.be.true;
 
-            await expect(redToken.setWintonProtocol(user1.address))
+            await expect(redToken.setCoreProtocol(user1.address))
                 .to.be.revertedWith("RED: Protocol reference is already locked");
         });
 
         it("Solo el protocolo puede originar (mintCommitment) y extinguir (burnCommitment)", async function () {
-            await redToken.setWintonProtocol(protocolSigner.address);
+            await redToken.setCoreProtocol(protocolSigner.address);
 
             // Originación autorizada
             await redToken.connect(protocolSigner).mintCommitment(user1.address, 50n * ONE_TOKEN);
@@ -133,13 +133,13 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
 
             // Intentos no autorizados revierten
             await expect(redToken.connect(user1).mintCommitment(user1.address, 10n * ONE_TOKEN))
-                .to.be.revertedWith("RED: Unauthorized. Caller is not WintonProtocol");
+                .to.be.revertedWith("RED: Unauthorized. Caller is not core protocol");
             await expect(redToken.connect(user1).burnCommitment(user1.address, 10n * ONE_TOKEN))
-                .to.be.revertedWith("RED: Unauthorized. Caller is not WintonProtocol");
+                .to.be.revertedWith("RED: Unauthorized. Caller is not core protocol");
         });
 
         it("BLOQUEA transferencias P2P entre usuarios (No transferibilidad estricta)", async function () {
-            await redToken.setWintonProtocol(protocolSigner.address);
+            await redToken.setCoreProtocol(protocolSigner.address);
             await redToken.connect(protocolSigner).mintCommitment(user1.address, 50n * ONE_TOKEN);
 
             // Intento de transferencia directa de user1 a user2
@@ -159,12 +159,12 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
     });
 
     // ========================================================================
-    // PRUEBAS DE WINTONTREASURY V4 (MERKLE CLAIMS Y TIMELOCK 48H)
+    // PRUEBAS DE PROTOCOLTREASURY V4 (MERKLE CLAIMS Y TIMELOCK 48H)
     // ========================================================================
-    describe("WintonTreasury V4 — Distribución Merkle y Timelock de 48h", function () {
+    describe("ProtocolTreasury V4 — Distribución Merkle y Timelock de 48h", function () {
         beforeEach(async function () {
             // Fondear la tesorería con tokens BLUE
-            await blueToken.setWintonProtocol(protocolSigner.address);
+            await blueToken.setCoreProtocol(protocolSigner.address);
             await blueToken.connect(protocolSigner).mint(await treasury.getAddress(), 10_000n * ONE_TOKEN);
         });
 
@@ -229,12 +229,12 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
             await time.increase(2 * 3600);
 
             // 5. Ejecución exitosa
-            const initialFoundersBalance = await blueToken.balanceOf(founders.address);
+            const initialBalance = await blueToken.balanceOf(corporateWallet.address);
             await expect(treasury.executeSurplusWithdrawal())
                 .to.emit(treasury, "SurplusWithdrawalExecuted")
-                .withArgs(founders.address, surplusAmount);
+                .withArgs(corporateWallet.address, surplusAmount);
 
-            expect(await blueToken.balanceOf(founders.address)).to.equal(initialFoundersBalance + surplusAmount);
+            expect(await blueToken.balanceOf(corporateWallet.address)).to.equal(initialBalance + surplusAmount);
         });
 
         it("Permite cancelar una propuesta de retiro activa", async function () {
@@ -243,7 +243,7 @@ describe("Suite V4: Tokens (BLUE, RED) y WintonTreasury — Pruebas Unitarias", 
 
             await expect(treasury.cancelSurplusProposal())
                 .to.emit(treasury, "SurplusWithdrawalCancelled")
-                .withArgs(founders.address, surplusAmount);
+                .withArgs(corporateWallet.address, surplusAmount);
 
             // Avanzar el tiempo
             await time.increase(50 * 3600);

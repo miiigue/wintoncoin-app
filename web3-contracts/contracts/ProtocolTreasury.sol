@@ -9,21 +9,20 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 /**
- * @title WintonTreasury (Bóveda y Tesorería Institucional) - Suite V4
- * @author WintonCoin Protocol Engineering Team
+ * @title ProtocolTreasury (Bóveda y Tesorería Institucional) - Suite V4
  * @notice Administra y custodia las comisiones y fondos de incentivos en tokens BLUE (6 decimales).
  * @dev Diseñado con gobernanza en dos pasos, timelocks inmutables de 48 horas para retiros de excedentes
  * y verificación criptográfica de reclamos de bonos para impulsores (Boosters).
  *
  * ESTÁNDARES DE SEGURIDAD BANCARIA IMPLEMENTADOS:
  * 1. Precisión de 6 Decimales: Integración directa con BlueToken V4 y USDT.
- * 2. Timelock Obligatorio de 48 Horas: Todo retiro de excedentes hacia la tesorería fundadora debe anunciarse
+ * 2. Timelock Obligatorio de 48 Horas: Todo retiro de excedentes hacia la tesorería corporativa debe anunciarse
  *    públicamente on-chain con 48 horas de anticipación antes de poder ejecutarse.
  * 3. Ventana de Caducidad de 7 Días: Si una propuesta de retiro no se ejecuta dentro de su ventana válida, expira.
  * 4. Merkle Proofs Criptográficos: Reclamos de recompensas de impulsores protegidos contra colisiones mediante doble hash.
  * 5. SafeERC20 y ReentrancyGuard en todas las transferencias de fondos.
  */
-contract WintonTreasury is Ownable2Step, ReentrancyGuard, Pausable {
+contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
     // ========================================================================
@@ -47,7 +46,7 @@ contract WintonTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     IERC20 public immutable blueToken;
 
     /// @notice Billetera designada de la entidad fundadora / tesorería corporativa.
-    address public foundersWallet;
+    address public corporateTreasuryWallet;
 
     /// @notice Raíz de Merkle activa del ciclo corriente de recompensas.
     bytes32 public currentMerkleRoot;
@@ -77,8 +76,8 @@ contract WintonTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     /// @notice Emitido al actualizar la raíz de Merkle del ciclo.
     event MerkleRootUpdated(bytes32 indexed oldRoot, bytes32 indexed newRoot);
 
-    /// @notice Emitido al actualizar la dirección de la billetera fundadora.
-    event FoundersWalletUpdated(address indexed oldWallet, address indexed newWallet);
+    /// @notice Emitido al actualizar la dirección de la billetera de tesorería corporativa.
+    event CorporateTreasuryWalletUpdated(address indexed oldWallet, address indexed newWallet);
 
     /// @notice Emitido al proponer un retiro de excedentes sujeto a timelock.
     event SurplusWithdrawalProposed(address indexed recipient, uint256 amount, uint256 eta);
@@ -117,14 +116,14 @@ contract WintonTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     // ========================================================================
 
     /**
-     * @notice Asigna o actualiza la billetera fundadora autorizada para recibir excedentes.
-     * @param _foundersWallet Nueva dirección de tesorería corporativa.
+     * @notice Asigna o actualiza la billetera de tesorería corporativa autorizada para recibir excedentes.
+     * @param _corporateWallet Nueva dirección de tesorería corporativa.
      */
-    function setFoundersWallet(address _foundersWallet) external onlyOwner {
-        require(_foundersWallet != address(0), "Treasury: Cannot set founders wallet to zero address");
-        address old = foundersWallet;
-        foundersWallet = _foundersWallet;
-        emit FoundersWalletUpdated(old, _foundersWallet);
+    function setCorporateTreasuryWallet(address _corporateWallet) external onlyOwner {
+        require(_corporateWallet != address(0), "Treasury: Cannot set corporate wallet to zero address");
+        address old = corporateTreasuryWallet;
+        corporateTreasuryWallet = _corporateWallet;
+        emit CorporateTreasuryWalletUpdated(old, _corporateWallet);
     }
 
     /**
@@ -208,24 +207,24 @@ contract WintonTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     // ========================================================================
 
     /**
-     * @notice Inicia una propuesta de retiro de excedentes hacia la billetera fundadora sujeta a timelock de 48h.
+     * @notice Inicia una propuesta de retiro de excedentes hacia la tesorería corporativa sujeta a timelock de 48h.
      * @param amount Cantidad de BLUE a retirar (6 decimales).
      */
     function proposeSurplusWithdrawal(uint256 amount) external onlyOwner {
-        require(foundersWallet != address(0), "Treasury: Founders wallet not configured");
+        require(corporateTreasuryWallet != address(0), "Treasury: Corporate treasury wallet not configured");
         require(amount > 0, "Treasury: Amount must be greater than zero");
         require(blueToken.balanceOf(address(this)) >= amount, "Treasury: Insufficient funds in treasury");
 
         uint256 eta = block.timestamp + TIMELOCK_DELAY;
         activeSurplusProposal = SurplusWithdrawalProposal({
-            recipient: foundersWallet,
+            recipient: corporateTreasuryWallet,
             amount: amount,
             eta: eta,
             executed: false,
             cancelled: false
         });
 
-        emit SurplusWithdrawalProposed(foundersWallet, amount, eta);
+        emit SurplusWithdrawalProposed(corporateTreasuryWallet, amount, eta);
     }
 
     /**

@@ -15,6 +15,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-21 — Smart Contracts Suite V4: Erradicación del Término 'Winton' en Contratos y Funcionalidades
+* **Diagnóstico & Resoluciones**:
+  - *Cumplimiento de Directriz Expresa*: Se eliminó toda mención de la palabra 'winton' en contratos, funciones, variables y metadatos de tokens.
+  - *Tokens V4 Neutrales*: `BlueToken.sol` renombrado internamente a "BLUE Token" con variable `coreProtocol`, y `RedToken.sol` a "RED Commitment Token" con variable `coreProtocol` y función `setCoreProtocol`.
+  - *Renombramiento de Tesorería*: Se sustituyó `WintonTreasury.sol` por `ProtocolTreasury.sol` con destino corporativo `corporateTreasuryWallet`.
+  - *Verificación de Tests*: Actualizada la suite `TokensAndTreasury.test.js` con 16 pruebas aprobadas y 58 pruebas de `WintonFifoExchange.test.js` aprobadas (74/74 passing).
+* **Impacto Operativo**:
+  - Suite de contratos limpia de términos específicos de marca conforme a la orden del usuario.
+
+---
+
 ### 2026-09-21 — Smart Contracts Suite V4: Redacción y Verificación Unitaria de BlueToken, RedToken y WintonTreasury (6 Decimales)
 * **Diagnóstico & Resoluciones**:
   - *BlueToken V4*: ERC-20 con 6 decimales nativos (`decimals() == 6`), eliminación definitiva de llamadas externas en `_update` para erradicar vectores de reentrancia, control estricto de emisión exclusivo para `WintonProtocol` y gobernanza en dos pasos (`Ownable2Step`).
