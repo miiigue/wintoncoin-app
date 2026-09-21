@@ -15,6 +15,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-21 — Smart Contracts Suite V4: Redacción y Verificación Unitaria de BlueToken, RedToken y WintonTreasury (6 Decimales)
+* **Diagnóstico & Resoluciones**:
+  - *BlueToken V4*: ERC-20 con 6 decimales nativos (`decimals() == 6`), eliminación definitiva de llamadas externas en `_update` para erradicar vectores de reentrancia, control estricto de emisión exclusivo para `WintonProtocol` y gobernanza en dos pasos (`Ownable2Step`).
+  - *RedToken V4*: ERC-20 de 6 decimales no transferible entre usuarios comunes (sobrescritura de `_update` que restringe el movimiento exclusivamente a acuñaciones y quemas autorizadas por `WintonProtocol`), representando formalmente los compromisos crediticios adquiridos.
+  - *WintonTreasury V4*: Adaptación a 6 decimales con `SafeERC20`, distribución de recompensas mediante verificación criptográfica Merkle Proof y retiro de excedentes protegido por timelock inmutable de 48 horas con ventana de caducidad de 7 días.
+  - *Batería de Pruebas*: Creación de `TokensAndTreasury.test.js` con 16 pruebas unitarias exitosas y validación de regresión completa de `WintonFifoExchange.test.js` con 58 pruebas unitarias y fuzzing de invariantes aprobadas (74/74 passing).
+* **Impacto Operativo**:
+  - Base de activos y tesorería 100% estabilizada en 6 decimales, alineada con los estándares bancarios y lista para la integración del Vault y WintonProtocol V4.
+
+---
+
 ### 2026-09-21 — Arquitectura de Vencimientos & Puente: Publicación ANTIGRAVITY-043 (FIFO Puro, Automatización con Ejecutores y Corrección Contable en Mock)
 * **Diagnóstico & Resoluciones**:
   - *Ratificación de Directriz de Miguel (Cero Prioridad)*: Ambas IAs acuerdan formalmente que la cola FIFO es inviolable. Toda orden financiada con garantía o por liquidación de vencimiento entra al final de la cola por orden estricto de llegada, sin adelantar a compradores previos.

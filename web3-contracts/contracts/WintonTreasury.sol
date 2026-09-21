@@ -1,245 +1,262 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
-/// @dev Interfaz mínima del token BLUE para transferencias y consulta de saldo.
-interface IBlueToken {
-    function transfer(address to, uint256 amount) external returns (bool);
-    function balanceOf(address account) external view returns (uint256);
-}
-
 /**
- * @title WintonTreasury (La Bóveda del Ecosistema)
- * @author WintonCoin Protocol Team
- * @notice Bóveda programable que custodia las comisiones en BLUE real.
- * Permite a los Impulsores (Boosters) reclamar sus pagos (IOU -> BLUE)
- * mediante Árboles de Merkle.
+ * @title WintonTreasury (Bóveda y Tesorería Institucional) - Suite V4
+ * @author WintonCoin Protocol Engineering Team
+ * @notice Administra y custodia las comisiones y fondos de incentivos en tokens BLUE (6 decimales).
+ * @dev Diseñado con gobernanza en dos pasos, timelocks inmutables de 48 horas para retiros de excedentes
+ * y verificación criptográfica de reclamos de bonos para impulsores (Boosters).
  *
- * @dev ARQUITECTURA EIP-7702 (Pectra / Isthmus):
- * A diferencia de la versión ERC-2771, este contrato NO necesita un Trusted Forwarder.
- * Con EIP-7702, el Relayer patrocina la transacción y msg.sender es la
- * dirección real del usuario que reclama sus tokens.
- *
- * SEGURIDAD IMPLEMENTADA:
- * - Doble hashing en Merkle Leaf (previene colisiones con abi.encodePacked).
- * - Límite de 200 direcciones por resetClaims (previene DoS por exceso de gas).
- * - ReentrancyGuard en claim() y withdrawSurplus().
- * - Pausable en claim() para emergencias.
- * - Validación de saldo suficiente antes de cada transferencia.
- * - Patrón Check-Effects-Interactions (estado se actualiza ANTES de transferir).
+ * ESTÁNDARES DE SEGURIDAD BANCARIA IMPLEMENTADOS:
+ * 1. Precisión de 6 Decimales: Integración directa con BlueToken V4 y USDT.
+ * 2. Timelock Obligatorio de 48 Horas: Todo retiro de excedentes hacia la tesorería fundadora debe anunciarse
+ *    públicamente on-chain con 48 horas de anticipación antes de poder ejecutarse.
+ * 3. Ventana de Caducidad de 7 Días: Si una propuesta de retiro no se ejecuta dentro de su ventana válida, expira.
+ * 4. Merkle Proofs Criptográficos: Reclamos de recompensas de impulsores protegidos contra colisiones mediante doble hash.
+ * 5. SafeERC20 y ReentrancyGuard en todas las transferencias de fondos.
  */
-contract WintonTreasury is Ownable, ReentrancyGuard, Pausable {
+contract WintonTreasury is Ownable2Step, ReentrancyGuard, Pausable {
+    using SafeERC20 for IERC20;
 
     // ========================================================================
-    // ESTADO
+    // CONSTANTES DE GOBERNANZA Y TIMELOCK
     // ========================================================================
 
-    /// @notice Referencia al contrato del token BLUE para transferencias.
-    IBlueToken public blueToken;
+    /// @notice Período de timelock obligatorio: 48 horas (172,800 segundos).
+    uint256 public constant TIMELOCK_DELAY = 48 hours;
 
-    /// @notice Billetera de los fundadores/empresa para recibir excedentes.
-    address public foundersWallet;
+    /// @notice Ventana de validez para ejecutar una propuesta aprobada: 7 días.
+    uint256 public constant PROPOSAL_VALIDITY_WINDOW = 7 days;
 
-    /// @notice Raíz de Merkle del ciclo actual (define quién puede cobrar y cuánto).
-    bytes32 public currentMerkleRoot;
-
-    /// @notice Límite máximo de direcciones por llamada a resetClaims.
+    /// @notice Límite máximo de direcciones en un lote de reseteo de reclamos mensuales.
     uint256 public constant MAX_RESET_BATCH = 200;
 
-    /// @notice Registro de quién ya cobró en este ciclo (previene doble cobro).
+    // ========================================================================
+    // VARIABLES DE ESTADO
+    // ========================================================================
+
+    /// @notice Contrato oficial del token BLUE (6 decimales).
+    IERC20 public immutable blueToken;
+
+    /// @notice Billetera designada de la entidad fundadora / tesorería corporativa.
+    address public foundersWallet;
+
+    /// @notice Raíz de Merkle activa del ciclo corriente de recompensas.
+    bytes32 public currentMerkleRoot;
+
+    /// @notice Registro de usuarios que ya cobraron en el ciclo de Merkle actual (evita doble reclamo).
     mapping(address => bool) public hasClaimed;
 
+    /// @notice Estructura de propuesta de retiro de excedentes sujeta a timelock.
+    struct SurplusWithdrawalProposal {
+        address recipient;
+        uint256 amount;
+        uint256 eta;
+        bool executed;
+        bool cancelled;
+    }
+
+    /// @notice Propuesta activa de retiro de excedentes.
+    SurplusWithdrawalProposal public activeSurplusProposal;
+
     // ========================================================================
-    // EVENTOS
+    // EVENTOS AUDITABLES
     // ========================================================================
 
-    /// @notice Emitido cuando un Impulsor reclama exitosamente sus BLUE.
-    event ClaimSuccessful(address indexed user, uint256 amount);
+    /// @notice Emitido cuando un impulsor reclama exitosamente su bono BLUE.
+    event BoosterRewardClaimed(address indexed user, uint256 amount);
 
-    /// @notice Emitido cuando el Owner actualiza la raíz de Merkle mensual.
-    event MerkleRootUpdated(bytes32 newRoot);
+    /// @notice Emitido al actualizar la raíz de Merkle del ciclo.
+    event MerkleRootUpdated(bytes32 indexed oldRoot, bytes32 indexed newRoot);
 
-    /// @notice Emitido cuando se configura o cambia la billetera fundadora.
-    event FoundersWalletUpdated(address indexed newWallet);
+    /// @notice Emitido al actualizar la dirección de la billetera fundadora.
+    event FoundersWalletUpdated(address indexed oldWallet, address indexed newWallet);
 
-    /// @notice Emitido cuando el Owner retira excedentes a la billetera fundadora.
-    event SurplusWithdrawn(address indexed to, uint256 amount);
+    /// @notice Emitido al proponer un retiro de excedentes sujeto a timelock.
+    event SurplusWithdrawalProposed(address indexed recipient, uint256 amount, uint256 eta);
 
-    /// @notice Emitido cuando el Owner resetea los estados de cobro.
-    event ClaimsReset(uint256 count);
+    /// @notice Emitido al cancelar una propuesta de retiro de excedentes.
+    event SurplusWithdrawalCancelled(address indexed recipient, uint256 amount);
+
+    /// @notice Emitido al ejecutar exitosamente un retiro de excedentes tras madurar el timelock.
+    event SurplusWithdrawalExecuted(address indexed recipient, uint256 amount);
+
+    /// @notice Emitido al resetear los estados de reclamo para un nuevo ciclo.
+    event ClaimsReset(uint256 accountsReset);
 
     // ========================================================================
     // CONSTRUCTOR
     // ========================================================================
 
     /**
-     * @notice Inicializa la Tesorería con el token BLUE.
-     * @dev Con EIP-7702, no se necesita Trusted Forwarder.
-     * @param _blueToken Dirección del contrato BlueToken desplegado.
+     * @notice Inicializa la tesorería enlazando el token BLUE.
+     * @param _blueToken Dirección verificada del contrato BlueToken V4.
      */
     constructor(address _blueToken) Ownable(msg.sender) {
-        // SEGURIDAD: El token BLUE debe ser una dirección válida.
-        require(_blueToken != address(0), "Treasury: Invalid BlueToken address");
-        blueToken = IBlueToken(_blueToken);
+        require(_blueToken != address(0), "Treasury: Cannot set BlueToken to zero address");
+        blueToken = IERC20(_blueToken);
     }
 
     /**
-     * @notice BLOQUEADO. No se permite renunciar a la propiedad del contrato.
-     * @dev Sobreescribe Ownable.renounceOwnership() para prevenir que el protocolo
-     * quede permanentemente sin administrador. En su lugar, usar transferOwnership()
-     * para migrar el control a un Gnosis Safe (multisig) en producción.
+     * @notice Prohibición estricta de renuncia a la propiedad.
      */
     function renounceOwnership() public pure override {
-        revert("Treasury: Ownership renunciation is disabled");
+        revert("Treasury: Ownership renunciation is permanently disabled");
     }
 
     // ========================================================================
-    // FUNCIONES DE CONFIGURACIÓN (Solo Owner)
+    // GOBERNANZA: CONFIGURACIÓN DE PARÁMETROS
     // ========================================================================
 
     /**
-     * @notice Configura o actualiza la billetera de los fundadores.
-     * @dev Solo el Owner puede ejecutar. Flexible para cambios futuros
-     * (ej: migrar de hot wallet a cold wallet o multisig).
-     * @param _newWallet Dirección de la nueva billetera fundadora.
+     * @notice Asigna o actualiza la billetera fundadora autorizada para recibir excedentes.
+     * @param _foundersWallet Nueva dirección de tesorería corporativa.
      */
-    function setFoundersWallet(address _newWallet) external onlyOwner {
-        // SEGURIDAD: Prevenir configuración a dirección vacía.
-        require(_newWallet != address(0), "Treasury: Invalid zero address");
-        foundersWallet = _newWallet;
-        emit FoundersWalletUpdated(_newWallet);
+    function setFoundersWallet(address _foundersWallet) external onlyOwner {
+        require(_foundersWallet != address(0), "Treasury: Cannot set founders wallet to zero address");
+        address old = foundersWallet;
+        foundersWallet = _foundersWallet;
+        emit FoundersWalletUpdated(old, _foundersWallet);
     }
 
     /**
-     * @notice Actualiza la raíz de Merkle para el ciclo de pagos actual.
-     * @dev Solo el Owner puede ejecutar. El backend calcula la Cascada de Pagos
-     * (Prioridad Humanitaria -> Visionarios -> Pioneros -> Guardianes),
-     * genera el árbol de Merkle y sube la raíz aquí.
-     * @param _merkleRoot Nueva raíz criptográfica del árbol de derechos de cobro.
+     * @notice Establece la nueva raíz de Merkle para la distribución de recompensas del mes.
+     * @param _newRoot Hash raíz del árbol de Merkle generado off-chain y auditado.
      */
-    function setMerkleRoot(bytes32 _merkleRoot) external onlyOwner {
-        currentMerkleRoot = _merkleRoot;
-        emit MerkleRootUpdated(_merkleRoot);
+    function setMerkleRoot(bytes32 _newRoot) external onlyOwner {
+        require(_newRoot != bytes32(0), "Treasury: Invalid zero Merkle root");
+        bytes32 old = currentMerkleRoot;
+        currentMerkleRoot = _newRoot;
+        emit MerkleRootUpdated(old, _newRoot);
     }
 
     /**
-     * @notice Reinicia el estado de cobro para un lote de usuarios (nuevo ciclo mensual).
-     * @dev Solo el Owner puede ejecutar. Limitado a MAX_RESET_BATCH (200) por llamada
-     * para prevenir ataques de DoS por exceso de gas en el bloque.
-     * @param users Array de direcciones cuyos estados de cobro serán reiniciados.
-     */
-    function resetClaims(address[] calldata users) external onlyOwner {
-        // SEGURIDAD: Limitar tamaño del array para prevenir DoS por gas.
-        require(users.length <= MAX_RESET_BATCH, "Treasury: Batch too large (max 200)");
-        
-        // Reiniciar el estado de cobro de cada dirección.
-        for (uint256 i = 0; i < users.length; i++) {
-            hasClaimed[users[i]] = false;
-        }
-        
-        // Registro auditable de la cantidad de resets ejecutados.
-        emit ClaimsReset(users.length);
-    }
-
-    /**
-     * @notice Pausa los reclamos de la Tesorería en caso de emergencia.
+     * @notice Pausa de emergencia para suspender reclamos durante contingencias.
      */
     function pause() external onlyOwner {
         _pause();
     }
 
     /**
-     * @notice Reanuda los reclamos de la Tesorería tras resolver la emergencia.
+     * @notice Reanudación de operaciones normales tras verificar contingencia.
      */
     function unpause() external onlyOwner {
         _unpause();
     }
 
-    // ========================================================================
-    // FUNCIÓN PRINCIPAL: RECLAMO DE IOU -> BLUE (Merkle Claim)
-    // ========================================================================
-
     /**
-     * @notice Permite a un Impulsor reclamar sus BLUE.
-     * @dev Con EIP-7702, msg.sender ES el usuario real (la transacción
-     * es patrocinada por el Relayer, pero msg.sender apunta al EOA del usuario).
-     *
-     * Ejecuta el patrón Check-Effects-Interactions:
-     * 1. CHECK: Verifica que no haya cobrado, que la raíz exista y la prueba sea válida.
-     * 2. EFFECTS: Marca al usuario como "ya cobró" ANTES de transferir.
-     * 3. INTERACTIONS: Transfiere los tokens BLUE al usuario.
-     *
-     * SEGURIDAD: Usa doble hashing (keccak256(bytes.concat(keccak256(abi.encode(...)))))
-     * para prevenir colisiones de segundo preimagen en el árbol de Merkle.
-     *
-     * @param amount Cantidad de BLUE que el usuario tiene derecho a reclamar.
-     * @param merkleProof Prueba criptográfica de inclusión en el árbol de Merkle.
+     * @notice Resetea el registro de reclamos de una lista acotada de usuarios para abrir un nuevo ciclo.
+     * @dev Acotado a MAX_RESET_BATCH (200 direcciones) para garantizar un límite de gas predecible.
+     * @param accounts Arreglo de direcciones a habilitar nuevamente.
      */
-    function claim(uint256 amount, bytes32[] calldata merkleProof) external nonReentrant whenNotPaused {
-        // Con EIP-7702, msg.sender ES la dirección real del usuario.
-        address user = msg.sender;
-        
-        // --- BLOQUE CHECK ---
-
-        // SEGURIDAD: No permitir doble cobro en el mismo ciclo.
-        require(!hasClaimed[user], "Treasury: Already claimed this month");
-
-        // SEGURIDAD: La raíz de Merkle debe estar activa.
-        require(currentMerkleRoot != bytes32(0), "Treasury: Merkle root not set");
-
-        // SEGURIDAD: El monto debe ser positivo.
-        require(amount > 0, "Treasury: Amount must be greater than 0");
-
-        // Construir la "hoja" del árbol de Merkle con doble hashing (estándar OpenZeppelin).
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(user, amount))));
-
-        // Verificar criptográficamente que esta hoja pertenece al árbol autorizado.
-        require(MerkleProof.verify(merkleProof, currentMerkleRoot, leaf), 
-            "Treasury: Invalid Merkle Proof");
-
-        // SEGURIDAD: Verificar que la bóveda tiene suficiente liquidez.
-        require(blueToken.balanceOf(address(this)) >= amount, 
-            "Treasury: Insufficient liquidity");
-
-        // --- BLOQUE EFFECTS (Estado se actualiza ANTES de la transferencia) ---
-
-        // Marcar como cobrado ANTES de transferir (Patrón CEI: previene reentrada).
-        hasClaimed[user] = true;
-
-        // --- BLOQUE INTERACTIONS (Interacción externa DESPUÉS de actualizar estado) ---
-
-        // Transferir los tokens BLUE reales a la billetera del Impulsor.
-        require(blueToken.transfer(user, amount), "Treasury: Transfer failed");
-
-        // Registro auditable del reclamo exitoso.
-        emit ClaimSuccessful(user, amount);
+    function resetClaims(address[] calldata accounts) external onlyOwner {
+        require(accounts.length > 0 && accounts.length <= MAX_RESET_BATCH, "Treasury: Batch size invalid");
+        for (uint256 i = 0; i < accounts.length; i++) {
+            hasClaimed[accounts[i]] = false;
+        }
+        emit ClaimsReset(accounts.length);
     }
 
     // ========================================================================
-    // FUNCIÓN DE RETIRO DE EXCEDENTES (Solo Owner)
+    // DISTRIBUCIÓN DE RECOMPENSAS MERKLE (BOOSTERS)
     // ========================================================================
 
     /**
-     * @notice Retira excedentes de ganancias a la billetera de los fundadores.
-     * @dev Solo el Owner puede ejecutar. Solo debe usarse DESPUÉS de que todos
-     * los Impulsores del ciclo hayan tenido oportunidad de reclamar.
-     * @param amount Cantidad de BLUE a retirar como ganancia neta.
+     * @notice Permite a un impulsor o usuario autorizado reclamar sus tokens BLUE acumulados.
+     * @dev Utiliza el patrón Check-Effects-Interactions (CEI) y verificación estricta de Merkle Proof.
+     * @param amount Cantidad exacta de BLUE a reclamar (6 decimales).
+     * @param merkleProof Prueba criptográfica de pertenencia al árbol de Merkle activo.
      */
-    function withdrawSurplus(uint256 amount) external onlyOwner nonReentrant {
-        // SEGURIDAD: La billetera fundadora debe estar configurada.
-        require(foundersWallet != address(0), "Treasury: Founders wallet not set");
+    function claimBoosterReward(uint256 amount, bytes32[] calldata merkleProof)
+        external
+        nonReentrant
+        whenNotPaused
+    {
+        address user = msg.sender;
 
-        // SEGURIDAD: Debe haber fondos suficientes para el retiro.
-        require(blueToken.balanceOf(address(this)) >= amount, "Treasury: Insufficient funds");
-        
-        // Transferir los excedentes a la billetera fundadora.
-        require(blueToken.transfer(foundersWallet, amount), "Treasury: Transfer failed");
+        // 1. CHECKS
+        require(!hasClaimed[user], "Treasury: Reward already claimed for this period");
+        require(currentMerkleRoot != bytes32(0), "Treasury: Active Merkle root is not set");
+        require(amount > 0, "Treasury: Amount must be greater than zero");
 
-        // Registro auditable del retiro ejecutado.
-        emit SurplusWithdrawn(foundersWallet, amount);
+        // Construcción de la hoja con doble hashing para neutralizar colisiones de longitud
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(user, amount))));
+        require(MerkleProof.verify(merkleProof, currentMerkleRoot, leaf), "Treasury: Invalid Merkle proof");
+
+        uint256 vaultBalance = blueToken.balanceOf(address(this));
+        require(vaultBalance >= amount, "Treasury: Insufficient BLUE liquidity in treasury");
+
+        // 2. EFFECTS
+        hasClaimed[user] = true;
+
+        // 3. INTERACTIONS
+        blueToken.safeTransfer(user, amount);
+
+        emit BoosterRewardClaimed(user, amount);
+    }
+
+    // ========================================================================
+    // RETIRO DE EXCEDENTES CON TIMELOCK DE 48 HORAS
+    // ========================================================================
+
+    /**
+     * @notice Inicia una propuesta de retiro de excedentes hacia la billetera fundadora sujeta a timelock de 48h.
+     * @param amount Cantidad de BLUE a retirar (6 decimales).
+     */
+    function proposeSurplusWithdrawal(uint256 amount) external onlyOwner {
+        require(foundersWallet != address(0), "Treasury: Founders wallet not configured");
+        require(amount > 0, "Treasury: Amount must be greater than zero");
+        require(blueToken.balanceOf(address(this)) >= amount, "Treasury: Insufficient funds in treasury");
+
+        uint256 eta = block.timestamp + TIMELOCK_DELAY;
+        activeSurplusProposal = SurplusWithdrawalProposal({
+            recipient: foundersWallet,
+            amount: amount,
+            eta: eta,
+            executed: false,
+            cancelled: false
+        });
+
+        emit SurplusWithdrawalProposed(foundersWallet, amount, eta);
+    }
+
+    /**
+     * @notice Cancela una propuesta de retiro de excedentes activa antes o durante el timelock.
+     */
+    function cancelSurplusProposal() external onlyOwner {
+        require(activeSurplusProposal.eta > 0, "Treasury: No active proposal");
+        require(!activeSurplusProposal.executed, "Treasury: Proposal already executed");
+        require(!activeSurplusProposal.cancelled, "Treasury: Proposal already cancelled");
+
+        activeSurplusProposal.cancelled = true;
+        emit SurplusWithdrawalCancelled(activeSurplusProposal.recipient, activeSurplusProposal.amount);
+    }
+
+    /**
+     * @notice Ejecuta un retiro de excedentes una vez transcurridas las 48 horas de timelock y dentro de la ventana de 7 días.
+     */
+    function executeSurplusWithdrawal() external onlyOwner nonReentrant {
+        SurplusWithdrawalProposal storage prop = activeSurplusProposal;
+
+        require(prop.eta > 0, "Treasury: No proposal exists");
+        require(!prop.executed, "Treasury: Proposal already executed");
+        require(!prop.cancelled, "Treasury: Proposal was cancelled");
+        require(block.timestamp >= prop.eta, "Treasury: Timelock period has not elapsed yet (48h)");
+        require(block.timestamp <= prop.eta + PROPOSAL_VALIDITY_WINDOW, "Treasury: Proposal has expired (7 days)");
+        require(blueToken.balanceOf(address(this)) >= prop.amount, "Treasury: Insufficient funds at execution");
+
+        prop.executed = true;
+
+        blueToken.safeTransfer(prop.recipient, prop.amount);
+
+        emit SurplusWithdrawalExecuted(prop.recipient, prop.amount);
     }
 }

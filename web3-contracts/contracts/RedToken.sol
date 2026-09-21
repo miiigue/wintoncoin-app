@@ -2,111 +2,146 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable2Step.sol";
 
 /**
- * @title RedToken (Winton RED Debt)
- * @author WintonCoin Protocol Team
- * @notice Representación on-chain de la deuda en el ecosistema WintonCoin.
- * @dev A diferencia del BLUE, el RED NO es transferible entre usuarios.
- * Solo puede ser creado (cuando asumes deuda) o destruido (auto-amortización).
- * Los tokens RED se cancelan automáticamente al recibir BLUE (Materia-Antimateria).
- *
- * SEGURIDAD:
- * - transfer() y transferFrom() están permanentemente bloqueados (revert).
- * - approve() está bloqueado para prevenir ataques de allowance sobre deuda.
- * - La dirección del Protocolo se asigna UNA SOLA VEZ (inmutable post-configuración).
- * - Solo WintonProtocol puede mintear o quemar deuda.
+ * @title RedToken (Winton RED Commitment) - Suite V4
+ * @author WintonCoin Protocol Engineering Team
+ * @notice Representación contable on-chain de los compromisos adquiridos en el ecosistema WintonCoin.
+ * @dev Diseñado para Optimism Sepolia y L2 con precisión de 6 decimales.
+ * 
+ * REGLAS NORMATIVAS Y DE SEGURIDAD BANCARIA:
+ * 1. Precisión de 6 Decimales: Idéntica a BLUE y USDT para preservar la equivalencia 1:1 en la amortización.
+ * 2. No Transferibilidad Estricta: Se prohíbe cualquier transferencia de compromisos entre usuarios (P2P).
+ *    Los compromisos pertenecen a la identidad/wallet que originó la obligación y solo pueden ser
+ *    creados (mint en originación) o extinguidos (burn en amortización/compensación).
+ * 3. Control de Emisión Exclusivo: Únicamente el contrato `WintonProtocol` puede emitir o destruir tokens RED.
+ * 4. Gobernanza en Dos Pasos (Ownable2Step) y Prohibición de Renuncia para proteger la administración del contrato.
  */
-contract RedToken is ERC20, Ownable {
+contract RedToken is ERC20, Ownable2Step {
 
-    /// @notice Dirección del contrato WintonProtocol autorizado para mintear/quemar deuda.
+    // ========================================================================
+    // VARIABLES DE ESTADO
+    // ========================================================================
+
+    /// @notice Dirección del contrato WintonProtocol autorizado para originar y amortizar compromisos.
     address public wintonProtocol;
 
-    /// @notice Bandera de seguridad: true = el protocolo ya fue configurado y es irreversible.
+    /// @notice Bandera de bloqueo inmutable: true indica que el protocolo fue asignado y no puede ser alterado.
     bool public protocolLocked;
 
-    /// @notice Evento auditable emitido al configurar el protocolo por única vez.
+    // ========================================================================
+    // EVENTOS AUDITABLES
+    // ========================================================================
+
+    /// @notice Evento emitido al registrar de forma definitiva la dirección de WintonProtocol.
+    /// @param protocol Dirección del contrato WintonProtocol enlazado.
     event ProtocolSet(address indexed protocol);
 
-    /// @notice Constructor del token de deuda. No mintea suministro inicial (Balance Cero).
-    constructor() ERC20("Winton RED Debt", "RED") Ownable(msg.sender) {}
+    // ========================================================================
+    // MODIFICADORES DE CONTROL DE ACCESO
+    // ========================================================================
 
-    /**
-     * @notice BLOQUEADO. No se permite renunciar a la propiedad del contrato.
-     * @dev Sobreescribe Ownable.renounceOwnership() para prevenir que el protocolo
-     * quede permanentemente sin administrador. En su lugar, usar transferOwnership()
-     * para migrar el control a un Gnosis Safe (multisig) en producción.
-     */
-    function renounceOwnership() public pure override {
-        revert("RED: Ownership renunciation is disabled");
-    }
-
-    /**
-     * @notice Asigna la dirección del Motor Principal. IRREVERSIBLE.
-     * @dev Solo puede llamarse una vez por el Owner. Patrón de Bloqueo Irreversible.
-     * @param _protocol Dirección del contrato WintonProtocol desplegado.
-     */
-    function setWintonProtocol(address _protocol) external onlyOwner {
-        // SEGURIDAD: Solo se permite configurar una vez.
-        require(!protocolLocked, "RED: Protocol already locked");
-        // SEGURIDAD: Prevenir configuración a dirección vacía.
-        require(_protocol != address(0), "RED: Invalid zero address");
-        
-        // Asignar y bloquear permanentemente.
-        wintonProtocol = _protocol;
-        protocolLocked = true;
-        
-        // Registro auditable.
-        emit ProtocolSet(_protocol);
-    }
-
-    /// @dev Modificador que restringe funciones exclusivamente al WintonProtocol.
+    /// @dev Modificador que restringe la ejecución exclusivamente a WintonProtocol.
     modifier onlyProtocol() {
-        require(msg.sender == wintonProtocol, "RED: Unauthorized. Only WintonProtocol");
+        require(msg.sender == wintonProtocol, "RED: Unauthorized. Caller is not WintonProtocol");
         _;
     }
 
+    // ========================================================================
+    // CONSTRUCTOR
+    // ========================================================================
+
     /**
-     * @notice Asigna deuda al usuario (Mintea RED).
-     * @dev Solo WintonProtocol puede llamar esta función durante processPayment().
-     * @param to Dirección del deudor que recibirá la deuda.
-     * @param amount Cantidad de deuda a asignar (en wei, 18 decimales).
+     * @notice Constructor del token RED.
+     * @dev Asigna el nombre oficial "Winton RED Commitment" y símbolo "RED". No acuña suministro inicial.
      */
-    function mintDebt(address to, uint256 amount) external onlyProtocol {
+    constructor() ERC20("Winton RED Commitment", "RED") Ownable(msg.sender) {}
+
+    // ========================================================================
+    // CONFIGURACIÓN DE DECIMALES (ESTÁNDAR FINTECH)
+    // ========================================================================
+
+    /**
+     * @notice Sobrescribe la precisión predeterminada a 6 decimales para paridad exacta con BLUE y USDT.
+     * @return 6 Número de decimales exactos del token.
+     */
+    function decimals() public pure override returns (uint8) {
+        return 6;
+    }
+
+    // ========================================================================
+    // GOBERNANZA Y ENLACE DE CONTRATOS
+    // ========================================================================
+
+    /**
+     * @notice Enlaza permanentemente el contrato WintonProtocol. Operación irreversible.
+     * @dev Solo puede ser ejecutado una única vez por el Propietario (o Multisig).
+     * @param _protocol Dirección del contrato WintonProtocol desplegado.
+     */
+    function setWintonProtocol(address _protocol) external onlyOwner {
+        require(!protocolLocked, "RED: Protocol reference is already locked");
+        require(_protocol != address(0), "RED: Cannot set protocol to zero address");
+
+        wintonProtocol = _protocol;
+        protocolLocked = true;
+
+        emit ProtocolSet(_protocol);
+    }
+
+    /**
+     * @notice Prohibición estricta de renunciar a la propiedad del contrato.
+     */
+    function renounceOwnership() public pure override {
+        revert("RED: Ownership renunciation is permanently disabled");
+    }
+
+    // ========================================================================
+    // REGLA DE NO TRANSFERIBILIDAD (BARRERA ANTI-EVASIÓN)
+    // ========================================================================
+
+    /**
+     * @notice Gancho interno de actualización de transferencias bajo OpenZeppelin v5.
+     * @dev Bloquea todas las transferencias de compromisos entre usuarios comunes.
+     * Solo se permiten:
+     * 1. Acuñación (Minting): `from == address(0)` (WintonProtocol originando un compromiso).
+     * 2. Quema (Burning): `to == address(0)` (WintonProtocol amortizando un compromiso).
+     * Cualquier intento de transferir saldo RED a otra wallet revierte de inmediato.
+     * @param from Dirección de origen del movimiento.
+     * @param to Dirección de destino del movimiento.
+     * @param value Cantidad de tokens en movimiento.
+     */
+    function _update(address from, address to, uint256 value) internal override {
+        require(
+            from == address(0) || to == address(0),
+            "RED: Commitment tokens are strictly non-transferable between accounts"
+        );
+        super._update(from, to, value);
+    }
+
+    // ========================================================================
+    // FUNCIONES OPERATIVAS EXCLUSIVAS DE WINTON PROTOCOL
+    // ========================================================================
+
+    /**
+     * @notice Asigna un compromiso RED a un deudor durante la originación de un pago de marketplace.
+     * @dev Solo ejecutable por WintonProtocol.
+     * @param to Dirección del usuario que adquiere el compromiso.
+     * @param amount Monto exacto del compromiso en unidades base de 6 decimales.
+     */
+    function mintCommitment(address to, uint256 amount) external onlyProtocol {
+        require(to != address(0), "RED: Cannot mint commitment to zero address");
         _mint(to, amount);
     }
 
     /**
-     * @notice Cancela deuda del usuario (Quema RED) durante auto-amortización.
-     * @dev Solo WintonProtocol puede llamar esta función.
-     * @param from Dirección del deudor cuya deuda será reducida.
-     * @param amount Cantidad de deuda a cancelar (en wei, 18 decimales).
+     * @notice Extingue y destruye compromisos RED al momento de la amortización, pago con trabajo o compensación.
+     * @dev Solo ejecutable por WintonProtocol.
+     * @param from Dirección del usuario cuyo compromiso es saldado.
+     * @param amount Monto exacto del compromiso a extinguir (6 decimales).
      */
-    function burnDebt(address from, uint256 amount) external onlyProtocol {
+    function burnCommitment(address from, uint256 amount) external onlyProtocol {
+        require(from != address(0), "RED: Cannot burn commitment from zero address");
         _burn(from, amount);
-    }
-
-    /**
-     * @notice BLOQUEADO. La deuda no se puede transferir a otro usuario.
-     * @dev Previene que un deudor escape de su responsabilidad enviando 
-     * su deuda a una billetera desechable o a un tercero inocente.
-     */
-    function transfer(address, uint256) public pure override returns (bool) {
-        revert("RED: Debt tokens are non-transferable");
-    }
-
-    /// @notice BLOQUEADO. Previene transferencias delegadas de deuda.
-    function transferFrom(address, address, uint256) public pure override returns (bool) {
-        revert("RED: Debt tokens are non-transferable");
-    }
-
-    /**
-     * @notice BLOQUEADO. No se permite aprobar allowances sobre deuda.
-     * @dev Previene un vector de ataque donde un contrato malicioso podría
-     * manipular la deuda de un usuario mediante approve + transferFrom.
-     */
-    function approve(address, uint256) public pure override returns (bool) {
-        revert("RED: Debt tokens cannot be approved");
     }
 }
