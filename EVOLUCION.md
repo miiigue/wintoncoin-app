@@ -24,6 +24,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Batería de Pruebas*: Creación de `CoreProtocol.test.js` con 10 pruebas unitarias aprobadas. Suite global consolidada con 91 pruebas aprobadas al 100% (`CoreProtocol.test.js`, `CollateralVault.test.js`, `TokensAndTreasury.test.js`, `WintonFifoExchange.test.js`).
 * **Impacto Operativo**:
   - El motor central de la plataforma queda 100% operativo, auditable bajo SOC 2 y listo para la interacción completa de punta a punta.
+* **Evidencia**: Commit `2eae680` (rama `demo`). 91/91 tests aprobados.
 
 ---
 
