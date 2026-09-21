@@ -22,6 +22,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Corrección de `overdueDebtRed` en Mock*: Se remediaron `repayWithRouteA` y `repayWithCollateral` en `mockFinancialService.js` para que reduzcan prioritariamente `overdueDebtRed`, permitiendo la correcta liberación de la garantía en Vault al saldar la deuda.
 * **Impacto Operativo**:
   - Consenso técnico blindado entre Antigravity y Codex; simulación frontend libre de inconsistencias contables.
+* **Evidencia**: Commit `a9af84b` (rama `demo`). Compilación `build:demo` limpia.
 
 ---
 
