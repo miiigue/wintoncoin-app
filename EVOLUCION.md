@@ -23,6 +23,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Verificación de Tests*: Actualizada la suite `TokensAndTreasury.test.js` con 16 pruebas aprobadas y 58 pruebas de `WintonFifoExchange.test.js` aprobadas (74/74 passing).
 * **Impacto Operativo**:
   - Suite de contratos limpia de términos específicos de marca conforme a la orden del usuario.
+* **Evidencia**: Commit `e9d4845` (rama `demo`). 74/74 tests aprobados.
 
 ---
 
