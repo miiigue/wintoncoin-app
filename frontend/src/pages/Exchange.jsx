@@ -126,6 +126,7 @@ export default function Exchange() {
           </Link>
           <div className={styles.parityBadge}>
             <span className={styles.pulseDot}></span>
+            <img src="/assets/icons/icon-64x64.png" alt="BLUE" style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'contain', verticalAlign: 'middle', marginRight: '4px' }} />
             <span>1 BLUE = 1.00 USDT</span>
           </div>
         </div>
@@ -217,7 +218,7 @@ export default function Exchange() {
                   style={{ color: '#38bdf8' }}
                 />
                 <div className={styles.tokenBadge}>
-                  <span className={styles.tokenIconBlue}>💎</span>
+                  <img src="/assets/icons/icon-64x64.png" alt="BLUE" className={styles.tokenLogoImg} />
                   <span>BLUE</span>
                 </div>
               </div>
@@ -262,7 +263,7 @@ export default function Exchange() {
               disabled={isSubmitting || parsedAmount <= 0}
               onClick={handleBuy}
             >
-              {isSubmitting ? 'Procesando en Optimism...' : autoBurnRed ? 'Comprar y Liquidar Deuda RED' : 'Comprar BLUE'}
+              {isSubmitting ? 'Procesando en Optimism...' : autoBurnRed ? 'Comprar y Amortizar Compromiso RED' : 'Comprar BLUE'}
             </button>
           </div>
         )}
@@ -289,7 +290,7 @@ export default function Exchange() {
                   onChange={(e) => setAmountInput(e.target.value)}
                 />
                 <div className={styles.tokenBadge}>
-                  <span className={styles.tokenIconBlue}>💎</span>
+                  <img src="/assets/icons/icon-64x64.png" alt="BLUE" className={styles.tokenLogoImg} />
                   <span>BLUE</span>
                 </div>
               </div>

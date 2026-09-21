@@ -15,6 +15,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-20 — Frontend React SPA 2026: Integración del Logo Oficial del Token BLUE y Actualización de Etiqueta a 'USDT en Garantía'
+* **Diagnóstico & Resoluciones**:
+  - *Identidad Visual Oficial de Tokens*: Se sustituyó el emoji genérico 💎 por los assets oficiales de la moneda BLUE (`/assets/icons/icon-64x64.png`) en el Exchange (selector de compra, selector de venta y píldora de paridad superior) y en la Billetera (balance principal y desglose de lotes de Parking).
+  - *Etiqueta Institucional en Bóveda USDT*: Se actualizó la caja de la Bóveda de Garantías en `Wallet.jsx` a **"USDT en Garantía"** (reemplazando "Pignorado por Compromiso Excedente").
+  - *Eliminación de Residuos de Terminología*: En el botón de acción del Exchange con auto-quema se ajustó el texto a: **"Comprar y Amortizar Compromiso RED"**.
+* **Impacto Operativo**:
+  - Apariencia profesional de exchange institucional cripto y terminología transparente sin tecnicismos legales intimidantes como "pignoración".
+
+---
+
 ### 2026-09-20 — Frontend React SPA 2026: Remoción de Footer en Vistas Web3, Formato Detallado de Vencimiento RED y Reinicio de Simulación Mock
 * **Diagnóstico & Resoluciones**:
   - *Remoción de Footer en Vistas Web3*: En `App.jsx`, las rutas de `/wallet` y `/exchange` se separaron de `MainLayout`, eliminando el footer corporativo y el botón flotante de volver arriba en favor de una experiencia nativa de aplicación financiera (estándar Binance/Uniswap).

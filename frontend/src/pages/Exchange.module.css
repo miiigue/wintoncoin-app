@@ -204,6 +204,14 @@
   color: #38bdf8;
 }
 
+.tokenLogoImg {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: contain;
+  vertical-align: middle;
+}
+
 .tokenIconUsdt {
   color: #10b981;
 }

@@ -147,8 +147,11 @@ function Wallet() {
               ⛽ Gas Gratis: {computed.gasTxsRemaining} tx hoy
             </span>
           </div>
-          <div className={styles.mainBalance}>
-            {computed.totalBlueBalance.toFixed(2)} <span style={{ fontSize: '1.25rem', color: '#94a3b8' }}>BLUE</span>
+          <div className={styles.mainBalance} style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <img src="/assets/icons/icon-64x64.png" alt="BLUE" style={{ width: '36px', height: '36px', borderRadius: '50%', objectFit: 'contain' }} />
+            <span>
+              {computed.totalBlueBalance.toFixed(2)} <span style={{ fontSize: '1.25rem', color: '#94a3b8' }}>BLUE</span>
+            </span>
           </div>
           <div className={styles.balanceSubrow}>
             <div>
@@ -281,7 +284,7 @@ function Wallet() {
           </div>
           <div className={styles.creditGrid}>
             <div className={styles.creditBox}>
-              <div className={styles.creditBoxTitle}>Pignorado por Compromiso Excedente</div>
+              <div className={styles.creditBoxTitle}>USDT en Garantía</div>
               <div className={styles.creditBoxValue} style={{ color: '#f87171' }}>
                 {computed.pignoratedUsdt.toFixed(2)} USDT
               </div>
@@ -328,7 +331,10 @@ function Wallet() {
                 <div key={lot.id} className={styles.lotItem}>
                   <div className={styles.lotHeader}>
                     <span className={styles.lotTitle}>{lot.taskTitle}</span>
-                    <span className={styles.lotAmount}>+{lot.amount.toFixed(2)} BLUE</span>
+                    <span className={styles.lotAmount} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <img src="/assets/icons/icon-64x64.png" alt="BLUE" style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'contain' }} />
+                      +{lot.amount.toFixed(2)} BLUE
+                    </span>
                   </div>
                   <div className={styles.progressBarContainer}>
                     <div
