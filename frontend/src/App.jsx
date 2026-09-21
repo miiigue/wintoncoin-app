@@ -7,6 +7,7 @@ import Register from './pages/Register.jsx';
 import ForgotPassword from './pages/ForgotPassword.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Exchange from './pages/Exchange.jsx';
+import AdminWeb3Panel from './pages/AdminWeb3Panel.jsx';
 
 /**
  * ============================================================================
@@ -39,6 +40,12 @@ function App() {
       <Route path="/wallet.html" element={<Wallet />} />
       <Route path="/exchange" element={<Exchange />} />
       <Route path="/exchange.html" element={<Exchange />} />
+
+      {/* Panel Administrativo Web3 y Gobernanza de Smart Contracts V4 */}
+      <Route path="/admin/web3" element={<AdminWeb3Panel />} />
+      <Route path="/admin/contracts" element={<AdminWeb3Panel />} />
+      <Route path="/admin-contracts.html" element={<AdminWeb3Panel />} />
+      <Route path="/admin-web3.html" element={<AdminWeb3Panel />} />
 
       {/* Rutas de Autenticación Independientes (Sin Header/Footer) */}
       <Route path="/login" element={<Login />} />

@@ -15,6 +15,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-21 — Frontend & Backend: Panel Administrativo Web3 V4, Gobernanza y Conexiones de Prueba
+* **Diagnóstico & Resoluciones**:
+  - *Panel Administrativo React (`AdminWeb3Panel.jsx` & `AdminWeb3Panel.module.css`)*: Construcción de la interfaz de control integral de contratos inteligentes bajo arquitectura React SPA con diseño dark glassmorphism ultra-premium, 100% responsive:
+    1) Directorio en vivo de los 5 contratos V4 y USDT con copia rápida y enlaces.
+    2) Gobernanza on-chain: Asignación de límites de crédito RED, aprobación/revocación de KYC on-chain, ajuste de Circuit Breaker (monto máximo por tx), calibración de comisión BPS y parada de emergencia (Pause/Unpause) para CoreProtocol y CollateralVault.
+    3) Auditor 360° on-chain de billeteras: Inspección en tiempo real de saldos BLUE, compromisos RED, colateral libre vs pignorado en bóveda, capacidad disponible, garantía exigible, estatus de morosidad y lotes de deuda individuales con fechas de vencimiento.
+    4) Laboratorio de pruebas (Sandbox): Faucet de USDT de prueba, simulación de pagos de marketplace con emisión dual pareada 1:1, y forzado de cruce FIFO (`matchOrders`).
+  - *Controlador y Rutas Backend (`adminWeb3Controller.js`, `adminRoutes.js`, `web3Routes.js`)*: Endpoints protegidos con `verifyAdminToken` y auditoría inmutable SOC 2 (`logAuditEvent`), más rutas públicas para consultas de billetera y faucet.
+  - *Servicio de Puente (`web3BridgeService.js`)*: Actualizado a la Suite V4 con precisión de 6 decimales, carga dinámica de direcciones desde `deployment-manifest-v4.json` y métodos de gobernanza/prueba.
+  - *Compilación Limpia*: Frontend compilado exitosamente con Vite (`npm run build:demo`, 104 módulos, 0 errores).
+* **Impacto Operativo**:
+  - Los administradores y testers disponen de una interfaz completa y moderna en React para gestionar, calibrar y auditar la economía Web3 del protocolo sin depender de consolas de desarrollador.
+
+---
+
 ### 2026-09-21 — Smart Contracts Suite V4: Script de Despliegue Maestro y Pruebas de Integración End-to-End (93 Tests / 100%)
 * **Diagnóstico & Resoluciones**:
   - *Pruebas de Integración End-to-End (`IntegrationV4Suite.test.js`)*: Validación del ciclo de vida financiero completo:
@@ -27,6 +42,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Batería Consolidada Global*: 93 pruebas pasando al 100% sin fallos en 5 suites unitarias y de integración.
 * **Impacto Operativo**:
   - Toda la infraestructura Web3 de contratos inteligentes queda 100% implementada, enlazada, verificada y lista para despliegue en Optimism Sepolia y conexión con el frontend React.
+* **Evidencia**: Commit `b443d98` (rama `demo`). 93/93 tests aprobados.
 
 ---
 

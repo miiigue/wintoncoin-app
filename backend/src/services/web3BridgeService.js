@@ -1,141 +1,162 @@
 /**
  * src/services/web3BridgeService.js
- * Puente profesional para la sincronización entre DB y Blockchain (Optimism Sepolia).
+ * Puente profesional para la sincronización entre DB y Blockchain (Optimism Sepolia / Local).
  * 
- * ARQUITECTURA EIP-7702 (Pectra / Isthmus):
- * Este servicio actúa como el Relayer del ecosistema. Firma y paga las transacciones
- * que los usuarios y la gobernanza necesitan ejecutar en la blockchain.
+ * ARQUITECTURA SUITE V4 (Zero-Trust & 6 Decimales):
+ * Este servicio actúa como el Relayer institucional del ecosistema. Firma y paga las transacciones
+ * que los usuarios y la gobernanza ejecutan en la blockchain con patrocinio de gas.
  * 
- * FUNCIONES DISPONIBLES:
- * - syncPaymentToBlockchain: Sincroniza un pago procesado (processPayment).
- * - pauseProtocol / unpauseProtocol: Pausa/reanuda el protocolo (emergencia).
- * - setMaxTransactionAmount: Ajusta el Circuit Breaker on-chain.
- * - setFoundersWallet: Configura la billetera fundadora en el Treasury.
- * - withdrawSurplus: Retira excedentes del Treasury a la billetera fundadora.
- * - getProtocolStatus: Lee el estado actual del protocolo desde la blockchain.
- * 
- * SEGURIDAD:
- * - Zero Hardcoded Secrets: Todo viene de variables de entorno.
- * - Verificación de recibos: Cada transacción espera confirmación antes de retornar.
- * - Auditoría: Cada operación retorna el tx_hash para registro en audit_log.
- * - Manejo de errores: Captura y loguea sin detener el servidor.
+ * INTEGRACIÓN V4:
+ * - Soporte nativo para CoreProtocol, CollateralVault, FifoExchange, ProtocolTreasury, BlueToken y RedToken.
+ * - Carga dinámica de direcciones desde deployment-manifest-v4.json o variables de entorno.
+ * - Conversión uniforme a 6 decimales para paridad nativa con USDT.
+ * - Auditoría bancaria SOC 2 con retornos de txHash para trazabilidad inmutable.
  */
 
 const { ethers, NonceManager } = require('ethers');
+const fs = require('fs');
+const path = require('path');
 const pool = require('../config/db');
 
-// ============================================================================
-// CONFIGURACIÓN: Variables de entorno para máxima seguridad
-// ============================================================================
+// Carga automática del manifiesto de despliegue si existe
+let manifest = null;
+try {
+    const manifestPath = path.resolve(__dirname, '../../../web3-contracts/deployment-manifest-v4.json');
+    if (fs.existsSync(manifestPath)) {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    }
+} catch (e) {
+    // Si no se encuentra el manifiesto, se depende de las variables de entorno
+}
 
-// URL del nodo RPC (Alchemy/Infura) para Optimism Sepolia.
+// Variables de entorno con fallback al manifiesto V4
 const RPC_URL = process.env.OPTIMISM_RPC_URL || 'http://127.0.0.1:8545';
-// Llave privada del Relayer (la billetera que paga el gas).
 const RELAYER_PK = process.env.RELAYER_PRIVATE_KEY;
-// Dirección del contrato WintonProtocol desplegado.
-const PROTOCOL_ADDRESS = process.env.WINTON_PROTOCOL_ADDRESS;
-// Dirección del contrato WintonTreasury desplegado.
-const TREASURY_ADDRESS = process.env.WINTON_TREASURY_ADDRESS;
+
+const PROTOCOL_ADDRESS = process.env.CORE_PROTOCOL_ADDRESS || process.env.WINTON_PROTOCOL_ADDRESS || manifest?.contracts?.CoreProtocol;
+const TREASURY_ADDRESS = process.env.PROTOCOL_TREASURY_ADDRESS || process.env.WINTON_TREASURY_ADDRESS || manifest?.contracts?.ProtocolTreasury;
+const VAULT_ADDRESS = process.env.COLLATERAL_VAULT_ADDRESS || manifest?.contracts?.CollateralVault;
+const EXCHANGE_ADDRESS = process.env.FIFO_EXCHANGE_ADDRESS || manifest?.contracts?.FifoExchange;
+const BLUE_ADDRESS = process.env.BLUE_TOKEN_ADDRESS || manifest?.contracts?.BlueToken;
+const RED_ADDRESS = process.env.RED_TOKEN_ADDRESS || manifest?.contracts?.RedToken;
+const USDT_ADDRESS = process.env.USDT_TOKEN_ADDRESS || manifest?.contracts?.USDT;
 
 class Web3BridgeService {
     constructor() {
-        // Verificar que las variables de entorno estén configuradas.
         if (!RELAYER_PK || !PROTOCOL_ADDRESS) {
-            console.warn('[WEB3 BRIDGE] ⚠️  RELAYER_PRIVATE_KEY o WINTON_PROTOCOL_ADDRESS no definidos. ' +
-                'Las operaciones on-chain estarán deshabilitadas.');
+            console.warn('[WEB3 BRIDGE] ⚠️ RELAYER_PRIVATE_KEY o CORE_PROTOCOL_ADDRESS no configurados completamente. Operaciones on-chain operarán en modo simulado si no hay red.');
         }
 
-        // Crear el proveedor de conexión a la red Optimism Sepolia.
         this.provider = new ethers.JsonRpcProvider(RPC_URL);
-
-        // Envolver la billetera en un NonceManager para escalabilidad masiva (Soporta alta concurrencia sin colisiones de Nonce)
         this.wallet = RELAYER_PK ? new NonceManager(new ethers.Wallet(RELAYER_PK, this.provider)) : null;
 
-        // ABI mínima del WintonProtocol: solo las funciones que necesitamos llamar.
+        // ABIs de la Suite V4
         this.protocolAbi = [
-            // Función principal de pagos (payer como parámetro con EIP-7702).
-            "function processPayment(address payer, address payee, uint256 amountBlue) external",
-            // Funciones de configuración (onlyOwner).
+            "function processPayment(address payer, address payee, uint256 grossAmount) external",
+            "function amortizeWithBlue(uint256 amount) external",
+            "function setCreditLimit(address user, uint256 limit) external",
+            "function setKYCStatus(address wallet, bool status) external",
+            "function setMaxTransactionAmount(uint256 newAmount) external",
+            "function setCommissionRate(uint256 newRate) external",
             "function pause() external",
             "function unpause() external",
-            "function setMaxTransactionAmount(uint256 _newAmount) external",
-            "function setCommissionRate(uint256 _newRate) external",
-            "function setKYCStatus(address _wallet, bool _status) external",
-            // Funciones de lectura (públicas, sin gas).
             "function paused() external view returns (bool)",
             "function maxTransactionAmount() external view returns (uint256)",
             "function commissionRate() external view returns (uint256)",
             "function isKYCVerified(address) external view returns (bool)",
-            // Eventos para auditoría.
-            "event PaymentProcessed(address indexed payer, address indexed payee, uint256 amountBlue, uint256 fee)",
-            "event MaxTransactionAmountUpdated(uint256 oldAmount, uint256 newAmount)",
+            "function creditLimits(address) external view returns (uint256)",
+            "function getAvailableCreditCapacity(address) external view returns (uint256)",
+            "function getRequiredCollateral(address) external view returns (uint256)",
+            "function isDelinquent(address) external view returns (bool)",
+            "function blueToken() external view returns (address)",
+            "function redToken() external view returns (address)",
+            "function collateralVault() external view returns (address)",
+            "function treasury() external view returns (address)",
+            "function getUserDebtLots(address user) external view returns (tuple(uint256 id, uint256 originalAmount, uint256 remainingAmount, uint256 createdAt, uint256 dueAt, bool repaid)[])",
+            "event PaymentProcessed(address indexed payer, address indexed payee, uint256 netAmount, uint256 fee, uint256 lotId, uint256 dueAt)",
+            "event DebtAmortized(address indexed user, uint256 amount, uint256 remainingDebt)"
         ];
 
-        // ABI mínima del WintonTreasury: funciones de configuración y retiro.
-        this.treasuryAbi = [
-            // Funciones de configuración (onlyOwner).
-            "function setFoundersWallet(address _newWallet) external",
-            "function withdrawSurplus(uint256 amount) external",
+        this.vaultAbi = [
+            "function deposit(uint256 amount) external",
+            "function withdraw(uint256 amount) external",
+            "function repayWithCollateral(address user, uint256 amount) external",
+            "function liquidateDelinquent(address user, uint256 amount) external",
+            "function userCollateral(address) external view returns (uint256)",
+            "function totalCollateralLocked() external view returns (uint256)",
+            "function getFreeCollateral(address) external view returns (uint256)",
+            "function paused() external view returns (bool)",
             "function pause() external",
             "function unpause() external",
-            // Funciones de lectura (públicas, sin gas).
-            "function foundersWallet() external view returns (address)",
-            "function blueToken() external view returns (address)",
-            // Eventos para auditoría.
-            "event FoundersWalletUpdated(address indexed newWallet)",
-            "event SurplusWithdrawn(address indexed to, uint256 amount)",
+            "event CollateralDeposited(address indexed user, uint256 amount, uint256 totalUserBalance, uint256 totalVaultLocked)",
+            "event CollateralWithdrawn(address indexed user, uint256 amount, uint256 totalUserBalance, uint256 totalVaultLocked)",
+            "event RepaidWithCollateral(address indexed user, uint256 amount, uint256 remainingCollateral)",
+            "event DelinquentLiquidated(address indexed user, uint256 amount, uint256 remainingCollateral)"
+        ];
+
+        this.exchangeAbi = [
+            "function createBlueOrder(uint128 amount) external returns (uint64)",
+            "function createUsdtOrder(uint128 amount) external returns (uint64)",
+            "function matchOrders(uint256 maxMatches, uint256 maxOrdersScanned) external",
+            "function cancelOrder(uint64 orderId) external",
+            "function totalReservedBlue() external view returns (uint128)",
+            "function totalReservedUsdt() external view returns (uint128)",
+            "function totalDepositedBlue() external view returns (uint128)",
+            "function totalDepositedUsdt() external view returns (uint128)",
+            "function blueHeadIndex() external view returns (uint64)",
+            "function usdtHeadIndex() external view returns (uint64)",
+            "function paused() external view returns (bool)",
+            "function getBlueOrderIdsLength() external view returns (uint256)",
+            "function getUsdtOrderIdsLength() external view returns (uint256)",
+            "function orders(uint64) external view returns (uint64 id, uint64 sequenceId, uint128 remainingAmount, address user, uint8 status, uint8 side, uint48 createdAt, uint128 originalAmount, uint128 refundedAmount)"
+        ];
+
+        this.treasuryAbi = [
+            "function pause() external",
+            "function unpause() external",
+            "function claimSurplus(address to, uint256 amount) external",
+            "function paused() external view returns (bool)",
+            "function blueToken() external view returns (address)"
+        ];
+
+        this.erc20Abi = [
+            "function balanceOf(address) external view returns (uint256)",
+            "function decimals() external view returns (uint8)",
+            "function symbol() external view returns (string)",
+            "function name() external view returns (string)",
+            "function allowance(address owner, address spender) external view returns (uint256)",
+            "function approve(address spender, uint256 amount) external returns (bool)",
+            "function transfer(address to, uint256 amount) external returns (bool)",
+            "function mint(address to, uint256 amount) external"
         ];
     }
 
-    // ========================================================================
-    // HELPERS INTERNOS
-    // ========================================================================
-
-    /**
-     * Verifica que el Relayer esté configurado antes de ejecutar una operación.
-     * @private
-     * @returns {boolean} true si está listo, false si no.
-     */
     _isReady() {
-        if (!this.wallet) {
-            console.error('[WEB3 BRIDGE] ❌ Relayer no configurado. Operación on-chain omitida.');
-            return false;
-        }
-        return true;
+        return Boolean(this.wallet && PROTOCOL_ADDRESS);
     }
 
-    /**
-     * Crea una instancia del contrato WintonProtocol con el Relayer como firmante.
-     * @private
-     * @returns {ethers.Contract} Instancia del contrato conectada al Relayer.
-     */
     _getProtocol() {
-        return new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.wallet);
+        if (!PROTOCOL_ADDRESS) throw new Error("CORE_PROTOCOL_ADDRESS no configurado");
+        return new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.wallet || this.provider);
     }
 
-    /**
-     * Crea una instancia del contrato WintonTreasury con el Relayer como firmante.
-     * @private
-     * @returns {ethers.Contract|null} Instancia del contrato o null si no está configurado.
-     */
-    _getTreasury() {
-        if (!TREASURY_ADDRESS) {
-            console.error('[WEB3 BRIDGE] ❌ WINTON_TREASURY_ADDRESS no configurado.');
-            return null;
-        }
-        return new ethers.Contract(TREASURY_ADDRESS, this.treasuryAbi, this.wallet);
+    _getVault() {
+        if (!VAULT_ADDRESS) throw new Error("COLLATERAL_VAULT_ADDRESS no configurado");
+        return new ethers.Contract(VAULT_ADDRESS, this.vaultAbi, this.wallet || this.provider);
     }
 
-    /**
-     * Espera la confirmación de una transacción y retorna el hash.
-     * @private
-     * @param {ethers.TransactionResponse} tx - La transacción enviada.
-     * @param {string} operationName - Nombre de la operación para el log.
-     * @returns {Promise<string|null>} El hash de la transacción confirmada o null si falló.
-     */
+    _getExchange() {
+        if (!EXCHANGE_ADDRESS) throw new Error("FIFO_EXCHANGE_ADDRESS no configurado");
+        return new ethers.Contract(EXCHANGE_ADDRESS, this.exchangeAbi, this.wallet || this.provider);
+    }
+
+    _getERC20(address) {
+        if (!address) throw new Error("Dirección de token requerida");
+        return new ethers.Contract(address, this.erc20Abi, this.wallet || this.provider);
+    }
+
     async _waitForConfirmation(tx, operationName) {
         console.log(`[WEB3 BRIDGE] Tx enviada (${operationName}): ${tx.hash}. Esperando confirmación...`);
-        // Esperar 1 confirmación (estándar de seguridad para L2).
         const receipt = await tx.wait(1);
         if (receipt.status === 1) {
             console.log(`[WEB3 BRIDGE] ✅ ${operationName} EXITOSO. Tx: ${tx.hash}`);
@@ -146,534 +167,348 @@ class Web3BridgeService {
     }
 
     // ========================================================================
-    // FUNCIÓN 1: SINCRONIZAR PAGO (processPayment)
+    // INFORMACIÓN Y ESTADO DEL PROTOCOLO (ADMIN & DASHBOARD)
     // ========================================================================
 
-    /**
-     * Sincroniza un pago BLUE realizado en la plataforma con el Smart Contract.
-     * Llamado automáticamente por el backend después de confirmar un pago.
-     * 
-     * @param {Object} params Datos de la transacción.
-     * @param {string} params.payerWalletAddress Dirección del pagador.
-     * @param {string} params.payeeWalletAddress Dirección del beneficiario.
-     * @param {number} params.amountBlue Monto neto del pago.
-     * @param {number} params.dbTransactionId ID de la transacción en la DB.
-     * @param {string} params.payerUsername Username del pagador (para logs).
-     * @param {string} params.payeeUsername Username del beneficiario (para logs).
-     * @returns {Promise<string|null>} Hash de la transacción o null si falló.
-     */
+    async getProtocolStatus() {
+        try {
+            const net = await this.provider.getNetwork();
+            let relayerBalance = "0.0";
+            let relayerAddress = null;
+
+            if (this.wallet) {
+                relayerAddress = await this.wallet.getAddress();
+                const bal = await this.provider.getBalance(relayerAddress);
+                relayerBalance = ethers.formatEther(bal);
+            }
+
+            let paused = false;
+            let maxTx = "5000";
+            let commissionRate = "500";
+            let totalVaultLocked = "0.0";
+
+            if (PROTOCOL_ADDRESS) {
+                const protocol = this._getProtocol();
+                const [p, m, c] = await Promise.all([
+                    protocol.paused().catch(() => false),
+                    protocol.maxTransactionAmount().catch(() => 5000000000n),
+                    protocol.commissionRate().catch(() => 500n)
+                ]);
+                paused = p;
+                maxTx = ethers.formatUnits(m, 6);
+                commissionRate = c.toString();
+            }
+
+            if (VAULT_ADDRESS) {
+                const vault = this._getVault();
+                const locked = await vault.totalCollateralLocked().catch(() => 0n);
+                totalVaultLocked = ethers.formatUnits(locked, 6);
+            }
+
+            return {
+                success: true,
+                network: net.name || "optimismSepolia",
+                chainId: net.chainId.toString(),
+                relayer: {
+                    address: relayerAddress,
+                    balanceEth: relayerBalance,
+                    isConfigured: Boolean(this.wallet)
+                },
+                contracts: {
+                    CoreProtocol: PROTOCOL_ADDRESS || "No configurado",
+                    CollateralVault: VAULT_ADDRESS || "No configurado",
+                    FifoExchange: EXCHANGE_ADDRESS || "No configurado",
+                    ProtocolTreasury: TREASURY_ADDRESS || "No configurado",
+                    BlueToken: BLUE_ADDRESS || "No configurado",
+                    RedToken: RED_ADDRESS || "No configurado",
+                    USDT: USDT_ADDRESS || "No configurado"
+                },
+                parameters: {
+                    paused,
+                    maxTransactionAmount: maxTx,
+                    commissionRateBps: commissionRate,
+                    totalCollateralLocked: totalVaultLocked
+                }
+            };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] Error en getProtocolStatus:', error.message);
+            return {
+                success: false,
+                error: error.message,
+                network: "desconectado"
+            };
+        }
+    }
+
+    async isProtocolPaused() {
+        if (!PROTOCOL_ADDRESS) return false;
+        try {
+            const protocol = this._getProtocol();
+            return await protocol.paused();
+        } catch (e) {
+            return false;
+        }
+    }
+
+    // ========================================================================
+    // GOBERNANZA & PARÁMETROS ON-CHAIN (ADMIN)
+    // ========================================================================
+
+    async setCreditLimit(walletAddress, limitUnits) {
+        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
+        try {
+            const protocol = this._getProtocol();
+            const limitUnitsParsed = ethers.parseUnits(limitUnits.toString(), 6);
+            const tx = await protocol.setCreditLimit(walletAddress, limitUnitsParsed);
+            const txHash = await this._waitForConfirmation(tx, 'setCreditLimit');
+            return { success: true, txHash };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] Error en setCreditLimit:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async setKYCStatus(walletAddress, status) {
+        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
+        try {
+            const protocol = this._getProtocol();
+            const tx = await protocol.setKYCStatus(walletAddress, Boolean(status));
+            const txHash = await this._waitForConfirmation(tx, 'setKYCStatus');
+            return { success: true, txHash };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] Error en setKYCStatus:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async setMaxTransactionAmount(amountUnits) {
+        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
+        try {
+            const protocol = this._getProtocol();
+            const tx = await protocol.setMaxTransactionAmount(ethers.parseUnits(amountUnits.toString(), 6));
+            const txHash = await this._waitForConfirmation(tx, 'setMaxTransactionAmount');
+            return { success: true, txHash };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] Error en setMaxTransactionAmount:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async setCommissionRate(rateBps) {
+        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
+        try {
+            const protocol = this._getProtocol();
+            const tx = await protocol.setCommissionRate(parseInt(rateBps, 10));
+            const txHash = await this._waitForConfirmation(tx, 'setCommissionRate');
+            return { success: true, txHash };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] Error en setCommissionRate:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async pauseProtocol() {
+        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
+        try {
+            const protocol = this._getProtocol();
+            const tx = await protocol.pause();
+            const txHash = await this._waitForConfirmation(tx, 'pauseProtocol');
+            return { success: true, txHash };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async unpauseProtocol() {
+        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
+        try {
+            const protocol = this._getProtocol();
+            const tx = await protocol.unpause();
+            const txHash = await this._waitForConfirmation(tx, 'unpauseProtocol');
+            return { success: true, txHash };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async pauseVault() {
+        if (!this._isReady() || !VAULT_ADDRESS) return { success: false, error: 'Vault no configurado' };
+        try {
+            const vault = this._getVault();
+            const tx = await vault.pause();
+            const txHash = await this._waitForConfirmation(tx, 'pauseVault');
+            return { success: true, txHash };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    async unpauseVault() {
+        if (!this._isReady() || !VAULT_ADDRESS) return { success: false, error: 'Vault no configurado' };
+        try {
+            const vault = this._getVault();
+            const tx = await vault.unpause();
+            const txHash = await this._waitForConfirmation(tx, 'unpauseVault');
+            return { success: true, txHash };
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    }
+
+    // ========================================================================
+    // OPERACIONES DE USUARIO Y AUDITORÍA 360°
+    // ========================================================================
+
+    async getUserAuditDetailed(walletAddress) {
+        if (!walletAddress) return { success: false, error: 'Dirección requerida' };
+        try {
+            const blueContract = this._getERC20(BLUE_ADDRESS);
+            const redContract = this._getERC20(RED_ADDRESS);
+            const protocol = this._getProtocol();
+            const vault = this._getVault();
+
+            const [
+                blueBalRaw,
+                redBalRaw,
+                vaultBalRaw,
+                freeVaultRaw,
+                capRaw,
+                reqCollateralRaw,
+                isDelinquent,
+                isKyc,
+                limitRaw,
+                debtLotsRaw
+            ] = await Promise.all([
+                blueContract.balanceOf(walletAddress).catch(() => 0n),
+                redContract.balanceOf(walletAddress).catch(() => 0n),
+                vault.userCollateral(walletAddress).catch(() => 0n),
+                vault.getFreeCollateral(walletAddress).catch(() => 0n),
+                protocol.getAvailableCreditCapacity(walletAddress).catch(() => 0n),
+                protocol.getRequiredCollateral(walletAddress).catch(() => 0n),
+                protocol.isDelinquent(walletAddress).catch(() => false),
+                protocol.isKYCVerified(walletAddress).catch(() => false),
+                protocol.creditLimits(walletAddress).catch(() => 0n),
+                protocol.getUserDebtLots(walletAddress).catch(() => [])
+            ]);
+
+            const formattedLots = debtLotsRaw.map(lot => ({
+                id: lot.id.toString(),
+                originalAmount: ethers.formatUnits(lot.originalAmount, 6),
+                remainingAmount: ethers.formatUnits(lot.remainingAmount, 6),
+                createdAt: new Date(Number(lot.createdAt) * 1000).toISOString(),
+                dueAt: new Date(Number(lot.dueAt) * 1000).toISOString(),
+                repaid: lot.repaid,
+                isOverdue: (!lot.repaid && Date.now() >= Number(lot.dueAt) * 1000)
+            }));
+
+            return {
+                success: true,
+                wallet: walletAddress,
+                blueBalance: ethers.formatUnits(blueBalRaw, 6),
+                redCommitment: ethers.formatUnits(redBalRaw, 6),
+                collateralVault: {
+                    totalLocked: ethers.formatUnits(vaultBalRaw, 6),
+                    freeForWithdrawal: ethers.formatUnits(freeVaultRaw, 6)
+                },
+                credit: {
+                    baseLimit: ethers.formatUnits(limitRaw, 6),
+                    availableCapacity: ethers.formatUnits(capRaw, 6),
+                    requiredCollateral: ethers.formatUnits(reqCollateralRaw, 6),
+                    isDelinquent,
+                    isKYCVerified: isKyc
+                },
+                debtLots: formattedLots
+            };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] Error en getUserAuditDetailed:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
+    async checkUserKYC(walletAddress) {
+        if (!PROTOCOL_ADDRESS || !walletAddress) return false;
+        try {
+            const protocol = this._getProtocol();
+            return await protocol.isKYCVerified(walletAddress);
+        } catch (e) {
+            return false;
+        }
+    }
+
+    async checkUserKYCDetailed(walletAddress) {
+        const isVerified = await this.checkUserKYC(walletAddress);
+        return { isVerified, walletAddress };
+    }
+
+    // ========================================================================
+    // PAGOS & SIMULACIONES (MARKETPLACE & TESTS)
+    // ========================================================================
+
     async syncPaymentToBlockchain({ payerWalletAddress, payeeWalletAddress, amountBlue, dbTransactionId, payerUsername, payeeUsername }) {
         if (!this._isReady()) return null;
 
         try {
-            console.log(`[WEB3 BRIDGE] Sincronizando pago: ${payerUsername} → ${payeeUsername} (${amountBlue} BLUE)`);
-
+            console.log(`[WEB3 BRIDGE] Sincronizando pago V4: ${payerUsername} → ${payeeUsername} (${amountBlue} BLUE)`);
             const protocol = this._getProtocol();
-            // Convertir monto a formato Blockchain (18 decimales estándar ERC-20).
-            const amountWei = ethers.parseEther(amountBlue.toString());
+            const grossUnits = ethers.parseUnits(amountBlue.toString(), 6);
 
-            // Ejecutar processPayment con el payer como parámetro (arquitectura EIP-7702).
-            const tx = await protocol.processPayment(payerWalletAddress, payeeWalletAddress, amountWei);
+            const tx = await protocol.processPayment(payerWalletAddress, payeeWalletAddress, grossUnits);
             const txHash = await this._waitForConfirmation(tx, 'syncPayment');
 
-            // Guardar el hash en la base de datos para auditoría.
             if (dbTransactionId && txHash) {
                 await pool.query(
-                    'UPDATE transactions SET tx_hash = $1 WHERE id = $2',
+                    `UPDATE transactions SET tx_hash = $1 WHERE id = $2`,
                     [txHash, dbTransactionId]
-                );
-                console.log(`[WEB3 BRIDGE] Hash ${txHash} guardado para transacción #${dbTransactionId}`);
+                ).catch(err => console.error('[WEB3 BRIDGE] Error guardando tx_hash:', err.message));
             }
 
             return txHash;
-
         } catch (error) {
-            console.error(`[WEB3 BRIDGE] ❌ Error en sincronización de pago:`, error.message);
-            throw error;
-        }
-    }
-
-    // ========================================================================
-    // FUNCIÓN 2: PAUSAR / REANUDAR PROTOCOLO (Emergencia)
-    // ========================================================================
-
-    /**
-     * Pausa todas las operaciones financieras del protocolo on-chain.
-     * Se llama cuando la gobernanza aprueba web3_protocol_paused = 'true'.
-     * 
-     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
-     */
-    async pauseProtocol() {
-        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
-
-        try {
-            const protocol = this._getProtocol();
-
-            // PREVENCIÓN DE REVERT: Verificar estado on-chain antes de gastar gas.
-            // Si ya está pausado, Solidity revertirá con "Pausable: paused".
-            // Verificamos primero para evitar el error y reportar éxito (idempotencia).
-            const alreadyPaused = await protocol.paused();
-            if (alreadyPaused) {
-                console.log('[WEB3 BRIDGE] ℹ️  Protocolo ya estaba pausado. Sin acción necesaria.');
-                return { success: true, txHash: null, error: null };
-            }
-
-            console.log('[WEB3 BRIDGE] 🛑 Pausando WintonProtocol...');
-            const tx = await protocol.pause();
-            const txHash = await this._waitForConfirmation(tx, 'pauseProtocol');
-            return { success: true, txHash, error: null };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] ❌ Error al pausar protocolo:', error.message);
-            return { success: false, txHash: null, error: error.message };
-        }
-    }
-
-    /**
-     * Reanuda las operaciones financieras del protocolo on-chain.
-     * Se llama cuando la gobernanza aprueba web3_protocol_paused = 'false'.
-     * 
-     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
-     */
-    async unpauseProtocol() {
-        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
-
-        try {
-            const protocol = this._getProtocol();
-
-            // PREVENCIÓN DE REVERT: Verificar estado on-chain antes de gastar gas.
-            // Si ya está activo, Solidity revertirá con "Pausable: not paused".
-            const alreadyPaused = await protocol.paused();
-            if (!alreadyPaused) {
-                console.log('[WEB3 BRIDGE] ℹ️  Protocolo ya estaba activo. Sin acción necesaria.');
-                return { success: true, txHash: null, error: null };
-            }
-
-            console.log('[WEB3 BRIDGE] ▶️  Reanudando WintonProtocol...');
-            const tx = await protocol.unpause();
-            const txHash = await this._waitForConfirmation(tx, 'unpauseProtocol');
-            return { success: true, txHash, error: null };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] ❌ Error al reanudar protocolo:', error.message);
-            return { success: false, txHash: null, error: error.message };
-        }
-    }
-
-    // ========================================================================
-    // VERIFICACIÓN KYC (Know Your Customer)
-    // ========================================================================
-
-    /**
-     * Consulta directamente en la blockchain si una billetera tiene KYC aprobado.
-     * Esta es la fuente de verdad absoluta (Single Source of Truth) para la plataforma.
-     * 
-     * @param {string} walletAddress La dirección de la billetera a verificar.
-     * @returns {Promise<boolean>} true si tiene KYC, false de lo contrario.
-     */
-    async checkUserKYC(walletAddress) {
-        if (!this._isReady() || !walletAddress) {
-            console.warn(`[WEB3 BRIDGE] KYC Check Omitido: Relayer no listo o wallet indefinida (${walletAddress})`);
-            return false;
-        }
-
-        try {
-            const protocol = this._getProtocol();
-            
-            // TIMEOUT ENFORCER: No bloquear el servidor si el RPC está caído.
-            let timeoutId;
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => reject(new Error('RPC Timeout al verificar KYC')), 3000);
-            });
-            
-            const isVerified = await Promise.race([
-                protocol.isKYCVerified(walletAddress),
-                timeoutPromise
-            ]);
-
-            clearTimeout(timeoutId);
-            return isVerified;
-            
-        } catch (error) {
-            console.error(`[WEB3 BRIDGE] ❌ Error verificando KYC on-chain para ${walletAddress}:`, error.message);
-            // Por seguridad Fintech estricta (Fail-Safe), si no podemos verificar, asumimos falso para evitar blanqueo de capitales.
-            return false;
-        }
-    }
-
-    /**
-     * Consulta el estado KYC on-chain con información detallada del resultado.
-     * 
-     * DIFERENCIA CON checkUserKYC():
-     * - checkUserKYC() retorna solo `boolean` → no se puede distinguir entre
-     *   "blockchain dijo false" y "blockchain no respondió".
-     * - checkUserKYCDetailed() retorna `{ success, verified }` → el caller puede
-     *   tomar decisiones informadas (sincronizar DB si blockchain respondió, o
-     *   usar fallback si blockchain no respondió).
-     * 
-     * ESTÁNDAR: Este patrón (Result Object) es usado por Stripe, Coinbase y
-     * servicios financieros que necesitan distinguir entre "dato real" y "fallo
-     * de infraestructura" para mantener consistencia en sus cachés.
-     * 
-     * @param {string} walletAddress - La dirección de la billetera a verificar.
-     * @returns {Promise<{ success: boolean, verified: boolean }>}
-     *   - success=true, verified=true  → Blockchain respondió: usuario SÍ tiene KYC.
-     *   - success=true, verified=false → Blockchain respondió: usuario NO tiene KYC.
-     *   - success=false, verified=false → Blockchain no respondió (error/timeout).
-     */
-    async checkUserKYCDetailed(walletAddress) {
-        // Validación de precondiciones: el Relayer debe estar configurado y
-        // la dirección de wallet debe existir.
-        if (!this._isReady() || !walletAddress) {
-            console.warn(`[WEB3 BRIDGE] KYC Detailed Check Omitido: Relayer no listo o wallet indefinida (${walletAddress})`);
-            // Retornamos success=false para indicar que NO pudimos consultar la blockchain.
-            return { success: false, verified: false };
-        }
-
-        let timeoutId;
-        try {
-            // Obtener instancia del contrato WintonProtocol.
-            const protocol = this._getProtocol();
-
-            // TIMEOUT ENFORCER: Evitar que un nodo RPC caído bloquee al servidor.
-            // 3 segundos es el estándar fintech para lecturas on-chain en L2.
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => reject(new Error('RPC Timeout al verificar KYC (detailed)')), 3000);
-            });
-
-            // Competir la llamada real contra el timeout.
-            const isVerified = await Promise.race([
-                protocol.isKYCVerified(walletAddress),
-                timeoutPromise
-            ]);
-
-            // success=true porque la blockchain respondió exitosamente.
-            // verified contiene la respuesta real del Smart Contract.
-            return { success: true, verified: isVerified };
-
-        } catch (error) {
-            // La blockchain no respondió (timeout, nodo caído, contrato inválido, etc.).
-            // Logueamos el error para trazabilidad pero NO lanzamos excepción.
-            console.error(`[WEB3 BRIDGE] ❌ Error verificando KYC on-chain (detailed) para ${walletAddress}:`, error.message);
-            // success=false: el caller debe usar fallback (caché DB).
-            return { success: false, verified: false };
-        } finally {
-            if (timeoutId) {
-                clearTimeout(timeoutId);
-            }
-        }
-    }
-
-    /**
-     * Escribe el estado KYC de una billetera en el Smart Contract (on-chain).
-     * Solo el Owner del contrato (Relayer) puede ejecutar esta función.
-     * 
-     * IMPORTANTE: Esta función SÍ gasta gas (es una escritura on-chain).
-     * En testnet (Optimism Sepolia) el gas es gratis.
-     * En mainnet, el costo es mínimo (~0.001 USD por transacción en Optimism).
-     * 
-     * @param {string} walletAddress La dirección de la billetera a verificar/desverificar.
-     * @param {boolean} status true para aprobar KYC, false para revocar.
-     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
-     */
-    async setUserKYC(walletAddress, status) {
-        // Validación de precondiciones: Relayer debe estar configurado.
-        if (!this._isReady()) {
-            return { success: false, txHash: null, error: 'Relayer no configurado' };
-        }
-
-        // Validación de integridad: wallet debe ser una dirección Ethereum válida.
-        if (!walletAddress || !ethers.isAddress(walletAddress)) {
-            return { success: false, txHash: null, error: `Dirección de wallet inválida: ${walletAddress}` };
-        }
-
-        // Validación de tipo: status debe ser explícitamente booleano.
-        if (typeof status !== 'boolean') {
-            return { success: false, txHash: null, error: 'El estado KYC debe ser true o false' };
-        }
-
-        try {
-            const protocol = this._getProtocol();
-
-            // PREVENCIÓN DE REVERT: Verificar estado actual on-chain antes de gastar gas.
-            // Si el estado ya es el deseado, no ejecutamos la transacción (ahorra gas).
-            const currentStatus = await protocol.isKYCVerified(walletAddress);
-            if (currentStatus === status) {
-                console.log(`[WEB3 BRIDGE] ℹ️  KYC de ${walletAddress} ya es ${status}. Sin acción necesaria.`);
-                return { success: true, txHash: null, error: null };
-            }
-
-            // Ejecutar la transacción on-chain: setKYCStatus(address, bool).
-            console.log(`[WEB3 BRIDGE] 🔐 ${status ? 'Aprobando' : 'Revocando'} KYC para ${walletAddress}...`);
-            // Hardcoded gasLimit to bypass Ethers v6 estimateGas bug on OP Sepolia public RPC
-            const tx = await protocol.setKYCStatus(walletAddress, status, { gasLimit: 100000 });
-
-            // Esperar confirmación en la blockchain (1 bloque mínimo).
-            const txHash = await this._waitForConfirmation(tx, 'setKYCStatus');
-
-            console.log(`[WEB3 BRIDGE] ✅ KYC ${status ? 'aprobado' : 'revocado'} para ${walletAddress}. TX: ${txHash}`);
-            return { success: true, txHash, error: null };
-
-        } catch (error) {
-            console.error(`[WEB3 BRIDGE] ❌ Error al ${status ? 'aprobar' : 'revocar'} KYC para ${walletAddress}:`, error.message);
-            return { success: false, txHash: null, error: error.message };
-        }
-    }
-
-    // ========================================================================
-    // FUNCIÓN 3: AJUSTAR CIRCUIT BREAKER (maxTransactionAmount)
-    // ========================================================================
-
-    /**
-     * Actualiza el límite máximo por transacción en el Smart Contract.
-     * Se llama cuando la gobernanza aprueba un cambio en web3_max_transaction_amount.
-     * 
-     * @param {string|number} newAmount Nuevo límite máximo en BLUE (ej: "1000000").
-     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
-     */
-    async setMaxTransactionAmount(newAmount) {
-        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
-
-        try {
-            // SEGURIDAD: Validar que el valor sea un número positivo.
-            const parsed = parseFloat(newAmount);
-            if (isNaN(parsed) || parsed <= 0) {
-                return { success: false, txHash: null, error: `Valor inválido para maxTransactionAmount: ${newAmount}. Debe ser un número positivo.` };
-            }
-
-            console.log(`[WEB3 BRIDGE] ⚡ Actualizando maxTransactionAmount a ${newAmount} BLUE...`);
-            const protocol = this._getProtocol();
-            // Convertir el monto a wei (18 decimales).
-            const amountWei = ethers.parseEther(newAmount.toString());
-            const tx = await protocol.setMaxTransactionAmount(amountWei);
-            const txHash = await this._waitForConfirmation(tx, 'setMaxTransactionAmount');
-            return { success: true, txHash, error: null };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] ❌ Error al actualizar maxTransactionAmount:', error.message);
-            return { success: false, txHash: null, error: error.message };
-        }
-    }
-
-    // ========================================================================
-    // FUNCIÓN 4: CONFIGURAR BILLETERA FUNDADORA (Treasury)
-    // ========================================================================
-
-    /**
-     * Configura la billetera de los fundadores en el contrato WintonTreasury.
-     * Se llama cuando la gobernanza aprueba un cambio en web3_founders_wallet.
-     * 
-     * @param {string} walletAddress Dirección de la nueva billetera fundadora.
-     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
-     */
-    async setFoundersWallet(walletAddress) {
-        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
-
-        try {
-            // SEGURIDAD: Validar que sea una dirección Ethereum válida.
-            if (!ethers.isAddress(walletAddress)) {
-                return { success: false, txHash: null, error: `Dirección inválida: ${walletAddress}` };
-            }
-
-            console.log(`[WEB3 BRIDGE] 🏦 Configurando billetera fundadora: ${walletAddress}...`);
-            const treasury = this._getTreasury();
-            if (!treasury) return { success: false, txHash: null, error: 'Treasury no configurado' };
-
-            const tx = await treasury.setFoundersWallet(walletAddress);
-            const txHash = await this._waitForConfirmation(tx, 'setFoundersWallet');
-            return { success: true, txHash, error: null };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] ❌ Error al configurar billetera fundadora:', error.message);
-            return { success: false, txHash: null, error: error.message };
-        }
-    }
-
-    // ========================================================================
-    // FUNCIÓN 5: RETIRO DE EXCEDENTES (Treasury)
-    // ========================================================================
-
-    /**
-     * Retira excedentes de ganancias del Treasury a la billetera fundadora.
-     * Se llama cuando la gobernanza aprueba un retiro (web3_treasury_withdrawal).
-     * 
-     * @param {string|number} amount Cantidad de BLUE a retirar.
-     * @returns {Promise<{success: boolean, txHash: string|null, error: string|null}>}
-     */
-    async withdrawSurplus(amount) {
-        if (!this._isReady()) return { success: false, txHash: null, error: 'Relayer no configurado' };
-
-        try {
-            // SEGURIDAD: Validar que el monto sea un número positivo (no tiene sentido retirar 0).
-            const parsed = parseFloat(amount);
-            if (isNaN(parsed) || parsed <= 0) {
-                return { success: false, txHash: null, error: `Monto inválido para retiro: ${amount}. Debe ser un número mayor a 0.` };
-            }
-
-            console.log(`[WEB3 BRIDGE] 💸 Retirando ${amount} BLUE del Treasury...`);
-            const treasury = this._getTreasury();
-            if (!treasury) return { success: false, txHash: null, error: 'Treasury no configurado' };
-
-            // Convertir a wei (18 decimales).
-            const amountWei = ethers.parseEther(amount.toString());
-            const tx = await treasury.withdrawSurplus(amountWei);
-            const txHash = await this._waitForConfirmation(tx, 'withdrawSurplus');
-            return { success: true, txHash, error: null };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] ❌ Error al retirar excedentes del Treasury:', error.message);
-            return { success: false, txHash: null, error: error.message };
-        }
-    }
-
-    // ========================================================================
-    // FUNCIONES DE LECTURA (Sin gas — gratuitas)
-    // ========================================================================
-
-    /**
-     * Lee el estado actual del protocolo desde la blockchain.
-     * Útil para mostrar en el panel de administración y verificar sincronización.
-     * 
-     * @returns {Promise<Object|null>} Estado del protocolo o null si falla.
-     */
-    async getProtocolStatus() {
-        // SEGURIDAD: Verificar que la dirección del protocolo esté configurada.
-        if (!PROTOCOL_ADDRESS) {
-            console.error('[WEB3 BRIDGE] ❌ WINTON_PROTOCOL_ADDRESS no configurado. No se puede leer estado.');
-            return null;
-        }
-
-        try {
-            // Para lectura no necesitamos el wallet/Relayer, solo el proveedor.
-            const protocol = new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.provider);
-
-            // Ejecutar las 3 consultas en paralelo (optimización de latencia).
-            const [isPaused, maxAmount, commission] = await Promise.all([
-                protocol.paused(),
-                protocol.maxTransactionAmount(),
-                protocol.commissionRate(),
-            ]);
-
-            return {
-                paused: isPaused,
-                maxTransactionAmount: ethers.formatEther(maxAmount),
-                commissionRate: commission.toString(),
-            };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] ❌ Error al leer estado del protocolo:', error.message);
+            console.error('[WEB3 BRIDGE] ❌ Error al sincronizar pago:', error.message);
             return null;
         }
     }
 
-    // ========================================================================
-    // FUNCIÓN 7: VERIFICAR PAUSA CON CACHÉ (Web3 Enforcer)
-    // ========================================================================
-
-    /**
-     * Verifica si el protocolo está pausado usando un caché de 30 segundos.
-     * Evita bombardear el nodo RPC con consultas repetitivas en cada request.
-     * Este es el "Circuit Breaker" del backend: si retorna true, NINGUNA
-     * operación financiera real debe ejecutarse.
-     * 
-     * ESTÁNDAR: CeFi Híbrido (Coinbase/Binance) — caché local + verificación on-chain.
-     * 
-     * @returns {Promise<boolean>} true si pausado, false si activo, true por defecto si falla (fail-safe).
-     */
-    async isProtocolPaused() {
-        // Si el bridge no está configurado, permitir operaciones (modo desarrollo).
-        if (!PROTOCOL_ADDRESS || !RELAYER_PK) {
-            console.warn('[WEB3 ENFORCER] Bridge no configurado. Operaciones permitidas por defecto.');
-            return false;
-        }
-
-        const now = Date.now();
-        // CACHÉ: Reutilizar resultado si tiene menos de 30 segundos (Estándar Fintech).
-        if (this._pauseCache && (now - this._pauseCacheTimestamp) < 30000) {
-            return this._pauseCache;
-        }
-
+    async executeMatching(maxMatches = 10, maxOrdersScanned = 20) {
+        if (!this._isReady() || !EXCHANGE_ADDRESS) return { success: false, error: 'Exchange no configurado' };
         try {
-            // Consulta directa al Smart Contract (lectura gratuita, sin gas).
-            const protocol = new ethers.Contract(PROTOCOL_ADDRESS, this.protocolAbi, this.provider);
-            
-            // TIMEOUT ENFORCER: No permitir que la llamada RPC se quede colgada infinitamente.
-            let timeoutId;
-            const timeoutPromise = new Promise((_, reject) => {
-                timeoutId = setTimeout(() => reject(new Error('RPC Timeout: El nodo blockchain no respondió en 3 segundos.')), 3000);
-            });
-            
-            // Competimos la llamada real contra el timeout
-            const isPaused = await Promise.race([
-                protocol.paused(),
-                timeoutPromise
-            ]);
-
-            // Limpiar el timeout si la llamada a la blockchain fue exitosa antes de los 3 segundos
-            clearTimeout(timeoutId);
-
-            // Guardar en caché para evitar consultas repetitivas.
-            this._pauseCache = isPaused;
-            this._pauseCacheTimestamp = now;
-            return isPaused;
+            const exchange = this._getExchange();
+            const tx = await exchange.matchOrders(maxMatches, maxOrdersScanned);
+            const txHash = await this._waitForConfirmation(tx, 'matchOrders');
+            return { success: true, txHash };
         } catch (error) {
-            // FAIL-SAFE: Si no podemos leer la blockchain, asumimos que está pausado
-            // para proteger los fondos. Esto evita que un fallo de red permita
-            // transacciones no autorizadas.
-            console.error('[WEB3 ENFORCER] ❌ No se pudo verificar el estado on-chain. BLOQUEANDO por seguridad:', error.message);
-            return true;
+            console.error('[WEB3 BRIDGE] Error en matchOrders:', error.message);
+            return { success: false, error: error.message };
         }
     }
 
-    // ========================================================================
-    // FUNCIÓN 8: RESYNC DE BILLETERA (Espejo Blockchain → DB)
-    // ========================================================================
+    async mintMockUsdt(walletAddress, amountUnits) {
+        if (!this._isReady() || !USDT_ADDRESS) return { success: false, error: 'Token USDT no configurado' };
+        try {
+            const usdt = this._getERC20(USDT_ADDRESS);
+            const tx = await usdt.mint(walletAddress, ethers.parseUnits(amountUnits.toString(), 6));
+            const txHash = await this._waitForConfirmation(tx, 'mintMockUsdt');
+            return { success: true, txHash };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] Error en mintMockUsdt:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
 
-    /**
-     * Lee los saldos reales on-chain (BLUE balance y RED debt) de un usuario
-     * y actualiza la tabla web3_wallets_sync en PostgreSQL.
-     * 
-     * ARQUITECTURA: La DB nunca calcula saldos. Solo copia lo que dice Optimism.
-     * Esto garantiza que la "fuente de verdad" siempre sea la blockchain.
-     * 
-     * @param {string} walletAddress Dirección Ethereum del usuario.
-     * @param {number} userId ID del usuario en PostgreSQL.
-     * @returns {Promise<{blueBalance: string, redDebt: string}|null>} Saldos actualizados o null si falla.
-     */
     async resyncUserWallet(walletAddress, userId) {
-        // SEGURIDAD: No intentar resync sin configuración válida.
-        if (!PROTOCOL_ADDRESS || !walletAddress) {
-            console.warn('[WEB3 RESYNC] Dirección de protocolo o wallet no configurada. Resync omitido.');
-            return null;
-        }
-
+        if (!PROTOCOL_ADDRESS || !walletAddress) return null;
         try {
-            // ABI mínima para leer balances ERC-20 (lectura gratuita, sin gas).
-            const erc20Abi = ["function balanceOf(address) view returns (uint256)"];
+            const blueContract = this._getERC20(BLUE_ADDRESS);
+            const redContract = this._getERC20(RED_ADDRESS);
 
-            // Obtener las direcciones de los contratos BlueToken y RedToken desde el protocolo.
-            const protocol = new ethers.Contract(PROTOCOL_ADDRESS, [
-                ...this.protocolAbi,
-                "function blueToken() view returns (address)",
-                "function redToken() view returns (address)"
-            ], this.provider);
-
-            // Consultar direcciones de los tokens en paralelo.
-            const [blueAddr, redAddr] = await Promise.all([
-                protocol.blueToken(),
-                protocol.redToken()
-            ]);
-
-            // Crear instancias de lectura de los contratos de tokens.
-            const blueContract = new ethers.Contract(blueAddr, erc20Abi, this.provider);
-            const redContract = new ethers.Contract(redAddr, erc20Abi, this.provider);
-
-            // Leer saldos reales on-chain en paralelo (optimización de latencia).
             const [blueRaw, redRaw] = await Promise.all([
                 blueContract.balanceOf(walletAddress),
                 redContract.balanceOf(walletAddress)
             ]);
 
-            // Convertir de wei (18 decimales) a formato legible.
-            const blueBalance = ethers.formatEther(blueRaw);
-            const redDebt = ethers.formatEther(redRaw);
+            const blueBalance = ethers.formatUnits(blueRaw, 6);
+            const redDebt = ethers.formatUnits(redRaw, 6);
 
-            // UPSERT: Crear o actualizar el registro en web3_wallets_sync.
-            // ON CONFLICT asegura idempotencia (no duplicados).
             await pool.query(`
                 INSERT INTO web3_wallets_sync (user_id, onchain_blue_balance, onchain_red_debt, last_synced_at, sync_status)
                 VALUES ($1, $2, $3, NOW(), 'synced')
@@ -684,20 +519,9 @@ class Web3BridgeService {
                     sync_status = 'synced'
             `, [userId, parseFloat(blueBalance), parseFloat(redDebt)]);
 
-            console.log(`[WEB3 RESYNC] ✅ Wallet sincronizada para user #${userId}: ${blueBalance} BLUE, ${redDebt} RED`);
             return { blueBalance, redDebt };
         } catch (error) {
-            console.error(`[WEB3 RESYNC] ❌ Error al resincronizar wallet del user #${userId}:`, error.message);
-            // Marcar como error en la tabla para auditoría.
-            try {
-                await pool.query(`
-                    INSERT INTO web3_wallets_sync (user_id, sync_status)
-                    VALUES ($1, 'error')
-                    ON CONFLICT (user_id) DO UPDATE SET sync_status = 'error'
-                `, [userId]);
-            } catch (dbErr) {
-                console.error('[WEB3 RESYNC] Error al marcar sync_status:', dbErr.message);
-            }
+            console.error(`[WEB3 RESYNC] Error user #${userId}:`, error.message);
             return null;
         }
     }

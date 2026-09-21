@@ -120,5 +120,23 @@ router.get('/email-templates/:key', verifyAdminToken, emailTemplateController.ge
 router.put('/email-templates/:key', verifyAdminToken, emailTemplateController.updateTemplate);
 router.post('/email-templates/:key/preview', verifyAdminToken, emailTemplateController.previewTemplate);
 
+// ========================================================================
+// GOBERNANZA, AUDITORÍA Y LABORATORIO WEB3 SUITE V4
+// ========================================================================
+const adminWeb3Controller = require('../controllers/admin/adminWeb3Controller');
+router.get('/web3/status', verifyAdminToken, adminWeb3Controller.getWeb3Status);
+router.post('/web3/credit-limit', verifyAdminToken, adminWeb3Controller.setCreditLimit);
+router.post('/web3/kyc', verifyAdminToken, adminWeb3Controller.setKYCStatus);
+router.post('/web3/max-tx', verifyAdminToken, adminWeb3Controller.setMaxTransactionAmount);
+router.post('/web3/commission-rate', verifyAdminToken, adminWeb3Controller.setCommissionRate);
+router.post('/web3/pause', verifyAdminToken, adminWeb3Controller.setPause);
+router.get('/web3/user-audit/:wallet', verifyAdminToken, adminWeb3Controller.getUserAudit);
+
+// Laboratorio de Pruebas y Simulación
+router.post('/web3/test/process-payment', verifyAdminToken, adminWeb3Controller.simulatePayment);
+router.post('/web3/test/match-orders', verifyAdminToken, adminWeb3Controller.executeMatching);
+router.post('/web3/test/mint-test-tokens', verifyAdminToken, adminWeb3Controller.mintTestTokens);
+
 module.exports = router;
+
 

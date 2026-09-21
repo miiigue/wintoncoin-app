@@ -227,6 +227,8 @@ async function startServer() {
         app.use('/api/volunteers', volunteerRoutes);
         app.use('/api/solidario', solidarioRoutes); // Registrar rutas de Winton Solidario
         app.use('/api/admin', adminRoutes); // <<< NUEVAS RUTAS MODULARES ADMIN
+        const web3Routes = require('./src/routes/web3Routes');
+        app.use('/api/web3', web3Routes); // <<< RUTAS PUBLICAS Y FAUCET WEB3 V4
         app.use('/api', masterApiRouter); // <<< RUTA CENTRALIZADA MODULAR
 
         // Registrar rutas de Publicaciones
