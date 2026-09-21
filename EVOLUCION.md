@@ -22,6 +22,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Eliminación de Residuos de Terminología*: En el botón de acción del Exchange con auto-quema se ajustó el texto a: **"Comprar y Amortizar Compromiso RED"**.
 * **Impacto Operativo**:
   - Apariencia profesional de exchange institucional cripto y terminología transparente sin tecnicismos legales intimidantes como "pignoración".
+* **Evidencia**: Commit `b67a3ff` (rama `demo`). Compilación `build:demo` limpia.
 
 ---
 
