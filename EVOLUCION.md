@@ -23,6 +23,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Batería de Pruebas*: Creación de `TokensAndTreasury.test.js` con 16 pruebas unitarias exitosas y validación de regresión completa de `WintonFifoExchange.test.js` con 58 pruebas unitarias y fuzzing de invariantes aprobadas (74/74 passing).
 * **Impacto Operativo**:
   - Base de activos y tesorería 100% estabilizada en 6 decimales, alineada con los estándares bancarios y lista para la integración del Vault y WintonProtocol V4.
+* **Evidencia**: Commit `8dceb39` (rama `demo`). 74/74 tests aprobados (`TokensAndTreasury.test.js` y `WintonFifoExchange.test.js`).
 
 ---
 
