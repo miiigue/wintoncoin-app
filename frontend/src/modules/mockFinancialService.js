@@ -203,8 +203,11 @@ class MockFinancialService {
         }
       }
 
-      // Actualizar deuda
+      // Actualizar deuda total y vencida prioritariamente
       const newDebt = Number((this.state.credit.debtRed - amount).toFixed(2));
+      const overdueDeduction = Math.min(this.state.credit.overdueDebtRed || 0, amount);
+      const newOverdueDebt = Number(((this.state.credit.overdueDebtRed || 0) - overdueDeduction).toFixed(2));
+      const newDueAmount = Number(Math.min(newDebt, Math.max(0, (this.state.credit.dueAmountRed || this.state.credit.debtRed) - amount)).toFixed(2));
 
       // Bonificación de Club Winton: 1.0% en BLUE IOU
       const bonusIou = Number(((amount * this.state.user.clubBonusPercent) / 100).toFixed(2));
@@ -224,11 +227,13 @@ class MockFinancialService {
         credit: {
           ...this.state.credit,
           debtRed: newDebt,
+          overdueDebtRed: newOverdueDebt,
+          dueAmountRed: newDueAmount,
         },
         transactions: [
           {
             id: `tx_${Date.now()}`,
-            type: `Pago de Deuda con Saldo Ganado (${isLifo ? 'Optimizado LIFO' : 'Estándar'})`,
+            type: `Compensación de Compromiso con Saldo Ganado (${isLifo ? 'Optimizado LIFO' : 'Estándar'})`,
             amount: `-${amount.toFixed(2)} BLUE (Ganado) ➔ -${amount.toFixed(2)} RED`,
             status: `Completado (+${bonusIou.toFixed(2)} BLUE IOU Bono Club)`,
             timestamp: new Date().toLocaleString(),
@@ -267,6 +272,9 @@ class MockFinancialService {
       await new Promise((resolve) => setTimeout(resolve, 1400));
 
       const newDebt = Number((this.state.credit.debtRed - amount).toFixed(2));
+      const overdueDeduction = Math.min(this.state.credit.overdueDebtRed || 0, amount);
+      const newOverdueDebt = Number(((this.state.credit.overdueDebtRed || 0) - overdueDeduction).toFixed(2));
+      const newDueAmount = Number(Math.min(newDebt, Math.max(0, (this.state.credit.dueAmountRed || this.state.credit.debtRed) - amount)).toFixed(2));
       const newUsdt = Number((this.state.collateral.totalDepositedUsdt - amount).toFixed(2));
 
       this.state = {
@@ -278,6 +286,8 @@ class MockFinancialService {
         credit: {
           ...this.state.credit,
           debtRed: newDebt,
+          overdueDebtRed: newOverdueDebt,
+          dueAmountRed: newDueAmount,
         },
         collateral: {
           totalDepositedUsdt: newUsdt,
@@ -285,7 +295,7 @@ class MockFinancialService {
         transactions: [
           {
             id: `tx_${Date.now()}`,
-            type: 'Liquidación Atómica con Garantía (Opción C)',
+            type: 'Amortización de Compromiso con Garantía (Opción C)',
             amount: `-${amount.toFixed(2)} USDT (Vault) ➔ -${amount.toFixed(2)} RED`,
             status: 'Completado sin Doble Capital ($0.00 Gas)',
             timestamp: new Date().toLocaleString(),

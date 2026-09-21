@@ -15,6 +15,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-21 — Arquitectura de Vencimientos & Puente: Publicación ANTIGRAVITY-043 (FIFO Puro, Automatización con Ejecutores y Corrección Contable en Mock)
+* **Diagnóstico & Resoluciones**:
+  - *Ratificación de Directriz de Miguel (Cero Prioridad)*: Ambas IAs acuerdan formalmente que la cola FIFO es inviolable. Toda orden financiada con garantía o por liquidación de vencimiento entra al final de la cola por orden estricto de llegada, sin adelantar a compradores previos.
+  - *Automatización Propia de Vencimientos sin Oráculo Externo*: Se dictamina la viabilidad de la automatización mediante red de ejecutores (keepers) y consulta determinista nativa de `block.timestamp >= dueAt` en el contrato, con respaldo público permissionless (`settleMatured`).
+  - *Corrección de `overdueDebtRed` en Mock*: Se remediaron `repayWithRouteA` y `repayWithCollateral` en `mockFinancialService.js` para que reduzcan prioritariamente `overdueDebtRed`, permitiendo la correcta liberación de la garantía en Vault al saldar la deuda.
+* **Impacto Operativo**:
+  - Consenso técnico blindado entre Antigravity y Codex; simulación frontend libre de inconsistencias contables.
+
+---
+
 ### 2026-09-20 — Frontend React SPA 2026: Integración del Logo Oficial del Token BLUE y Actualización de Etiqueta a 'USDT en Garantía'
 * **Diagnóstico & Resoluciones**:
   - *Identidad Visual Oficial de Tokens*: Se sustituyó el emoji genérico 💎 por los assets oficiales de la moneda BLUE (`/assets/icons/icon-64x64.png`) en el Exchange (selector de compra, selector de venta y píldora de paridad superior) y en la Billetera (balance principal y desglose de lotes de Parking).
