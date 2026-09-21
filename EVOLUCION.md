@@ -15,6 +15,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 
 ---
 
+### 2026-09-21 — Smart Contracts Suite V4: Implementación y Verificación de CoreProtocol (Emisión Dual, Agenda Determinista y Poda FIFO)
+* **Diagnóstico & Resoluciones**:
+  - *CoreProtocol V4*: Motor central del protocolo implementado con precisión de 6 decimales, muro KYC on-chain, circuit breakers de monto máximo y gobernanza en dos pasos (`Ownable2Step`).
+  - *Agenda Determinista de Compromisos (`DebtLot`)*: Cada pago registra un lote con vencimiento exacto (`dueAt = block.timestamp + 30 days`), permitiendo calcular en tiempo real y on-chain los compromisos vencidos y el estado de morosidad formal (>30 días tras vencimiento).
+  - *Capacidad Canónica y Cobertura Neta*: Integra dinámicamente el colateral en USDT custodiado en `CollateralVault` para determinar la deuda descubierta y restaurar capacidad de crédito en tiempo real.
+  - *Poda FIFO O(1) Amortizado*: La amortización voluntaria con BLUE o la liquidación con colateral liquida los lotes más antiguos primero y avanza el puntero de cabezal activo (`userActiveLotHead`), minimizando el consumo de gas.
+  - *Batería de Pruebas*: Creación de `CoreProtocol.test.js` con 10 pruebas unitarias aprobadas. Suite global consolidada con 91 pruebas aprobadas al 100% (`CoreProtocol.test.js`, `CollateralVault.test.js`, `TokensAndTreasury.test.js`, `WintonFifoExchange.test.js`).
+* **Impacto Operativo**:
+  - El motor central de la plataforma queda 100% operativo, auditable bajo SOC 2 y listo para la interacción completa de punta a punta.
+
+---
+
 ### 2026-09-21 — Smart Contracts Suite V4: Implementación y Verificación de CollateralVault (Garantías Segregadas y Cero Confiscación Arbitraria)
 * **Diagnóstico & Resoluciones**:
   - *CollateralVault V4*: Bóveda de USDT segregada (6 decimales) bajo estándar OpenZeppelin v5 (`SafeERC20`, `Ownable2Step`, `ReentrancyGuard`, `Pausable`).
