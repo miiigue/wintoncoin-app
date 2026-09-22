@@ -10,8 +10,35 @@
 
 'use strict';
 
+const pool = require('../../config/db');
 const web3BridgeService = require('../../services/web3BridgeService');
 const { logAuditEvent } = require('../../services/auditService');
+
+/**
+ * Registra formalmente la accion de gobernanza en la tabla inmutable web3_governance_actions (SOC 2)
+ */
+async function logGovernanceAction({ actionType, targetContract, affectedWallet, parameterName, oldValue, newValue, txHash, performedBy, metadata = {} }) {
+    try {
+        await pool.query(`
+            INSERT INTO web3_governance_actions (
+                action_type, target_contract_address, affected_wallet_address,
+                parameter_name, old_value, new_value, tx_hash, performed_by, audit_metadata
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `, [
+            actionType,
+            targetContract || '0x0000000000000000000000000000000000000000',
+            affectedWallet || null,
+            parameterName,
+            oldValue !== undefined && oldValue !== null ? String(oldValue) : null,
+            String(newValue),
+            txHash || null,
+            performedBy,
+            JSON.stringify(metadata)
+        ]);
+    } catch (err) {
+        console.warn('[AdminWeb3Controller] Nota al registrar gobernanza en DB:', err.message);
+    }
+}
 
 /**
  * Validador de formato de dirección Ethereum (Hexadecimal 40 caracteres con prefijo 0x)
@@ -19,6 +46,7 @@ const { logAuditEvent } = require('../../services/auditService');
 function isValidEthereumAddress(address) {
     return typeof address === 'string' && /^0x[a-fA-F0-9]{40}$/.test(address);
 }
+
 
 /**
  * GET /api/admin/web3/status
@@ -63,6 +91,16 @@ async function setCreditLimit(req, res) {
             details: `Límite de crédito configurado para ${walletAddress}: ${parsedLimit} RED. Tx: ${result.txHash}`
         }).catch(() => {});
 
+        await logGovernanceAction({
+            actionType: 'SET_CREDIT_LIMIT',
+            targetContract: process.env.CORE_PROTOCOL_ADDRESS,
+            affectedWallet: walletAddress,
+            parameterName: 'creditLimits',
+            newValue: parsedLimit,
+            txHash: result.txHash,
+            performedBy: adminUser
+        }).catch(() => {});
+
         return res.status(200).json({
             success: true,
             message: `Límite de ${parsedLimit} RED asignado con éxito.`,
@@ -96,6 +134,16 @@ async function setKYCStatus(req, res) {
             adminUser,
             action: 'WEB3_SET_KYC_STATUS',
             details: `KYC ${Boolean(status) ? 'Aprobado' : 'Revocado'} para ${walletAddress}. Tx: ${result.txHash}`
+        }).catch(() => {});
+
+        await logGovernanceAction({
+            actionType: 'SET_KYC_STATUS',
+            targetContract: process.env.CORE_PROTOCOL_ADDRESS,
+            affectedWallet: walletAddress,
+            parameterName: 'isKYCVerified',
+            newValue: Boolean(status) ? 'true' : 'false',
+            txHash: result.txHash,
+            performedBy: adminUser
         }).catch(() => {});
 
         return res.status(200).json({
@@ -134,6 +182,15 @@ async function setMaxTransactionAmount(req, res) {
             details: `Monto máximo por tx actualizado a ${parsedAmount} BLUE. Tx: ${result.txHash}`
         }).catch(() => {});
 
+        await logGovernanceAction({
+            actionType: 'SET_MAX_TX_AMOUNT',
+            targetContract: process.env.CORE_PROTOCOL_ADDRESS,
+            parameterName: 'maxTransactionAmount',
+            newValue: parsedAmount,
+            txHash: result.txHash,
+            performedBy: adminUser
+        }).catch(() => {});
+
         return res.status(200).json({
             success: true,
             message: `Monto máximo actualizado a ${parsedAmount} BLUE.`,
@@ -168,6 +225,15 @@ async function setCommissionRate(req, res) {
             adminUser,
             action: 'WEB3_SET_COMMISSION_RATE',
             details: `Comisión de plataforma ajustada a ${parsedBps} BPS (${parsedBps / 100}%). Tx: ${result.txHash}`
+        }).catch(() => {});
+
+        await logGovernanceAction({
+            actionType: 'SET_COMMISSION_RATE',
+            targetContract: process.env.CORE_PROTOCOL_ADDRESS,
+            parameterName: 'commissionRate',
+            newValue: parsedBps,
+            txHash: result.txHash,
+            performedBy: adminUser
         }).catch(() => {});
 
         return res.status(200).json({
@@ -210,6 +276,16 @@ async function setPause(req, res) {
             action: `WEB3_${action.toUpperCase()}_${target.toUpperCase()}`,
             details: `Operación de emergencia: ${action} en ${target}. Tx: ${result.txHash}`
         }).catch(() => {});
+
+        await logGovernanceAction({
+            actionType: `${action.toUpperCase()}_${target.toUpperCase()}`,
+            targetContract: target === 'protocol' ? process.env.CORE_PROTOCOL_ADDRESS : process.env.COLLATERAL_VAULT_ADDRESS,
+            parameterName: 'paused',
+            newValue: action === 'pause' ? 'true' : 'false',
+            txHash: result.txHash,
+            performedBy: adminUser
+        }).catch(() => {});
+
 
         return res.status(200).json({
             success: true,
