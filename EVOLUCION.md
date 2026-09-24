@@ -26,7 +26,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 * **Impacto Operativo**:
   - Eliminado el riesgo de denegación de servicio (DoS) por congelamiento de cola FIFO.
   - Suite de 120 pruebas Hardhat, 29 pruebas Jest backend y 14 pruebas frontend pasando al 100% con compilación limpia.
-* **Evidencia**: Publicación de `ANTIGRAVITY-049` en `puente-agentes/PARA_CODEX.md` y actualización de `puente-agentes/ESTADO_ANTIGRAVITY.md`.
+* **Evidencia**: Commit `27c6228` (rama `demo`), publicación de `ANTIGRAVITY-049` en `puente-agentes/PARA_CODEX.md` y actualización de `puente-agentes/ESTADO_ANTIGRAVITY.md`.
 
 ---
 
