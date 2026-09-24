@@ -43,6 +43,11 @@ async function logGovernanceAction({ actionType, targetContract, affectedWallet,
 /**
  * Validador de formato de dirección Ethereum (Hexadecimal 40 caracteres con prefijo 0x)
  */
+async function auditAction(req, { adminUser, action, details }) {
+    return logAuditEvent(pool, req, { eventType: action, actorUsername: adminUser,
+        actorId: req.user?.id ?? null, category: 'web3_governance', metadata: { details } });
+}
+
 function isValidEthereumAddress(address) {
     return typeof address === 'string' && /^0x[a-fA-F0-9]{40}$/.test(address);
 }
@@ -55,7 +60,7 @@ function isValidEthereumAddress(address) {
 async function getWeb3Status(req, res) {
     try {
         const status = await web3BridgeService.getProtocolStatus();
-        return res.status(200).json(status);
+        return res.status(status.success ? 200 : 503).json(status);
     } catch (error) {
         console.error('[AdminWeb3Controller] Error al obtener estado Web3:', error);
         return res.status(500).json({ success: false, message: 'Error al consultar estado Web3.' });
@@ -68,7 +73,7 @@ async function getWeb3Status(req, res) {
  */
 async function setCreditLimit(req, res) {
     const { walletAddress, limit } = req.body;
-    const adminUser = req.admin?.username || 'admin';
+    const adminUser = req.user?.username || 'admin';
 
     if (!isValidEthereumAddress(walletAddress)) {
         return res.status(400).json({ success: false, message: 'Dirección Ethereum inválida.' });
@@ -85,7 +90,7 @@ async function setCreditLimit(req, res) {
             return res.status(500).json({ success: false, message: result.error || 'Error al ejecutar transacción on-chain.' });
         }
 
-        await logAuditEvent({
+        await auditAction(req, {
             adminUser,
             action: 'WEB3_SET_CREDIT_LIMIT',
             details: `Límite de crédito configurado para ${walletAddress}: ${parsedLimit} RED. Tx: ${result.txHash}`
@@ -118,19 +123,20 @@ async function setCreditLimit(req, res) {
  */
 async function setKYCStatus(req, res) {
     const { walletAddress, status } = req.body;
-    const adminUser = req.admin?.username || 'admin';
+    const adminUser = req.user?.username || 'admin';
 
     if (!isValidEthereumAddress(walletAddress)) {
         return res.status(400).json({ success: false, message: 'Dirección Ethereum inválida.' });
     }
 
     try {
-        const result = await web3BridgeService.setKYCStatus(walletAddress, Boolean(status));
+        if (typeof status !== 'boolean') return res.status(400).json({ success: false, message: 'El estado KYC debe ser true o false.' });
+        const result = await web3BridgeService.setKYCStatus(walletAddress, status);
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error || 'Error al modificar KYC on-chain.' });
         }
 
-        await logAuditEvent({
+        await auditAction(req, {
             adminUser,
             action: 'WEB3_SET_KYC_STATUS',
             details: `KYC ${Boolean(status) ? 'Aprobado' : 'Revocado'} para ${walletAddress}. Tx: ${result.txHash}`
@@ -163,7 +169,7 @@ async function setKYCStatus(req, res) {
  */
 async function setMaxTransactionAmount(req, res) {
     const { maxAmount } = req.body;
-    const adminUser = req.admin?.username || 'admin';
+    const adminUser = req.user?.username || 'admin';
 
     const parsedAmount = parseFloat(maxAmount);
     if (isNaN(parsedAmount) || parsedAmount <= 0) {
@@ -176,7 +182,7 @@ async function setMaxTransactionAmount(req, res) {
             return res.status(500).json({ success: false, message: result.error || 'Error al ajustar monto máximo.' });
         }
 
-        await logAuditEvent({
+        await auditAction(req, {
             adminUser,
             action: 'WEB3_SET_MAX_TX_AMOUNT',
             details: `Monto máximo por tx actualizado a ${parsedAmount} BLUE. Tx: ${result.txHash}`
@@ -208,11 +214,11 @@ async function setMaxTransactionAmount(req, res) {
  */
 async function setCommissionRate(req, res) {
     const { commissionBps } = req.body;
-    const adminUser = req.admin?.username || 'admin';
+    const adminUser = req.user?.username || 'admin';
 
-    const parsedBps = parseInt(commissionBps, 10);
-    if (isNaN(parsedBps) || parsedBps < 0 || parsedBps > 2000) {
-        return res.status(400).json({ success: false, message: 'La tasa debe estar entre 0 y 2000 BPS (0% a 20%).' });
+    const parsedBps = Number(commissionBps);
+    if (!/^\d+$/.test(String(commissionBps)) || !Number.isInteger(parsedBps) || parsedBps < 0 || parsedBps > 1000) {
+        return res.status(400).json({ success: false, message: 'La tasa debe estar entre 0 y 1000 BPS (0% a 10%).' });
     }
 
     try {
@@ -221,7 +227,7 @@ async function setCommissionRate(req, res) {
             return res.status(500).json({ success: false, message: result.error || 'Error al ajustar comisión.' });
         }
 
-        await logAuditEvent({
+        await auditAction(req, {
             adminUser,
             action: 'WEB3_SET_COMMISSION_RATE',
             details: `Comisión de plataforma ajustada a ${parsedBps} BPS (${parsedBps / 100}%). Tx: ${result.txHash}`
@@ -230,7 +236,7 @@ async function setCommissionRate(req, res) {
         await logGovernanceAction({
             actionType: 'SET_COMMISSION_RATE',
             targetContract: process.env.CORE_PROTOCOL_ADDRESS,
-            parameterName: 'commissionRate',
+            parameterName: 'commissionBps',
             newValue: parsedBps,
             txHash: result.txHash,
             performedBy: adminUser
@@ -253,7 +259,7 @@ async function setCommissionRate(req, res) {
  */
 async function setPause(req, res) {
     const { target, action } = req.body; // target: 'protocol' | 'vault'; action: 'pause' | 'unpause'
-    const adminUser = req.admin?.username || 'admin';
+    const adminUser = req.user?.username || 'admin';
 
     if (!['protocol', 'vault'].includes(target) || !['pause', 'unpause'].includes(action)) {
         return res.status(400).json({ success: false, message: "Parámetros inválidos. Use target: 'protocol'|'vault' y action: 'pause'|'unpause'." });
@@ -271,7 +277,7 @@ async function setPause(req, res) {
             return res.status(500).json({ success: false, message: result.error || 'Fallo en la operación de pausa.' });
         }
 
-        await logAuditEvent({
+        await auditAction(req, {
             adminUser,
             action: `WEB3_${action.toUpperCase()}_${target.toUpperCase()}`,
             details: `Operación de emergencia: ${action} en ${target}. Tx: ${result.txHash}`
@@ -310,8 +316,8 @@ async function getUserAudit(req, res) {
     }
 
     try {
-        const audit = await web3BridgeService.getUserAuditDetailed(wallet);
-        return res.status(200).json(audit);
+        const audit = await web3BridgeService.getUserAuditDetailed(wallet, Number(req.query?.offset ?? 0), Number(req.query?.limit ?? 50));
+        return res.status(audit.success ? 200 : 503).json(audit);
     } catch (error) {
         console.error('[AdminWeb3Controller] Error en getUserAudit:', error);
         return res.status(500).json({ success: false, message: 'Error al consultar auditoría on-chain.' });
@@ -323,8 +329,9 @@ async function getUserAudit(req, res) {
  * Laboratorio: Simula un pago en el Marketplace emitiendo BLUE al prestador y RED al pagador.
  */
 async function simulatePayment(req, res) {
-    const { payerWallet, payeeWallet, amount } = req.body;
-    const adminUser = req.admin?.username || 'admin';
+    const { payerWallet, payeeWallet, amount, authorization, signature } = req.body;
+    if (!authorization || !signature) return res.status(400).json({ success: false, message: "El pagador debe firmar esta operación." });
+    const adminUser = req.user?.username || 'admin';
 
     if (!isValidEthereumAddress(payerWallet) || !isValidEthereumAddress(payeeWallet)) {
         return res.status(400).json({ success: false, message: 'Direcciones Ethereum inválidas.' });
@@ -341,14 +348,14 @@ async function simulatePayment(req, res) {
             payeeWalletAddress: payeeWallet,
             amountBlue: parsedAmount,
             payerUsername: 'admin_test_payer',
-            payeeUsername: 'admin_test_payee'
+            payeeUsername: 'admin_test_payee', authorization, signature
         });
 
         if (!txHash) {
             return res.status(500).json({ success: false, message: 'Error al procesar el pago on-chain (verifique límites y KYC).' });
         }
 
-        await logAuditEvent({
+        await auditAction(req, {
             adminUser,
             action: 'WEB3_SIMULATE_PAYMENT',
             details: `Pago simulado: ${payerWallet} -> ${payeeWallet} (${parsedAmount} BLUE). Tx: ${txHash}`
@@ -371,7 +378,7 @@ async function simulatePayment(req, res) {
  */
 async function executeMatching(req, res) {
     const { maxMatches, maxOrdersScanned } = req.body;
-    const adminUser = req.admin?.username || 'admin';
+    const adminUser = req.user?.username || 'admin';
 
     try {
         const result = await web3BridgeService.executeMatching(
@@ -383,7 +390,7 @@ async function executeMatching(req, res) {
             return res.status(500).json({ success: false, message: result.error || 'Error al ejecutar matching.' });
         }
 
-        await logAuditEvent({
+        await auditAction(req, {
             adminUser,
             action: 'WEB3_EXECUTE_MATCHING',
             details: `Matching de órdenes ejecutado en FifoExchange. Tx: ${result.txHash}`
@@ -406,7 +413,7 @@ async function executeMatching(req, res) {
  */
 async function mintTestTokens(req, res) {
     const { walletAddress, amount } = req.body;
-    const adminUser = req.admin?.username || 'admin';
+    const adminUser = req.user?.username || 'admin';
 
     if (!isValidEthereumAddress(walletAddress)) {
         return res.status(400).json({ success: false, message: 'Dirección Ethereum inválida.' });
@@ -423,7 +430,7 @@ async function mintTestTokens(req, res) {
             return res.status(500).json({ success: false, message: result.error || 'Error al mintear tokens de prueba.' });
         }
 
-        await logAuditEvent({
+        await auditAction(req, {
             adminUser,
             action: 'WEB3_MINT_TEST_TOKENS',
             details: `Minteados ${parsedAmount} USDT de prueba para ${walletAddress}. Tx: ${result.txHash}`
@@ -440,7 +447,36 @@ async function mintTestTokens(req, res) {
     }
 }
 
+function integer(value, min, max) {
+    return /^\d+$/.test(String(value)) && Number.isSafeInteger(Number(value)) && Number(value) >= min && Number(value) <= max;
+}
+async function setExtensionParams(req, res) {
+    const { extensionDays, extensionBps, enabled } = req.body;
+    if (!integer(extensionDays,1,365) || !integer(extensionBps,0,10000) || typeof enabled !== 'boolean')
+        return res.status(400).json({ success: false, message: 'Plazo entero de 1–365 días, comisión entera de 0–10000 BPS y estado booleano requeridos.' });
+    try {
+        const result = await web3BridgeService.setExtensionParams(Number(extensionDays), Number(extensionBps), enabled);
+        if (!result.success) return res.status(503).json(result);
+        await auditAction(req, { adminUser: req.user?.username, action: 'WEB3_EXTENSION_OPTION',
+            details: JSON.stringify({ extensionDays, extensionBps, enabled, txHash: result.txHash }) });
+        return res.status(200).json(result);
+    } catch (error) { return res.status(500).json({ success: false, message: 'No se pudo actualizar la opción de prórroga.' }); }
+}
+async function setUserBenefits(req, res) {
+    const { walletAddress, level, margin } = req.body;
+    if (!isValidEthereumAddress(walletAddress) || !integer(level,0,255) || !/^\d+(\.\d{1,6})?$/.test(String(margin)))
+        return res.status(400).json({ success: false, message: 'Dirección, nivel entero y margen con hasta seis decimales requeridos.' });
+    try {
+        const result = await web3BridgeService.setUserBenefits(walletAddress, Number(level), String(margin));
+        if (!result.success) return res.status(503).json(result);
+        await auditAction(req, { adminUser: req.user?.username, action: 'WEB3_USER_BENEFITS',
+            details: JSON.stringify({ walletAddress, level, margin, txHash: result.txHash }) });
+        return res.status(200).json(result);
+    } catch (error) { return res.status(500).json({ success: false, message: 'No se pudieron actualizar los beneficios.' }); }
+}
+
 module.exports = {
+    setExtensionParams, setUserBenefits,
     getWeb3Status,
     setCreditLimit,
     setKYCStatus,

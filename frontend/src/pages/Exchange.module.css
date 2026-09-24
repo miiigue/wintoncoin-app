@@ -457,3 +457,55 @@
   from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* TOOLTIP INFORMATIVO DE COLA FIFO */
+.fifoTooltipContainer {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.fifoTooltipIcon {
+  font-size: 0.85rem;
+  color: #38bdf8;
+  opacity: 0.9;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  user-select: none;
+}
+
+.fifoTooltipContainer:hover .fifoTooltipIcon {
+  transform: scale(1.15);
+  opacity: 1;
+}
+
+.fifoTooltipContent {
+  visibility: hidden;
+  opacity: 0;
+  width: 250px;
+  background-color: #0f172a;
+  color: #f1f5f9;
+  text-align: left;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  border-radius: 12px;
+  padding: 0.65rem 0.85rem;
+  position: absolute;
+  z-index: 100;
+  bottom: 130%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 0.76rem;
+  font-weight: 400;
+  line-height: 1.45;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.55);
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+  pointer-events: none;
+}
+
+.fifoTooltipContainer:hover .fifoTooltipContent,
+.fifoTooltipContainer:focus-within .fifoTooltipContent {
+  visibility: visible;
+  opacity: 1;
+}

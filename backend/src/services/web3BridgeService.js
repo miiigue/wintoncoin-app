@@ -44,7 +44,7 @@ const USDT_ADDRESS = process.env.USDT_TOKEN_ADDRESS || manifest?.contracts?.USDT
 class Web3BridgeService {
     constructor() {
         if (!RELAYER_PK || !PROTOCOL_ADDRESS) {
-            console.warn('[WEB3 BRIDGE] ⚠️ RELAYER_PRIVATE_KEY o CORE_PROTOCOL_ADDRESS no configurados completamente. Operaciones on-chain operarán en modo simulado si no hay red.');
+            console.warn('[WEB3 BRIDGE] ⚠️ RELAYER_PRIVATE_KEY o CORE_PROTOCOL_ADDRESS no configurados completamente. Las operaciones que requieran estas credenciales no están disponibles. No se simulan saldos.');
         }
 
         this.provider = new ethers.JsonRpcProvider(RPC_URL);
@@ -52,71 +52,85 @@ class Web3BridgeService {
 
         // ABIs de la Suite V4
         this.protocolAbi = [
-            "function processPayment(address payer, address payee, uint256 grossAmount) external",
-            "function amortizeWithBlue(uint256 amount) external",
-            "function setCreditLimit(address user, uint256 limit) external",
-            "function setKYCStatus(address wallet, bool status) external",
-            "function setMaxTransactionAmount(uint256 newAmount) external",
-            "function setCommissionRate(uint256 newRate) external",
-            "function pause() external",
-            "function unpause() external",
-            "function paused() external view returns (bool)",
-            "function maxTransactionAmount() external view returns (uint256)",
-            "function commissionRate() external view returns (uint256)",
-            "function isKYCVerified(address) external view returns (bool)",
-            "function creditLimits(address) external view returns (uint256)",
-            "function getAvailableCreditCapacity(address) external view returns (uint256)",
-            "function getRequiredCollateral(address) external view returns (uint256)",
-            "function isDelinquent(address) external view returns (bool)",
-            "function blueToken() external view returns (address)",
-            "function redToken() external view returns (address)",
-            "function collateralVault() external view returns (address)",
-            "function treasury() external view returns (address)",
-            "function getUserDebtLots(address user) external view returns (tuple(uint256 id, uint256 originalAmount, uint256 remainingAmount, uint256 createdAt, uint256 dueAt, bool repaid)[])",
+            "function processPayment(address payer, address payee, uint256 amount)",
+            "function amortizeWithBlue(uint256 amount)",
+            "function setCreditLimit(address account, uint256 limit)",
+            "function setKYCStatus(address account, bool status)",
+            "function setMaxTransactionAmount(uint256 _max)",
+            "function setCommissionBps(uint256 _bps)",
+            "function pause()",
+            "function unpause()",
+            "function paused() view returns (bool)",
+            "function maxTransactionAmount() view returns (uint256)",
+            "function commissionBps() view returns (uint256)",
+            "function isKYCVerified(address) view returns (bool)",
+            "function creditLimits(address) view returns (uint256)",
+            "function getAvailableCreditCapacity(address user) view returns (uint256)",
+            "function getRequiredCollateral(address user) view returns (uint256)",
+            "function isDelinquent(address user) view returns (bool)",
+            "function blueToken() view returns (address)",
+            "function redToken() view returns (address)",
+            "function vault() view returns (address)",
+            "function treasury() view returns (address)",
+            "function getUserDebtLotsCount(address user) view returns (uint256)",
+            "function userDebtLots(address, uint256) view returns (uint256 id, uint256 amount, uint256 remainingAmount, uint256 dueAt, bool repaid)",
+            "function setExtensionOption(uint256 durationDays, uint16 feeBps, bool enabled)",
+            "function setUserBenefits(address user, uint8 level, uint256 margin)",
+            "function extensionOptions(uint256) view returns (uint16 feeBps, bool enabled)",
+            "function getExtensionDurations() view returns (uint256[])",
+            "function userLevels(address) view returns (uint8)",
+            "function extensionMarginLimits(address) view returns (uint256)",
+            "function extensionMarginUsed(address) view returns (uint256)",
+            "function extensionFeeRecipient() view returns (address)",
+            "function COMMITMENT_DURATION() view returns (uint256)",
+            "function processAuthorizedPayment((address payer, address payee, uint256 amount, uint256 feeBps, uint256 nonce, uint256 deadline, bytes32 agreementHash) auth, bytes signature)",
             "event PaymentProcessed(address indexed payer, address indexed payee, uint256 netAmount, uint256 fee, uint256 lotId, uint256 dueAt)",
-            "event DebtAmortized(address indexed user, uint256 amount, uint256 remainingDebt)"
+            "event DebtAmortized(address indexed user, uint256 amountAmortized, uint256 remainingTotalDebt)"
         ];
 
         this.vaultAbi = [
-            "function deposit(uint256 amount) external",
-            "function withdraw(uint256 amount) external",
-            "function repayWithCollateral(address user, uint256 amount) external",
-            "function liquidateDelinquent(address user, uint256 amount) external",
-            "function userCollateral(address) external view returns (uint256)",
-            "function totalCollateralLocked() external view returns (uint256)",
-            "function getFreeCollateral(address) external view returns (uint256)",
-            "function paused() external view returns (bool)",
-            "function pause() external",
-            "function unpause() external",
-            "event CollateralDeposited(address indexed user, uint256 amount, uint256 totalUserBalance, uint256 totalVaultLocked)",
-            "event CollateralWithdrawn(address indexed user, uint256 amount, uint256 totalUserBalance, uint256 totalVaultLocked)",
-            "event RepaidWithCollateral(address indexed user, uint256 amount, uint256 remainingCollateral)",
-            "event DelinquentLiquidated(address indexed user, uint256 amount, uint256 remainingCollateral)"
+            "function deposit(uint256 value)",
+            "function withdraw(uint256 value)",
+            "function repayWithCollateral(address user, uint256 value)",
+            "function liquidateDelinquent(address user, uint256 value)",
+            "function userCollateral(address) view returns (uint256)",
+            "function totalCollateralLocked() view returns (uint256)",
+            "function getFreeCollateral(address user) view returns (uint256)",
+            "function exchangeReserved(address) view returns (uint256)",
+            "function pendingReserve(address) view returns (uint256)",
+            "function paused() view returns (bool)",
+            "function pause()",
+            "function unpause()",
+            "event CollateralDeposited(address indexed user, uint256 amount, uint256 newUserTotal, uint256 newVaultTotal)",
+            "event CollateralWithdrawn(address indexed user, uint256 amount, uint256 newUserTotal, uint256 newVaultTotal)",
+            "event AmortizationQueued(address indexed user, uint256 pendingAmount, bool maturedOnly)",
+            "event AmortizationOrderCreated(address indexed user, uint64 indexed orderId, uint256 amount)",
+            "event AmortizationPurchaseFilled(address indexed user, uint64 indexed orderId, uint256 usdtSpent, uint256 blueBurned)",
+            "event AmortizationReserveReturned(address indexed user, uint64 indexed orderId, uint256 amount)"
         ];
 
         this.exchangeAbi = [
-            "function createBlueOrder(uint128 amount) external returns (uint64)",
-            "function createUsdtOrder(uint128 amount) external returns (uint64)",
-            "function matchOrders(uint256 maxMatches, uint256 maxOrdersScanned) external",
-            "function cancelOrder(uint64 orderId) external",
-            "function totalReservedBlue() external view returns (uint128)",
-            "function totalReservedUsdt() external view returns (uint128)",
-            "function totalDepositedBlue() external view returns (uint128)",
-            "function totalDepositedUsdt() external view returns (uint128)",
-            "function blueHeadIndex() external view returns (uint64)",
-            "function usdtHeadIndex() external view returns (uint64)",
-            "function paused() external view returns (bool)",
-            "function getBlueOrderIdsLength() external view returns (uint256)",
-            "function getUsdtOrderIdsLength() external view returns (uint256)",
-            "function orders(uint64) external view returns (uint64 id, uint64 sequenceId, uint128 remainingAmount, address user, uint8 status, uint8 side, uint48 createdAt, uint128 originalAmount, uint128 refundedAmount)"
+            "function createBlueOrder(uint128 amount) returns (uint64 newOrderId)",
+            "function createUsdtOrder(uint128 amount) returns (uint64 newOrderId)",
+            "function matchOrders(uint256 maxMatches, uint256 maxOrdersScanned) returns (uint256 matchesExecuted, uint256 ordersScanned)",
+            "function cancelOrder(uint64 orderId)",
+            "function totalReservedBlue() view returns (uint128)",
+            "function totalReservedUsdt() view returns (uint128)",
+            "function totalDepositedBlue() view returns (uint128)",
+            "function totalDepositedUsdt() view returns (uint128)",
+            "function blueHeadIndex() view returns (uint64)",
+            "function usdtHeadIndex() view returns (uint64)",
+            "function paused() view returns (bool)",
+            "function getBlueOrderIdsLength() view returns (uint256)",
+            "function getUsdtOrderIdsLength() view returns (uint256)",
+            "function orders(uint64) view returns (uint64 id, uint64 sequenceId, uint128 remainingAmount, address user, uint8 status, uint8 side, uint48 createdAt, uint128 originalAmount, uint128 refundedAmount)"
         ];
 
         this.treasuryAbi = [
-            "function pause() external",
-            "function unpause() external",
-            "function claimSurplus(address to, uint256 amount) external",
-            "function paused() external view returns (bool)",
-            "function blueToken() external view returns (address)"
+            "function pause()",
+            "function unpause()",
+            "function paused() view returns (bool)",
+            "function blueToken() view returns (address)"
         ];
 
         this.erc20Abi = [
@@ -182,17 +196,23 @@ class Web3BridgeService {
                 relayerBalance = ethers.formatEther(bal);
             }
 
-            let paused = false;
-            let maxTx = "5000";
-            let commissionRate = "500";
-            let totalVaultLocked = "0.0";
+            if (!PROTOCOL_ADDRESS || !VAULT_ADDRESS) throw new Error('Contratos Web3 no configurados');
+            let paused, maxTx, commissionRate, totalVaultLocked, vaultPaused;
+            const protocolConfig = this._getProtocol();
+            const [duration, recipient, extensionDays] = await Promise.all([
+                protocolConfig.COMMITMENT_DURATION(), protocolConfig.extensionFeeRecipient(), protocolConfig.getExtensionDurations()
+            ]);
+            const extensionOptions = await Promise.all(extensionDays.map(async (days) => {
+                const option = await protocolConfig.extensionOptions(days);
+                return { days: Number(days), bps: Number(option.feeBps), enabled: option.enabled };
+            }));
 
             if (PROTOCOL_ADDRESS) {
                 const protocol = this._getProtocol();
                 const [p, m, c] = await Promise.all([
-                    protocol.paused().catch(() => false),
-                    protocol.maxTransactionAmount().catch(() => 5000000000n),
-                    protocol.commissionRate().catch(() => 500n)
+                    protocol.paused(),
+                    protocol.maxTransactionAmount(),
+                    protocol.commissionBps()
                 ]);
                 paused = p;
                 maxTx = ethers.formatUnits(m, 6);
@@ -201,7 +221,8 @@ class Web3BridgeService {
 
             if (VAULT_ADDRESS) {
                 const vault = this._getVault();
-                const locked = await vault.totalCollateralLocked().catch(() => 0n);
+                const [locked, currentPause] = await Promise.all([vault.totalCollateralLocked(), vault.paused()]);
+                vaultPaused = currentPause;
                 totalVaultLocked = ethers.formatUnits(locked, 6);
             }
 
@@ -227,7 +248,8 @@ class Web3BridgeService {
                     paused,
                     maxTransactionAmount: maxTx,
                     commissionRateBps: commissionRate,
-                    totalCollateralLocked: totalVaultLocked
+                    totalCollateralLocked: totalVaultLocked, vaultPaused, commitmentDurationSeconds: Number(duration),
+                    extensionFeeRecipient: recipient, extensionOptions, minExtensionLevel: 3, minExtensionMarginLevel: 5
                 }
             };
         } catch (error) {
@@ -298,7 +320,7 @@ class Web3BridgeService {
         if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
         try {
             const protocol = this._getProtocol();
-            const tx = await protocol.setCommissionRate(parseInt(rateBps, 10));
+            const tx = await protocol.setCommissionBps(parseInt(rateBps, 10));
             const txHash = await this._waitForConfirmation(tx, 'setCommissionRate');
             return { success: true, txHash };
         } catch (error) {
@@ -359,70 +381,53 @@ class Web3BridgeService {
     // OPERACIONES DE USUARIO Y AUDITORÍA 360°
     // ========================================================================
 
-    async getUserAuditDetailed(walletAddress) {
-        if (!walletAddress) return { success: false, error: 'Dirección requerida' };
+    async getUserAuditDetailed(walletAddress, offset = 0, limit = 50) {
+        if (!ethers.isAddress(walletAddress)) return { success: false, error: 'Dirección inválida' };
+        if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
+            return { success: false, error: 'Paginación inválida' };
         try {
-            const blueContract = this._getERC20(BLUE_ADDRESS);
-            const redContract = this._getERC20(RED_ADDRESS);
-            const protocol = this._getProtocol();
-            const vault = this._getVault();
-
-            const [
-                blueBalRaw,
-                redBalRaw,
-                vaultBalRaw,
-                freeVaultRaw,
-                capRaw,
-                reqCollateralRaw,
-                isDelinquent,
-                isKyc,
-                limitRaw,
-                debtLotsRaw
-            ] = await Promise.all([
-                blueContract.balanceOf(walletAddress).catch(() => 0n),
-                redContract.balanceOf(walletAddress).catch(() => 0n),
-                vault.userCollateral(walletAddress).catch(() => 0n),
-                vault.getFreeCollateral(walletAddress).catch(() => 0n),
-                protocol.getAvailableCreditCapacity(walletAddress).catch(() => 0n),
-                protocol.getRequiredCollateral(walletAddress).catch(() => 0n),
-                protocol.isDelinquent(walletAddress).catch(() => false),
-                protocol.isKYCVerified(walletAddress).catch(() => false),
-                protocol.creditLimits(walletAddress).catch(() => 0n),
-                protocol.getUserDebtLots(walletAddress).catch(() => [])
+            const core = this._getProtocol(), vault = this._getVault();
+            const block = await this.provider.getBlock('latest');
+            const options = { blockTag: block.number };
+            const [blue, red, collateral, free, capacity, required, delinquent, kyc, base, count, level, margin, used, reserved, pending] = await Promise.all([
+                this._getERC20(BLUE_ADDRESS).balanceOf(walletAddress, options), this._getERC20(RED_ADDRESS).balanceOf(walletAddress, options),
+                vault.userCollateral(walletAddress, options), vault.getFreeCollateral(walletAddress, options),
+                core.getAvailableCreditCapacity(walletAddress, options), core.getRequiredCollateral(walletAddress, options),
+                core.isDelinquent(walletAddress, options), core.isKYCVerified(walletAddress, options), core.creditLimits(walletAddress, options),
+                core.getUserDebtLotsCount(walletAddress, options), core.userLevels(walletAddress, options),
+                core.extensionMarginLimits(walletAddress, options), core.extensionMarginUsed(walletAddress, options),
+                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options)
             ]);
+            const length = Number(count), stop = Math.min(offset + limit, length);
+            const lots = await Promise.all(Array.from({ length: Math.max(0, stop - offset) }, (_, i) => core.userDebtLots(walletAddress, offset + i, options)));
+            return { success: true, wallet: walletAddress, blockNumber: block.number,
+                blueBalance: ethers.formatUnits(blue,6), redCommitment: ethers.formatUnits(red,6),
+                collateralVault: { totalLocked: ethers.formatUnits(collateral,6), freeForWithdrawal: ethers.formatUnits(free,6),
+                    reservedInExchange: ethers.formatUnits(reserved,6), pendingReserve: ethers.formatUnits(pending,6) },
+                credit: { baseLimit: ethers.formatUnits(base,6), availableCapacity: ethers.formatUnits(capacity,6),
+                    requiredCollateral: ethers.formatUnits(required,6), isDelinquent: delinquent, isKYCVerified: kyc,
+                    level: Number(level), extensionMarginLimit: ethers.formatUnits(margin,6), extensionMarginUsed: ethers.formatUnits(used,6) },
+                debtLots: lots.map((lot, i) => ({ index: offset+i, id: lot.id.toString(), originalAmount: ethers.formatUnits(lot.amount,6),
+                    remainingAmount: ethers.formatUnits(lot.remainingAmount,6), dueAt: new Date(Number(lot.dueAt)*1000).toISOString(),
+                    repaid: lot.repaid, isOverdue: !lot.repaid && Number(lot.dueAt) <= block.timestamp })),
+                pagination: { offset, limit, total: count.toString(), nextOffset: stop < length ? stop : null } };
+        } catch (error) { return { success: false, error: error.message }; }
+    }
 
-            const formattedLots = debtLotsRaw.map(lot => ({
-                id: lot.id.toString(),
-                originalAmount: ethers.formatUnits(lot.originalAmount, 6),
-                remainingAmount: ethers.formatUnits(lot.remainingAmount, 6),
-                createdAt: new Date(Number(lot.createdAt) * 1000).toISOString(),
-                dueAt: new Date(Number(lot.dueAt) * 1000).toISOString(),
-                repaid: lot.repaid,
-                isOverdue: (!lot.repaid && Date.now() >= Number(lot.dueAt) * 1000)
-            }));
+    async setExtensionParams(days, bps, enabled) {
+        if (!this._isReady()) return { success: false, error: 'Gobernanza no configurada' };
+        try {
+            const tx = await this._getProtocol().setExtensionOption(days, bps, enabled);
+            return { success: true, txHash: await this._waitForConfirmation(tx, 'setExtensionOption') };
+        } catch (error) { return { success: false, error: error.message }; }
+    }
 
-            return {
-                success: true,
-                wallet: walletAddress,
-                blueBalance: ethers.formatUnits(blueBalRaw, 6),
-                redCommitment: ethers.formatUnits(redBalRaw, 6),
-                collateralVault: {
-                    totalLocked: ethers.formatUnits(vaultBalRaw, 6),
-                    freeForWithdrawal: ethers.formatUnits(freeVaultRaw, 6)
-                },
-                credit: {
-                    baseLimit: ethers.formatUnits(limitRaw, 6),
-                    availableCapacity: ethers.formatUnits(capRaw, 6),
-                    requiredCollateral: ethers.formatUnits(reqCollateralRaw, 6),
-                    isDelinquent,
-                    isKYCVerified: isKyc
-                },
-                debtLots: formattedLots
-            };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] Error en getUserAuditDetailed:', error.message);
-            return { success: false, error: error.message };
-        }
+    async setUserBenefits(wallet, level, margin) {
+        if (!this._isReady()) return { success: false, error: 'Gobernanza no configurada' };
+        try {
+            const tx = await this._getProtocol().setUserBenefits(wallet, level, ethers.parseUnits(String(margin), 6));
+            return { success: true, txHash: await this._waitForConfirmation(tx, 'setUserBenefits') };
+        } catch (error) { return { success: false, error: error.message }; }
     }
 
     async checkUserKYC(walletAddress) {
@@ -444,7 +449,7 @@ class Web3BridgeService {
     // PAGOS & SIMULACIONES (MARKETPLACE & TESTS)
     // ========================================================================
 
-    async syncPaymentToBlockchain({ payerWalletAddress, payeeWalletAddress, amountBlue, dbTransactionId, payerUsername, payeeUsername }) {
+    async syncPaymentToBlockchain({ payerWalletAddress, payeeWalletAddress, amountBlue, dbTransactionId, payerUsername, payeeUsername, authorization, signature }) {
         if (!this._isReady()) return null;
 
         try {
@@ -452,7 +457,11 @@ class Web3BridgeService {
             const protocol = this._getProtocol();
             const grossUnits = ethers.parseUnits(amountBlue.toString(), 6);
 
-            const tx = await protocol.processPayment(payerWalletAddress, payeeWalletAddress, grossUnits);
+            if (!authorization || !signature) throw new Error('Se requiere autorización firmada del pagador');
+            if (authorization.payer.toLowerCase() !== payerWalletAddress.toLowerCase()
+                || authorization.payee.toLowerCase() !== payeeWalletAddress.toLowerCase()
+                || BigInt(authorization.amount) !== grossUnits) throw new Error('La firma no corresponde al pago solicitado');
+            const tx = await protocol.processAuthorizedPayment(authorization, signature);
             const txHash = await this._waitForConfirmation(tx, 'syncPayment');
 
             if (dbTransactionId && txHash) {
@@ -483,8 +492,14 @@ class Web3BridgeService {
     }
 
     async mintMockUsdt(walletAddress, amountUnits) {
+        if (process.env.ENABLE_TEST_TOKEN_MINT !== 'true') return { success: false, error: 'Emisión de prueba deshabilitada' };
         if (!this._isReady() || !USDT_ADDRESS) return { success: false, error: 'Token USDT no configurado' };
         try {
+            const { chainId } = await this.provider.getNetwork();
+            if (![1337n, 31337n, 11155420n].includes(chainId)) throw new Error('Emisión de prueba prohibida en esta red');
+            if (!await this._getProtocol().isKYCVerified(walletAddress)) throw new Error('Se requiere KYC aprobado');
+            if (!/^\d+(\.\d{1,6})?$/.test(String(amountUnits)) || ethers.parseUnits(String(amountUnits),6) <= 0n
+                || ethers.parseUnits(String(amountUnits),6) > 5_000_000_000n) throw new Error('Importe de prueba inválido');
             const usdt = this._getERC20(USDT_ADDRESS);
             const tx = await usdt.mint(walletAddress, ethers.parseUnits(amountUnits.toString(), 6));
             const txHash = await this._waitForConfirmation(tx, 'mintMockUsdt');

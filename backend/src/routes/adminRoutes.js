@@ -128,6 +128,8 @@ router.get('/web3/status', verifyAdminToken, adminWeb3Controller.getWeb3Status);
 router.post('/web3/credit-limit', verifyAdminToken, adminWeb3Controller.setCreditLimit);
 router.post('/web3/kyc', verifyAdminToken, adminWeb3Controller.setKYCStatus);
 router.post('/web3/max-tx', verifyAdminToken, adminWeb3Controller.setMaxTransactionAmount);
+router.post('/web3/extension-params', verifyAdminToken, adminWeb3Controller.setExtensionParams);
+router.post('/web3/user-benefits', verifyAdminToken, adminWeb3Controller.setUserBenefits);
 router.post('/web3/commission-rate', verifyAdminToken, adminWeb3Controller.setCommissionRate);
 router.post('/web3/pause', verifyAdminToken, adminWeb3Controller.setPause);
 router.get('/web3/user-audit/:wallet', verifyAdminToken, adminWeb3Controller.getUserAudit);

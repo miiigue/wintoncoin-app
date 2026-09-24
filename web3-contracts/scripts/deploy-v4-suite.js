@@ -32,6 +32,10 @@ async function main() {
 
     const net = await ethers.provider.getNetwork();
     const chainId = net.chainId;
+    if (![1337n, 31337n, 11155420n].includes(chainId)) throw new Error("Solo redes de prueba autorizadas por este script.");
+    if (![1337n,31337n].includes(chainId) && process.env.ALLOW_V4_TESTNET_DEPLOY !== "true") {
+        throw new Error("Despliegue remoto deshabilitado por defecto; requiere revisión y autorización explícita.");
+    }
     console.log(`[Network] Chain ID: ${chainId.toString()}`);
 
     // ========================================================================
@@ -116,9 +120,7 @@ async function main() {
     console.log("   ✅ RedToken enlazado a CoreProtocol");
 
     // Enlace de CollateralVault
-    const txVault = await vault.linkCoreContracts(protocolAddress, treasuryAddress);
-    await txVault.wait();
-    console.log("   ✅ CollateralVault enlazado a CoreProtocol y Tesorería");
+    // El Vault se enlaza al Exchange después de desplegarlo, no a Treasury.
 
     // Enlace de CoreProtocol
     const txProtocol = await protocol.setContracts(blueAddress, redAddress, treasuryAddress, vaultAddress);
@@ -144,6 +146,15 @@ async function main() {
     );
     await exchange.waitForDeployment();
     const exchangeAddress = await exchange.getAddress();
+    await (await vault.linkCoreContracts(protocolAddress, exchangeAddress)).wait();
+    await (await blueToken.setExchange(exchangeAddress)).wait();
+    await (await exchange.setAmortizationVault(vaultAddress)).wait();
+    // Opciones y receptor de prórrogas quedan deshabilitados hasta configuración
+    // explícita. El script no concede KYC ni inventa financiación del fondo.
+    if (await vault.exchange() !== exchangeAddress || await blueToken.exchange() !== exchangeAddress
+        || await exchange.coreProtocol() !== protocolAddress || await exchange.feeBps() !== 0n) {
+        throw new Error("Enlaces o comisión inicial inconsistentes");
+    }
     console.log(`   ✅ FifoExchange en: ${exchangeAddress}`);
 
     // ========================================================================

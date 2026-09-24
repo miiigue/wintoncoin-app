@@ -13,7 +13,7 @@ async function main() {
     const usdt = await MockERC20.deploy("Tether USD", "USDT", 6);
     await usdt.waitForDeployment();
 
-    const Exchange = await ethers.getContractFactory("WintonFifoExchange");
+    const Exchange = await ethers.getContractFactory("FifoExchange");
     const exchange = await Exchange.deploy(
         await blue.getAddress(),
         await usdt.getAddress(),
@@ -115,7 +115,7 @@ async function main() {
     console.log("========================================================================");
 }
 
-main().catch((error) => {
+if (require.main === module) main().catch((error) => {
     console.error(error);
     process.exitCode = 1;
 });

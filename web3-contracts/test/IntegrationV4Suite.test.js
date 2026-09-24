@@ -1,205 +1,101 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
-const { time } = require("@nomicfoundation/hardhat-network-helpers");
+const { expect } = require('chai');
+const { ethers } = require('hardhat');
+const { loadFixture, time } = require('@nomicfoundation/hardhat-network-helpers');
+const { fixture, U } = require('./helpers/suite');
+describe('Integración real BLUE/RED/Vault/FIFO', function () {
+  let f;
+  beforeEach(async () => { f = await loadFixture(fixture); await f.core.setCommissionBps(0); });
+  async function invariant() {
+    expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+    expect(await f.vault.totalCollateralLocked()).eq(await f.usdt.balanceOf(f.vault.target) + await f.vault.totalExchangeReserved());
+    expect(await f.blue.balanceOf(f.exchange.target)).eq(await f.exchange.totalReservedBlue() + await f.exchange.accumulatedFeesBlue());
+    expect(await f.usdt.balanceOf(f.exchange.target)).eq(await f.exchange.totalReservedUsdt() + await f.exchange.accumulatedFeesUsdt());
+    for (const user of [f.alice, f.bob, f.carol, f.other]) {
+      const count = await f.core.getUserDebtLotsCount(user.address);
+      let debt = 0n;
+      for (let i=0n; i<count; i++) debt += (await f.core.userDebtLots(user.address,i)).remainingAmount;
+      expect(debt).eq(await f.red.balanceOf(user.address));
+      expect(await f.blue.lockedBalanceOf(user.address)).lte(await f.blue.balanceOf(user.address));
+    }
+  }
+  it('Compra normal también amortiza el vencido, sin acción posterior del comprador', async () => {
+    await f.pay(f.alice,f.bob,100n*U); await time.increase(30*86400);
+    await f.exchange.connect(f.bob).createBlueOrder(100n*U);
+    await f.exchange.connect(f.alice).createUsdtOrder(100n*U);
+    await f.exchange.matchOrders(10,20);
+    expect(await f.red.balanceOf(f.alice.address)).eq(0);
+    expect(await f.blue.balanceOf(f.alice.address)).eq(0);
+    await invariant();
+  });
+  it('El vendedor no evade su amortización vencida sacando BLUE al Exchange', async () => {
+    await f.pay(f.bob,f.carol,40n*U); await f.pay(f.alice,f.bob,100n*U); await time.increase(30*86400);
+    await expect(f.exchange.connect(f.bob).createBlueOrder(100n*U)).reverted;
+    await f.exchange.connect(f.bob).createBlueOrder(60n*U);
+    expect(await f.red.balanceOf(f.bob.address)).eq(0);
+    expect(await f.exchange.totalReservedBlue()).eq(60n*U);
+    await invariant();
+  });
+  it('Secuencia reproducible de 80 operaciones mixtas conserva los saldos y reservas', async () => {
+    let seed = 6281; const rand = (n) => { seed = (Math.imul(seed,1664525)+1013904223)>>>0; return seed%n; };
+    const actors = [f.alice,f.bob,f.carol,f.other];
+    for (let i=0; i<80; i++) {
+      const user=actors[rand(actors.length)], other=actors[(actors.indexOf(user)+1)%actors.length];
+      const amount=BigInt(1+rand(10))*U;
+      switch(rand(4)) {
+        case 0: await f.pay(user,other,amount); break;
+        case 1: await f.vault.connect(user).deposit(amount); break;
+        case 2: {
+          const debt=await f.red.balanceOf(user.address), blue=await f.blue.balanceOf(user.address);
+          const value=amount<debt?(amount<blue?amount:blue):(debt<blue?debt:blue);
+          if (value) await f.core.connect(user).amortizeWithBlue(value);
+          break;
+        }
+        default: {
+          const free=await f.vault.getFreeCollateral(user.address);
+          if (free) await f.vault.connect(user).withdraw(free<amount?free:amount);
+        }
+      }
+      await invariant();
+    }
+  });
+  it('Limpieza de parking y venta antigua no desbloquean ingresos recientes', async () => {
+    await f.pay(f.alice,f.bob,10n*U); await time.increase(30*86400);
+    await f.pay(f.carol,f.bob,20n*U); await f.blue.cleanParking(f.bob.address,1);
+    await f.exchange.connect(f.bob).createBlueOrder(10n*U);
+    expect(await f.blue.lockedBalanceOf(f.bob.address)).eq(20n*U);
+    await expect(f.exchange.connect(f.bob).createBlueOrder(U)).revertedWith('BLUE: Parking not released');
+    await invariant();
+  });
+  it('Registra el bloqueo pendiente: Treasury no puede repartir BLUE directamente', async () => {
+    await f.core.setCommissionBps(500); await f.pay(f.alice,f.bob,100n*U);
+    const leaf=ethers.keccak256(ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(['address','uint256'],[f.bob.address,U])));
+    await f.treasury.setMerkleRoot(leaf); await time.increase(30*86400);
+    await expect(f.treasury.connect(f.bob).claimBoosterReward(U,[])).revertedWith('BLUE: Transfers only through exchange');
+    expect(await f.treasury.hasClaimed(f.bob.address)).eq(false);
+    await invariant();
+  });
+  it('Orden en cabeza sin KYC es saltada sin revertir el matching para las órdenes legítimas posteriores', async () => {
+    await f.pay(f.alice, f.bob, 50n * U);
+    await f.pay(f.alice, f.carol, 50n * U);
+    await time.increase(30 * 86400);
 
-describe("Suite V4: Integración End-to-End del Ecosistema Completo (Leyes Económicas y Flujo de Vida)", function () {
-    let deployer, relayer, alice, bob, charlie;
-    let blueToken, redToken, treasury, vault, protocol, exchange, mockUsdt;
+    await f.exchange.connect(f.bob).createBlueOrder(50n * U);
+    await f.exchange.connect(f.carol).createBlueOrder(50n * U);
 
-    const ONE_TOKEN = 1_000_000n; // 6 decimales nativos
-    const BASE_CREDIT_LIMIT = 2_000n * ONE_TOKEN; // Límite de crédito 2,000 unidades
+    // El KYC de Bob es revocado mientras está en cola
+    await f.core.setKYCStatus(f.bob.address, false);
 
-    beforeEach(async function () {
-        [deployer, relayer, alice, bob, charlie] = await ethers.getSigners();
+    // Other entra a comprar BLUE con USDT
+    await f.exchange.connect(f.other).createUsdtOrder(50n * U);
 
-        // ====================================================================
-        // 1. DESPLIEGUE DE TOKEN MOCK USDT (6 DECIMALES)
-        // ====================================================================
-        const MockERC20Factory = await ethers.getContractFactory("MockERC20");
-        mockUsdt = await MockERC20Factory.deploy("Tether USD", "USDT", 6);
-        await mockUsdt.waitForDeployment();
+    // matchOrders NO revierte: salta a Bob y liquida a Carol contra Other
+    await f.exchange.matchOrders(10, 20);
 
-        // ====================================================================
-        // 2. DESPLIEGUE DE LA SUITE DE SMART CONTRACTS V4
-        // ====================================================================
-        const BlueFactory = await ethers.getContractFactory("BlueToken");
-        blueToken = await BlueFactory.deploy();
-        await blueToken.waitForDeployment();
+    expect(await f.usdt.balanceOf(f.carol.address)).eq(10_050n * U);
+    expect(await f.blue.balanceOf(f.other.address)).eq(50n * U);
 
-        const RedFactory = await ethers.getContractFactory("RedToken");
-        redToken = await RedFactory.deploy();
-        await redToken.waitForDeployment();
-
-        const TreasuryFactory = await ethers.getContractFactory("ProtocolTreasury");
-        treasury = await TreasuryFactory.deploy(await blueToken.getAddress());
-        await treasury.waitForDeployment();
-
-        const VaultFactory = await ethers.getContractFactory("CollateralVault");
-        vault = await VaultFactory.deploy(await mockUsdt.getAddress());
-        await vault.waitForDeployment();
-
-        const ProtocolFactory = await ethers.getContractFactory("CoreProtocol");
-        protocol = await ProtocolFactory.deploy();
-        await protocol.waitForDeployment();
-
-        const ExchangeFactory = await ethers.getContractFactory("FifoExchange");
-        exchange = await ExchangeFactory.deploy(
-            await blueToken.getAddress(),
-            await mockUsdt.getAddress(),
-            await treasury.getAddress(),
-            0 // Initial fee BPS = 0
-        );
-        await exchange.waitForDeployment();
-
-        // ====================================================================
-        // 3. CONFIGURACIÓN Y ENLACES ATÓMICOS
-        // ====================================================================
-        const blueAddr = await blueToken.getAddress();
-        const redAddr = await redToken.getAddress();
-        const treasuryAddr = await treasury.getAddress();
-        const vaultAddr = await vault.getAddress();
-        const protocolAddr = await protocol.getAddress();
-
-        // Enlace irreversible de tokens
-        await blueToken.setCoreProtocol(protocolAddr);
-        await redToken.setCoreProtocol(protocolAddr);
-
-        // Enlace de Bóveda
-        await vault.linkCoreContracts(protocolAddr, treasuryAddr);
-
-        // Enlace del Motor Central
-        await protocol.setContracts(blueAddr, redAddr, treasuryAddr, vaultAddr);
-        await protocol.setRelayer(relayer.address);
-
-        // Registro KYC
-        await protocol.setKYCStatus(alice.address, true);
-        await protocol.setKYCStatus(bob.address, true);
-        await protocol.setKYCStatus(charlie.address, true);
-
-        // Asignación de Límite de Crédito
-        await protocol.setCreditLimit(alice.address, BASE_CREDIT_LIMIT);
-        await protocol.setCreditLimit(bob.address, BASE_CREDIT_LIMIT);
-    });
-
-    it("Flujo 1: Emisión Dual -> Custodia en Bóveda -> Venta en Exchange -> Amortización y Cierre Contable", async function () {
-        // --------------------------------------------------------------------
-        // FASE 1: Alice contrata un servicio a Bob por 500 unidades
-        // Comisión de plataforma: 5% (25 unidades). Monto neto para Bob: 475 unidades.
-        // --------------------------------------------------------------------
-        const grossAmount = 500n * ONE_TOKEN;
-        const expectedFee = 25n * ONE_TOKEN;
-        const expectedNet = 475n * ONE_TOKEN;
-
-        await protocol.connect(relayer).processPayment(alice.address, bob.address, grossAmount);
-
-        // Comprobación de Balances
-        expect(await redToken.balanceOf(alice.address)).to.equal(grossAmount);
-        expect(await blueToken.balanceOf(bob.address)).to.equal(expectedNet);
-        expect(await blueToken.balanceOf(await treasury.getAddress())).to.equal(expectedFee);
-
-        // Capacidad restante de Alice: 2,000 - 500 = 1,500
-        expect(await protocol.getAvailableCreditCapacity(alice.address)).to.equal(1_500n * ONE_TOKEN);
-
-        // --------------------------------------------------------------------
-        // FASE 2: Bob coloca sus 475 BLUE en venta en el FifoExchange
-        // --------------------------------------------------------------------
-        await blueToken.connect(bob).approve(await exchange.getAddress(), expectedNet);
-        await exchange.connect(bob).createBlueOrder(expectedNet);
-
-        expect(await blueToken.balanceOf(bob.address)).to.equal(0n);
-        expect(await exchange.totalReservedBlue()).to.equal(expectedNet);
-
-        // --------------------------------------------------------------------
-        // FASE 3: Charlie entra con USDT para comprar 475 BLUE en el Exchange
-        // --------------------------------------------------------------------
-        await mockUsdt.mint(charlie.address, expectedNet);
-        await mockUsdt.connect(charlie).approve(await exchange.getAddress(), expectedNet);
-        await exchange.connect(charlie).createUsdtOrder(expectedNet);
-
-        // Se ejecuta el matching bilateral 1:1
-        await exchange.matchOrders(10, 10);
-
-        // Bob ahora tiene 475 USDT líquidos
-        expect(await mockUsdt.balanceOf(bob.address)).to.equal(expectedNet);
-        // Charlie tiene 475 BLUE
-        expect(await blueToken.balanceOf(charlie.address)).to.equal(expectedNet);
-
-        // --------------------------------------------------------------------
-        // FASE 4: Alice deposita 200 USDT en la CollateralVault
-        // --------------------------------------------------------------------
-        const collateralAmount = 200n * ONE_TOKEN;
-        await mockUsdt.mint(alice.address, collateralAmount);
-        await mockUsdt.connect(alice).approve(await vault.getAddress(), collateralAmount);
-        await vault.connect(alice).deposit(collateralAmount);
-
-        expect(await vault.userCollateral(alice.address)).to.equal(collateralAmount);
-        // La deuda descubierta de Alice baja de 500 a 300
-        // Su capacidad crediticia sube de 1,500 a 1,700 (2,000 - 300)
-        expect(await protocol.getAvailableCreditCapacity(alice.address)).to.equal(1_700n * ONE_TOKEN);
-
-        // --------------------------------------------------------------------
-        // FASE 5: Alice utiliza su colateral para amortizar 200 unidades de su compromiso
-        // (Resolución de la trampa de liquidez con repayWithCollateral)
-        // --------------------------------------------------------------------
-        await vault.connect(alice).repayWithCollateral(alice.address, collateralAmount);
-
-        // El compromiso RED de Alice se redujo de 500 a 300
-        expect(await redToken.balanceOf(alice.address)).to.equal(300n * ONE_TOKEN);
-        expect(await vault.userCollateral(alice.address)).to.equal(0n);
-
-        // --------------------------------------------------------------------
-        // FASE 6: Charlie transfiere 300 BLUE a Alice, y Alice amortiza el saldo final
-        // --------------------------------------------------------------------
-        await blueToken.connect(charlie).transfer(alice.address, 300n * ONE_TOKEN);
-        await protocol.connect(alice).amortizeWithBlue(300n * ONE_TOKEN);
-
-        // Balance de compromiso RED de Alice queda en CERO absoluto
-        expect(await redToken.balanceOf(alice.address)).to.equal(0n);
-        // Capacidad restaurada al 100% de su límite base
-        expect(await protocol.getAvailableCreditCapacity(alice.address)).to.equal(BASE_CREDIT_LIMIT);
-    });
-
-    it("Flujo 2: Vencimiento de Lotes, Garantía Exigible y Liquidación Proporcional de Morosidad", async function () {
-        // Alice toma un compromiso de 800 unidades
-        const amount = 800n * ONE_TOKEN;
-        await protocol.connect(relayer).processPayment(alice.address, bob.address, amount);
-
-        // Deposita 500 USDT en la bóveda
-        await mockUsdt.mint(alice.address, 500n * ONE_TOKEN);
-        await mockUsdt.connect(alice).approve(await vault.getAddress(), 500n * ONE_TOKEN);
-        await vault.connect(alice).deposit(500n * ONE_TOKEN);
-
-        // Día 1: No está vencido y 800 <= 2000 (límite base), por ende requiredCollateral = 0
-        expect(await protocol.getRequiredCollateral(alice.address)).to.equal(0n);
-        expect(await vault.getFreeCollateral(alice.address)).to.equal(500n * ONE_TOKEN);
-
-        // Avanzar el tiempo 35 días (supera COMMITMENT_DURATION de 30 días)
-        await time.increase(35 * 24 * 3600);
-
-        // Ahora el compromiso de 800 está vencido. Garantía requerida = 800.
-        expect(await protocol.getRequiredCollateral(alice.address)).to.equal(800n * ONE_TOKEN);
-        // Garantía libre para retiro en la bóveda = max(0, 500 - 800) = 0 (bloqueo protector)
-        expect(await vault.getFreeCollateral(alice.address)).to.equal(0n);
-
-        // Intento de retirar colateral revierte por exceder garantia libre
-        await expect(vault.connect(alice).withdraw(100n * ONE_TOKEN))
-            .to.be.revertedWith("Vault: Requested amount exceeds free collateral");
-
-        // Aún no está en mora formal (período de gracia de 30 días adicionales)
-        expect(await protocol.isDelinquent(alice.address)).to.be.false;
-
-        // Avanzar el tiempo otros 30 días (total 65 días > 60 días)
-        await time.increase(30 * 24 * 3600);
-
-        // Ahora Alice está formalmente morosa
-        expect(await protocol.isDelinquent(alice.address)).to.be.true;
-
-        // La bóveda ejecuta liquidación proporcional de morosidad
-        await expect(vault.liquidateDelinquent(alice.address, 500n * ONE_TOKEN))
-            .to.emit(vault, "DelinquentLiquidated");
-
-        // El colateral liquidado extinguió 500 unidades del compromiso RED
-        expect(await redToken.balanceOf(alice.address)).to.equal(300n * ONE_TOKEN);
-        expect(await vault.userCollateral(alice.address)).to.equal(0n);
-    });
+    // Restaurar KYC de Bob
+    await f.core.setKYCStatus(f.bob.address, true);
+    await invariant();
+  });
 });

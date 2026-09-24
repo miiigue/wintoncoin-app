@@ -32,3 +32,13 @@ Nunca entregues las pruebas en tablas o listas markdown tradicionales. Usa estri
 A partir de ahora, cualquier pantalla, interfaz, vista o componente visual nuevo que se cree DEBE construirse obligatoriamente en React, utilizando el stack y la arquitectura de la migración activa ubicada en `frontend/src/` (Vite + React SPA).
 Queda terminantemente prohibido crear nuevas pantallas en HTML o JavaScript vanilla legado, garantizando que todo el trabajo nuevo quede actualizado de una vez en React sin requerir una segunda migración posterior.
 </RULE[frontend_react_migration]>
+
+<RULE[treasury_incentive_mechanism]>
+# Mecanismo Canónico de Pagos e Incentivos de Tesorería (Dogfooding Protocolar Puro)
+Para preservar la prohibición estricta de transferencias P2P directas en `BlueToken.sol` y evitar puertas traseras o excepciones en los contratos (`CoreProtocol.sol` y `RedToken.sol`):
+1. La Tesorería / Plataforma NUNCA transfiere tokens BLUE directamente a billeteras de usuarios por fuera del protocolo.
+2. Toda recompensa, bono o incentivo dispersado por la Tesorería opera bajo el flujo estándar idéntico al de cualquier usuario: la Tesorería origina el pago vía `CoreProtocol` asumiendo el compromiso RED y pagando la comisión de plataforma correspondiente de forma ordinaria.
+3. El pago genera los tokens BLUE con parking al beneficiario y los tokens BLUE de comisión a la Tesorería (preservando el flujo estándar sin excepciones `if (payer == treasury)` ni código especial).
+4. La Tesorería amortiza su compromiso RED utilizando sus tokens BLUE acumulados por comisiones, preservando estrictamente la invariante de paridad: `TotalSupply(BLUE) == TotalSupply(RED)` con variación neta cero en la masa monetaria circulante.
+</RULE[treasury_incentive_mechanism]>
+

@@ -44,6 +44,16 @@ export default function AdminWeb3Panel() {
   const [simPayer, setSimPayer] = useState('');
   const [simPayee, setSimPayee] = useState('');
   const [simAmount, setSimAmount] = useState('100');
+  const [simAuthorization, setSimAuthorization] = useState('');
+  const [simSignature, setSimSignature] = useState('');
+
+  // Form states - Configuración de Prórroga desde nivel 3
+  const [extensionDaysAdmin, setExtensionDaysAdmin] = useState('30');
+  const [extensionBpsAdmin, setExtensionBpsAdmin] = useState('500');
+  const [extensionEnabled, setExtensionEnabled] = useState(true);
+  const [benefitWallet, setBenefitWallet] = useState('');
+  const [benefitLevel, setBenefitLevel] = useState('3');
+  const [benefitMargin, setBenefitMargin] = useState('0');
 
   const showToast = (msg) => {
     setToastMessage(msg);
@@ -63,6 +73,7 @@ export default function AdminWeb3Panel() {
       const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
       
       const res = await fetch(`${API_URL}/api/admin/web3/status`, {
+        credentials: 'include',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json'
@@ -71,36 +82,15 @@ export default function AdminWeb3Panel() {
 
       if (res.ok) {
         const data = await res.json();
+        if (data.success !== true) throw new Error(data.error || "Estado Web3 no disponible");
         setStatusData(data);
       } else {
-        // Fallback para pruebas visuales si el backend está en desarrollo
-        setStatusData({
-          network: "Optimism Sepolia (Chain ID: 11155420)",
-          chainId: "11155420",
-          relayer: {
-            address: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-            balanceEth: "1.4520",
-            isConfigured: true
-          },
-          contracts: {
-            CoreProtocol: "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
-            CollateralVault: "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
-            FifoExchange: "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
-            ProtocolTreasury: "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
-            BlueToken: "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-            RedToken: "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-            USDT: "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-          },
-          parameters: {
-            paused: false,
-            maxTransactionAmount: "5000",
-            commissionRateBps: "500",
-            totalCollateralLocked: "12500.00"
-          }
-        });
+        console.warn("Servicio Web3 no disponible o sesión administrativa expirada.");
+        setStatusData(null);
       }
     } catch (err) {
       console.error("Error al cargar estado Web3:", err);
+      setStatusData(null);
     } finally {
       setLoadingStatus(false);
     }
@@ -119,6 +109,7 @@ export default function AdminWeb3Panel() {
       setActionLoading(true);
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': token ? `Bearer ${token}` : ''
@@ -127,7 +118,7 @@ export default function AdminWeb3Panel() {
       });
 
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || data.success !== true) {
         throw new Error(data.message || 'Error en la operación');
       }
 
@@ -201,7 +192,17 @@ export default function AdminWeb3Panel() {
     }
   };
 
-  // 6. Auditoría 360° On-Chain
+  // 6. Configurar Parámetros de Prórroga desde nivel 3
+  const handleSetExtensionParams = (e) => {
+    e.preventDefault();
+    executeAdminPost(
+      '/api/admin/web3/extension-params',
+      { extensionDays: extensionDaysAdmin, extensionBps: extensionBpsAdmin, enabled: extensionEnabled },
+      `Parámetros de prórroga configurados (${extensionDaysAdmin} días, ${extensionBpsAdmin} BPS)`
+    );
+  };
+
+  // 7. Auditoría 360° On-Chain
   const handleAuditWallet = async (e) => {
     e.preventDefault();
     if (!auditWallet) return;
@@ -212,6 +213,7 @@ export default function AdminWeb3Panel() {
       const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
 
       const res = await fetch(`${API_URL}/api/admin/web3/user-audit/${auditWallet}`, {
+        credentials: 'include',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
           'Content-Type': 'application/json'
@@ -219,7 +221,9 @@ export default function AdminWeb3Panel() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Error al auditar billetera');
+      if (!res.ok || data.success === false) {
+        throw new Error(data.message || 'Error al auditar billetera');
+      }
       setAuditResult(data);
       showToast('🔍 Auditoría on-chain actualizada');
     } catch (err) {
@@ -244,9 +248,12 @@ export default function AdminWeb3Panel() {
   const handleSimulatePayment = (e) => {
     e.preventDefault();
     if (!simPayer || !simPayee || !simAmount) return;
+    let authorization;
+    try { authorization = JSON.parse(simAuthorization); }
+    catch { showToast('La autorización firmada debe ser un objeto JSON válido.'); return; }
     executeAdminPost(
       '/api/admin/web3/test/process-payment',
-      { payerWallet: simPayer, payeeWallet: simPayee, amount: simAmount },
+      { payerWallet: simPayer, payeeWallet: simPayee, amount: simAmount, authorization, signature: simSignature },
       `Pago de ${simAmount} BLUE procesado con emisión pareada 1:1`
     );
   };
@@ -331,6 +338,46 @@ export default function AdminWeb3Panel() {
           🧪 Laboratorio de Pruebas
         </button>
       </div>
+
+      {/* Alerta de Desconexión / Error de Carga */}
+      {!statusData && !loadingStatus && (
+        <div style={{
+          background: 'rgba(239, 68, 68, 0.12)',
+          border: '1px solid rgba(239, 68, 68, 0.35)',
+          borderRadius: '16px',
+          padding: '1.25rem',
+          marginBottom: '1.5rem',
+          color: '#f87171',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          backdropFilter: 'blur(10px)',
+        }}>
+          <div style={{ fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span>⚠️</span> Servicio Web3 Desconectado o Sesión Administrativa Expirada
+          </div>
+          <div style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: '1.45' }}>
+            No se pudo obtener el estado en vivo de los contratos desde el backend (/api/admin/web3/status). Asegúrate de haber iniciado sesión como administrador y que el nodo RPC o relayer esté activo.
+          </div>
+          <button
+            onClick={fetchStatus}
+            style={{
+              alignSelf: 'flex-start',
+              marginTop: '4px',
+              background: 'rgba(255, 255, 255, 0.1)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              color: '#ffffff',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+            }}
+          >
+            🔄 Reintentar Conexión
+          </button>
+        </div>
+      )}
 
       {/* TAB 1: DIRECTORIO DE CONTRATOS */}
       {activeTab === 'directory' && (
@@ -460,7 +507,7 @@ export default function AdminWeb3Panel() {
             <form onSubmit={handleSetCommission}>
               <div className={styles.formGroup}>
                 <label className={styles.formLabel}>
-                  Comisión Marketplace BPS (Actual: {statusData?.parameters?.commissionRateBps} BPS)
+                  Comisión Marketplace BPS (Actual: {statusData?.parameters?.commissionRateBps || '500'} BPS)
                 </label>
                 <input
                   type="number"
@@ -474,6 +521,57 @@ export default function AdminWeb3Panel() {
               <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
                 Actualizar Comisión
               </button>
+            </form>
+          </div>
+
+          {/* Configuración de Prórroga de Compromiso (Nivel 4+) */}
+          <div className={styles.actionPanel}>
+            <h3 className={styles.actionPanelTitle}>⏳ Parámetros de Prórroga (desde nivel 3)</h3>
+            <p className={styles.actionPanelDesc}>
+              Configura los plazos y recargos habilitados. Prórrogas desde nivel 3; margen exclusivo para recargos desde nivel 5. Los valores se confirman en blockchain.
+            </p>
+            <p>Opciones confirmadas: {statusData?.parameters?.extensionOptions?.map((option) =>
+              (option.days + ' días / ' + option.bps / 100 + '% / ' + (option.enabled ? 'habilitada' : 'deshabilitada'))).join(' · ') || 'No disponibles'}</p>
+            <label><input type="checkbox" checked={extensionEnabled} onChange={(event) => setExtensionEnabled(event.target.checked)} /> Habilitar esta opción</label>
+            <form onSubmit={handleSetExtensionParams} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Plazo de esta opción (días)</label>
+                <input
+                  type="number"
+                  placeholder="Ej: 30"
+                  value={extensionDaysAdmin}
+                  onChange={(e) => setExtensionDaysAdmin(e.target.value)}
+                  className={styles.formInput}
+                  required
+                />
+              </div>
+              <div className={styles.formGroup}>
+                <label className={styles.formLabel}>Tarifa de Prórroga BPS (Ej: 500 = 5.00%)</label>
+                <input
+                  type="number"
+                  placeholder="Ej: 500"
+                  value={extensionBpsAdmin}
+                  onChange={(e) => setExtensionBpsAdmin(e.target.value)}
+                  className={styles.formInput}
+                  required
+                />
+              </div>
+              <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
+                Guardar opción de prórroga
+              </button>
+            </form>
+          </div>
+
+          <div className={styles.actionPanel}>
+            <h3 className={styles.actionPanelTitle}>Nivel y margen para recargos</h3>
+            <p>El margen empieza en cero, solo se utiliza desde el nivel 5 y no permite pagar nuevos servicios.
+              Cambiar el nivel no elimina compromisos ni márgenes ya utilizados.</p>
+            <form onSubmit={(event) => { event.preventDefault(); executeAdminPost('/api/admin/web3/user-benefits',
+              { walletAddress: benefitWallet, level: benefitLevel, margin: benefitMargin }, 'Beneficios confirmados en blockchain'); }}>
+              <label>Billetera<input className={styles.formInput} value={benefitWallet} onChange={(event) => setBenefitWallet(event.target.value)} required /></label>
+              <label>Nivel<input className={styles.formInput} type="number" min="0" max="255" step="1" value={benefitLevel} onChange={(event) => setBenefitLevel(event.target.value)} required /></label>
+              <label>Margen máximo para recargos (RED)<input className={styles.formInput} inputMode="decimal" value={benefitMargin} onChange={(event) => setBenefitMargin(event.target.value)} required /></label>
+              <button className={styles.submitBtn} disabled={actionLoading}>Guardar beneficios</button>
             </form>
           </div>
 
@@ -495,11 +593,13 @@ export default function AdminWeb3Panel() {
               </button>
 
               <button
-                onClick={() => handleTogglePause('vault', false)}
+                onClick={() => handleTogglePause('vault', statusData?.parameters?.vaultPaused || false)}
                 disabled={actionLoading}
-                className={`${styles.submitBtn} ${styles.dangerBtn}`}
+                className={`${styles.submitBtn} ${statusData?.parameters?.vaultPaused ? styles.successBtn : styles.dangerBtn}`}
               >
-                🔴 Pausar Bóveda CollateralVault
+                {statusData?.parameters?.vaultPaused
+                  ? '🟢 Reanudar Bóveda CollateralVault'
+                  : '🔴 Pausar Bóveda CollateralVault (Emergencia)'}
               </button>
             </div>
           </div>
@@ -585,7 +685,7 @@ export default function AdminWeb3Panel() {
                     {auditResult.credit?.isDelinquent ? (
                       <span className={styles.badgeDelinquent}>Mora Formal (&gt;30d)</span>
                     ) : (
-                      <span className={styles.badgeGoodStanding}>Al Día (Buena Fe)</span>
+                      <span className={styles.badgeGoodStanding}>Al Día</span>
                     )}
                   </span>
                 </div>
@@ -693,7 +793,8 @@ export default function AdminWeb3Panel() {
           <div className={styles.actionPanel}>
             <h3 className={styles.actionPanelTitle}>🤝 Simular Pago de Tarea (Emisión Dual)</h3>
             <p className={styles.actionPanelDesc}>
-              Ejecuta una transacción de marketplace entre dos billeteras: genera BLUE neto para el prestador, deduce la comisión a Tesorería y crea el compromiso RED al pagador.
+              Ejecuta una transacción real en la red configurada, con autorización del pagador.
+              El prestador recibe el importe completo; el pagador asume además la comisión.
             </p>
             <form onSubmit={handleSimulatePayment}>
               <div className={styles.formGroup}>
@@ -719,7 +820,7 @@ export default function AdminWeb3Panel() {
                 />
               </div>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Monto Bruto de la Tarea (BLUE)</label>
+                <label className={styles.formLabel}>Importe para el prestador (BLUE, comisión adicional)</label>
                 <input
                   type="number"
                   placeholder="Ej: 100"
@@ -730,8 +831,12 @@ export default function AdminWeb3Panel() {
                 />
               </div>
               <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
-                {actionLoading ? 'Procesando...' : 'Ejecutar Pago Dual On-Chain'}
+                {actionLoading ? 'Procesando...' : 'Enviar pago autorizado a blockchain'}
               </button>
+              <label className={styles.formLabel}>Autorización del pagador (JSON con importes en unidades base)</label>
+              <textarea required value={simAuthorization} onChange={e=>setSimAuthorization(e.target.value)} className={styles.formInput} />
+              <label className={styles.formLabel}>Firma del pagador</label>
+              <input required value={simSignature} onChange={e=>setSimSignature(e.target.value)} className={styles.formInput} />
             </form>
           </div>
 

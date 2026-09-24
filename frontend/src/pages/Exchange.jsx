@@ -15,6 +15,10 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { mockFinancialService } from '../modules/mockFinancialService.js';
 import { mockExchangeService } from '../modules/mockExchangeService.js';
 import styles from './Exchange.module.css';
+import { displayAmount } from '../modules/financialUnits.js';
+
+// Helper canónico para mostrar siempre 4 decimales en interfaces financieras
+const fmt = displayAmount;
 
 export default function Exchange() {
   const [searchParams] = useSearchParams();
@@ -65,9 +69,9 @@ export default function Exchange() {
     try {
       const res = await mockExchangeService.createSellOrder(amountInput);
       if (res.instantMatch) {
-        setFeedbackMsg(`¡Éxito! Tu orden de ${amountInput} BLUE se cruzó al instante. Has recibido ${amountInput} USDT.`);
+        setFeedbackMsg(`¡Éxito! Tu orden de ${fmt(amountInput)} BLUE se cruzó al instante. Has recibido ${fmt(res.receivedUsdt)} USDT.`);
       } else {
-        setFeedbackMsg(`Tu orden de ${amountInput} BLUE ha ingresado con éxito a la Cola FIFO. Recibirás tus USDT en cuanto entren compradores.`);
+        setFeedbackMsg(`Tu orden de ${fmt(amountInput)} BLUE ha ingresado con éxito a la Cola FIFO. Recibirás tus USDT en cuanto entren compradores.`);
       }
       setAmountInput('');
     } catch (err) {
@@ -86,13 +90,13 @@ export default function Exchange() {
     try {
       const res = await mockExchangeService.createBuyOrder(amountInput, autoBurnRed);
       if (res.inQueueAmount === 0) {
-        if (autoBurnRed) {
-          setFeedbackMsg(`¡Excelente! Compraste ${amountInput} BLUE y saldaste de inmediato ${amountInput} RED de tu deuda.`);
+        if (res.burnedAmount > 0) {
+          setFeedbackMsg(`¡Excelente! Compraste ${fmt(res.matchedAmount)} BLUE y amortizaste ${fmt(res.burnedAmount)} RED de tu compromiso.`);
         } else {
-          setFeedbackMsg(`¡Éxito! Has comprado ${amountInput} BLUE. Ya están disponibles en tu saldo líquido.`);
+          setFeedbackMsg(`¡Éxito! Has comprado ${fmt(res.matchedAmount)} BLUE. Ya están disponibles en tu saldo líquido.`);
         }
       } else {
-        setFeedbackMsg(`Compraste ${res.matchedAmount.toFixed(2)} BLUE al instante. El remanente de ${res.inQueueAmount.toFixed(2)} USDT está en la cola con protección de Buena Fe.`);
+        setFeedbackMsg(`Compraste ${fmt(res.matchedAmount)} BLUE al instante. El remanente de ${fmt(res.inQueueAmount)} USDT está en la cola de compra FIFO.`);
       }
       setAmountInput('');
     } catch (err) {
@@ -131,10 +135,10 @@ export default function Exchange() {
           </div>
         </div>
 
-        {/* TÍTULO HERO */}
+        {/* TÍTULO HERO (Sin 'Oficial' y sin subtítulo) */}
         <div className={styles.heroTitleSection}>
-          <h1 className={styles.mainTitle}>Exchange Oficial FIFO</h1>
-          <p className={styles.subTitle}>Intercambio institucional sin intermediarios ni monedas locales</p>
+          <h1 className={styles.mainTitle}>Exchange FIFO</h1>
+          <p role="status">Demostración local: órdenes y saldos simulados, sin movimientos reales en blockchain.</p>
         </div>
 
         {/* FEEDBACK & ERRORES */}
@@ -180,12 +184,13 @@ export default function Exchange() {
             <div className={styles.inputGroup}>
               <div className={styles.inputHeader}>
                 <span>Tú pagas con</span>
-                <span>Garantía en Bóveda: <strong>{finState.collateral.totalDepositedUsdt.toFixed(2)} USDT</strong></span>
+                <span>Garantía en Bóveda: <strong>{fmt(finState.collateral.totalDepositedUsdt)} USDT</strong></span>
               </div>
               <div className={styles.inputRow}>
                 <input
                   type="number"
-                  placeholder="0.00"
+                  placeholder="0.0000"
+                  step="0.0001"
                   className={styles.tokenInput}
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
@@ -212,7 +217,7 @@ export default function Exchange() {
                 <input
                   type="number"
                   readOnly
-                  placeholder="0.00"
+                  placeholder="0.0000"
                   className={styles.tokenInput}
                   value={amountInput}
                   style={{ color: '#38bdf8' }}
@@ -224,7 +229,7 @@ export default function Exchange() {
               </div>
             </div>
 
-            {/* Opción inteligente: Auto-Quema para amortizar compromiso RED */}
+            {/* Opción inteligente: Auto-Amortizar compromiso RED */}
             {finState.credit.debtRed > 0 && (
               <label className={styles.burnCheckboxRow}>
                 <input
@@ -235,7 +240,7 @@ export default function Exchange() {
                 <div>
                   <strong>⚡ Amortizar mi Compromiso RED al Instante</strong>
                   <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
-                    Usa los BLUE comprados para saldar tu compromiso de {finState.credit.debtRed.toFixed(2)} RED en una sola transacción sin pasos adicionales.
+                    Usa los BLUE comprados para amortizar tu compromiso de {fmt(finState.credit.debtRed)} RED en una sola transacción sin pasos adicionales.
                   </div>
                 </div>
               </label>
@@ -245,7 +250,7 @@ export default function Exchange() {
             <div className={styles.rateDetails}>
               <div className={styles.rateRow}>
                 <span>Tipo de Cambio</span>
-                <strong>1.00 USDT = 1.00 BLUE</strong>
+                <strong>1.0000 USDT = 1.0000 BLUE</strong>
               </div>
               <div className={styles.rateRow}>
                 <span>Comisión de Red (Gas)</span>
@@ -253,7 +258,7 @@ export default function Exchange() {
               </div>
               <div className={styles.rateRow}>
                 <span>Disponibilidad en Cola FIFO</span>
-                <strong>{exchangeState.totalBlueForSale.toFixed(2)} BLUE en venta ahora</strong>
+                <strong>{fmt(exchangeState.totalBlueForSale)} BLUE en venta ahora</strong>
               </div>
             </div>
 
@@ -278,13 +283,14 @@ export default function Exchange() {
               <div className={styles.inputHeader}>
                 <span>Tú vendes</span>
                 <span className={styles.balanceLink} onClick={() => setAmountInput(finState.blue.unlocked.toString())}>
-                  Disponible: <strong>{finState.blue.unlocked.toFixed(2)} BLUE</strong> (Usar MAX)
+                  Disponible: <strong>{fmt(finState.blue.unlocked)} BLUE</strong> (Usar MAX)
                 </span>
               </div>
               <div className={styles.inputRow}>
                 <input
                   type="number"
-                  placeholder="0.00"
+                  placeholder="0.0000"
+                  step="0.0001"
                   className={styles.tokenInput}
                   value={amountInput}
                   onChange={(e) => setAmountInput(e.target.value)}
@@ -305,13 +311,13 @@ export default function Exchange() {
             <div className={styles.inputGroup} style={{ marginTop: '0.75rem' }}>
               <div className={styles.inputHeader}>
                 <span>Recibirás en dólares</span>
-                <span>Retirable Inmediato</span>
+                <span>Disponible para Retiro</span>
               </div>
               <div className={styles.inputRow}>
                 <input
                   type="number"
                   readOnly
-                  placeholder="0.00"
+                  placeholder="0.0000"
                   className={styles.tokenInput}
                   value={amountInput}
                   style={{ color: '#10b981' }}
@@ -323,7 +329,7 @@ export default function Exchange() {
               </div>
             </div>
 
-            {/* Aviso de seguridad sobre el parking */}
+            {/* Aviso de seguridad sobre el parking y Cola FIFO */}
             <div className={styles.rateDetails}>
               <div className={styles.rateRow}>
                 <span>Mecanismo de Venta</span>
@@ -334,8 +340,16 @@ export default function Exchange() {
                 <strong>Solo BLUE liberado (post-parking 30d)</strong>
               </div>
               <div className={styles.rateRow}>
-                <span>Demanda esperando compra</span>
-                <strong>{exchangeState.totalUsdtWaiting.toFixed(2)} USDT en espera</strong>
+                <span>
+                  Disponibilidad en cola FIFO
+                  <span className={styles.fifoTooltipContainer} tabIndex={0}>
+                    <span className={styles.fifoTooltipIcon}>ℹ️</span>
+                    <span className={styles.fifoTooltipContent}>
+                      <strong>FIFO (First In, First Out):</strong> Primero en entrar, primero en salir. Las órdenes se procesan en estricto orden cronológico de llegada, garantizando transparencia absoluta sin privilegios ni favoritismos.
+                    </span>
+                  </span>
+                </span>
+                <strong>{fmt(exchangeState.totalUsdtWaiting)} USDT en espera</strong>
               </div>
             </div>
 
@@ -366,7 +380,7 @@ export default function Exchange() {
                   <span>📥 Vendedores en la Fila (Ofrecen BLUE)</span>
                 </span>
                 <span style={{ fontSize: '0.8rem', color: '#38bdf8' }}>
-                  Total: {exchangeState.totalBlueForSale.toFixed(2)} BLUE
+                  Total: {fmt(exchangeState.totalBlueForSale)} BLUE
                 </span>
               </div>
 
@@ -390,7 +404,7 @@ export default function Exchange() {
                       </div>
                       <div className={styles.queueItemRight}>
                         <div className={styles.queueItemAmount}>
-                          {ord.remainingBlue.toFixed(2)} BLUE
+                          {fmt(ord.remainingBlue)} BLUE
                         </div>
                         {ord.isMyOrder && (
                           <button
@@ -411,10 +425,10 @@ export default function Exchange() {
             <div className={styles.queueCard}>
               <div className={styles.queueCardHeader}>
                 <span className={styles.queueCardTitle}>
-                  <span>📤 Compradores en la Fila (Esperan BLUE con USDT)</span>
+                  <span>📤 Compradores en la Fila (Ofrecen USDT)</span>
                 </span>
                 <span style={{ fontSize: '0.8rem', color: '#10b981' }}>
-                  Total: {exchangeState.totalUsdtWaiting.toFixed(2)} USDT
+                  Total: {fmt(exchangeState.totalUsdtWaiting)} USDT
                 </span>
               </div>
 
@@ -433,12 +447,12 @@ export default function Exchange() {
                         </div>
                         <div className={styles.queueItemInfo}>
                           <span className={styles.queueItemName}>{ord.buyerName}</span>
-                          <span className={styles.queueItemTime}>{ord.timestamp} (Buena Fe)</span>
+                          <span className={styles.queueItemTime}>{ord.timestamp}</span>
                         </div>
                       </div>
                       <div className={styles.queueItemRight}>
                         <div className={styles.queueItemAmount} style={{ color: '#10b981' }}>
-                          {ord.remainingUsdt.toFixed(2)} USDT
+                          {fmt(ord.remainingUsdt)} USDT
                         </div>
                         {ord.isMyOrder && (
                           <button

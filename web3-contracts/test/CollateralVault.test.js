@@ -1,123 +1,103 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
+const { expect } = require('chai');
+const { ethers } = require('hardhat');
+const { loadFixture, time } = require('@nomicfoundation/hardhat-network-helpers');
+const { fixture, U } = require('./helpers/suite');
 
-describe("Suite V4: CollateralVault — Pruebas Unitarias de Bóveda y Solvencia", function () {
-    let owner, user1, user2, protocolMock, exchangeMock;
-    let mockUsdt, vault;
-    const ONE_TOKEN = 1_000_000n; // 6 decimales
-
-    beforeEach(async function () {
-        [owner, user1, user2, protocolMock, exchangeMock] = await ethers.getSigners();
-
-        // 1. Desplegar MockUSDT con 6 decimales
-        const MockERC20Factory = await ethers.getContractFactory("MockERC20");
-        mockUsdt = await MockERC20Factory.deploy("Tether USDT", "USDT", 6);
-        await mockUsdt.waitForDeployment();
-
-        // 2. Desplegar CollateralVault V4
-        const VaultFactory = await ethers.getContractFactory("CollateralVault");
-        vault = await VaultFactory.deploy(await mockUsdt.getAddress());
-        await vault.waitForDeployment();
-
-        // 3. Fondear usuarios
-        await mockUsdt.mint(user1.address, 10_000n * ONE_TOKEN);
-        await mockUsdt.mint(user2.address, 10_000n * ONE_TOKEN);
-
-        // 4. Approvals
-        await mockUsdt.connect(user1).approve(await vault.getAddress(), ethers.MaxUint256);
-        await mockUsdt.connect(user2).approve(await vault.getAddress(), ethers.MaxUint256);
-    });
-
-    // ========================================================================
-    // PRUEBAS DE DEPÓSITO
-    // ========================================================================
-    describe("Depósitos de Garantía", function () {
-        it("Debe registrar depósitos e incrementar el colateral bloqueado", async function () {
-            const depositAmount = 500n * ONE_TOKEN;
-
-            await expect(vault.connect(user1).deposit(depositAmount))
-                .to.emit(vault, "CollateralDeposited")
-                .withArgs(user1.address, depositAmount, depositAmount, depositAmount);
-
-            expect(await vault.userCollateral(user1.address)).to.equal(depositAmount);
-            expect(await vault.totalCollateralLocked()).to.equal(depositAmount);
-            expect(await mockUsdt.balanceOf(await vault.getAddress())).to.equal(depositAmount);
-        });
-
-        it("Revierte si el monto es cero", async function () {
-            await expect(vault.connect(user1).deposit(0))
-                .to.be.revertedWith("Vault: Deposit amount must be greater than zero");
-        });
-    });
-
-    // ========================================================================
-    // GOBERNANZA Y ENLACE DE CONTRATOS
-    // ========================================================================
-    describe("Enlace de Contratos Centrales", function () {
-        it("Permite enlazar CoreProtocol y Exchange una única vez", async function () {
-            await expect(vault.linkCoreContracts(protocolMock.address, exchangeMock.address))
-                .to.emit(vault, "CoreContractsLinked")
-                .withArgs(protocolMock.address, exchangeMock.address);
-
-            expect(await vault.coreProtocol()).to.equal(protocolMock.address);
-            expect(await vault.exchange()).to.equal(exchangeMock.address);
-            expect(await vault.protocolLocked()).to.be.true;
-
-            // Segundo intento revierte
-            await expect(vault.linkCoreContracts(user1.address, user2.address))
-                .to.be.revertedWith("Vault: Core contracts are already locked");
-        });
-
-        it("Prohíbe renunciar a la propiedad", async function () {
-            await expect(vault.renounceOwnership())
-                .to.be.revertedWith("Vault: Ownership renunciation is permanently disabled");
-        });
-    });
-
-    // ========================================================================
-    // CÁLCULO DE COLATERAL LIBRE Y RETIROS
-    // ========================================================================
-    describe("Retiro de Colateral Libre vs Comprometido", function () {
-        it("Permite retirar el 100% si no hay compromisos activos", async function () {
-            const depositAmount = 1_000n * ONE_TOKEN;
-            await vault.connect(user1).deposit(depositAmount);
-
-            expect(await vault.getFreeCollateral(user1.address)).to.equal(depositAmount);
-
-            await expect(vault.connect(user1).withdraw(400n * ONE_TOKEN))
-                .to.emit(vault, "CollateralWithdrawn")
-                .withArgs(user1.address, 400n * ONE_TOKEN, 600n * ONE_TOKEN, 600n * ONE_TOKEN);
-
-            expect(await vault.userCollateral(user1.address)).to.equal(600n * ONE_TOKEN);
-            expect(await vault.totalCollateralLocked()).to.equal(600n * ONE_TOKEN);
-        });
-
-        it("Revierte si el retiro supera el colateral libre", async function () {
-            const depositAmount = 200n * ONE_TOKEN;
-            await vault.connect(user1).deposit(depositAmount);
-
-            await expect(vault.connect(user1).withdraw(250n * ONE_TOKEN))
-                .to.be.revertedWith("Vault: Requested amount exceeds free collateral");
-        });
-    });
-
-    // ========================================================================
-    // PAUSA DE EMERGENCIA
-    // ========================================================================
-    describe("Pausable de Emergencia", function () {
-        it("Pausa suspende depósitos y retiros", async function () {
-            await vault.connect(user1).deposit(100n * ONE_TOKEN);
-            await vault.pause();
-
-            await expect(vault.connect(user1).deposit(50n * ONE_TOKEN))
-                .to.be.revertedWithCustomError(vault, "EnforcedPause");
-
-            await expect(vault.connect(user1).withdraw(50n * ONE_TOKEN))
-                .to.be.revertedWithCustomError(vault, "EnforcedPause");
-
-            await vault.unpause();
-            await expect(vault.connect(user1).withdraw(50n * ONE_TOKEN))
-                .to.emit(vault, "CollateralWithdrawn");
-        });
-    });
+describe('Vault: garantía real, reservas FIFO y retiro solicitado', function () {
+  let f;
+  beforeEach(async () => { f=await loadFixture(fixture); await f.core.setCommissionBps(0); });
+  it('Comisión no puede dejar sin respaldo otros compromisos; depósito adicional permite cruce', async () => {
+    await f.core.setCreditLimit(f.alice.address,100n*U);
+    await f.vault.connect(f.alice).deposit(100n*U); await f.pay(f.alice,f.bob,200n*U);
+    await f.exchange.proposeFeeUpdate(100); await time.increase(48*3600); await f.exchange.executeFeeUpdate();
+    await time.increase(30*86400); await f.vault.connect(f.alice).repayWithCollateral(f.alice.address,100n*U);
+    await f.exchange.connect(f.bob).createBlueOrder(100n*U);
+    await expect(f.exchange.matchOrders(10,20)).revertedWith('Vault: Additional fee coverage required');
+    expect(await f.vault.userCollateral(f.alice.address)).eq(100n*U);
+    expect(await f.red.balanceOf(f.alice.address)).eq(200n*U);
+    await f.vault.connect(f.alice).deposit(U); await f.exchange.matchOrders(10,20);
+    expect(await f.red.balanceOf(f.alice.address)).eq(101n*U);
+    expect(await f.vault.userCollateral(f.alice.address)).eq(U);
+    expect(await f.core.getCoverageShortfall(f.alice.address)).eq(0);
+  });
+  it('Solo depósitos con KYC y seis decimales; rechaza enlace con tesorería', async () => {
+    await f.core.setKYCStatus(f.alice.address,false);
+    await expect(f.vault.connect(f.alice).deposit(U)).revertedWith('Vault: KYC not verified');
+    const fresh=await (await ethers.getContractFactory('CollateralVault')).deploy(f.usdt.target);
+    await expect(fresh.linkCoreContracts(f.core.target,f.treasury.target)).reverted;
+  });
+  it('Crear compra no quema RED sin vendedor y reserva no es retirable', async () => {
+    await f.pay(f.alice,f.bob,100n*U); await f.vault.connect(f.alice).deposit(100n*U);
+    await f.vault.connect(f.alice).repayWithCollateral(f.alice.address,100n*U);
+    expect(await f.red.balanceOf(f.alice.address)).eq(100n*U);
+    expect(await f.vault.userCollateral(f.alice.address)).eq(100n*U);
+    expect(await f.vault.totalExchangeReserved()).eq(100n*U);
+    expect(await f.usdt.balanceOf(f.core.target)).eq(0);
+    expect(await f.vault.getFreeCollateral(f.alice.address)).eq(0);
+    await expect(f.vault.connect(f.alice).withdraw(U)).revertedWith('Vault: Requested amount exceeds free collateral');
+  });
+  it('Cancelación retorna al Vault sin retirar garantía exigida por otros compromisos', async () => {
+    await f.core.setCreditLimit(f.alice.address,100n*U);
+    await f.vault.connect(f.alice).deposit(100n*U); await f.pay(f.alice,f.bob,200n*U);
+    await f.vault.connect(f.alice).repayWithCollateral(f.alice.address,50n*U);
+    const id=await f.vault.activeAmortizationOrder(f.alice.address);
+    await f.exchange.connect(f.alice).cancelOrder(id);
+    expect(await f.vault.exchangeReserved(f.alice.address)).eq(0);
+    expect(await f.vault.getFreeCollateral(f.alice.address)).eq(0);
+    expect(await f.vault.userCollateral(f.alice.address)).eq(100n*U);
+  });
+  it('Compra parcial 40 y trabajo 60: solamente vuelven los 60 USDT no gastados', async () => {
+    await f.pay(f.alice,f.bob,100n*U); await f.vault.connect(f.alice).deposit(100n*U);
+    await time.increase(30*86400);
+    await f.vault.connect(f.alice).repayWithCollateral(f.alice.address,100n*U);
+    await f.exchange.connect(f.bob).createBlueOrder(40n*U);
+    await f.exchange.matchOrders(10,20);
+    expect(await f.red.balanceOf(f.alice.address)).eq(60n*U);
+    expect(await f.vault.userCollateral(f.alice.address)).eq(60n*U);
+    await f.pay(f.carol,f.alice,60n*U);
+    expect(await f.red.balanceOf(f.alice.address)).eq(0);
+    const id=await f.vault.activeAmortizationOrder(f.alice.address);
+    await f.exchange.connect(f.alice).cancelOrder(id);
+    expect(await f.vault.getFreeCollateral(f.alice.address)).eq(60n*U);
+    const before=await f.usdt.balanceOf(f.alice.address);
+    await f.vault.connect(f.alice).withdraw(60n*U);
+    expect(await f.usdt.balanceOf(f.alice.address)).eq(before+60n*U);
+    expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+  });
+  it('Una orden activa y otra reserva; la siguiente entra detrás de otro comprador', async () => {
+    await f.pay(f.alice,f.bob,100n*U); await f.vault.connect(f.alice).deposit(100n*U);
+    await f.vault.connect(f.alice).repayWithCollateral(f.alice.address,10n*U);
+    const first=await f.vault.activeAmortizationOrder(f.alice.address);
+    await f.vault.connect(f.alice).repayWithCollateral(f.alice.address,20n*U);
+    expect(await f.vault.activeAmortizationOrder(f.alice.address)).eq(first);
+    expect(await f.vault.pendingReserve(f.alice.address)).eq(20n*U);
+    await f.exchange.connect(f.carol).createUsdtOrder(5n*U);
+    await time.increase(30*86400); await f.exchange.connect(f.bob).createBlueOrder(10n*U);
+    await f.exchange.matchOrders(10,20);
+    await f.vault.connect(f.other).processPending(f.alice.address);
+    const next=await f.vault.activeAmortizationOrder(f.alice.address);
+    expect(next).greaterThan(first+1n);
+    expect(await f.vault.pendingReserve(f.alice.address)).eq(0);
+    expect(await f.vault.userCollateral(f.alice.address)).eq(90n*U);
+  });
+  it('Liquidación pública solo compra para lo vencido, sin consumir compromisos vigentes', async () => {
+    await f.core.setCommitmentDuration(60); await f.pay(f.alice,f.bob,U);
+    await f.core.setCommitmentDuration(30*86400); await f.pay(f.alice,f.bob,99n*U);
+    await f.vault.connect(f.alice).deposit(100n*U); await time.increase(60);
+    await expect(f.vault.liquidateDelinquent(f.alice.address,100n*U)).revertedWith('Vault: Purchase exceeds remaining commitment');
+    await f.vault.liquidateDelinquent(f.alice.address,U);
+    await f.exchange.connect(f.bob).createBlueOrder(U);
+    await f.exchange.matchOrders(10,20);
+    expect(await f.red.balanceOf(f.alice.address)).eq(99n*U);
+    expect(await f.vault.userCollateral(f.alice.address)).eq(99n*U);
+  });
+  it('Con comisión Exchange 1%, gastar 100 amortiza 99 y mantiene 1 RED', async () => {
+    await f.pay(f.alice,f.bob,100n*U); await f.vault.connect(f.alice).deposit(100n*U);
+    await f.exchange.proposeFeeUpdate(100); await time.increase(48*3600); await f.exchange.executeFeeUpdate();
+    await time.increase(30*86400);
+    await f.vault.connect(f.alice).repayWithCollateral(f.alice.address,100n*U);
+    await f.exchange.connect(f.bob).createBlueOrder(100n*U); await f.exchange.matchOrders(10,20);
+    expect(await f.red.balanceOf(f.alice.address)).eq(U);
+    expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+  });
 });

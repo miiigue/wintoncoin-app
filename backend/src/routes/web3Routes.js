@@ -19,7 +19,7 @@ const web3BridgeService = require('../services/web3BridgeService');
 router.get('/status', async (req, res) => {
     try {
         const status = await web3BridgeService.getProtocolStatus();
-        res.status(200).json(status);
+        res.status(status.success ? 200 : 503).json(status);
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error al consultar estado Web3.' });
     }
@@ -37,7 +37,7 @@ router.get('/user/:wallet', async (req, res) => {
 
     try {
         const audit = await web3BridgeService.getUserAuditDetailed(wallet);
-        res.status(200).json(audit);
+        res.status(audit.success ? 200 : 503).json(audit);
     } catch (error) {
         res.status(500).json({ success: false, message: 'Error al consultar datos on-chain del usuario.' });
     }
@@ -47,30 +47,7 @@ router.get('/user/:wallet', async (req, res) => {
  * POST /api/web3/faucet/usdt
  * Faucet para pruebas en Demo / Staging / Local
  */
-router.post('/faucet/usdt', async (req, res) => {
-    const { wallet, amount } = req.body;
-    if (!wallet || !/^0x[a-fA-F0-9]{40}$/.test(wallet)) {
-        return res.status(400).json({ success: false, message: 'Dirección Ethereum inválida.' });
-    }
-
-    const parsedAmount = parseFloat(amount || 100);
-    if (parsedAmount > 5000) {
-        return res.status(400).json({ success: false, message: 'Límite máximo de faucet: 5,000 USDT.' });
-    }
-
-    try {
-        const result = await web3BridgeService.mintMockUsdt(wallet, parsedAmount);
-        if (!result.success) {
-            return res.status(500).json({ success: false, message: result.error || 'Error al solicitar tokens de faucet.' });
-        }
-        res.status(200).json({
-            success: true,
-            message: `${parsedAmount} USDT de prueba transferidos a tu billetera.`,
-            txHash: result.txHash
-        });
-    } catch (error) {
-        res.status(500).json({ success: false, message: 'Error interno en faucet.' });
-    }
-});
+// La emisión de prueba queda únicamente en la ruta administrativa autenticada.
+router.post('/faucet/usdt', (_req,res) => res.status(403).json({success:false,message:'Solicita tokens de prueba a un administrador.'}));
 
 module.exports = router;

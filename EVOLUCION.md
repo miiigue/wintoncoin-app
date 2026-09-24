@@ -13,6 +13,94 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-24 — Desbloqueo de Cola FIFO ante KYC Suspendido, Optimización de Gas en Compromisos Vencidos y 120 Pruebas Hardhat Aprobadas
+* **Diagnóstico & Resoluciones Implementadas**:
+  - *Desbloqueo de Cola FIFO (`FifoExchange.sol`)*:
+    1) En `matchOrders()`, se reemplazó la reversión incondicional de `_requireKYC` por la comprobación `_isKYCVerified`. Si una orden en la cabeza pertenece a un usuario con KYC revocado o suspendido, el motor avanza el índice (`unchecked { bHead++; }` o `unchecked { uHead++; }`), saltando la orden no ejecutable sin revertir la transacción. Esto evita que una cuenta suspendida congele el matching de todos los usuarios subsiguientes.
+    2) En `cancelOrder()`, se eliminó la restricción de KYC para órdenes del lado USDT (`USDT_FOR_BLUE`), permitiendo que usuarios con KYC suspendido cancelen y recuperen sus fondos sin que queden confiscados o atrapados en el contrato.
+    3) Se incorporó una prueba de integración formal en `IntegrationV4Suite.test.js` que verifica que la cola salta a una orden sin KYC y liquida a los usuarios válidos posteriores sin fallar.
+  - *Optimización y Acotamiento de Gas en Vencidos (`CoreProtocol.sol`)*:
+    1) Se eliminó la recursión profunda `_maturedSubtree` en favor de `getMaturedDebtUpTo(address user, uint256 maxNeeded)` utilizando un recorrido iterativo con stack en memoria.
+    2) El escaneo cesa de inmediato al alcanzar `target` o `totalDebt`, evitando recorrer cientos de nodos cuando el monto necesitado es inferior.
+    3) En `_settleMatured()`, el escaneo se acota a `available`, reduciendo el gas drásticamente cuando se liquidan compromisos vencidos.
+* **Impacto Operativo**:
+  - Eliminado el riesgo de denegación de servicio (DoS) por congelamiento de cola FIFO.
+  - Suite de 120 pruebas Hardhat, 29 pruebas Jest backend y 14 pruebas frontend pasando al 100% con compilación limpia.
+* **Evidencia**: Publicación de `ANTIGRAVITY-049` en `puente-agentes/PARA_CODEX.md` y actualización de `puente-agentes/ESTADO_ANTIGRAVITY.md`.
+
+---
+
+### 2026-09-23 — Auditoría Forense Integral de Suite V4 (CODEX-066): Reproducción de 162 Pruebas, Paridad Aritmética 1:1 Estricta, Prórrogas Multinivel y Delimitación de Bloqueos Pre-Despliegue
+* **Diagnóstico & Verificación Independiente**:
+  - *Reproducción Completa de Pruebas*:
+    1) Hardhat (`web3-contracts`): 119 pruebas aprobadas al 100% (19s), cubriendo contratos centrales `CoreProtocol`, `CollateralVault`, `FifoExchange`, `BlueToken`, `RedToken`, firmas EIP-712 y ERC-1271, y secuencia reproducible de 80 operaciones mixtas.
+    2) Backend Jest (`backend`): 29 pruebas aprobadas al 100% (3.1s) en `web3Corrections.test.js`, `adminSubmodulesIntegrity.test.js` y `adminUserDossier.test.js`.
+    3) Frontend Simulador (`frontend`): 14 pruebas aprobadas al 100% (252ms) en `financial-demo.test.mjs`.
+    4) Frontend Vite Demo (`npm run build:demo`): Compilación exitosa de producción (código 0, 104 módulos empaquetados, PWA precache generado con 167 entradas).
+* **Aciertos Arquitectónicos Validados**:
+  - *Paridad Aritmética Estricta 1:1*: Se erradicó la quema unilateral mágica de compromisos RED con colateral en Vault. Todo pago con garantía pasa por `FifoExchange` como orden de compra y solo al emparejarse con BLUE real se queman de forma simétrica BLUE y RED (`redToken.burnCommitment` y `blueToken.burn`).
+  - *Mora Determinista al Día 30*: Eliminación del `GRACE_PERIOD = 30 days`. El compromiso vence estrictamente a los 30 días (`COMMITMENT_DURATION`), bloqueando nuevas originaciones ante mora sin pago o prórroga formal.
+  - *Prórrogas Multinivel (Directiva de Miguel)*: Niveles 1-2 sin prórroga; Niveles 3-4 con capacidad ordinaria ($L + C - D$); Nivel 5 con margen exclusivo configurable (predeterminado 0); ventana obligatoria de 15 días entre prórrogas (máximo 2 por lote); y preservación del parking original de 30 días para el prestador/trabajador que devengó BLUE.
+  - *Candado P2P en `BlueToken.sol`*: `_update` bloquea transferencias ordinarias fuera del `FifoExchange`, impidiendo la creación de mercados secundarios informales.
+  - *Firmas EIP-712 y Cuentas Contractuales ERC-1271*: Los pagos no delegan custodia al relayer; el usuario firma un struct tipificado auditable.
+* **Gaps Críticos Identificados (Bloqueos de Despliegue)**:
+  - *Vulnerabilidad de Deadlock en Cabeza de Cola FIFO*: En `FifoExchange.sol`, si una orden en la cabeza pertenece a un usuario con KYC revocado o si una orden de amortización revierte por déficit de cobertura ante la comisión, `matchOrders` revierte completamente la transacción, congelando el matching para todas las órdenes posteriores. Se requiere patrón de skip/cuarentena y permitir cancelación de fondos atrapados.
+  - *Cuello de Botella de Gas (7.846.957 gas)*: La consulta recursiva `_maturedSubtree` en `CoreProtocol.sol` para 1.000 compromisos (996 vencidos) sobrepasa límites de gas en L2; requiere paginación o cota de inspección `maxLotsScanned`.
+  - *Resolución Canónica del Hallazgo 3 (Incentivos de Tesorería por Dogfooding Puro)*: Se ratifica la directriz estricta de Miguel: CERO excepciones en `BlueToken.sol`, `CoreProtocol.sol` y `RedToken.sol`. La Tesorería no realiza transferencias directas; dispersa incentivos originando el pago estándar vía `CoreProtocol`, pagando su comisión de plataforma de forma normal como cualquier usuario, y auto-amortiza su compromiso RED quemando los tokens BLUE de comisiones acumulados. Regla `treasury_incentive_mechanism` formalizada en `.agents/AGENTS.md`.
+  - *Indexador Idempotente (Blockchain -> DB)*: Completar el worker de eventos en segundo plano para que la base de datos sea un espejo de solo lectura de la verdad on-chain (cumplimiento SOC 2).
+  - *Fondo Institucional*: Ratificado que el Fondo no tiene operativa aprobada; las tarifas se canalizan a un receptor KYC verificado.
+* **Impacto Operativo**:
+  - Estado formal: Suite V4 matemáticamente sólida y con lógica corregida, en fase de cierre de los 5 bloqueos de disponibilidad antes del despliegue en Testnet.
+* **Evidencia**: Publicación de `ANTIGRAVITY-048` en `puente-agentes/PARA_CODEX.md`, actualización de `puente-agentes/ESTADO_ANTIGRAVITY.md` y regla en `.agents/AGENTS.md`.
+
+---
+
+### 2026-09-22 — Frontend React SPA 2026: Refinamiento Estético FinTech, Formato Canónico a 4 Decimales, Regla de 15 Días en Prórrogas y Clarificación Terminológica en Exchange & Billetera
+* **Diagnóstico & Resoluciones**:
+  - *Formato y Precisión Financiera (4 Decimales Universales)*:
+    1) Se unificó toda la interfaz de la Billetera (`Wallet.jsx`) y del Exchange (`Exchange.jsx`) bajo el helper canónico `fmt(val)` para garantizar que todos los montos (Saldo Total, Líquido, Parking, Compromiso RED, Límite Aprobado, Bóveda USDT, Lotes y Órdenes FIFO) se presenten con exactamente 4 decimales (`0.0000`).
+    2) El Saldo Total en la Billetera fue centrado horizontalmente con su emblema y su tamaño de fuente se incrementó en un 25% (`2.85rem`) para máximo protagonismo visual.
+  - *Regla de Protección Financiera en Prórrogas Nivel 4+*:
+    1) En `mockFinancialService.js` y `Wallet.jsx`, se implementó la restricción canónica: la segunda prórroga no puede activarse si no han transcurrido al menos 15 días posteriores a la primera prórroga.
+    2) El botón de la interfaz refleja dinámicamente el tiempo de espera restante y se bloquea preventivamente si aún no se cumple el lapso de 15 días.
+  - *Saneamiento y Clarificación Terminológica*:
+    1) En `Exchange.jsx`, se cambió `"Esperan BLUE con USDT"` por `"Ofrecen USDT"`.
+    2) Se eliminó por completo el término interno `"Buena Fe"` en el Exchange, Billetera y Panel Administrativo.
+    3) Se eliminó `"retirable inmediato"` en favor de `"Disponible para Retiro"` y `"Retirar USDT"`.
+    4) Se cambió `"Demanda esperando compra"` por `"Disponibilidad en cola FIFO"`, incorporando un tooltip interactivo informativo que define el concepto FIFO para el usuario común.
+    5) Se retiraron los subtítulos institucionales redundantes y la palabra `"Oficial"` en la cabecera del Exchange.
+    6) En la Billetera, se eliminó la etiqueta `"Modelo Alternativa A"`, se retiró el badge y menciones de `"Optimización Inteligente LIFO"`, y se agrandó la tipografía de `"⚡ Compensar Compromiso con mis Ganancias"`.
+    7) En el rastreador de lotes de parking, se eliminó la palabra `"Emitido:"` y se estandarizó la fecha y hora completa en formato `dd/mm/aa hh:mm:ss a`.
+    8) La cuota de gas de la Billetera se mantiene reactiva y dinámica (`⚡ ${computed.gasTxsRemaining} Tx Gratis hoy`), decrementando en tiempo real con cada operación completada.
+    9) Se desacopló la tarjeta estática de *"Amortización Automática (Exchange FIFO)"* del feed principal para evitar sobrecarga y confusión visual, integrándola como un enlace discreto en la tarjeta de compromisos (`microvencimientos acumulados`) que despliega un modal explicativo detallado a petición del usuario.
+  - *Paleta de Colores FinTech Consistente*:
+    1) Se alineó `Wallet.module.css` con el tema dark radial (`#111827` a `#030712`) y los toques de azul/cyan/índigo característicos del frontend React de WintonCoin, suprimiendo gradientes morados discordantes.
+* **Impacto Operativo**:
+  - Claridad absoluta para el usuario final, coherencia visual de grado bancario internacional y cumplimiento riguroso de las directivas de producto.
+* **Evidencia**: Archivos actualizados y listos para compilación `build:demo`.
+
+---
+
+### 2026-09-22 — Frontend React SPA 2026: Beneficio Nivel 4 (Prórroga de Compromiso), Amortización Automática FIFO (Alternativa A) y Saneamiento de Gobernanza
+* **Diagnóstico & Resoluciones**:
+  - *Beneficio Nivel 4+: Prórroga de Compromiso (`requestCommitmentExtension`)*:
+    1) Se implementó en `mockFinancialService.js` y `Wallet.jsx` la funcionalidad de extensión de plazo voluntaria (15, 30 o 60 días) con recargo porcentual en RED (2.5%, 5.0% y 10.0%), evitando que los usuarios leales de Nivel 4+ entren en mora o sufran halving.
+    2) El protocolo replica contablemente la emisión pareada emitiendo la misma cantidad de tokens BLUE a la Tesorería Institucional, protegiendo la paridad 1:1.
+    3) Se fijó un límite ético estricto de máximo 2 prórrogas consecutivas para evitar riesgo moral.
+  - *Proceso de Amortización Automática (Alternativa A: 1 Orden Activa + Buffer de Reserva)*:
+    1) En `Wallet.jsx` y `mockFinancialService.js`, se integró la visualización del flujo de amortización por cola FIFO: el usuario visualiza su orden activa en el mercado (1.00 USDT en posición #3) y el saldo acumulado en reserva (4.00 USDT) para microvencimientos sucesivos.
+    2) Previene la saturación del libro de órdenes con micro-órdenes de centavos, ahorra más del 80% de gas en L2 y respeta la prelación FIFO estricta sin adelantar a compradores previos.
+    3) Muestra de forma transparente que generar BLUE con trabajo en el marketplace descongela de inmediato los USDT en reserva.
+  - *Saneamiento en Exchange y Gobernanza (`Exchange.jsx` y `AdminWeb3Panel.jsx`)*:
+    1) Erradicación total de la palabra "deuda" en favor de "compromiso RED".
+    2) Incorporación de `credentials: 'include'` en todas las peticiones administrativas de `AdminWeb3Panel.jsx`.
+    3) Eliminación de fallbacks con datos falsos hardcodeados ante errores HTTP en favor de alertas transparentes de desconexión.
+    4) Corrección del botón de pausa/reanudación de la Bóveda `CollateralVault` para alternar correctamente entre estados.
+    5) Nuevo módulo de gobernanza para calibrar días de prórroga y tarifa BPS.
+* **Impacto Operativo**:
+  - Interfaz de usuario de nivel bancario alineada con las directivas de Miguel y las observaciones técnicas de Codex, lista para despliegue y validación en `demo.wintoncoin.com`.
+* **Evidencia**: Build demo compilado limpiamente.
+
 ---
 
 ### 2026-09-21 — Base de Datos: Migración 109 — Arquitectura Web3 Suite V4, Gobernanza y Auditoría Inmutable (On-Chain First)
@@ -27,6 +115,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Auditoría de Importaciones*: `node verify_all_backend_imports.js` verificó los 90 módulos del backend con 0 errores (100% de integridad en tiempo de ejecución).
 * **Impacto Operativo**:
   - PostgreSQL queda 100% alineada con la Suite V4, asegurando auditoría bancaria SOC 2, trazabilidad total de acciones administrativas y rendimiento óptimo en la interfaz de usuario bajo el principio On-Chain First.
+* **Evidencia**: Commit `0f1f8ff` (rama `demo`). Migración 109 verificada y 90/90 módulos en verde.
 
 ---
 

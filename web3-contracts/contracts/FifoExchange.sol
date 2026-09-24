@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "./interfaces/IAmortizationVault.sol";
 
 /**
  * @title FifoExchange
@@ -28,6 +29,12 @@ import "@openzeppelin/contracts/access/Ownable2Step.sol";
  *    - El dominio físico de las órdenes está acotado por type(uint64).max. Cada orden creada
  *      incrementa nextOrderId, impidiendo desbordamiento en blueOrderIds o usdtOrderIds.
  */
+interface IExchangeCoreKYC {
+    function isKYCVerified(address user) external view returns (bool);
+    function settleMatured(address user) external;
+}
+interface ILinkedVault { function coreProtocol() external view returns (address); }
+
 contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
@@ -80,6 +87,38 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
     // =========================================================================
     // CONSTANTES INMUTABLES
     // =========================================================================
+
+    address public amortizationVault;
+    address public coreProtocol;
+    mapping(uint64 => bool) public isAmortizationOrder;
+    event AmortizationVaultSet(address indexed vault, address indexed core);
+    event OrderReduced(uint64 indexed orderId, uint128 refunded, uint128 remaining);
+
+    function setAmortizationVault(address vault) external onlyOwner {
+        require(amortizationVault == address(0) && vault.code.length > 0, "Exchange: Invalid vault");
+        address core = ILinkedVault(vault).coreProtocol();
+        require(core.code.length > 0, "Exchange: Invalid core");
+        amortizationVault = vault;
+        coreProtocol = core;
+        emit AmortizationVaultSet(vault, core);
+    }
+
+    function createAmortizationOrder(address user, uint128 amount) external nonReentrant whenNotPaused returns (uint64 id) {
+        require(msg.sender == amortizationVault, "Exchange: Only vault");
+        id = _createOrderFor(OrderSide.USDT_FOR_BLUE, amount, user, msg.sender);
+        isAmortizationOrder[id] = true;
+    }
+
+    function _requireKYC(address user) private view {
+        // Standalone V3.3.6 tests may run without the V4 link. The V4 deployment
+        // must configure the immutable integration before accepting users.
+        if (coreProtocol != address(0)) require(IExchangeCoreKYC(coreProtocol).isKYCVerified(user), "Exchange: KYC not verified");
+    }
+
+    function _isKYCVerified(address user) private view returns (bool) {
+        if (coreProtocol == address(0)) return true;
+        return IExchangeCoreKYC(coreProtocol).isKYCVerified(user);
+    }
 
     IERC20 public immutable blueToken;
     IERC20 public immutable usdtToken;
@@ -266,6 +305,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
      * @return newOrderId Identificador único asignado a la orden.
      */
     function createBlueOrder(uint128 amount) external nonReentrant whenNotPaused returns (uint64 newOrderId) {
+        if (coreProtocol != address(0)) IExchangeCoreKYC(coreProtocol).settleMatured(msg.sender);
         newOrderId = _createOrder(OrderSide.BLUE_FOR_USDT, amount);
     }
 
@@ -295,7 +335,12 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
      *   `nonReentrant` en las funciones públicas llamantes (`createBlueOrder`/`createUsdtOrder`) y la atomicidad
      *   del EVM (reversión total del estado si el monto recibido no es exactamente igual a `amount`).
      */
-    function _createOrder(OrderSide side, uint128 amount) internal returns (uint64 newOrderId) {
+    function _createOrder(OrderSide side, uint128 amount) internal returns (uint64) {
+        return _createOrderFor(side, amount, msg.sender, msg.sender);
+    }
+
+    function _createOrderFor(OrderSide side, uint128 amount, address user, address depositor) internal returns (uint64 newOrderId) {
+        _requireKYC(user);
         if (amount < MIN_ORDER_AMOUNT) revert OrderAmountTooLow();
 
         // 1. Guardas explícitas de overflow ANTES de incrementar identificadores
@@ -318,7 +363,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
             id: newOrderId,
             sequenceId: seqId,
             remainingAmount: amount,
-            user: msg.sender,
+            user: user,
             status: OrderStatus.OPEN,
             side: side,
             createdAt: currentTimestamp,
@@ -333,7 +378,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
             totalReservedBlue = _safeAdd128(totalReservedBlue, amount, "RESERVED_BLUE");
 
             uint256 balanceBefore = blueToken.balanceOf(address(this));
-            blueToken.safeTransferFrom(msg.sender, address(this), amount);
+            blueToken.safeTransferFrom(depositor, address(this), amount);
             uint256 balanceAfter = blueToken.balanceOf(address(this));
 
             // Guarda defensiva contra underflow y verificación estricta de cantidad neta recibida
@@ -348,7 +393,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
             totalReservedUsdt = _safeAdd128(totalReservedUsdt, amount, "RESERVED_USDT");
 
             uint256 balanceBefore = usdtToken.balanceOf(address(this));
-            usdtToken.safeTransferFrom(msg.sender, address(this), amount);
+            usdtToken.safeTransferFrom(depositor, address(this), amount);
             uint256 balanceAfter = usdtToken.balanceOf(address(this));
 
             // Guarda defensiva contra underflow y verificación estricta de cantidad neta recibida
@@ -359,7 +404,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
             }
         }
 
-        emit OrderCreated(newOrderId, msg.sender, side, amount, seqId, currentTimestamp, block.number);
+        emit OrderCreated(newOrderId, user, side, amount, seqId, currentTimestamp, block.number);
     }
 
     // =========================================================================
@@ -375,6 +420,9 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
         Order storage order = orders[orderId];
         if (order.status == OrderStatus.NONE) revert OrderNotFound();
         if (order.user != msg.sender) revert Unauthorized();
+        if (order.side == OrderSide.BLUE_FOR_USDT) {
+            _requireKYC(msg.sender);
+        }
         if (order.status != OrderStatus.OPEN && order.status != OrderStatus.PARTIALLY_FILLED) {
             revert OrderNotCancellable();
         }
@@ -382,7 +430,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
         uint128 refundAmount = order.remainingAmount;
 
         // Guardar el monto reembolsado para trazabilidad en getExecutedAmount
-        order.refundedAmount = refundAmount;
+        order.refundedAmount += refundAmount;
         // Cerrar remanente a 0 para prevenir reentradas o dobles cancelaciones
         order.remainingAmount = 0;
         order.status = OrderStatus.CANCELLED;
@@ -401,7 +449,10 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
                 totalReservedUsdt -= refundAmount;
             }
             totalRefundedUsdt = _safeAdd128(totalRefundedUsdt, refundAmount, "REFUNDED_USDT");
-            usdtToken.safeTransfer(msg.sender, refundAmount);
+            if (isAmortizationOrder[orderId]) {
+                usdtToken.safeTransfer(amortizationVault, refundAmount);
+                IAmortizationVault(amortizationVault).onAmortizationRefund(orderId, refundAmount);
+            } else usdtToken.safeTransfer(msg.sender, refundAmount);
         }
 
         emit OrderCancelled(orderId, msg.sender, refundAmount);
@@ -476,6 +527,22 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
                 continue; // Poda perezosa de orden terminal
             }
 
+            if (isAmortizationOrder[uId]) {
+                uint128 allowed = IAmortizationVault(amortizationVault).maxAmortizationGross(uId);
+                if (uOrder.remainingAmount > allowed) _reduceAmortizationOrder(uOrder, allowed);
+                if (allowed == 0) { unchecked { uHead++; } continue; }
+            }
+            if (!_isKYCVerified(bOrder.user)) {
+                if (bHead == type(uint64).max) revert HeadIndexOverflow();
+                unchecked { bHead++; }
+                continue;
+            }
+            if (!_isKYCVerified(uOrder.user)) {
+                if (uHead == type(uint64).max) revert HeadIndexOverflow();
+                unchecked { uHead++; }
+                continue;
+            }
+
             // 3. Ambas cabezas están activas: determinar grossAmount y ejecutar cruce
             uint128 bRem = bOrder.remainingAmount;
             uint128 uRem = uOrder.remainingAmount;
@@ -525,6 +592,18 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
      * La comisión aplicable a cada ejecución es el `feeBps` vigente al momento de realizar el match,
      * no necesariamente el vigente cuando fue creada la orden.
      */
+    function _reduceAmortizationOrder(Order storage order, uint128 keep) private {
+        uint128 refund = order.remainingAmount - keep;
+        order.remainingAmount = keep;
+        order.refundedAmount += refund;
+        totalReservedUsdt -= refund;
+        totalRefundedUsdt = _safeAdd128(totalRefundedUsdt, refund, "REFUNDED_USDT");
+        if (keep == 0) order.status = OrderStatus.CANCELLED;
+        usdtToken.safeTransfer(amortizationVault, refund);
+        IAmortizationVault(amortizationVault).onAmortizationRefund(order.id, refund);
+        emit OrderReduced(order.id, refund, keep);
+    }
+
     function _settleMatch(Order storage bOrder, Order storage uOrder, uint128 gross) internal {
         // Cálculo de comisiones y montos netos
         uint128 fee = uint128((uint256(gross) * feeBps) / 10_000);
@@ -560,6 +639,11 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
         // El vendedor de BLUE recibe net USDT; el vendedor de USDT recibe net BLUE
         usdtToken.safeTransfer(bOrder.user, net);
         blueToken.safeTransfer(uOrder.user, net);
+        if (isAmortizationOrder[uOrder.id]) {
+            IAmortizationVault(amortizationVault).onAmortizationFill(uOrder.id, gross, net);
+        } else if (coreProtocol != address(0)) {
+            IExchangeCoreKYC(coreProtocol).settleMatured(uOrder.user);
+        }
 
         emit OrderMatched(
             currentMatchId,
@@ -792,7 +876,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
         if (order.status == OrderStatus.CANCELLED) {
             return order.originalAmount - order.refundedAmount;
         }
-        return order.originalAmount - order.remainingAmount;
+        return order.originalAmount - order.remainingAmount - order.refundedAmount;
     }
 
     /**

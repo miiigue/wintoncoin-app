@@ -80,14 +80,12 @@ describe("Suite V4: Tokens (BLUE, RED) y ProtocolTreasury — Pruebas Unitarias"
             expect(await blueToken.totalSupply()).to.equal(60n * ONE_TOKEN);
         });
 
-        it("Permite transferencias ordinarias limpias sin llamadas económicas externas", async function () {
+        it("Bloquea transferencias ordinarias fuera del Exchange", async function () {
             await blueToken.setCoreProtocol(protocolSigner.address);
             await blueToken.connect(protocolSigner).mint(user1.address, 100n * ONE_TOKEN);
 
             // Transferencia ordinaria entre user1 y user2
-            await blueToken.connect(user1).transfer(user2.address, 35n * ONE_TOKEN);
-            expect(await blueToken.balanceOf(user1.address)).to.equal(65n * ONE_TOKEN);
-            expect(await blueToken.balanceOf(user2.address)).to.equal(35n * ONE_TOKEN);
+            await expect(blueToken.connect(user1).transfer(user2.address,35n*ONE_TOKEN)).revertedWith('BLUE: Transfers only through exchange');
         });
 
         it("Prohíbe renunciar a la propiedad (renounceOwnership deshabilitado)", async function () {
@@ -161,11 +159,13 @@ describe("Suite V4: Tokens (BLUE, RED) y ProtocolTreasury — Pruebas Unitarias"
     // ========================================================================
     // PRUEBAS DE PROTOCOLTREASURY V4 (MERKLE CLAIMS Y TIMELOCK 48H)
     // ========================================================================
-    describe("ProtocolTreasury V4 — Distribución Merkle y Timelock de 48h", function () {
+    describe("ProtocolTreasury aislado con ERC20 de prueba — NO integración BLUE", function () {
         beforeEach(async function () {
-            // Fondear la tesorería con tokens BLUE
-            await blueToken.setCoreProtocol(protocolSigner.address);
-            await blueToken.connect(protocolSigner).mint(await treasury.getAddress(), 10_000n * ONE_TOKEN);
+            // Unidad aislada con ERC20 normal. El bloqueo real BLUE se prueba en IntegrationV4Suite.
+            blueToken = await (await ethers.getContractFactory('MockERC20')).deploy('Test','TEST',6);
+            treasury = await (await ethers.getContractFactory('ProtocolTreasury')).deploy(blueToken.target);
+            await treasury.setCorporateTreasuryWallet(corporateWallet.address);
+            await blueToken.mint(treasury.target,10_000n*ONE_TOKEN);
         });
 
         it("Permite configurar Merkle root y cobrar bonos con prueba válida", async function () {
