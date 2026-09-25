@@ -154,26 +154,14 @@ class CreditScoringService {
                 JSON.stringify({ calculatedAt: new Date().toISOString(), trigger: 'syncCreditLimitOnChain' })
             ]);
 
-            if (!this.wallet || !PROTOCOL_ADDRESS) {
-                console.warn('[SCORING] Relayer no configurado o sin dirección de protocolo. Sincronización on-chain omitida.');
-                return;
+            const Web3BridgeService = require('./web3BridgeService');
+            console.log(`[SCORING] Sincronizando límite de compromiso on-chain para ${walletAddress}: ${newScore} RED...`);
+            const syncResult = await Web3BridgeService.setCreditLimit(walletAddress, newScore);
+            if (syncResult && syncResult.success) {
+                console.log(`[SCORING] Sincronización on-chain EXITOSA. Tx: ${syncResult.txHash}`);
+            } else {
+                console.warn(`[SCORING] Nota al sincronizar on-chain:`, syncResult?.error || 'Sin respuesta');
             }
-
-            if (!walletAddress) {
-                console.warn(`[SCORING] Usuario #${userId} (@${user.username}) no tiene billetera Web3 vinculada. Sincronización on-chain omitida.`);
-                return;
-            }
-
-            const protocol = new ethers.Contract(PROTOCOL_ADDRESS, this.abi, this.wallet);
-            
-            // Formatear a 18 decimales para la blockchain
-            const limitWei = ethers.parseEther(newScore.toString());
-
-            console.log(`[SCORING] Sincronizando on-chain para ${walletAddress}: ${newScore} RED...`);
-            const tx = await protocol.updateUserTrustScore(walletAddress, limitWei);
-            await tx.wait(1);
-            
-            console.log(`[SCORING] Sincronización on-chain EXITOSA. Tx: ${tx.hash}`);
 
         } catch (error) {
             console.error(`[SCORING] Fallo de sincronización de compromiso:`, error.message);

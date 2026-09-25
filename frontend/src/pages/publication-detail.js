@@ -35,7 +35,20 @@ document.addEventListener('DOMContentLoaded', () => {
         evidenceFileInput: document.getElementById('evidenceFileInput'),
         evidencePreviewContainer: document.getElementById('evidencePreviewContainer'),
         evidenceRequiredMessage: document.getElementById('evidenceRequiredMessage'),
-        evidenceLimitMessage: document.getElementById('evidence-limit-message')
+        evidenceLimitMessage: document.getElementById('evidence-limit-message'),
+        // Modal de Autorización y Desglose Financiero EIP-712
+        paymentAuthorizationModal: document.getElementById('paymentAuthorizationModal'),
+        closePaymentAuthModalBtn: document.getElementById('closePaymentAuthModalBtn'),
+        authModalTaskTitle: document.getElementById('authModalTaskTitle'),
+        authModalWorker: document.getElementById('authModalWorker'),
+        authModalGrossAmount: document.getElementById('authModalGrossAmount'),
+        authModalCommissionLabel: document.getElementById('authModalCommissionLabel'),
+        authModalCommissionAmount: document.getElementById('authModalCommissionAmount'),
+        authModalTotalRed: document.getElementById('authModalTotalRed'),
+        authModalDueDate: document.getElementById('authModalDueDate'),
+        authModalStatusNotice: document.getElementById('authModalStatusNotice'),
+        authModalCancelBtn: document.getElementById('authModalCancelBtn'),
+        authModalConfirmBtn: document.getElementById('authModalConfirmBtn')
     };
 
     let uploadedEvidenceUrls = [];
@@ -94,6 +107,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showPreflightModal(publication.preflight_modal);
             }
 
+            window.currentPlatformSettings = platformSettings;
             renderPublication(publication, platformSettings);
             setupEventListeners();
 
@@ -814,7 +828,17 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target == elements.completeTaskModal) {
                 elements.completeTaskModal.style.display = 'none';
             }
+            if (event.target == elements.paymentAuthorizationModal) {
+                closePaymentAuthModal();
+            }
         });
+
+        if (elements.closePaymentAuthModalBtn) {
+            elements.closePaymentAuthModalBtn.addEventListener('click', closePaymentAuthModal);
+        }
+        if (elements.authModalCancelBtn) {
+            elements.authModalCancelBtn.addEventListener('click', closePaymentAuthModal);
+        }
 
         const closeCompleteBtns = elements.completeTaskModal?.querySelectorAll('.complete-close-button, .complete-cancel-button');
         if (closeCompleteBtns) {
@@ -967,10 +991,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             case 'confirm-payment':
                 try {
-                    const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText;
-                    await confirmPaymentAndRate(publicationId, authorUsername, userInAction);
+                    // Abrir modal de consentimiento informado y desglose financiero bancario
+                    openPaymentAuthorizationModal(publicationId, userInAction);
                 } catch (err) {
-                    showCustomAlert("Error JS: " + err.message);
+                    showCustomAlert("Error al preparar autorización: " + err.message);
                 }
                 return;
             case 'delete':
@@ -1037,19 +1061,112 @@ Puedes ver los detalles aquí:`;
         }
     }
 
-    async function confirmPaymentAndRate(pubId, authorUsername, acceptorUsername) {
+    /**
+     * Cierra el modal de autorización de liquidación y restaura estados.
+     */
+    function closePaymentAuthModal() {
+        if (elements.paymentAuthorizationModal) {
+            elements.paymentAuthorizationModal.style.display = 'none';
+        }
+        if (elements.authModalConfirmBtn) {
+            elements.authModalConfirmBtn.disabled = false;
+            elements.authModalConfirmBtn.innerHTML = '<span>✍️</span> Autorizar y Pagar';
+        }
+        if (elements.authModalStatusNotice) {
+            elements.authModalStatusNotice.style.display = 'none';
+        }
+    }
+
+    /**
+     * Despliega el modal de consentimiento informado EIP-712 con desglose financiero bancario
+     * (monto bruto BLUE con parking, comisión para Tesorería del protocolo y compromiso RED asumido).
+     */
+    function openPaymentAuthorizationModal(pubId, workerUsername) {
+        if (!elements.paymentAuthorizationModal) return;
+
+        const pub = window.currentPublication || {};
+        const platformSettings = window.currentPlatformSettings || {};
+
+        const grossBlue = parseFloat(pub.blue_cost) || 0;
+        const commissionPct = parseFloat(platformSettings.platform_commission_percentage ?? 5);
+        const commissionAmount = grossBlue * (commissionPct / 100);
+        const totalRed = grossBlue + commissionAmount;
+        const debtCycleDays = parseInt(platformSettings.debt_cycle_days ?? 30, 10);
+
+        const dueDate = new Date(Date.now() + debtCycleDays * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
+
+        if (elements.authModalTaskTitle) elements.authModalTaskTitle.textContent = pub.title || 'Liquidación de Tarea';
+        if (elements.authModalWorker) elements.authModalWorker.textContent = `@${workerUsername}`;
+        if (elements.authModalGrossAmount) elements.authModalGrossAmount.innerHTML = `${formatBalance(grossBlue)} BLUE`;
+        if (elements.authModalCommissionLabel) elements.authModalCommissionLabel.textContent = `Comisión Plataforma (${commissionPct}%):`;
+        if (elements.authModalCommissionAmount) elements.authModalCommissionAmount.innerHTML = `+ ${formatBalance(commissionAmount)} BLUE`;
+        if (elements.authModalTotalRed) elements.authModalTotalRed.innerHTML = `${formatBalance(totalRed)} RED`;
+        if (elements.authModalDueDate) elements.authModalDueDate.textContent = `${dueDate} (${debtCycleDays} días)`;
+
+        if (elements.authModalStatusNotice) elements.authModalStatusNotice.style.display = 'none';
+        if (elements.authModalConfirmBtn) {
+            elements.authModalConfirmBtn.disabled = false;
+            elements.authModalConfirmBtn.innerHTML = '<span>✍️</span> Autorizar y Pagar';
+            elements.authModalConfirmBtn.onclick = async () => {
+                await executeAuthorizedPayment(pubId, workerUsername);
+            };
+        }
+
+        elements.paymentAuthorizationModal.style.display = 'flex';
+    }
+
+    /**
+     * Ejecuta el pago firmado bajo el paradigma de Billetera Invisible / Account Abstraction.
+     * El backend firma la estructura EIP-712 y la liquida en Optimism Sepolia vía CoreProtocol.
+     */
+    async function executeAuthorizedPayment(pubId, workerUsername) {
+        const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText || storedUsername;
+
         try {
-            console.log("DEBUG: Enviando confirm-payment al servidor...", { pubId, authorUsername, acceptorUsername });
-            const result = await fetchFromServer(`/publications/${pubId}/confirm-payment`, 'POST', { confirmerUsername: storedUsername, workerUsername: acceptorUsername });
-            console.log("DEBUG: Respuesta confirm-payment:", result);
+            elements.authModalConfirmBtn.disabled = true;
+            elements.authModalConfirmBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;"></span> Procesando pago...';
+
+            if (elements.authModalStatusNotice) {
+                elements.authModalStatusNotice.style.display = 'block';
+                elements.authModalStatusNotice.style.background = 'rgba(56, 189, 248, 0.12)';
+                elements.authModalStatusNotice.style.color = '#38bdf8';
+                elements.authModalStatusNotice.style.border = '1px solid rgba(56, 189, 248, 0.3)';
+                elements.authModalStatusNotice.textContent = '⏳ Verificando y registrando la operación de forma segura... Por favor espera unos segundos.';
+            }
+
+            const result = await fetchFromServer(`/publications/${pubId}/confirm-payment`, 'POST', {
+                confirmerUsername: storedUsername,
+                workerUsername: workerUsername
+            });
+
             if (result) {
-                openRatingModal(pubId, authorUsername, acceptorUsername);
+                closePaymentAuthModal();
+                openRatingModal(pubId, authorUsername, workerUsername);
             } else {
-                console.log("DEBUG: result fue nulo, modal no abierto.");
+                elements.authModalConfirmBtn.disabled = false;
+                elements.authModalConfirmBtn.innerHTML = '<span>✍️</span> Autorizar y Pagar';
+                if (elements.authModalStatusNotice) {
+                    elements.authModalStatusNotice.style.display = 'block';
+                    elements.authModalStatusNotice.style.background = 'rgba(239, 68, 68, 0.15)';
+                    elements.authModalStatusNotice.style.color = '#ef4444';
+                    elements.authModalStatusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                    elements.authModalStatusNotice.textContent = 'No se pudo liquidar el pago. Tus saldos y compromisos no fueron alterados. Por favor verifica tu capacidad disponible o intenta de nuevo.';
+                }
             }
         } catch (error) {
-            console.error("DEBUG: Error capturado en confirmPaymentAndRate:", error);
-            showCustomAlert("Error inesperado: " + error.message);
+            elements.authModalConfirmBtn.disabled = false;
+            elements.authModalConfirmBtn.innerHTML = '<span>✍️</span> Autorizar y Pagar';
+            if (elements.authModalStatusNotice) {
+                elements.authModalStatusNotice.style.display = 'block';
+                elements.authModalStatusNotice.style.background = 'rgba(239, 68, 68, 0.15)';
+                elements.authModalStatusNotice.style.color = '#ef4444';
+                elements.authModalStatusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                elements.authModalStatusNotice.textContent = error.message || 'La operación no pudo ser completada. Tus fondos están a salvo.';
+            }
         }
     }
 

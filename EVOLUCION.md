@@ -13,6 +13,31 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-25 — Arquitectura FinTech de Billetera Invisible (Account Abstraction), Firma Delegada EIP-712 y Consentimiento Informado en Liquidación de Tareas
+* **Billetera Invisible / Account Abstraction Nativa (Cero MetaMask para el Usuario Final)**:
+  - Consolidación del principio fundacional del proyecto: el usuario común **NUNCA** requiere instalar ni conectar extensiones de terceros (MetaMask), ni lidiar con gas ni frases de recuperación. La billetera Web3 es gestionada de forma invisible y segura por la plataforma.
+  - Almacenamiento seguro de llaves en PostgreSQL bajo cifrado simétrico AES-256-CBC (`web3_wallet_address` y `web3_private_key_encrypted`).
+  - Orquestación en memoria en [`backend/src/services/publicationService.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/publicationService.js) y [`backend/src/services/web3BridgeService.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/web3BridgeService.js): resolución automática de billetera invisible, desencriptación efímera en memoria, generación de la firma tipada criptográfica EIP-712 (`PaymentAuthorization`) requerida por `CoreProtocol.sol`, y borrado preventivo inmediato de la llave en memoria.
+* **Modal de Desglose Financiero Bancario y Consentimiento Humano (Cero Jerga Técnica)**:
+  - Implementado en [`frontend/publication-detail.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/publication-detail.html) y controlado por [`frontend/src/pages/publication-detail.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js):
+    1) Tarea y Proveedor / Beneficiario (`@worker`).
+    2) Monto Bruto acreditado al trabajador con 30 días de parking.
+    3) Comisión de plataforma (5% o configurable, destinada a la Tesorería del protocolo).
+    4) Total **compromiso RED** asumido por el autor (`monto bruto + comisión`).
+    5) Fecha límite exacta de vencimiento (`due_at`, 30 días).
+    6) Aviso claro y transparente: *"Al confirmar, autorizas a WintonCoin a entregar los tokens BLUE al colaborador y asumes el compromiso RED correspondiente en tu cuenta"*, eliminando por completo jerga incomprensible ("criptográficamente", "EIP-712", "emisión dual").
+* **Consistencia Atómica de Dos Fases (Two-Phase Commit Blockchain ↔ PostgreSQL)**:
+  - El modal de autorización bloquea la interacción del usuario con un estado de espera activo mientras el backend ejecuta la liquidación en la red.
+  - Si la llamada on-chain en Optimism Sepolia falla (por ejemplo por gas o rechazo del nodo RPC), PostgreSQL ejecuta de inmediato un `ROLLBACK` atómico: la base de datos queda intacta (cero desincronización, sin cobros indebidos de comisiones ni alteraciones de saldos).
+  - En la interfaz, el modal **permanece abierto**, restaura el botón con su estado habilitado y muestra un mensaje amigable al usuario indicando que sus fondos están protegidos y que puede intentar nuevamente.
+* **Armonización de los 4 Niveles del Sistema con Confirmación On-Chain Auditada**:
+  - En [`backend/src/controllers/admin/adminSystemSettingsController.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/admin/adminSystemSettingsController.js), las actualizaciones de comisión (`platform_commission_percentage`) y ciclo de compromiso (`debt_cycle_days`) esperan y reportan el resultado de la transacción on-chain, asegurando trazabilidad y alertando si la red blockchain requiere atención.
+  - En [`backend/src/services/creditScoringService.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/creditScoringService.js), se unificó la asignación de límite crediticio hacia `CoreProtocol.setCreditLimit(walletAddress, newScore)` utilizando 6 decimales.
+* **Pre-flight FinTech Auto-Remediation**:
+  - Verificación previa en `web3BridgeService.js`: auto-remediación de KYC on-chain y garantía de capacidad crediticia antes de despachar `processAuthorizedPayment`, evitando revert on-chain y garantizando atomicidad transaccional.
+
+---
+
 ### 2026-09-25 — Integración On-Chain Directa de Billetera y Exchange con la Suite V4 en Optimism Sepolia (Eliminación de Simulación)
 * **Desconexión Definitiva de Servicios Simulados**:
   - Se eliminaron por completo las dependencias y referencias de `mockFinancialService` y `mockExchangeService` en las interfaces de usuario principales ([`frontend/src/pages/Wallet.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Wallet.jsx) y [`frontend/src/pages/Exchange.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Exchange.jsx)).

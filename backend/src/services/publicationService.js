@@ -43,6 +43,64 @@ async function updateUserBoosterLevel(client, userId) {
 }
 
 /**
+ * Helper FinTech para resolver billeteras y autorizar la emisión dual on-chain.
+ * Arquitectura de Billetera Invisible: firma criptográficamente EIP-712 sin exigir MetaMask al usuario.
+ * Garantiza auto-provisionamiento de billeteras encriptadas si no existen previamente.
+ */
+async function resolveWalletsAndAuthorizePayment(client, payerUsername, payeeUsername, amountBlue, pubId) {
+    const walletService = require('./walletService');
+    const walletQuery = await client.query(
+        `SELECT id, username, web3_wallet_address, web3_private_key_encrypted FROM users WHERE username IN ($1, $2)`,
+        [payerUsername, payeeUsername]
+    );
+
+    let payerRow = walletQuery.rows.find(u => u.username === payerUsername);
+    let payeeRow = walletQuery.rows.find(u => u.username === payeeUsername);
+
+    if (!payerRow) throw new Error(`Usuario pagador no encontrado: ${payerUsername}`);
+    if (!payeeRow) throw new Error(`Usuario beneficiario no encontrado: ${payeeUsername}`);
+
+    // Auto-provisionar billeteras invisibles si el usuario fue registrado sin ellas
+    if (!payerRow.web3_wallet_address || !payerRow.web3_private_key_encrypted) {
+        const newWallet = walletService.generateEncryptedWallet();
+        await client.query(
+            `UPDATE users SET web3_wallet_address = $1, web3_private_key_encrypted = $2 WHERE id = $3`,
+            [newWallet.address, newWallet.encryptedPrivateKey, payerRow.id]
+        );
+        payerRow.web3_wallet_address = newWallet.address;
+        payerRow.web3_private_key_encrypted = newWallet.encryptedPrivateKey;
+    }
+
+    if (!payeeRow.web3_wallet_address || !payeeRow.web3_private_key_encrypted) {
+        const newWallet = walletService.generateEncryptedWallet();
+        await client.query(
+            `UPDATE users SET web3_wallet_address = $1, web3_private_key_encrypted = $2 WHERE id = $3`,
+            [newWallet.address, newWallet.encryptedPrivateKey, payeeRow.id]
+        );
+        payeeRow.web3_wallet_address = newWallet.address;
+        payeeRow.web3_private_key_encrypted = newWallet.encryptedPrivateKey;
+    }
+
+    // Generar la autorización EIP-712 firmada por la billetera invisible del pagador
+    const { authorization, signature } = await Web3BridgeService.generateSignedPaymentAuthorization({
+        payerWalletAddress: payerRow.web3_wallet_address,
+        payerEncryptedKey: payerRow.web3_private_key_encrypted,
+        payeeWalletAddress: payeeRow.web3_wallet_address,
+        amountBlue,
+        pubId
+    });
+
+    return {
+        payerRow,
+        payeeRow,
+        payerWallet: payerRow.web3_wallet_address,
+        payeeWallet: payeeRow.web3_wallet_address,
+        authorization,
+        signature
+    };
+}
+
+/**
  * Helper para determinar el usuario responsable de la deuda RED por username.
  * Valida controles parentales FinTech si el usuario es menor de edad.
  */
@@ -377,15 +435,14 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
         // DB hace ROLLBACK, este registro sobrevive y un cron de
         // reconciliación lo detecta para re-aplicar los cambios.
         // Estándar: Saga/Outbox Pattern (Stripe, Coinbase).
-        // ═══════════════════════════════════════════════════════════════
-        const walletQuery = await client.query(
-            `SELECT id, username, web3_wallet_address FROM users WHERE username IN ($1, $2)`,
-            [author, workerUsername]
-        );
-        const payerRow = walletQuery.rows.find(u => u.username === author);
-        const payeeRow = walletQuery.rows.find(u => u.username === workerUsername);
-        const payerWallet = payerRow?.web3_wallet_address;
-        const payeeWallet = payeeRow?.web3_wallet_address;
+        const {
+            payerRow,
+            payeeRow,
+            payerWallet,
+            payeeWallet,
+            authorization,
+            signature
+        } = await resolveWalletsAndAuthorizePayment(client, author, workerUsername, cost, pubId);
 
         // PASO 1: Registrar intención en la misma transacción (Evita Self-Deadlock PG).
         const intentPayload = { payerWallet, payeeWallet, amountBlue: cost, pubId, author, workerUsername, authorTxId };
@@ -406,7 +463,9 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
                 dbTransactionId: authorTxId,
                 publicationId: pubId,
                 payerUsername: author,
-                payeeUsername: workerUsername
+                payeeUsername: workerUsername,
+                authorization,
+                signature
             });
         } catch (web3Error) {
             const errorMsg = web3Error.message || 'blockchain_rejected';
@@ -682,15 +741,14 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
 
         // ═══════════════════════════════════════════════════════════════
         // OUTBOX PATTERN (Red de Seguridad Anti-Desincronización)
-        // ═══════════════════════════════════════════════════════════════
-        const walletQuery = await client.query(
-            `SELECT id, username, web3_wallet_address FROM users WHERE username IN ($1, $2)`,
-            [payer, recipient]
-        );
-        const payerRow = walletQuery.rows.find(u => u.username === payer);
-        const payeeRow = walletQuery.rows.find(u => u.username === recipient);
-        const payerWallet = payerRow?.web3_wallet_address;
-        const payeeWallet = payeeRow?.web3_wallet_address;
+        const {
+            payerRow,
+            payeeRow,
+            payerWallet,
+            payeeWallet,
+            authorization,
+            signature
+        } = await resolveWalletsAndAuthorizePayment(client, payer, recipient, cost, pubId);
 
         // PASO 1: Registrar intención en la misma transacción (Evita Self-Deadlock PG).
         const intentPayload = { payerWallet, payeeWallet, amountBlue: cost, pubId, payer, recipient, payerTxId };
@@ -711,7 +769,9 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
                 dbTransactionId: payerTxId,
                 publicationId: pubId,
                 payerUsername: payer,
-                payeeUsername: recipient
+                payeeUsername: recipient,
+                authorization,
+                signature
             });
         } catch (web3Error) {
             const errorMsg = web3Error.message || 'blockchain_rejected';

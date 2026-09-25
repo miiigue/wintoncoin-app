@@ -126,7 +126,46 @@ async function updateSetting(req, res) {
             metadata: { setting_key: key, new_value: value }
         });
 
-        res.status(200).json({ message: "Configuración actualizada.", setting: result.rows[0] });
+        // ── SINCRONIZACIÓN AUTOMÁTICA CON SMART CONTRACTS ON-CHAIN ──
+        let onChainSync = { attempted: false, success: false, txHash: null, error: null };
+        if (key === 'platform_commission_percentage') {
+            const pct = parseFloat(value);
+            if (!isNaN(pct) && pct >= 0 && pct <= 10) {
+                const bps = Math.round(pct * 100);
+                const web3Bridge = require('../../services/web3BridgeService');
+                onChainSync.attempted = true;
+                try {
+                    const txHash = await web3Bridge.setCommissionRate(bps);
+                    onChainSync.success = !!txHash;
+                    onChainSync.txHash = txHash;
+                } catch (err) {
+                    console.error('[AdminSystemSettingsController] Error sincronizando comisión on-chain:', err.message);
+                    onChainSync.error = err.message;
+                }
+            }
+        } else if (key === 'debt_cycle_days') {
+            const days = parseInt(value, 10);
+            if (!isNaN(days) && days > 0 && days <= 365) {
+                const web3Bridge = require('../../services/web3BridgeService');
+                onChainSync.attempted = true;
+                try {
+                    const txHash = await web3Bridge.setCommitmentDuration(days * 86400);
+                    onChainSync.success = !!txHash;
+                    onChainSync.txHash = txHash;
+                } catch (err) {
+                    console.error('[AdminSystemSettingsController] Error sincronizando duración on-chain:', err.message);
+                    onChainSync.error = err.message;
+                }
+            }
+        }
+
+        res.status(200).json({ 
+            message: onChainSync.attempted && !onChainSync.success 
+                ? "Configuración guardada en base de datos. Advertencia: La sincronización on-chain no pudo completarse de inmediato." 
+                : "Configuración actualizada correctamente.", 
+            setting: result.rows[0],
+            on_chain_sync: onChainSync
+        });
     } catch (error) {
         console.error("[AdminSystemSettingsController] Error al actualizar configuración:", error);
         res.status(500).json({ message: "Error interno del servidor." });

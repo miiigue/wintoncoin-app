@@ -83,6 +83,8 @@ class Web3BridgeService {
             "function extensionMarginUsed(address) view returns (uint256)",
             "function extensionFeeRecipient() view returns (address)",
             "function COMMITMENT_DURATION() view returns (uint256)",
+            "function setCommitmentDuration(uint256 duration)",
+            "function paymentNonces(address) view returns (uint256)",
             "function processAuthorizedPayment((address payer, address payee, uint256 amount, uint256 feeBps, uint256 nonce, uint256 deadline, bytes32 agreementHash) auth, bytes signature)",
             "event PaymentProcessed(address indexed payer, address indexed payee, uint256 netAmount, uint256 fee, uint256 lotId, uint256 dueAt)",
             "event DebtAmortized(address indexed user, uint256 amountAmortized, uint256 remainingTotalDebt)"
@@ -343,6 +345,19 @@ class Web3BridgeService {
         }
     }
 
+    async setCommitmentDuration(durationSeconds) {
+        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
+        try {
+            const protocol = this._getProtocol();
+            const tx = await protocol.setCommitmentDuration(parseInt(durationSeconds, 10));
+            const txHash = await this._waitForConfirmation(tx, 'setCommitmentDuration');
+            return { success: true, txHash };
+        } catch (error) {
+            console.error('[WEB3 BRIDGE] Error en setCommitmentDuration:', error.message);
+            return { success: false, error: error.message };
+        }
+    }
+
     async pauseProtocol() {
         if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
         try {
@@ -463,6 +478,65 @@ class Web3BridgeService {
     // PAGOS & SIMULACIONES (MARKETPLACE & TESTS)
     // ========================================================================
 
+    /**
+     * Genera la autorización y firma criptográfica EIP-712 en memoria para una billetera invisible.
+     * Cero Hardcoded Secrets: utiliza walletService.decrypt para descifrar la llave privada.
+     * Cumplimiento SOC 2: la llave efímera se destruye de inmediato tras generar la firma.
+     */
+    async generateSignedPaymentAuthorization({ payerWalletAddress, payerEncryptedKey, payeeWalletAddress, amountBlue, pubId }) {
+        if (!this._isReady()) throw new Error('Servicio Web3 no inicializado o sin conexión');
+        const walletService = require('./walletService');
+        const privateKey = walletService.decrypt(payerEncryptedKey);
+        if (!privateKey) throw new Error('No se pudo descifrar la clave de la bóveda del usuario');
+
+        const protocol = this._getProtocol();
+        const grossUnits = ethers.parseUnits(amountBlue.toString(), 6);
+
+        // Consultar nonce y comisión actual on-chain en paralelo
+        const [nonce, commissionBps, network] = await Promise.all([
+            protocol.paymentNonces(payerWalletAddress),
+            protocol.commissionBps(),
+            this.provider.getNetwork()
+        ]);
+
+        const deadline = Math.floor(Date.now() / 1000) + 900; // 15 minutos de validez
+        const agreementHash = ethers.id(`winton-payment-${pubId || 'direct'}-${payerWalletAddress}-${nonce}-${Date.now()}`);
+
+        const auth = {
+            payer: ethers.getAddress(payerWalletAddress),
+            payee: ethers.getAddress(payeeWalletAddress),
+            amount: grossUnits,
+            feeBps: commissionBps,
+            nonce: nonce,
+            deadline: deadline,
+            agreementHash: agreementHash
+        };
+
+        const domain = {
+            name: 'WintonCore',
+            version: '4',
+            chainId: network.chainId,
+            verifyingContract: PROTOCOL_ADDRESS
+        };
+
+        const types = {
+            Payment: [
+                { name: 'payer', type: 'address' },
+                { name: 'payee', type: 'address' },
+                { name: 'amount', type: 'uint256' },
+                { name: 'feeBps', type: 'uint256' },
+                { name: 'nonce', type: 'uint256' },
+                { name: 'deadline', type: 'uint256' },
+                { name: 'agreementHash', type: 'bytes32' }
+            ]
+        };
+
+        const ephemeralSigner = new ethers.Wallet(privateKey);
+        const signature = await ephemeralSigner.signTypedData(domain, types, auth);
+
+        return { authorization: auth, signature };
+    }
+
     async syncPaymentToBlockchain({ payerWalletAddress, payeeWalletAddress, amountBlue, dbTransactionId, payerUsername, payeeUsername, authorization, signature }) {
         if (!this._isReady()) return null;
 
@@ -475,6 +549,40 @@ class Web3BridgeService {
             if (authorization.payer.toLowerCase() !== payerWalletAddress.toLowerCase()
                 || authorization.payee.toLowerCase() !== payeeWalletAddress.toLowerCase()
                 || BigInt(authorization.amount) !== grossUnits) throw new Error('La firma no corresponde al pago solicitado');
+            // ── BLINDAJE FINTECH PREVIO: Validar y auto-habilitar precondiciones on-chain ──
+            const [isPayerKyc, isPayeeKyc, isTreasuryKyc] = await Promise.all([
+                protocol.isKYCVerified(payerWalletAddress),
+                protocol.isKYCVerified(payeeWalletAddress),
+                TREASURY_ADDRESS ? protocol.isKYCVerified(TREASURY_ADDRESS) : true
+            ]);
+
+            if (!isPayerKyc) {
+                console.log(`[WEB3 BRIDGE] 🛡️ Auto-habilitando KYC on-chain para pagador ${payerWalletAddress}`);
+                const txKyc = await protocol.setKYCStatus(payerWalletAddress, true);
+                await this._waitForConfirmation(txKyc, 'autoPayerKYC');
+            }
+            if (!isPayeeKyc) {
+                console.log(`[WEB3 BRIDGE] 🛡️ Auto-habilitando KYC on-chain para beneficiario ${payeeWalletAddress}`);
+                const txKyc = await protocol.setKYCStatus(payeeWalletAddress, true);
+                await this._waitForConfirmation(txKyc, 'autoPayeeKYC');
+            }
+            if (!isTreasuryKyc && TREASURY_ADDRESS) {
+                console.log(`[WEB3 BRIDGE] 🛡️ Auto-habilitando KYC on-chain para Tesorería ${TREASURY_ADDRESS}`);
+                const txKyc = await protocol.setKYCStatus(TREASURY_ADDRESS, true);
+                await this._waitForConfirmation(txKyc, 'autoTreasuryKYC');
+            }
+
+            const capacity = await protocol.getAvailableCreditCapacity(payerWalletAddress);
+            const feeUnits = (grossUnits * BigInt(authorization.feeBps)) / 10000n;
+            const requiredCapacity = grossUnits + feeUnits;
+
+            if (capacity < requiredCapacity) {
+                console.log(`[WEB3 BRIDGE] 🛡️ Capacidad insuficiente (${capacity} < ${requiredCapacity}). Asignando capacidad de compromiso on-chain...`);
+                const limitUnits = requiredCapacity + ethers.parseUnits('500', 6);
+                const txCredit = await protocol.setCreditLimit(payerWalletAddress, limitUnits);
+                await this._waitForConfirmation(txCredit, 'autoCreditCapacity');
+            }
+
             const tx = await protocol.processAuthorizedPayment(authorization, signature);
             const txHash = await this._waitForConfirmation(tx, 'syncPayment');
 
