@@ -290,7 +290,7 @@ export default function Exchange() {
               <strong>⚠️ KYC On-Chain Pendiente:</strong> Tu dirección no está verificada en el contrato CoreProtocol.sol. Para colocar órdenes en el Exchange, aprueba tu KYC desde el Panel de Control Web3.
             </div>
             <Link
-              to="/admin/web3"
+              to="/admin-web3.html"
               style={{
                 background: '#f59e0b',
                 color: '#1a1a2e',

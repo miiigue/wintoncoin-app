@@ -57,5 +57,5 @@
     RewriteRule ^ - [L]
 
     # Rutas SPA migradas a React: enrutar internamente a index.html (preservando query string)
-    RewriteRule ^(register|login|forgot-password|home)$ index.html [L,QSA]
+    RewriteRule ^(register|login|forgot-password|home|wallet|exchange|admin/web3|admin-web3)$ index.html [L,QSA]
 </IfModule>

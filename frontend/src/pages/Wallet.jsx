@@ -253,7 +253,7 @@ function Wallet() {
               <strong>⚠️ Identidad KYC On-Chain no aprobada:</strong> Tu billetera ({connectedWallet.slice(0, 6)}...{connectedWallet.slice(-4)}) no está verificada en CoreProtocol.sol.
             </div>
             <Link
-              to="/admin/web3"
+              to="/admin-web3.html"
               style={{
                 background: '#f59e0b',
                 color: '#1a1a2e',
@@ -295,7 +295,7 @@ function Wallet() {
               <h2 className={styles.userName}>@{username}</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <Link
-                  to="/admin/web3"
+                  to="/admin-web3.html"
                   style={{
                     background: 'rgba(56, 189, 248, 0.15)',
                     border: '1px solid rgba(56, 189, 248, 0.3)',
@@ -544,7 +544,7 @@ function Wallet() {
           textAlign: 'center'
         }}>
           ¿Quieres probar el flujo completo con tokens de prueba en Demo?{' '}
-          <Link to="/admin/web3" style={{ color: '#38bdf8', fontWeight: 600, textDecoration: 'underline' }}>
+          <Link to="/admin-web3.html" style={{ color: '#38bdf8', fontWeight: 600, textDecoration: 'underline' }}>
             Abre el Panel de Smart Contracts (Web3)
           </Link>{' '}
           para mintear USDT de prueba o aprobar el KYC de tu billetera.

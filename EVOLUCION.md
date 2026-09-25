@@ -27,8 +27,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 * **Cola FIFO On-Chain en Tiempo Real**:
   - Endpoint público agregado en [`backend/src/routes/web3Routes.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/web3Routes.js): `GET /api/web3/exchange-queue`, exponiendo en tiempo real las órdenes de compra y venta indexadas desde los bloques de Optimism Sepolia.
   - El visor de la Cola FIFO en [`frontend/src/pages/Exchange.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Exchange.jsx) muestra órdenes reales con su identificador correlativo, secuencia FIFO y botón de cancelación para órdenes propias.
-* **Navegación Administrativa Actualizada**:
-  - Agregado el enlace oficial `⛓️ Smart Contracts (Web3) ↗` en el menú lateral de [`frontend/admin-panel.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html) apuntando a `/admin/web3`.
+* **Navegación Administrativa y Resolución de Rutas Estáticas (Hostinger)**:
+  - Creado el archivo físico [`frontend/admin-web3.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-web3.html) registrado como punto de entrada en [`frontend/vite.config.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/vite.config.js) para que el empaquetado de producción en `dist-demo` lo genere físicamente.
+  - Actualizado [`frontend/public/.htaccess`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/public/.htaccess) para incluir `admin/web3`, `admin-web3`, `wallet` y `exchange` en las reglas de reescritura de mod_rewrite, previniendo errores 404 de Apache/LiteSpeed.
+  - Enlaces en [`frontend/admin-panel.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html), `Wallet.jsx` y `Exchange.jsx` actualizados a `/admin-web3.html` para acceso instantáneo.
 * **Verificación de Compilación Frontend**:
   - Compilación exitosa con Vite en modo demo (`npm run build:demo`): empaquetado sin errores de todos los bundles y service workers en `dist-demo/`.
 

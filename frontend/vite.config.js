@@ -53,7 +53,7 @@ const spaFallbackPlugin = () => {
       server.middlewares.use((req, res, next) => {
         const pathname = req.url ? req.url.split('?')[0] : '';
         // Rutas migradas a la SPA React
-        if (['/register', '/login', '/forgot-password', '/wallet'].includes(pathname)) {
+        if (['/register', '/login', '/forgot-password', '/wallet', '/exchange', '/admin/web3', '/admin-web3'].includes(pathname)) {
           const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
           req.url = '/index.html' + query;
         }
@@ -150,6 +150,7 @@ export default defineConfig(({ mode }) => ({
         adminPanel: resolve(__dirname, 'admin-panel.html'),
         adminUserDetail: resolve(__dirname, 'admin-user-detail.html'),
         adminRegister: resolve(__dirname, 'admin-register.html'),
+        adminWeb3: resolve(__dirname, 'admin-web3.html'),
 
         // Momentum System
         momentumLanding: resolve(__dirname, 'momentum-landing.html'),
