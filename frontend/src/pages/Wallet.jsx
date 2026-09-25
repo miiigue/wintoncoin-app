@@ -1,100 +1,162 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import mockFinancialService from '../modules/mockFinancialService';
-import styles from './Wallet.module.css';
-import { displayAmount, DAY } from '../modules/financialUnits.js';
-import { mockExchangeService } from '../modules/mockExchangeService.js';
-
 /**
  * ============================================================================
  * [WINTONCOIN] - BILLETERA FINTECH REACT (Wallet.jsx)
  * ============================================================================
  * Pantalla central de la Billetera WintonCoin con arquitectura 2026:
- * - Demostración local; conexión real de cuentas pendiente.
- * - Desglose visual en tiempo real de Saldo Líquido vs Saldo en Parking (30d).
- * - Compensación en 1 Toque (Ruta A) con consumo de lotes por antigüedad.
- * - Desglose justo de garantías USDT (Pignorado vs Libre para Retiro).
- * - Estatus y recompensas del Club Winton en BLUE IOU.
+ * - Conexión On-Chain en Vivo: Lee contratos de Optimism Sepolia (Suite V4).
+ * - Soporte MetaMask nativo para Depósito de Garantías USDT y Amortización BLUE.
+ * - Desglose visual en tiempo real de Saldo Líquido, Garantías y Compromisos RED.
+ * - Compensación en 1 Toque con quema simétrica de lotes en CoreProtocol.sol.
+ * - Desglose justo de garantías USDT (Pignorado vs Libre para Retiro en Bóveda).
  * ============================================================================
-/**
- * Helper canónico para formatear siempre con 4 decimales en interfaces financieras
  */
+
+import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
+import { web3OnChainService, CONTRACT_ADDRESSES } from '../modules/web3OnChainService.js';
+import styles from './Wallet.module.css';
+import { displayAmount } from '../modules/financialUnits.js';
+import { getApiUrl } from '../modules/config.js';
+
 const fmt = displayAmount;
 
 function Wallet() {
-  const [data, setData] = useState(() => mockFinancialService.getCalculatedState());
-  const [modalType, setModalType] = useState(null); // 'routeA', 'withdrawUsdt', 'depositUsdt', 'extension'
+  const [username, setUsername] = useState(() => localStorage.getItem('username') || 'Usuario');
+  const [onChainState, setOnChainState] = useState(null);
+  const [connectedWallet, setConnectedWallet] = useState(null);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [modalType, setModalType] = useState(null); // 'routeA', 'withdrawUsdt', 'depositUsdt', 'infoLots'
   const [amountInput, setAmountInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
+  const [lastTxHash, setLastTxHash] = useState(null);
 
-  // Estados para el beneficio de Prórroga Nivel 3+
-  const [extensionDays, setExtensionDays] = useState(30);
-  const [extensionQuote, setExtensionQuote] = useState(null);
+  // Sincronización continua de estado On-Chain desde Optimism Sepolia
+  const syncOnChain = async () => {
+    try {
+      let addr = await web3OnChainService.getConnectedAddress();
+      
+      // Si no hay billetera conectada vía MetaMask, intentamos consultar la billetera asignada al usuario
+      if (!addr) {
+        const token = localStorage.getItem('token');
+        if (token) {
+          const API_URL = getApiUrl();
+          const meRes = await fetch(`${API_URL}/balance/me`, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (meRes.ok) {
+            const meData = await meRes.json();
+            if (meData.web3_wallet_address) {
+              addr = meData.web3_wallet_address;
+            }
+          }
+        }
+      }
 
-  // Suscripción reactiva al motor financiero y validación de sesión
+      if (addr) {
+        setConnectedWallet(addr);
+        const state = await web3OnChainService.fetchUserOnChainState(addr);
+        if (state) {
+          setOnChainState(state);
+        }
+      }
+    } catch (_) {}
+  };
+
   useEffect(() => {
     const token = localStorage.getItem('token');
-    const username = localStorage.getItem('username');
-    if (!token && !username) {
+    const storedUsername = localStorage.getItem('username');
+    if (!token && !storedUsername) {
       const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
       window.location.replace(`/login.html?returnTo=${returnTo}`);
       return;
     }
+    if (storedUsername) setUsername(storedUsername);
 
-    const unsubscribe = mockFinancialService.subscribe((updatedState) => {
-      setData(updatedState);
-    });
-    const timer = setInterval(() => setData(mockFinancialService.getCalculatedState()), 1000);
-    return () => { unsubscribe(); clearInterval(timer); };
+    syncOnChain();
+    const pollTimer = setInterval(syncOnChain, 4000);
+    return () => clearInterval(pollTimer);
   }, []);
 
   // Utilidad para mostrar notificaciones toast
-  const showToast = (msg) => {
+  const showToast = (msg, txHash = null) => {
     setToastMessage(msg);
-    setTimeout(() => setToastMessage(null), 3500);
+    setLastTxHash(txHash);
+    setTimeout(() => {
+      setToastMessage(null);
+      setLastTxHash(null);
+    }, 6000);
   };
 
-  // Manejo de la acción (Compensar compromiso con saldo ganado en tareas)
+  // Conectar cuenta MetaMask con la red Optimism Sepolia
+  const handleConnectMetaMask = async () => {
+    try {
+      setIsConnecting(true);
+      const addr = await web3OnChainService.connectWallet();
+      setConnectedWallet(addr);
+      showToast(`🦊 MetaMask conectado: ${addr.slice(0, 6)}...${addr.slice(-4)}`);
+      const state = await web3OnChainService.fetchUserOnChainState(addr);
+      if (state) setOnChainState(state);
+    } catch (err) {
+      alert(err.message || 'Error al conectar MetaMask');
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // Manejo de la acción: Compensar compromiso con BLUE en CoreProtocol.sol
   const handleRepayRouteA = async () => {
     try {
       setLoading(true);
-      const res = await mockFinancialService.repayWithRouteA(amountInput);
+      if (!web3OnChainService.hasInjectedProvider()) {
+        alert('Por favor conecta MetaMask para firmar la compensación en Optimism Sepolia.');
+        return;
+      }
+      const res = await web3OnChainService.amortizeWithBlue(amountInput);
       setModalType(null);
       setAmountInput('');
-      showToast(
-        `Compensación simulada: se quemó la misma cantidad de BLUE y RED.`
-      );
+      showToast(`✅ Compensación confirmada en Blockchain. BLUE y RED quemados 1:1.`, res.txHash);
+      await syncOnChain();
     } catch (err) {
-      alert(err.message || 'Error al procesar la compensación');
+      alert(err.message || 'Error al procesar la compensación on-chain');
     } finally {
       setLoading(false);
     }
   };
 
-  // Manejo del Retiro de USDT Libre
+  // Manejo del Retiro de USDT Libre desde CollateralVault.sol
   const handleWithdrawUsdt = async () => {
     try {
       setLoading(true);
-      await mockFinancialService.withdrawFreeUsdt(amountInput);
+      if (!web3OnChainService.hasInjectedProvider()) {
+        alert('Por favor conecta MetaMask para retirar fondos de la Bóveda en Optimism Sepolia.');
+        return;
+      }
+      const res = await web3OnChainService.withdrawCollateral(amountInput);
       setModalType(null);
       setAmountInput('');
-      showToast('💸 Retiro de USDT completado hacia tu billetera');
+      showToast(`🎉 Retiro completado. USDT transferidos a tu billetera.`, res.txHash);
+      await syncOnChain();
     } catch (err) {
-      alert(err.message || 'Error al retirar USDT');
+      alert(err.message || 'Error al retirar colateral');
     } finally {
       setLoading(false);
     }
   };
 
-  // Manejo del Depósito de USDT (1 Toque ERC-4337)
+  // Manejo del Depósito de USDT de Garantía en CollateralVault.sol
   const handleDepositUsdt = async () => {
     try {
       setLoading(true);
-      await mockFinancialService.depositUsdt(amountInput);
+      if (!web3OnChainService.hasInjectedProvider()) {
+        alert('Por favor conecta MetaMask para depositar garantía en Optimism Sepolia.');
+        return;
+      }
+      const res = await web3OnChainService.depositCollateral(amountInput);
       setModalType(null);
       setAmountInput('');
-      showToast('🚀 Depósito completado en 1 solo toque (Gas patrocinado $0.00)');
+      showToast(`🚀 Garantía depositada exitosamente en la Bóveda On-Chain.`, res.txHash);
+      await syncOnChain();
     } catch (err) {
       alert(err.message || 'Error al depositar USDT');
     } finally {
@@ -102,93 +164,173 @@ function Wallet() {
     }
   };
 
-  // Manejo de la Solicitud de Prórroga de Compromiso (Beneficio Nivel 3+)
-  const handleRequestExtension = async () => {
-    try {
-      setLoading(true);
-      const res = await mockFinancialService.requestCommitmentExtension(extensionQuote);
-      setModalType(null);
-      showToast(`⏳ Prórroga concedida (+${fmt(res.feeAmount)} RED). Nuevo plazo: ${res.newDaysRemaining} días.`);
-    } catch (err) {
-      alert(err.message || 'Error al solicitar la prórroga');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Manejo del Reinicio de la Simulación Demo
-  const handleResetDemo = () => {
-    mockFinancialService.resetToDefault();
-    showToast('🔄 Simulación reiniciada a sus valores originales');
-  };
-
-  const { user, blue, credit, collateral, computed, transactions } = data;
-
-  const activeCommitments = credit.lots.filter((lot) => lot.remaining > 0);
-  const selectedCommitment = activeCommitments.find((lot) => lot.id === extensionQuote?.lotId);
-  const refreshQuote = (id, days) => {
-    try { setExtensionDays(days); setExtensionQuote(mockFinancialService.quoteExtension(id, days)); }
-    catch (error) { setExtensionQuote(null); showToast(error.message); }
-  };
-  const openExtension = () => {
-    const lot = activeCommitments.find((entry) => entry.extensionCount < 2 && entry.dueAt > mockFinancialService.now());
-    if (!lot || !data.policy.extensionOptions.length) { showToast('No hay compromisos elegibles o plazos habilitados.'); return; }
-    refreshQuote(lot.id, data.policy.extensionOptions[0].days);
-    setModalType('extension');
-  };
-  const nextExtensionAt = selectedCommitment?.firstExtendedAt == null ? 0
-    : selectedCommitment.firstExtendedAt + data.policy.extensionCooldownDays * DAY;
-  const waiting = nextExtensionAt > mockFinancialService.now();
-  const extensionUnavailable = !selectedCommitment || selectedCommitment.extensionCount >= 2
-    || selectedCommitment.dueAt <= mockFinancialService.now() || credit.overdueDebtRed > 0 || waiting;
+  // Balances on-chain reales (o 0 si aún no ha sincronizado)
+  const displayTotalBlue = onChainState ? onChainState.blueUnlocked : 0;
+  const displayLiquidBlue = onChainState ? onChainState.blueUnlocked : 0;
+  const displayRedDebt = onChainState ? onChainState.redCommitment : 0;
+  const displayCreditLimit = onChainState ? onChainState.baseCreditLimit : 0;
+  const displayAvailableCapacity = onChainState ? onChainState.availableCapacity : 0;
+  const displayTotalCollateral = onChainState ? onChainState.collateralLocked : 0;
+  const displayFreeCollateral = onChainState ? onChainState.collateralFree : 0;
+  const displayReservedCollateral = onChainState ? onChainState.collateralReserved : 0;
+  const displayWalletUsdt = onChainState ? onChainState.usdtWalletBalance : 0;
+  const displayAddress = connectedWallet || 'No conectada';
+  const isKycOk = onChainState ? onChainState.isKYCVerified : false;
+  const debtLots = onChainState?.debtLots || [];
 
   return (
     <div className={styles.walletContainer}>
       <div className={styles.walletWrapper}>
-        <p role="status">Demostración local: estos saldos y operaciones no son transacciones en blockchain.</p>
-        
-        {/* ENCABEZADO DE USUARIO & ESTATUS DEL CLUB */}
+        {/* BARRA DE ESTADO WEB3 EN VIVO */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          background: onChainState ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.12)',
+          border: onChainState ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
+          borderRadius: '12px',
+          padding: '10px 16px',
+          marginBottom: '1.2rem',
+          flexWrap: 'wrap',
+          gap: '8px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <span style={{
+              width: '10px',
+              height: '10px',
+              borderRadius: '50%',
+              background: onChainState ? '#10B981' : '#F59E0B',
+              boxShadow: onChainState ? '0 0 8px #10B981' : 'none',
+              display: 'inline-block'
+            }}></span>
+            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: onChainState ? '#10B981' : '#38BDF8' }}>
+              {onChainState ? '🟢 Optimism Sepolia (Suite V4 On-Chain)' : '🟡 Conecta tu Billetera Web3'}
+            </span>
+            {connectedWallet && (
+              <code style={{ fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#cbd5e1' }}>
+                {connectedWallet.slice(0, 6)}...{connectedWallet.slice(-4)}
+              </code>
+            )}
+          </div>
+          <button
+            onClick={handleConnectMetaMask}
+            disabled={isConnecting}
+            style={{
+              background: 'linear-gradient(135deg, #FF5E00 0%, #E2761B 100%)',
+              color: '#fff',
+              border: 'none',
+              padding: '6px 14px',
+              borderRadius: '8px',
+              fontSize: '0.8rem',
+              fontWeight: 700,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}
+          >
+            🦊 {connectedWallet ? 'Cambiar Billetera' : (isConnecting ? 'Conectando...' : 'Conectar MetaMask')}
+          </button>
+        </div>
+
+        {/* ALERTA DE KYC ON-CHAIN (SI NO ESTÁ VERIFICADO EN COREPROTOCOL) */}
+        {connectedWallet && onChainState && !isKycOk && (
+          <div style={{
+            background: 'rgba(245, 158, 11, 0.15)',
+            border: '1px solid rgba(245, 158, 11, 0.4)',
+            borderRadius: '12px',
+            padding: '12px 16px',
+            marginBottom: '1.25rem',
+            color: '#fbbf24',
+            fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexWrap: 'wrap',
+            gap: '8px'
+          }}>
+            <div>
+              <strong>⚠️ Identidad KYC On-Chain no aprobada:</strong> Tu billetera ({connectedWallet.slice(0, 6)}...{connectedWallet.slice(-4)}) no está verificada en CoreProtocol.sol.
+            </div>
+            <Link
+              to="/admin/web3"
+              style={{
+                background: '#f59e0b',
+                color: '#1a1a2e',
+                padding: '4px 10px',
+                borderRadius: '6px',
+                fontWeight: 700,
+                textDecoration: 'none',
+                fontSize: '0.78rem'
+              }}
+            >
+              Aprobar KYC en Admin Web3 ↗
+            </Link>
+          </div>
+        )}
+
+        {/* NOTIFICACIÓN TOAST */}
+        {toastMessage && (
+          <div className={styles.toast}>
+            <span>{toastMessage}</span>
+            {lastTxHash && (
+              <div style={{ marginTop: '4px', fontSize: '0.8rem' }}>
+                <a
+                  href={`https://sepolia-optimism.etherscan.io/tx/${lastTxHash}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ color: '#38bdf8', textDecoration: 'underline' }}
+                >
+                  Ver en Optimism Sepolia Etherscan ↗
+                </a>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ENCABEZADO DE USUARIO */}
         <div className={styles.userHeader}>
           <div className={styles.userInfo}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
-              <h2 className={styles.userName}>{user.name}</h2>
-              <button
-                onClick={handleResetDemo}
-                style={{
-                  background: 'rgba(255, 255, 255, 0.08)',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#94a3b8',
-                  padding: '3px 8px',
-                  borderRadius: '8px',
-                  fontSize: '0.72rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontWeight: 600,
-                  transition: 'all 0.2s',
-                }}
-                title="Reiniciar balances y transacciones del simulador"
-              >
-                🔄 Reiniciar Datos
-              </button>
+              <h2 className={styles.userName}>@{username}</h2>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <Link
+                  to="/admin/web3"
+                  style={{
+                    background: 'rgba(56, 189, 248, 0.15)',
+                    border: '1px solid rgba(56, 189, 248, 0.3)',
+                    color: '#38bdf8',
+                    padding: '3px 8px',
+                    borderRadius: '8px',
+                    fontSize: '0.72rem',
+                    textDecoration: 'none',
+                    fontWeight: 600,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '4px'
+                  }}
+                  title="Panel de Gobernanza y Smart Contracts Web3"
+                >
+                  ⛓️ Smart Contracts ↗
+                </Link>
+              </div>
             </div>
             <div className={styles.smartAccountTag}>
-              <span>Smart Account:</span>
-              <code>{user.smartAccountAddress}</code>
+              <span>Dirección On-Chain:</span>
+              <code>{displayAddress}</code>
             </div>
           </div>
           <div className={styles.clubBadge}>
-            <span>{user.clubMembership}</span>
+            <span>{isKycOk ? '🛡️ KYC Aprobado' : '⏳ Sin KYC'}</span>
           </div>
         </div>
 
-        {/* HERO CARD: SALDO TOTAL BLUE & DESGLOSE */}
+        {/* HERO CARD: SALDO TOTAL BLUE */}
         <div className={styles.heroCard}>
           <div className={styles.heroHeader}>
-            <span className={styles.heroLabel}>Saldo Total</span>
+            <span className={styles.heroLabel}>Saldo Líquido Disponible</span>
             <span className={styles.gasQuotaBadge}>
-              ⚡ {computed.gasTxsRemaining} Tx Gratis hoy
+              ⚡ Optimism Sepolia L2
             </span>
           </div>
           <div className={styles.mainBalance}>
@@ -198,20 +340,20 @@ function Wallet() {
               style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'contain', marginRight: '0.65rem' }}
             />
             <span>
-              {fmt(computed.totalBlueBalance)} <span style={{ fontSize: '1.4rem', color: '#94a3b8' }}>BLUE</span>
+              {fmt(displayTotalBlue)} <span style={{ fontSize: '1.4rem', color: '#94a3b8' }}>BLUE</span>
             </span>
           </div>
           <div className={styles.balanceSubrow}>
             <div>
-              <span className={styles.subItemLabel}>Disponible (Líquido)</span>
+              <span className={styles.subItemLabel}>Disponible para Venta o Transferencia</span>
               <span className={`${styles.subItemValue} ${styles.unlockedColor}`}>
-                {fmt(blue.unlocked)} BLUE
+                {fmt(displayLiquidBlue)} BLUE
               </span>
             </div>
             <div>
-              <span className={styles.subItemLabel}>BLUE en Parking</span>
+              <span className={styles.subItemLabel}>USDT en tu Billetera</span>
               <span className={`${styles.subItemValue} ${styles.parkingColor}`}>
-                {fmt(computed.totalParkingBlue)} BLUE
+                {fmt(displayWalletUsdt)} USDT
               </span>
             </div>
           </div>
@@ -262,24 +404,24 @@ function Wallet() {
         </div>
 
         {/* ACCIÓN RÁPIDA: COMPENSAR COMPROMISO CON SALDO GANADO (EN 1 TOQUE) */}
-        {credit.debtRed > 0 && computed.totalParkingBlue > 0 && (
+        {displayRedDebt > 0 && displayLiquidBlue > 0 && (
           <div className={styles.routeABanner}>
             <div className={styles.routeATitleRow}>
               <span className={styles.routeATitle}>
-                ⚡ Compensar Compromiso con mis Ganancias
+                ⚡ Compensar Compromiso con tokens BLUE
               </span>
             </div>
             <p className={styles.routeADesc}>
-              Tienes un compromiso de <strong>{fmt(credit.debtRed)} RED</strong>. Puedes amortizarlo usando tu saldo ganado en tareas sin gastar de tu bolsillo.
+              Tienes un compromiso de <strong>{fmt(displayRedDebt)} RED</strong>. Puedes amortizarlo quemando tus tokens BLUE líquidos 1:1 en CoreProtocol.sol.
             </p>
             <button
               className={styles.btnRouteA}
               onClick={() => {
-                setAmountInput(Math.min(credit.debtRed, computed.totalParkingBlue).toString());
+                setAmountInput(Math.min(displayRedDebt, displayLiquidBlue).toString());
                 setModalType('routeA');
               }}
             >
-              Compensar Compromiso en 1 Toque
+              Compensar Compromiso en 1 Toque On-Chain
             </button>
           </div>
         )}
@@ -287,77 +429,65 @@ function Wallet() {
         {/* SECCIÓN DE COMPROMISO Y LÍMITE RED */}
         <div className={styles.creditCard}>
           <div className={styles.sectionTitle}>
-            <span>Compromiso y Límite RED</span>
-            <span style={{ fontSize: '0.8rem', color: '#38bdf8' }}>Nivel {user.tierLevel} ({user.tierName})</span>
+            <span>Compromiso y Capacidad RED (On-Chain)</span>
+            <span style={{ fontSize: '0.8rem', color: '#38bdf8' }}>
+              {onChainState ? `Nivel ${onChainState.userLevel}` : 'Consultando...'}
+            </span>
           </div>
           <div className={styles.creditGrid}>
             <div className={styles.creditBox}>
               <div className={styles.creditBoxTitle}>Compromiso RED</div>
               <div className={`${styles.creditBoxValue} ${styles.debtColor}`}>
-                {fmt(credit.debtRed)} RED
+                {fmt(displayRedDebt)} RED
               </div>
             </div>
             <div className={styles.creditBox}>
               <div className={styles.creditBoxTitle}>Límite RED Aprobado</div>
               <div className={`${styles.creditBoxValue} ${styles.limitColor}`}>
-                {fmt(credit.effectiveLimitRed)} RED
+                {fmt(displayCreditLimit)} RED
               </div>
             </div>
             <div className={styles.creditBox}>
-              <div className={styles.creditBoxTitle}>RED Disponible</div>
+              <div className={styles.creditBoxTitle}>Capacidad Disponible</div>
               <div className={`${styles.creditBoxValue} ${styles.unlockedColor}`}>
-                {fmt(computed.availableCreditCapacity)} RED
+                {fmt(displayAvailableCapacity)} RED
               </div>
             </div>
             <div className={styles.creditBox}>
-              <div className={styles.creditBoxTitle}>Vencimiento</div>
-              <div className={styles.creditBoxValue} style={{ color: '#fbbf24', fontSize: '0.92rem' }}>
-                {credit.debtRed > 0
-                  ? `${fmt(credit.dueAmountRed || credit.debtRed)} RED en ${credit.daysUntilDue} días`
-                  : 'Al día'}
+              <div className={styles.creditBoxTitle}>Estatus de Mora</div>
+              <div className={styles.creditBoxValue} style={{ color: onChainState?.isDelinquent ? '#ef4444' : '#10b981', fontSize: '0.92rem' }}>
+                {onChainState?.isDelinquent ? '⚠️ Vencido (Mora)' : 'Al Día (Sin Mora)'}
               </div>
             </div>
           </div>
-
         </div>
-
-        {user.tierLevel >= 3 && credit.debtRed > 0 && (
-          <div className={styles.collateralCard}>
-            <h3>Prórroga de un compromiso</h3>
-            <p>Disponible desde el nivel 3. Niveles 3 y 4: necesitas capacidad para el recargo.
-              Desde el nivel 5 puede habilitarse un margen exclusivo para recargos.</p>
-            <button className={styles.btnSecondary} onClick={openExtension} disabled={credit.overdueDebtRed > 0 || loading}>
-              Elegir compromiso y ver costo
-            </button>
-          </div>
-        )}
 
         {/* SECCIÓN DE GARANTÍAS USDT (BÓVEDA DE COLATERAL) */}
         <div className={styles.collateralCard}>
           <div className={styles.sectionTitle}>
-            <span>Bóveda de Garantías (USDT)</span>
-            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Total: {fmt(collateral.totalDepositedUsdt)} USDT</span>
+            <span>Bóveda de Garantías CollateralVault (USDT)</span>
+            <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Total: {fmt(displayTotalCollateral)} USDT</span>
           </div>
           <div className={styles.creditGrid}>
             <div className={styles.creditBox}>
-              <button type="button" className={styles.btnSecondary} onClick={() => setModalType('amortizationQueue')}>Reservado</button>
+              <div className={styles.creditBoxTitle}>Reservado en Exchange</div>
               <div className={styles.creditBoxValue} style={{ color: '#f87171' }}>
-                {fmt(computed.pignoratedUsdt)} USDT
+                {fmt(displayReservedCollateral)} USDT
               </div>
             </div>
             <div className={styles.creditBox}>
               <div className={styles.creditBoxTitle}>Disponible para Retiro</div>
               <div className={`${styles.creditBoxValue} ${styles.unlockedColor}`}>
-                {fmt(computed.freeUsdtToWithdraw)} USDT
+                {fmt(displayFreeCollateral)} USDT
               </div>
             </div>
           </div>
           <div className={styles.collateralActions}>
             <button
               className={styles.btnSecondary}
-              disabled={computed.freeUsdtToWithdraw <= 0}
+              disabled={displayFreeCollateral <= 0}
               onClick={() => {
-                setAmountInput(computed.freeUsdtToWithdraw.toString());
+                setAmountInput(displayFreeCollateral.toString());
                 setModalType('withdrawUsdt');
               }}
             >
@@ -370,105 +500,65 @@ function Wallet() {
                 setModalType('depositUsdt');
               }}
             >
-              + Depositar USDT (1-Toque)
+              + Depositar Garantía USDT
             </button>
           </div>
         </div>
 
-        {/* SECCIÓN BLUE EN PARKING */}
-        <div className={styles.parkingTrackerCard}>
-          <div className={styles.sectionTitle}>
-            <span>BLUE en Parking</span>
-          </div>
-          <div className={styles.lotsList}>
-            {blue.parkingLots.map((lot) => {
-              const progressPercent = Math.min(100, Math.max(0, ((30 - lot.daysRemaining) / 30) * 100));
-              return (
+        {/* LOTES DE COMPROMISO REGISTRADOS EN COREPROTOCOL */}
+        {debtLots.length > 0 && (
+          <div className={styles.parkingTrackerCard}>
+            <div className={styles.sectionTitle}>
+              <span>Lotes de Compromiso Registrados On-Chain ({debtLots.length})</span>
+            </div>
+            <div className={styles.lotsList}>
+              {debtLots.map((lot) => (
                 <div key={lot.id} className={styles.lotItem}>
                   <div className={styles.lotHeader}>
-                    <span className={styles.lotTitle}>{lot.taskTitle}</span>
-                    <span className={styles.lotAmount} style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <img src="/assets/icons/icon-64x64.png" alt="BLUE" style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'contain' }} />
-                      +{fmt(lot.amount)} BLUE
+                    <span className={styles.lotTitle}>Lote #{lot.id} {lot.repaid ? '(Amortizado)' : ''}</span>
+                    <span className={styles.lotAmount} style={{ color: lot.repaid ? '#10b981' : '#ef4444' }}>
+                      {fmt(lot.remainingAmount)} RED restante
                     </span>
-                  </div>
-                  <div className={styles.progressBarContainer}>
-                    <div
-                      className={styles.progressBarFill}
-                      style={{ width: `${progressPercent}%` }}
-                    />
                   </div>
                   <div className={styles.lotFooter}>
-                    <span>{lot.dateIssued}</span>
-                    <span style={{ color: lot.daysRemaining <= 5 ? '#34d399' : '#38bdf8', fontWeight: 600 }}>
-                      {lot.daysRemaining === 0 ? '¡Listo para el Exchange!' : `Faltan ${lot.daysRemaining} días`}
+                    <span>Vencimiento: {new Date(lot.dueAt).toLocaleDateString()}</span>
+                    <span style={{ color: lot.isOverdue ? '#ef4444' : '#38bdf8', fontWeight: 600 }}>
+                      {lot.repaid ? '✓ Amortizado' : lot.isOverdue ? '⚠️ Vencido' : 'En Plazo'}
                     </span>
                   </div>
                 </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* BENEFICIOS DEL CLUB WINTON */}
-        <div className={styles.creditCard}>
-          <div className={styles.sectionTitle}>
-            <span>Club Winton & Recompensas</span>
-            <span style={{ color: '#f59e0b', fontSize: '0.8rem' }}>+{user.clubBonusPercent}% en BLUE IOU</span>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <div style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Bono Acumulado de Estatus</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#f59e0b' }}>
-                {fmt(user.accumulatedBonusIou)} BLUE IOU
-              </div>
-            </div>
-            <div style={{ textAlign: 'right' }}>
-              <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Siguiente Nivel</div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#e2e8f0' }}>Club Platino (Nivel 5)</div>
+              ))}
             </div>
           </div>
-        </div>
+        )}
 
-        {/* HISTORIAL RECIENTE */}
-        <div className={styles.creditCard}>
-          <div className={styles.sectionTitle}>
-            <span>Movimientos Recientes</span>
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-            {transactions.map((tx) => (
-              <div
-                key={tx.id}
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  padding: '0.6rem 0',
-                  borderBottom: '1px solid rgba(255,255,255,0.05)',
-                  fontSize: '0.85rem',
-                }}
-              >
-                <div>
-                  <div style={{ fontWeight: 600, color: '#f1f5f9' }}>{tx.type}</div>
-                  <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>{tx.timestamp}</div>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <div style={{ fontWeight: 700, color: '#38bdf8' }}>{tx.amount}</div>
-                  <div style={{ fontSize: '0.7rem', color: '#10b981' }}>{tx.status}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+        {/* AYUDA PARA TESTERS EN DEMO */}
+        <div style={{
+          marginTop: '1.5rem',
+          padding: '14px',
+          background: 'rgba(255, 255, 255, 0.03)',
+          border: '1px dashed rgba(255, 255, 255, 0.15)',
+          borderRadius: '12px',
+          fontSize: '0.8rem',
+          color: '#94a3b8',
+          textAlign: 'center'
+        }}>
+          ¿Quieres probar el flujo completo con tokens de prueba en Demo?{' '}
+          <Link to="/admin/web3" style={{ color: '#38bdf8', fontWeight: 600, textDecoration: 'underline' }}>
+            Abre el Panel de Smart Contracts (Web3)
+          </Link>{' '}
+          para mintear USDT de prueba o aprobar el KYC de tu billetera.
         </div>
 
       </div>
 
-      {/* MODAL DE COMPENSACIÓN DE COMPROMISO CON SALDO GANADO */}
+      {/* MODAL DE COMPENSACIÓN DE COMPROMISO CON BLUE */}
       {modalType === 'routeA' && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <h3 className={styles.modalTitle}>Compensar Compromiso con mis Ganancias</h3>
+            <h3 className={styles.modalTitle}>Compensar Compromiso con tokens BLUE</h3>
             <p className={styles.modalDesc}>
-              Vas a amortizar parte o la totalidad de tu compromiso RED usando tu saldo ganado en tareas sin gastar de tu bolsillo.
+              Vas a amortizar parte o la totalidad de tu compromiso RED quemando tokens BLUE líquidos 1:1 en CoreProtocol.sol.
             </p>
             <div className={styles.inputGroup}>
               <label className={styles.inputLabel}>Monto a amortizar (RED / BLUE):</label>
@@ -487,7 +577,7 @@ function Wallet() {
                 Cancelar
               </button>
               <button className={styles.btnRouteA} onClick={handleRepayRouteA} disabled={loading}>
-                {loading ? 'Confirmando...' : 'Confirmar en 1 Toque'}
+                {loading ? 'Firmando en MetaMask...' : 'Confirmar en 1 Toque On-Chain'}
               </button>
             </div>
           </div>
@@ -500,7 +590,7 @@ function Wallet() {
           <div className={styles.modalContent}>
             <h3 className={styles.modalTitle}>Retirar Garantía USDT</h3>
             <p className={styles.modalDesc}>
-              Este monto corresponde a tu capital libre que no está respaldando ningún compromiso. El retiro se transferirá a tu billetera personal.
+              Este monto corresponde a tu capital libre en CollateralVault.sol. La transacción transferirá los USDT directamente a tu billetera personal.
             </p>
             <div className={styles.inputGroup}>
               <label className={styles.inputLabel}>Monto a retirar en USDT:</label>
@@ -519,7 +609,7 @@ function Wallet() {
                 Cancelar
               </button>
               <button className={styles.btnSuccess} onClick={handleWithdrawUsdt} disabled={loading}>
-                {loading ? 'Procesando...' : 'Retirar USDT'}
+                {loading ? 'Firmando en MetaMask...' : 'Retirar USDT On-Chain'}
               </button>
             </div>
           </div>
@@ -532,7 +622,7 @@ function Wallet() {
           <div className={styles.modalContent}>
             <h3 className={styles.modalTitle}>Depositar Garantía USDT</h3>
             <p className={styles.modalDesc}>
-              Gracias a tu Smart Account ERC-4337, la autorización y el depósito se agrupan en 1 solo toque, con el gas cubierto por WintonCoin ($0.00).
+              Aportarás USDT a la Bóveda CollateralVault.sol para respaldar tus compromisos u operar en el protocolo. Se solicitará la aprobación del token si es la primera vez.
             </p>
             <div className={styles.inputGroup}>
               <label className={styles.inputLabel}>Monto a depositar en USDT:</label>
@@ -551,80 +641,8 @@ function Wallet() {
                 Cancelar
               </button>
               <button className={styles.btnSuccess} onClick={handleDepositUsdt} disabled={loading}>
-                {loading ? 'Autorizando...' : 'Depositar en 1 Toque'}
+                {loading ? 'Autorizando / Depositando...' : 'Depositar en Bóveda'}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL DE PRÓRROGA DE COMPROMISO (BENEFICIO NIVEL 4+) */}
-      {modalType === 'extension' && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} role="dialog" aria-modal="true" aria-labelledby="extension-title">
-            <h3 id="extension-title" className={styles.modalTitle}>Prórroga de un compromiso</h3>
-            <label className={styles.inputLabel}>Compromiso
-              <select className={styles.input} value={extensionQuote?.lotId || ''}
-                onChange={(event) => refreshQuote(event.target.value, extensionDays)}>
-                {activeCommitments.map((lot) => <option key={lot.id} value={lot.id}>
-                  {lot.id}: {fmt(lot.remaining)} RED · vence {new Date(lot.dueAt).toLocaleString()}
-                </option>)}
-              </select>
-            </label>
-            <label className={styles.inputLabel}>Plazo
-              <select className={styles.input} value={extensionDays}
-                onChange={(event) => refreshQuote(extensionQuote?.lotId, Number(event.target.value))}>
-                {data.policy.extensionOptions.map((option) => <option key={option.days} value={option.days}>
-                  {option.days} días · recargo {option.bps / 100}%
-                </option>)}
-              </select>
-            </label>
-            {extensionQuote && <div className={styles.modalDesc}>
-              <p>Compromiso elegido: {fmt(extensionQuote.remaining)} RED</p>
-              <p>Recargo: {fmt(extensionQuote.fee)} RED <small>({extensionQuote.fee.toFixed(6)} exactos)</small></p>
-              <p>Total de ese compromiso: {fmt(extensionQuote.newLotTotal)} RED</p>
-              <p>Nuevo vencimiento: {new Date(extensionQuote.newDueAt).toLocaleString()}</p>
-              <p>Prórrogas usadas: {selectedCommitment?.extensionCount || 0} de 2.</p>
-              {waiting && <p>La siguiente estará disponible el {new Date(nextExtensionAt).toLocaleString()}.</p>}
-              {extensionQuote.marginNeeded > 0 && <p>Falta capacidad ordinaria por {fmt(extensionQuote.marginNeeded)} RED.
-                {user.tierLevel < 5 ? ' Amortiza o aporta garantía antes de confirmar.'
-                  : ' Se comprobará el margen especial configurado; el nivel por sí solo no concede un importe.'}</p>}
-              <p>Las fechas de tus otros compromisos y de los BLUE ya entregados se mantienen.</p>
-              <p>Demostración local. El fondo que recibirá los recargos sigue pendiente de definición.</p>
-            </div>}
-            <div className={styles.modalButtons}>
-              <button className={styles.btnCancel} onClick={() => setModalType(null)} disabled={loading}>Cerrar</button>
-              <button className={styles.btnSuccess} onClick={handleRequestExtension}
-                disabled={loading || extensionUnavailable || !extensionQuote}>
-                {loading ? 'Comprobando…' : 'Confirmar prórroga'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {modalType === 'amortizationQueue' && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} role="dialog" aria-modal="true" aria-labelledby="reserve-title">
-            <h3 id="reserve-title" className={styles.modalTitle}>Tus USDT reservados</h3>
-            <p>Reservado en total: {fmt(computed.pignoratedUsdt)} USDT.</p>
-            <p>En una compra de amortización: {fmt(data.amortizationQueue.activeOrder?.usdtAmount || 0)} USDT.</p>
-            <p>Pendiente de crear la siguiente compra: {fmt(data.amortizationQueue.bufferedReserveUsdt)} USDT.</p>
-            {data.amortizationQueue.activeOrder && <p>Turno actual: {data.amortizationQueue.activeOrder.positionInQueue}.</p>}
-            <p>Estos importes forman parte de tu garantía; no se suman dos veces.</p>
-            <p>La siguiente compra entra al final de la cola cuando termina la anterior y se procesa la reserva.
-              Un cruce parcial no abre otra orden. Si amortizas trabajando, se recalcula lo que aún hace falta.
-              Los USDT ya gastados no se devuelven.</p>
-            <p>Disponible para retirar: {fmt(computed.freeUsdtToWithdraw)} USDT.
-              Tú decides cuándo retirarlos. Cancelar una compra devuelve su remanente a la garantía.</p>
-            <div className={styles.modalButtons}>
-              <button className={styles.btnSecondary} disabled={loading} onClick={async () => {
-                setLoading(true);
-                try { await mockExchangeService.processPending(); showToast('Reserva comprobada en la simulación.'); }
-                catch (error) { showToast(error.message); }
-                finally { setLoading(false); }
-              }}>Procesar reserva</button>
-              <button className={styles.btnCancel} onClick={() => setModalType(null)}>Cerrar</button>
             </div>
           </div>
         </div>

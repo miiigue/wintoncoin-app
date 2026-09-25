@@ -13,6 +13,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-25 — Integración On-Chain Directa de Billetera y Exchange con la Suite V4 en Optimism Sepolia (Eliminación de Simulación)
+* **Desconexión Definitiva de Servicios Simulados**:
+  - Se eliminaron por completo las dependencias y referencias de `mockFinancialService` y `mockExchangeService` en las interfaces de usuario principales ([`frontend/src/pages/Wallet.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Wallet.jsx) y [`frontend/src/pages/Exchange.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Exchange.jsx)).
+  - Eliminados los avisos de "Demostración local: órdenes y saldos simulados" y los perfiles hardcodeados de prueba ("Miguel (perfil de demostración)").
+* **Conexión Directa a Smart Contracts (Optimism Sepolia - Chain ID 11155420)**:
+  - Módulo unificado [`frontend/src/modules/web3OnChainService.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/modules/web3OnChainService.js): Provee integración completa con ethers v6 para:
+    1) Conexión y cambio automático de red a Optimism Sepolia en MetaMask (`ensureOptimismSepoliaNetwork`).
+    2) Consultas de saldos en vivo on-chain (`fetchUserOnChainState`): Balance BLUE líquido, Compromiso RED, Colateral bloqueado/libre en Bóveda, Límite RED y Saldo USDT de billetera.
+    3) Depósitos y Retiros en Bóveda (`CollateralVault.sol`): `depositCollateral` y `withdrawCollateral` con aprobación previa de USDT.
+    4) Amortización de Compromisos (`CoreProtocol.sol`): `amortizeWithBlue` en 1 solo toque quemando BLUE y reduciendo el compromiso RED on-chain.
+    5) Órdenes en el Exchange FIFO (`FifoExchange.sol`): `createSellOrder` (BLUE por USDT), `createBuyOrder` (USDT por BLUE), `cancelOrder` y `claimRefunds`.
+* **Cola FIFO On-Chain en Tiempo Real**:
+  - Endpoint público agregado en [`backend/src/routes/web3Routes.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/routes/web3Routes.js): `GET /api/web3/exchange-queue`, exponiendo en tiempo real las órdenes de compra y venta indexadas desde los bloques de Optimism Sepolia.
+  - El visor de la Cola FIFO en [`frontend/src/pages/Exchange.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Exchange.jsx) muestra órdenes reales con su identificador correlativo, secuencia FIFO y botón de cancelación para órdenes propias.
+* **Navegación Administrativa Actualizada**:
+  - Agregado el enlace oficial `⛓️ Smart Contracts (Web3) ↗` en el menú lateral de [`frontend/admin-panel.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/admin-panel.html) apuntando a `/admin/web3`.
+* **Verificación de Compilación Frontend**:
+  - Compilación exitosa con Vite en modo demo (`npm run build:demo`): empaquetado sin errores de todos los bundles y service workers en `dist-demo/`.
+
+---
+
 ### 2026-09-25 — Despliegue Exitoso de la Suite V4 en Optimism Sepolia Testnet (Manifiesto Oficial y Bloque de Inicio 49253937)
 * **Despliegue On-Chain Consolidado**:
   - Se ejecutó el script [`web3-contracts/scripts/deploy-v4-suite.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/scripts/deploy-v4-suite.js) en la red **Optimism Sepolia** (Chain ID `11155420`).
