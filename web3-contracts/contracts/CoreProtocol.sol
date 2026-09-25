@@ -666,6 +666,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     mapping(uint256 => uint256) private _debtPositions;
 
     function getMaturedDebtUpTo(address user, uint256 maxNeeded) public view returns (uint256 matured) {
+        if (maxNeeded == 0) return 0;
         uint256[] storage heap = _debtHeap[user];
         uint256 len = heap.length;
         if (len == 0) return 0;
@@ -676,9 +677,10 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         uint256 totalDebt = redToken.balanceOf(user);
         if (totalDebt == 0) return 0;
 
-        uint256 target = (maxNeeded > 0 && maxNeeded < totalDebt) ? maxNeeded : totalDebt;
+        uint256 target = maxNeeded < totalDebt ? maxNeeded : totalDebt;
 
-        uint256[] memory stack = new uint256[](len);
+        // DFS retains at most one sibling per level; uint256 indices have at most 256 levels.
+        uint256[] memory stack = new uint256[](256);
         uint256 top = 0;
         stack[top++] = 0;
 
@@ -688,7 +690,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
             if (lot.dueAt <= block.timestamp) {
                 matured += lot.remainingAmount;
                 if (matured >= target) {
-                    return matured;
+                    return target;
                 }
                 uint256 left = pos * 2 + 1;
                 if (left < len) {
@@ -703,7 +705,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function getMaturedDebt(address user) public view returns (uint256 matured) {
-        return getMaturedDebtUpTo(user, 0);
+        return getMaturedDebtUpTo(user, type(uint256).max);
     }
 
     function _earlier(address user, uint256 a, uint256 b) private view returns (bool) {

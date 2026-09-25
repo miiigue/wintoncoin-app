@@ -66,12 +66,16 @@ describe('Integración real BLUE/RED/Vault/FIFO', function () {
     await expect(f.exchange.connect(f.bob).createBlueOrder(U)).revertedWith('BLUE: Parking not released');
     await invariant();
   });
-  it('Registra el bloqueo pendiente: Treasury no puede repartir BLUE directamente', async () => {
+  it('Treasury paga por Core y amortiza con BLUE, manteniendo parking y suministro pareado', async () => {
     await f.core.setCommissionBps(500); await f.pay(f.alice,f.bob,100n*U);
-    const leaf=ethers.keccak256(ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(['address','uint256'],[f.bob.address,U])));
+    const leaf=ethers.keccak256(ethers.keccak256(ethers.AbiCoder.defaultAbiCoder().encode(['uint256','address','uint256','address','uint256'],[1337,f.treasury.target,1,f.bob.address,U])));
     await f.treasury.setMerkleRoot(leaf); await time.increase(30*86400);
-    await expect(f.treasury.connect(f.bob).claimBoosterReward(U,[])).revertedWith('BLUE: Transfers only through exchange');
-    expect(await f.treasury.hasClaimed(f.bob.address)).eq(false);
+    const supply=await f.blue.totalSupply();
+    await f.treasury.connect(f.bob).claimBoosterReward(U,[]);
+    expect(await f.blue.totalSupply()).eq(supply);
+    expect(await f.red.balanceOf(f.treasury.target)).eq(0);
+    expect(await f.blue.lockedBalanceOf(f.bob.address)).eq(U);
+    expect(await f.treasury.hasClaimed(f.bob.address)).eq(true);
     await invariant();
   });
   it('Orden en cabeza sin KYC es saltada sin revertir el matching para las órdenes legítimas posteriores', async () => {

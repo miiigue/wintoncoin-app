@@ -12,10 +12,12 @@ describe('Vault: garantía real, reservas FIFO y retiro solicitado', function ()
     await f.exchange.proposeFeeUpdate(100); await time.increase(48*3600); await f.exchange.executeFeeUpdate();
     await time.increase(30*86400); await f.vault.connect(f.alice).repayWithCollateral(f.alice.address,100n*U);
     await f.exchange.connect(f.bob).createBlueOrder(100n*U);
-    await expect(f.exchange.matchOrders(10,20)).revertedWith('Vault: Additional fee coverage required');
+    await f.exchange.matchOrders(10,20);
+    const id=await f.vault.activeAmortizationOrder(f.alice.address);
+    expect((await f.exchange.orders(id)).status).eq(5);
     expect(await f.vault.userCollateral(f.alice.address)).eq(100n*U);
     expect(await f.red.balanceOf(f.alice.address)).eq(200n*U);
-    await f.vault.connect(f.alice).deposit(U); await f.exchange.matchOrders(10,20);
+    await f.vault.connect(f.alice).deposit(U); await f.exchange.connect(f.alice).resumeOrder(id); await f.exchange.matchOrders(10,20);
     expect(await f.red.balanceOf(f.alice.address)).eq(101n*U);
     expect(await f.vault.userCollateral(f.alice.address)).eq(U);
     expect(await f.core.getCoverageShortfall(f.alice.address)).eq(0);

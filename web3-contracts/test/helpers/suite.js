@@ -25,6 +25,8 @@ async function fixture() {
     await blue.connect(user).approve(exchange.target, ethers.MaxUint256);
   }
   await core.setKYCStatus(treasury.target, true);
+  await treasury.setCoreProtocol(core.target);
+  await core.setCreditLimit(treasury.target, 10_000n * U);
   await core.setExtensionFeeRecipient(treasury.target); // receiver only; not a coverage fund
   await core.setExtensionOption(15, 250, true);
   await core.setExtensionOption(30, 500, true);

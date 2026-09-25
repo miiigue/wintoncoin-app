@@ -125,6 +125,7 @@ async function main() {
     // Enlace de CoreProtocol
     const txProtocol = await protocol.setContracts(blueAddress, redAddress, treasuryAddress, vaultAddress);
     await txProtocol.wait();
+    await (await treasury.setCoreProtocol(protocolAddress)).wait();
     console.log("   ✅ CoreProtocol configurado con Blue, Red, Treasury y Vault");
 
     // Configuración de Relayer

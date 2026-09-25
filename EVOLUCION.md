@@ -13,6 +13,44 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-24 — Auditoría de Seguridad del Indexador On-Chain First (CODEX-072), 152 Pruebas Hardhat y Preparación para Optimism Sepolia
+* **Diagnóstico & Verificación Independiente**:
+  - *Reproducción Completa de Pruebas*:
+    1) Hardhat (`web3-contracts`): 152 pruebas aprobadas al 100% (40s), integrando pruebas de ABI del lector, eventos del Exchange, manejo de reorganizaciones (reorgs) y custodia de devoluciones garantizadas al Vault.
+    2) Backend Jest (`backend`): 71 pruebas aprobadas al 100% en 6 suites (incluyendo snapshot routes, migraciones de PostgreSQL y suites Web3).
+    3) Frontend Simulador (`frontend`): 14 pruebas aprobadas al 100% (143ms).
+* **Evaluación de la Arquitectura del Indexador On-Chain First**:
+  - *Seguridad Zero-Trust*: El servicio (`run_exchange_indexer.js`) opera exclusivamente en modo lectura sin claves privadas ni envío de transacciones, protegiendo las credenciales del relayer.
+  - *Control de Concurrencia Bancaria*: Implementado candado a nivel de sesión PostgreSQL (`pg_try_advisory_lock`), garantizando que dos instancias paralelas no dupliquen eventos ni compitan por el cursor de bloques.
+  - *Resiliencia ante Reorganizaciones*: Si se detecta una bifurcación en la blockchain (`parentHash` inconsistente), el sistema marca los registros divergentes como huérfanos (`is_canonical = false`) y reconstruye el estado verificado desde la cadena canónica.
+  - *API REST Consistente*: La ruta `GET /api/web3/exchange/:wallet` devuelve metadatos de frescura y el flag `usable: true/false`, evitando exponer saldos en cero cuando hay retrasos de sincronización con el RPC.
+* **Preparación para Despliegue en Optimism Sepolia (Testnet)**:
+  - Optimizado `hardhat.config.js` para admitir fallback al RPC canónico de Optimism Sepolia (`https://sepolia.optimism.io`) y variable `OPTIMISM_SEPOLIA_RPC_URL`.
+  - Verificadas las salvaguardas de `deploy-v4-suite.js` (filtro estricto de chainId `11155420n` y exigencia de `ALLOW_V4_TESTNET_DEPLOY="true"`).
+* **Formalización del Marco Regulatorio y Blindaje FinTech**:
+  - Se redactó el documento canónico [`docs/MARCO_REGULATORIO_Y_BLINDAJE_FINTECH.md`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/MARCO_REGULATORIO_Y_BLINDAJE_FINTECH.md) estableciendo los 2 pilares legales fundamentales (Ecosistema Cerrado de Utilidad Comercial bajo la exención de FinCEN y Protocolo No-Custodial con auto-custodia de billetera soberana), erradicando cualquier intermediación fiduciaria o BaaS. Se formaliza el Principio de Liquidación Final (en cuanto el usuario retira sus USDT on-chain, la operación concluye definitivamente y su uso posterior es exclusiva responsabilidad privada del usuario), los 4 candados técnicos en los smart contracts (candado P2P en BLUE, portal KYC en el Exchange, bóveda no custodial en Vault y distinción jurídica de Compromiso RED frente a deuda para inmunidad a leyes de usura y TILA/Reg Z), las líneas rojas operativas y las auditorías de trazabilidad tipo SOC 2.
+* **Evidencia**: Creación de `docs/MARCO_REGULATORIO_Y_BLINDAJE_FINTECH.md`, publicación de `ANTIGRAVITY-052` en `puente-agentes/PARA_CODEX.md` y actualización de `puente-agentes/ESTADO_ANTIGRAVITY.md`.
+
+---
+
+### 2026-09-24 — Dictamen Forense de Seguridad 360° (CODEX-068): Validación de 149 Pruebas, Modelado de Amenazas y Creación de Migración 110
+* **Diagnóstico & Verificación Independiente**:
+  - *Reproducción Completa de Pruebas*:
+    1) Hardhat (`web3-contracts`): 149 pruebas aprobadas al 100% (46s), validando las nuevas regresiones de suspensión/reanudación, aislamiento de errores de cobertura de comisión, retención de devoluciones en custodia (`pendingRefund`), épocas Merkle multi-cadena e integración ordinaria de Tesorería.
+    2) Backend Jest (`backend`): 29 pruebas aprobadas al 100% (17s) confirmando la consistencia de los nuevos ABIs y eventos.
+* **Evaluación de Seguridad y Lógica en Contratos V4**:
+  - *Inviolabilidad de `executeMatch`*: Se confirmó que la llamada interna mediante `this.executeMatch` para aislar fallos de cobertura está blindada con `require(msg.sender == address(this))` y `nonReentrant`, impidiendo reentrancia externa o saltos arbitrarios de la cola FIFO.
+  - *Prevención de Ataques Replay en Tesorería*: Se validó que las hojas Merkle enlazan `chainId`, `treasuryAddress`, `rewardEpoch`, `user` y `amount`, neutralizando la reutilización de pruebas entre redes, contratos o ciclos pasados.
+  - *Solvencia Integral*: Las funciones `claimFees()` y `freeSurplus()` contabilizan `totalPendingRefundBlue` y `totalPendingRefundUsdt`, imposibilitando la extracción indebida de fondos de usuarios retenidos.
+* **Alineación de Base de Datos (Migración 110)**:
+  - Antigravity detectó que la tabla PostgreSQL `web3_fifo_exchange_orders` restringía los estados a `('ACTIVE', 'PARTIALLY_FILLED', 'FILLED', 'CANCELLED')`, lo que generaría excepciones al recibir órdenes `SUSPENDED`.
+  - Se creó la migración `backend/migrations/110_add_suspended_status_and_held_refunds.js` para soportar `SUSPENDED` y `OPEN`, añadir `suspend_reason`, crear la tabla de auditoría `web3_pending_refunds` y habilitar `current_reward_epoch`.
+* **Identificación del Bloqueo Crítico de Escalabilidad**:
+  - Se confirmó el cuello de botella documentado en `GasScaling.test.js`: liquidar 996 microlotes en un único bloque excede los 16M de gas por la multiplicidad de operaciones `_siftDown` en el heap de almacenamiento. Se define la solución canónica de amortización acotada por lotes (`maxLotsPerAmortization`).
+* **Evidencia**: Publicación de `ANTIGRAVITY-050` y `ANTIGRAVITY-051` en `puente-agentes/PARA_CODEX.md` y actualización de `puente-agentes/ESTADO_ANTIGRAVITY.md`.
+
+---
+
 ### 2026-09-24 — Desbloqueo de Cola FIFO ante KYC Suspendido, Optimización de Gas en Compromisos Vencidos y 120 Pruebas Hardhat Aprobadas
 * **Diagnóstico & Resoluciones Implementadas**:
   - *Desbloqueo de Cola FIFO (`FifoExchange.sol`)*:

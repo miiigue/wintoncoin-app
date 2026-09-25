@@ -22,6 +22,14 @@ import "@openzeppelin/contracts/utils/Pausable.sol";
  * 4. Merkle Proofs Criptográficos: Reclamos de recompensas de impulsores protegidos contra colisiones mediante doble hash.
  * 5. SafeERC20 y ReentrancyGuard en todas las transferencias de fondos.
  */
+interface ITreasuryCore {
+    function blueToken() external view returns (address);
+    function treasury() external view returns (address);
+    function commissionBps() external view returns (uint256);
+    function processPayment(address payer, address payee, uint256 amount) external;
+    function amortizeWithBlue(uint256 amount) external;
+}
+
 contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     using SafeERC20 for IERC20;
 
@@ -34,9 +42,6 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
 
     /// @notice Ventana de validez para ejecutar una propuesta aprobada: 7 días.
     uint256 public constant PROPOSAL_VALIDITY_WINDOW = 7 days;
-
-    /// @notice Límite máximo de direcciones en un lote de reseteo de reclamos mensuales.
-    uint256 public constant MAX_RESET_BATCH = 200;
 
     // ========================================================================
     // VARIABLES DE ESTADO
@@ -52,7 +57,29 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     bytes32 public currentMerkleRoot;
 
     /// @notice Registro de usuarios que ya cobraron en el ciclo de Merkle actual (evita doble reclamo).
-    mapping(address => bool) public hasClaimed;
+    uint256 public rewardEpoch;
+    mapping(address => uint256) private lastClaimEpoch;
+    ITreasuryCore public coreProtocol;
+    event CoreProtocolLinked(address indexed core);
+    event RewardEpochStarted(uint256 indexed epoch, bytes32 root);
+
+    function hasClaimed(address user) public view returns (bool) {
+        return rewardEpoch > 0 && lastClaimEpoch[user] == rewardEpoch;
+    }
+    function setCoreProtocol(address core) external onlyOwner {
+        require(address(coreProtocol) == address(0) && core.code.length > 0, "Treasury: Invalid core");
+        require(ITreasuryCore(core).blueToken() == address(blueToken) && ITreasuryCore(core).treasury() == address(this), "Treasury: Wrong core links");
+        coreProtocol = ITreasuryCore(core);
+        emit CoreProtocolLinked(core);
+    }
+    function _payAndAmortize(address recipient, uint256 amount) private {
+        require(address(coreProtocol) != address(0), "Treasury: Core not configured");
+        uint256 fee = amount * coreProtocol.commissionBps() / 10_000;
+        // Ordinary payer rules, including KYC, credit capacity, fee and parking.
+        // Both operations revert together if either fails; no privileged BLUE transfer.
+        coreProtocol.processPayment(address(this), recipient, amount);
+        coreProtocol.amortizeWithBlue(amount + fee);
+    }
 
     /// @notice Estructura de propuesta de retiro de excedentes sujeta a timelock.
     struct SurplusWithdrawalProposal {
@@ -87,9 +114,6 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
 
     /// @notice Emitido al ejecutar exitosamente un retiro de excedentes tras madurar el timelock.
     event SurplusWithdrawalExecuted(address indexed recipient, uint256 amount);
-
-    /// @notice Emitido al resetear los estados de reclamo para un nuevo ciclo.
-    event ClaimsReset(uint256 accountsReset);
 
     // ========================================================================
     // CONSTRUCTOR
@@ -134,6 +158,8 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
         require(_newRoot != bytes32(0), "Treasury: Invalid zero Merkle root");
         bytes32 old = currentMerkleRoot;
         currentMerkleRoot = _newRoot;
+        rewardEpoch++;
+        emit RewardEpochStarted(rewardEpoch, _newRoot);
         emit MerkleRootUpdated(old, _newRoot);
     }
 
@@ -152,16 +178,11 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     /**
-     * @notice Resetea el registro de reclamos de una lista acotada de usuarios para abrir un nuevo ciclo.
-     * @dev Acotado a MAX_RESET_BATCH (200 direcciones) para garantizar un límite de gas predecible.
-     * @param accounts Arreglo de direcciones a habilitar nuevamente.
+     * @notice Operación antigua deshabilitada: publicar una raíz ligada al nuevo rewardEpoch.
+     * @dev Mantiene el selector para rechazar explícitamente clientes antiguos.
      */
-    function resetClaims(address[] calldata accounts) external onlyOwner {
-        require(accounts.length > 0 && accounts.length <= MAX_RESET_BATCH, "Treasury: Batch size invalid");
-        for (uint256 i = 0; i < accounts.length; i++) {
-            hasClaimed[accounts[i]] = false;
-        }
-        emit ClaimsReset(accounts.length);
+    function resetClaims(address[] calldata) external view onlyOwner {
+        revert("Treasury: Publish a new epoch root");
     }
 
     // ========================================================================
@@ -182,22 +203,22 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
         address user = msg.sender;
 
         // 1. CHECKS
-        require(!hasClaimed[user], "Treasury: Reward already claimed for this period");
+        require(!hasClaimed(user), "Treasury: Reward already claimed for this period");
         require(currentMerkleRoot != bytes32(0), "Treasury: Active Merkle root is not set");
         require(amount > 0, "Treasury: Amount must be greater than zero");
 
         // Construcción de la hoja con doble hashing para neutralizar colisiones de longitud
-        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(user, amount))));
+        bytes32 leaf = keccak256(bytes.concat(keccak256(abi.encode(block.chainid, address(this), rewardEpoch, user, amount))));
         require(MerkleProof.verify(merkleProof, currentMerkleRoot, leaf), "Treasury: Invalid Merkle proof");
 
         uint256 vaultBalance = blueToken.balanceOf(address(this));
         require(vaultBalance >= amount, "Treasury: Insufficient BLUE liquidity in treasury");
 
         // 2. EFFECTS
-        hasClaimed[user] = true;
+        lastClaimEpoch[user] = rewardEpoch;
 
         // 3. INTERACTIONS
-        blueToken.safeTransfer(user, amount);
+        _payAndAmortize(user, amount);
 
         emit BoosterRewardClaimed(user, amount);
     }
@@ -242,7 +263,7 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
     /**
      * @notice Ejecuta un retiro de excedentes una vez transcurridas las 48 horas de timelock y dentro de la ventana de 7 días.
      */
-    function executeSurplusWithdrawal() external onlyOwner nonReentrant {
+    function executeSurplusWithdrawal() external onlyOwner nonReentrant whenNotPaused {
         SurplusWithdrawalProposal storage prop = activeSurplusProposal;
 
         require(prop.eta > 0, "Treasury: No proposal exists");
@@ -254,7 +275,7 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
 
         prop.executed = true;
 
-        blueToken.safeTransfer(prop.recipient, prop.amount);
+        _payAndAmortize(prop.recipient, prop.amount);
 
         emit SurplusWithdrawalExecuted(prop.recipient, prop.amount);
     }

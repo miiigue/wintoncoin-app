@@ -27,7 +27,7 @@ module.exports = {
     },
     // Entorno de Staging/Demo: Optimism Sepolia (Testnet Pública)
     optimismSepolia: {
-      url: process.env.ALCHEMY_API_URL || "",
+      url: process.env.OPTIMISM_SEPOLIA_RPC_URL || process.env.ALCHEMY_API_URL || "https://sepolia.optimism.io",
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
       chainId: 11155420,
       gas: 5000000

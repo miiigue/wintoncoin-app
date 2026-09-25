@@ -159,13 +159,13 @@ describe("Suite V4: Tokens (BLUE, RED) y ProtocolTreasury — Pruebas Unitarias"
     // ========================================================================
     // PRUEBAS DE PROTOCOLTREASURY V4 (MERKLE CLAIMS Y TIMELOCK 48H)
     // ========================================================================
-    describe("ProtocolTreasury aislado con ERC20 de prueba — NO integración BLUE", function () {
+    describe("ProtocolTreasury con BLUE real y Core", function () {
         beforeEach(async function () {
-            // Unidad aislada con ERC20 normal. El bloqueo real BLUE se prueba en IntegrationV4Suite.
-            blueToken = await (await ethers.getContractFactory('MockERC20')).deploy('Test','TEST',6);
-            treasury = await (await ethers.getContractFactory('ProtocolTreasury')).deploy(blueToken.target);
+            const f=await require('./helpers/suite').fixture();
+            blueToken=f.blue; treasury=f.treasury;
             await treasury.setCorporateTreasuryWallet(corporateWallet.address);
-            await blueToken.mint(treasury.target,10_000n*ONE_TOKEN);
+            await f.core.setCommissionBps(0);
+            await f.core.connect(f.alice).processPayment(f.alice.address,treasury.target,10_000n*ONE_TOKEN);
         });
 
         it("Permite configurar Merkle root y cobrar bonos con prueba válida", async function () {
@@ -173,7 +173,7 @@ describe("Suite V4: Tokens (BLUE, RED) y ProtocolTreasury — Pruebas Unitarias"
 
             // Construir Merkle leaf de 1 solo elemento (root = leaf, proof = [])
             const abiCoder = ethers.AbiCoder.defaultAbiCoder();
-            const innerHash = ethers.keccak256(abiCoder.encode(["address", "uint256"], [user1.address, amountToClaim]));
+            const innerHash = ethers.keccak256(abiCoder.encode(["uint256", "address", "uint256", "address", "uint256"], [1337, treasury.target, 1, user1.address, amountToClaim]));
             const leaf = ethers.keccak256(innerHash);
 
             await treasury.setMerkleRoot(leaf);
@@ -191,22 +191,18 @@ describe("Suite V4: Tokens (BLUE, RED) y ProtocolTreasury — Pruebas Unitarias"
                 .to.be.revertedWith("Treasury: Reward already claimed for this period");
         });
 
-        it("Permite resetear reclamos en lotes acotados", async function () {
+        it("Impide rehabilitar la misma prueba de recompensa mediante reset", async function () {
             const amountToClaim = 50n * ONE_TOKEN;
             const abiCoder = ethers.AbiCoder.defaultAbiCoder();
-            const innerHash = ethers.keccak256(abiCoder.encode(["address", "uint256"], [user1.address, amountToClaim]));
+            const innerHash = ethers.keccak256(abiCoder.encode(["uint256", "address", "uint256", "address", "uint256"], [1337, treasury.target, 1, user1.address, amountToClaim]));
             const leaf = ethers.keccak256(innerHash);
 
             await treasury.setMerkleRoot(leaf);
             await treasury.connect(user1).claimBoosterReward(amountToClaim, []);
             expect(await treasury.hasClaimed(user1.address)).to.be.true;
 
-            // Resetear lista
-            await expect(treasury.resetClaims([user1.address]))
-                .to.emit(treasury, "ClaimsReset")
-                .withArgs(1);
-
-            expect(await treasury.hasClaimed(user1.address)).to.be.false;
+            await expect(treasury.resetClaims([user1.address])).revertedWith('Treasury: Publish a new epoch root');
+            expect(await treasury.hasClaimed(user1.address)).to.be.true;
         });
 
         it("Flujo de Retiro de Excedentes: Requiere Timelock de 48 Horas", async function () {

@@ -114,6 +114,16 @@ class Web3BridgeService {
             "function createUsdtOrder(uint128 amount) returns (uint64 newOrderId)",
             "function matchOrders(uint256 maxMatches, uint256 maxOrdersScanned) returns (uint256 matchesExecuted, uint256 ordersScanned)",
             "function cancelOrder(uint64 orderId)",
+            "function resumeOrder(uint64 id)",
+            "function claimPendingRefunds()",
+            "function pendingRefundBlue(address) view returns (uint128)",
+            "function pendingRefundUsdt(address) view returns (uint128)",
+            "function totalPendingRefundBlue() view returns (uint128)",
+            "function totalPendingRefundUsdt() view returns (uint128)",
+            "event OrderSuspended(uint64 indexed orderId, uint8 reason)",
+            "event OrderResumed(uint64 indexed orderId, uint64 oldSequence, uint64 newSequence)",
+            "event RefundHeld(address indexed user, uint128 blue, uint128 usdt)",
+            "event PendingRefundClaimed(address indexed user, uint128 blue, uint128 usdt)",
             "function totalReservedBlue() view returns (uint128)",
             "function totalReservedUsdt() view returns (uint128)",
             "function totalDepositedBlue() view returns (uint128)",
@@ -127,6 +137,10 @@ class Web3BridgeService {
         ];
 
         this.treasuryAbi = [
+            "function rewardEpoch() view returns (uint256)",
+            "function hasClaimed(address user) view returns (bool)",
+            "function coreProtocol() view returns (address)",
+            "event RewardEpochStarted(uint256 indexed epoch, bytes32 root)",
             "function pause()",
             "function unpause()",
             "function paused() view returns (bool)",
