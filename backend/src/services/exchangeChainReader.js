@@ -62,8 +62,17 @@ class ExchangeChainReader {
         return this.provider.send('eth_getCode', [this.exchange, toQuantity(block)]);
     }
     async logs(from, to) {
-        const logs = await this.provider.send('eth_getLogs', [{ address: this.exchange, fromBlock: toQuantity(from), toBlock: toQuantity(to), topics: [topics] }]);
-        return logs.map(l => ({ ...l, blockNumber: Number(BigInt(l.blockNumber)), index: Number(BigInt(l.logIndex)) }));
+        try {
+            const logs = await this.provider.send('eth_getLogs', [{ address: this.exchange, fromBlock: toQuantity(from), toBlock: toQuantity(to), topics: [topics] }]);
+            return logs.map(l => ({ ...l, blockNumber: Number(BigInt(l.blockNumber)), index: Number(BigInt(l.logIndex)) }));
+        } catch (error) {
+            const body = typeof error?.info?.responseBody === 'string' ? error.info.responseBody : '';
+            const msg = (body + ' ' + (error?.message || '')).toLowerCase();
+            if (msg.includes('block range') || msg.includes('limit') || msg.includes('too large') || msg.includes('query returned more than')) {
+                fail('PAGE_TOO_LARGE');
+            }
+            throw error;
+        }
     }
     async call(name, args, hash) {
         const value = await this.provider.send('eth_call', [

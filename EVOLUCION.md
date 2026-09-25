@@ -34,6 +34,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 * **Indexador Embebido en Servidor Web (`server.js`)**:
   - Se incorporó la función `startEmbeddedExchangeIndexer` en [`backend/src/services/exchangeIndexer.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/exchangeIndexer.js) y se integró en [`backend/server.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js) para arrancar de forma transparente en segundo plano al iniciar el backend si `EXCHANGE_INDEXER_ADDRESS` está configurado.
   - Se optimizó el patrón de pruebas Jest en `backend/package.json` para ignorar helpers, pasando 17 de 17 suites de prueba activas.
+  - Resiliencia RPC en [`backend/src/services/exchangeChainReader.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/exchangeChainReader.js): Mapeo automático de errores de límite de rango de bloques de proveedores (`eth_getLogs` block range limits) hacia `PAGE_TOO_LARGE` para bisección dinámica y continua sin detención.
 
 ---
 
