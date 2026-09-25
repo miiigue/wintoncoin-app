@@ -215,4 +215,61 @@ class ExchangeIndexer {
         }
     }
 }
-module.exports = { ExchangeIndexer };
+
+/**
+ * Inicia el indexador de órdenes en segundo plano dentro del proceso de Node.js existente.
+ * Utiliza el pool de base de datos compartido y polling no superpuesto.
+ */
+function startEmbeddedExchangeIndexer(pool, { customConfig, customChain } = {}) {
+    const { configFromEnv, createReader } = require('./exchangeChainReader');
+    let config;
+    try {
+        config = customConfig || configFromEnv();
+    } catch (e) {
+        console.warn('[EXCHANGE_INDEXER] Configuración incompleta o no habilitada, indexador en segundo plano inactivo:', e.message);
+        return null;
+    }
+    const rpcUrl = process.env.EXCHANGE_INDEXER_RPC_URL || process.env.OPTIMISM_RPC_URL;
+    if (!rpcUrl) {
+        console.warn('[EXCHANGE_INDEXER] Sin RPC URL configurada para el indexador.');
+        return null;
+    }
+    const chain = customChain || createReader(rpcUrl, config.exchange);
+    const worker = new ExchangeIndexer(pool, chain, config);
+    let stopped = false;
+    let running = false;
+
+    const tickLoop = async () => {
+        if (stopped || running) return;
+        running = true;
+        let delay = config.pollMs || 5000;
+        try {
+            const result = await worker.tick();
+            if (['syncing', 'rebuilding'].includes(result.status)) {
+                delay = 100;
+            }
+        } catch (error) {
+            console.error('[EXCHANGE_INDEXER] Tick error:', error.indexerCode || 'SYNC_FAILED');
+            delay = config.pollMs || 5000;
+        } finally {
+            running = false;
+            if (!stopped) {
+                setTimeout(tickLoop, delay);
+            }
+        }
+    };
+
+    console.log(`[EXCHANGE_INDEXER] 🚀 Iniciando indexador en segundo plano para Exchange ${config.exchange} desde bloque ${config.startBlock}...`);
+    setTimeout(tickLoop, 1500);
+
+    const stop = () => {
+        stopped = true;
+        try { chain.provider?.destroy?.(); } catch (_) {}
+    };
+    process.on('SIGINT', stop);
+    process.on('SIGTERM', stop);
+    return { stop, worker };
+}
+
+module.exports = { ExchangeIndexer, startEmbeddedExchangeIndexer };
+

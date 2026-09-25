@@ -217,6 +217,17 @@ async function startServer() {
         await runPendingMigrations();
 
         startAuditCleanupJob();
+
+        // 3. Indexador de órdenes Web3 en segundo plano (si está configurado para la red)
+        if (process.env.EXCHANGE_INDEXER_ADDRESS && process.env.EXCHANGE_INDEXER_START_BLOCK) {
+            try {
+                const { startEmbeddedExchangeIndexer } = require('./src/services/exchangeIndexer');
+                startEmbeddedExchangeIndexer(pool);
+            } catch (err) {
+                console.warn('[EXCHANGE_INDEXER] No se pudo arrancar el indexador en segundo plano:', err.message);
+            }
+        }
+
         console.log("Base de datos inicializada correctamente.");
 
         // --- AHORA DEFINIMOS LAS RUTAS ---

@@ -31,6 +31,9 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Bloque exacto de nacimiento del Exchange capturado: `49253937`.
   - Hash de transacción de creación de Exchange: `0xf91c16afbb59fcb718f36ca63a5851a53e8876bf738a6169ce9f8007b5ffea46`.
   - Archivo generado: [`web3-contracts/deployment-manifest-v4.json`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/deployment-manifest-v4.json).
+* **Indexador Embebido en Servidor Web (`server.js`)**:
+  - Se incorporó la función `startEmbeddedExchangeIndexer` en [`backend/src/services/exchangeIndexer.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/services/exchangeIndexer.js) y se integró en [`backend/server.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/server.js) para arrancar de forma transparente en segundo plano al iniciar el backend si `EXCHANGE_INDEXER_ADDRESS` está configurado.
+  - Se optimizó el patrón de pruebas Jest en `backend/package.json` para ignorar helpers, pasando 17 de 17 suites de prueba activas.
 
 ---
 
