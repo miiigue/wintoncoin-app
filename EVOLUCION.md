@@ -13,6 +13,27 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-25 — Despliegue Exitoso de la Suite V4 en Optimism Sepolia Testnet (Manifiesto Oficial y Bloque de Inicio 49253937)
+* **Despliegue On-Chain Consolidado**:
+  - Se ejecutó el script [`web3-contracts/scripts/deploy-v4-suite.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/scripts/deploy-v4-suite.js) en la red **Optimism Sepolia** (Chain ID `11155420`).
+  - Deployer: `0x7d2C6c16EDe986a8bea0204A9824b4C264256C77` (Consumo de gas eficiente con remanente de ~0.0199 ETH).
+  - Relayer Asignado: `0x78992e52508B4094Eb487c0540FB1E25C397E1F5`.
+* **Contratos Desplegados y Verificados**:
+  - `Mock USDT` (6 decimales): `0xA558A97CdD986a2f342684a8E89EAea4F01F28F3`
+  - `BlueToken V4`: `0xb1B6a07373719c5311639E2A64657d9596ADc544`
+  - `RedToken V4`: `0xe077391D3729673634a3ee4C8963Cb57b74D386b`
+  - `ProtocolTreasury V4`: `0x5040555a602446695c03CCBBBE26276e6B913245`
+  - `CollateralVault V4`: `0xA2c5095A5D6b4e881a28921Ce144394F27C1F618`
+  - `CoreProtocol V4`: `0x56a83A394B40d83Ab40ff5e6884F08D6648bd92d`
+  - `FifoExchange V4` (Fee 0 BPS): `0xdE41187f8943623E34Af7249D9691d58e28230cA`
+* **Gobernanza y Parámetros del Indexador**:
+  - Enlaces irreversibles ejecutados: Blue y Red vinculados al Core, Vault vinculado a Exchange y Core, Relayer autorizado en CoreProtocol.
+  - Bloque exacto de nacimiento del Exchange capturado: `49253937`.
+  - Hash de transacción de creación de Exchange: `0xf91c16afbb59fcb718f36ca63a5851a53e8876bf738a6169ce9f8007b5ffea46`.
+  - Archivo generado: [`web3-contracts/deployment-manifest-v4.json`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/deployment-manifest-v4.json).
+
+---
+
 ### 2026-09-24 — Auditoría de Seguridad del Indexador On-Chain First (CODEX-072), 152 Pruebas Hardhat y Preparación para Optimism Sepolia
 * **Diagnóstico & Verificación Independiente**:
   - *Reproducción Completa de Pruebas*:
@@ -27,9 +48,10 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 * **Preparación para Despliegue en Optimism Sepolia (Testnet)**:
   - Optimizado `hardhat.config.js` para admitir fallback al RPC canónico de Optimism Sepolia (`https://sepolia.optimism.io`) y variable `OPTIMISM_SEPOLIA_RPC_URL`.
   - Verificadas las salvaguardas de `deploy-v4-suite.js` (filtro estricto de chainId `11155420n` y exigencia de `ALLOW_V4_TESTNET_DEPLOY="true"`).
-* **Formalización del Marco Regulatorio y Blindaje FinTech**:
-  - Se redactó el documento canónico [`docs/MARCO_REGULATORIO_Y_BLINDAJE_FINTECH.md`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/MARCO_REGULATORIO_Y_BLINDAJE_FINTECH.md) estableciendo los 2 pilares legales fundamentales (Ecosistema Cerrado de Utilidad Comercial bajo la exención de FinCEN y Protocolo No-Custodial con auto-custodia de billetera soberana), erradicando cualquier intermediación fiduciaria o BaaS. Se formaliza el Principio de Liquidación Final (en cuanto el usuario retira sus USDT on-chain, la operación concluye definitivamente y su uso posterior es exclusiva responsabilidad privada del usuario), los 4 candados técnicos en los smart contracts (candado P2P en BLUE, portal KYC en el Exchange, bóveda no custodial en Vault y distinción jurídica de Compromiso RED frente a deuda para inmunidad a leyes de usura y TILA/Reg Z), las líneas rojas operativas y las auditorías de trazabilidad tipo SOC 2.
-* **Evidencia**: Creación de `docs/MARCO_REGULATORIO_Y_BLINDAJE_FINTECH.md`, publicación de `ANTIGRAVITY-052` en `puente-agentes/PARA_CODEX.md` y actualización de `puente-agentes/ESTADO_ANTIGRAVITY.md`.
+* **Evaluación Forense de CODEX-073 & Robustecimiento del Despliegue**:
+  - Se analizaron y validaron los 6 diagnósticos de `CODEX-073`: desacoplamiento de frescura respecto al reloj si el RPC se congela, prevención de asunción de saldo cero ante logs incompletos y aclaración sobre la omisión de las 3 pruebas de integración SQL cuando no hay PostgreSQL efímero activo.
+  - Se corrigió [`web3-contracts/scripts/deploy-v4-suite.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/web3-contracts/scripts/deploy-v4-suite.js) para esperar el recibo de despliegue de `FifoExchange`, capturando el `exchangeStartBlock` exacto y su hash de transacción en `deployment-manifest-v4.json`, habilitando al indexador para configurar `EXCHANGE_INDEXER_START_BLOCK` de forma determinista.
+* **Evidencia**: Actualización de `deploy-v4-suite.js`, publicación de `ANTIGRAVITY-053` en `puente-agentes/PARA_CODEX.md` y actualización de `puente-agentes/ESTADO_ANTIGRAVITY.md`.
 
 ---
 

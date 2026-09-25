@@ -147,6 +147,10 @@ async function main() {
     );
     await exchange.waitForDeployment();
     const exchangeAddress = await exchange.getAddress();
+    const exchangeDeployTx = exchange.deploymentTransaction();
+    const exchangeReceipt = exchangeDeployTx ? await exchangeDeployTx.wait() : null;
+    const exchangeStartBlock = exchangeReceipt ? Number(exchangeReceipt.blockNumber) : Number(await ethers.provider.getBlockNumber());
+    const exchangeTxHash = exchangeDeployTx ? exchangeDeployTx.hash : (exchangeReceipt?.hash || "");
     await (await vault.linkCoreContracts(protocolAddress, exchangeAddress)).wait();
     await (await blueToken.setExchange(exchangeAddress)).wait();
     await (await exchange.setAmortizationVault(vaultAddress)).wait();
@@ -189,6 +193,12 @@ async function main() {
             CoreProtocol: protocolAddress,
             FifoExchange: exchangeAddress,
             USDT: usdtAddress
+        },
+        startBlocks: {
+            FifoExchange: exchangeStartBlock
+        },
+        deploymentTransactions: {
+            FifoExchange: exchangeTxHash
         }
     };
 

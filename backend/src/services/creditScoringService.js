@@ -11,7 +11,7 @@ const { ethers } = require('ethers');
 // Configuración de red local/Hardhat
 const RPC_URL = process.env.OPTIMISM_RPC_URL || 'http://127.0.0.1:8545';
 const RELAYER_PK = process.env.RELAYER_PRIVATE_KEY;
-const PROTOCOL_ADDRESS = process.env.WINTON_PROTOCOL_ADDRESS;
+const PROTOCOL_ADDRESS = process.env.CORE_PROTOCOL_ADDRESS || process.env.WINTON_PROTOCOL_ADDRESS;
 
 class CreditScoringService {
     constructor() {

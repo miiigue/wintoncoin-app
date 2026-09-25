@@ -1,16 +1,22 @@
 {
-  "network": "hardhat",
-  "chainId": "1337",
-  "deployedAt": "2026-09-21T21:50:09.536Z",
-  "deployer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
-  "relayer": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+  "network": "optimismSepolia",
+  "chainId": "11155420",
+  "deployedAt": "2026-09-25T04:27:13.001Z",
+  "deployer": "0x7d2C6c16EDe986a8bea0204A9824b4C264256C77",
+  "relayer": "0x78992e52508B4094Eb487c0540FB1E25C397E1F5",
   "contracts": {
-    "BlueToken": "0xe7f1725E7734CE288F8367e1Bb143E90bb3F0512",
-    "RedToken": "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
-    "ProtocolTreasury": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
-    "CollateralVault": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
-    "CoreProtocol": "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707",
-    "FifoExchange": "0xB7f8BC63BbcaD18155201308C8f3540b07f84F5e",
-    "USDT": "0x5FbDB2315678afecb367f032d93F642f64180aa3"
+    "BlueToken": "0xb1B6a07373719c5311639E2A64657d9596ADc544",
+    "RedToken": "0xe077391D3729673634a3ee4C8963Cb57b74D386b",
+    "ProtocolTreasury": "0x5040555a602446695c03CCBBBE26276e6B913245",
+    "CollateralVault": "0xA2c5095A5D6b4e881a28921Ce144394F27C1F618",
+    "CoreProtocol": "0x56a83A394B40d83Ab40ff5e6884F08D6648bd92d",
+    "FifoExchange": "0xdE41187f8943623E34Af7249D9691d58e28230cA",
+    "USDT": "0xA558A97CdD986a2f342684a8E89EAea4F01F28F3"
+  },
+  "startBlocks": {
+    "FifoExchange": 49253937
+  },
+  "deploymentTransactions": {
+    "FifoExchange": "0xf91c16afbb59fcb718f36ca63a5851a53e8876bf738a6169ce9f8007b5ffea46"
   }
 }
