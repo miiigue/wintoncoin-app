@@ -51,4 +51,13 @@ router.get('/api/users/:username/referral-info', UserController.getReferralInfo)
 // 12. Obtener perfil de impulsor de un usuario por username
 router.get('/api/users/:username/booster-profile', UserController.getUserBoosterProfile);
 
+// 13. Consultar estado del PIN de seguridad (Autocustodia)
+router.get('/api/me/pin-status', authenticateToken, UserController.getMyPinStatus);
+
+// 14. Configurar o actualizar PIN de seguridad de 6 dígitos (Autocustodia)
+router.post('/api/me/set-pin', authenticateToken, UserController.setMyPin);
+
+// 15. Validar PIN de seguridad de 6 dígitos antes de una operación sensible
+router.post('/api/me/verify-pin', authenticateToken, UserController.verifyMyPin);
+
 module.exports = router;

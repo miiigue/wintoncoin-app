@@ -819,7 +819,7 @@ exports.getAuthStatus = async (req, res) => {
                 // kyc_verified es necesario para el mecanismo Hold & Release de
                 // Winton Solidario (migraciones 055, 056, 068)
                 const dbUser = await client.query(
-                    'SELECT email, is_verified, kyc_verified, password_invalidate_before FROM users WHERE id = $1',
+                    'SELECT email, is_verified, kyc_verified, password_invalidate_before, has_transaction_pin FROM users WHERE id = $1',
                     [user.userId]
                 );
                 if (dbUser.rows.length === 0) {
@@ -842,6 +842,7 @@ exports.getAuthStatus = async (req, res) => {
                     isAuthenticated: true,
                     is_verified: row.is_verified,
                     kyc_verified: row.kyc_verified, // NUEVO: KYC Web3 para Winton Solidario Hold & Release
+                    has_transaction_pin: row.has_transaction_pin === true, // Autocustodia
                     username: user.username,
                     email: row.email, // Retornamos el email para autocompletar la verificación en el frontend
                     requires_terms_acceptance: legalStatus.requires_terms_acceptance,
@@ -924,7 +925,7 @@ exports.refreshToken = async (req, res) => {
             try {
                 // 4. [ZERO-TRUST] Consultar el estado del usuario en tiempo real en la base de datos
                 const result = await pool.query(
-                    'SELECT account_status, is_verified, kyc_verified, password_invalidate_before FROM users WHERE id = $1',
+                    'SELECT account_status, is_verified, kyc_verified, password_invalidate_before, has_transaction_pin FROM users WHERE id = $1',
                     [decoded.userId]
                 );
 
@@ -984,6 +985,7 @@ exports.refreshToken = async (req, res) => {
                     username: decoded.username,
                     is_verified: user.is_verified,
                     kyc_verified: user.kyc_verified,
+                    has_transaction_pin: user.has_transaction_pin === true,
                     requires_terms_acceptance: legalStatus.requires_terms_acceptance,
                     pending_documents: legalStatus.pending_documents
                 });

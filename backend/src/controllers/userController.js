@@ -142,7 +142,7 @@ const UserController = {
         try {
             // 1) Obtener balances desde users por ID (estándar profesional)
             const userResult = await client.query(
-                `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance, web3_wallet_address, kyc_verified
+                `SELECT username, liquid_blue_balance, escrow_blue_balance, red_balance, web3_wallet_address, kyc_verified, has_transaction_pin
                  FROM users
                  WHERE id = $1`,
                 [userId]
@@ -179,7 +179,7 @@ const UserController = {
             const [debtResult, escrowResult, penalizedDebtResult, debt30Result, debtEndMonthResult] = await Promise.all([
                 client.query(debtSql, [username]),
                 client.query(escrowSql, [username]),
-                client.query(penalizedDebtSql, [username]),
+                client.query(penalizedDebtResult ? penalizedDebtSql : penalizedDebtSql, [username]),
                 client.query(debt30DaysSql, [username]),
                 client.query(debtEndMonthSql, [username])
             ]);
@@ -242,6 +242,7 @@ const UserController = {
                 red_balance: userResult.rows[0].red_balance,
                 web3_wallet_address: userResult.rows[0].web3_wallet_address,
                 kyc_verified: isKycVerified,
+                has_transaction_pin: userResult.rows[0].has_transaction_pin === true,
                 credit_limit: creditLimit,
                 collateral_balance: collateralBalance,
                 debt_30_days: debt30Result.rows[0].total,
@@ -1089,6 +1090,147 @@ const UserController = {
         } catch (error) {
             console.error(`Error al obtener el perfil de impulsor para ${username}:`, error);
             res.status(500).json({ message: 'Error interno del servidor.' });
+        } finally {
+            client.release();
+        }
+    },
+
+    // ========================================================================
+    // AUTOCUSTODIA & PIN DE SEGURIDAD (FINTECH / SOC 2 / ZERO-TRUST)
+    // ========================================================================
+
+    /**
+     * Consulta el estado actual de seguridad del PIN de la billetera del usuario autenticado.
+     * Retorna si tiene PIN configurado, si su KYC está aprobado, si está bloqueado temporalmente
+     * y los intentos restantes de ingreso de PIN.
+     */
+    getMyPinStatus: async (req, res) => {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: "No autenticado." });
+        }
+
+        const client = await pool.connect();
+        try {
+            const walletService = require('../services/walletService');
+            const status = await walletService.getPinStatus(client, userId);
+            return res.status(200).json(status);
+        } catch (err) {
+            console.error("Error al obtener estado de PIN de seguridad:", err);
+            return res.status(500).json({ message: "Error interno al verificar estado de seguridad." });
+        } finally {
+            client.release();
+        }
+    },
+
+    /**
+     * Configura o actualiza el PIN de seguridad de 6 dígitos para autocustodia de la billetera.
+     * Cifra la clave privada con AES-256-GCM y deriva la clave con PBKDF2 (100.000 iteraciones).
+     * Si ya existía un PIN previo, exige validación estricta de currentPin para prevenir secuestro de cuenta.
+     */
+    setMyPin: async (req, res) => {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: "No autenticado." });
+        }
+
+        const { pin, currentPin } = req.body;
+
+        // Validación estricta de formato: exactamente 6 dígitos numéricos
+        if (!pin || typeof pin !== 'string' || !/^\d{6}$/.test(pin)) {
+            return res.status(400).json({ message: "El PIN debe tener exactamente 6 dígitos numéricos (0-9)." });
+        }
+
+        // Prevención de PINs triviales inseguros (000000, 123456, etc.)
+        const insecurePins = ['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '123456', '654321'];
+        if (insecurePins.includes(pin)) {
+            return res.status(400).json({ message: "Por seguridad, no utilices secuencias obvias o dígitos repetidos como PIN." });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const walletService = require('../services/walletService');
+
+            // 1. Verificar si el usuario ya cuenta con un PIN configurado
+            const status = await walletService.getPinStatus(client, userId);
+            const isUpdate = status.hasPin;
+
+            if (isUpdate) {
+                if (!currentPin) {
+                    await client.query('ROLLBACK');
+                    return res.status(400).json({ message: "Debes ingresar tu PIN actual para poder cambiarlo." });
+                }
+                const verification = await walletService.verifyTransactionPin(client, userId, currentPin);
+                if (!verification.valid) {
+                    await client.query('COMMIT'); // Persistir incremento de intentos fallidos
+                    return res.status(401).json({ message: verification.error });
+                }
+            }
+
+            // 2. Ejecutar configuración de PIN y cifrado AES-256-GCM con salt aleatorio
+            await walletService.setupTransactionPin(client, userId, pin, currentPin);
+
+            // 3. Auditoría Bancaria
+            await logAuditEvent(client, req, {
+                eventType: isUpdate ? 'security.pin.updated' : 'security.pin.configured',
+                actorUsername: req.user?.username || `user_${userId}`,
+                targetUsername: req.user?.username || `user_${userId}`,
+                metadata: {
+                    isUpdate,
+                    securityStandard: 'PBKDF2_AES_256_GCM',
+                    timestamp: new Date().toISOString()
+                }
+            });
+
+            await client.query('COMMIT');
+
+            return res.status(200).json({
+                success: true,
+                message: isUpdate 
+                    ? "Tu PIN de seguridad ha sido actualizado con éxito."
+                    : "PIN de seguridad configurado exitosamente. Tu billetera ahora cuenta con autocustodia protegida."
+            });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error("Error al configurar PIN de seguridad:", err);
+            return res.status(500).json({ message: err.message || "Error al configurar PIN de seguridad." });
+        } finally {
+            client.release();
+        }
+    },
+
+    /**
+     * Valida de forma segura el PIN de 6 dígitos antes de una operación crítica.
+     * Implementa protección contra fuerza bruta con bloqueo exponencial.
+     */
+    verifyMyPin: async (req, res) => {
+        const userId = req.user?.userId;
+        if (!userId) {
+            return res.status(401).json({ message: "No autenticado." });
+        }
+
+        const { pin } = req.body;
+        if (!pin || typeof pin !== 'string' || !/^\d{6}$/.test(pin)) {
+            return res.status(400).json({ message: "El PIN debe tener exactamente 6 dígitos numéricos." });
+        }
+
+        const client = await pool.connect();
+        try {
+            await client.query('BEGIN');
+            const walletService = require('../services/walletService');
+            const verification = await walletService.verifyTransactionPin(client, userId, pin);
+            await client.query('COMMIT');
+
+            if (!verification.valid) {
+                return res.status(401).json({ valid: false, message: verification.error });
+            }
+
+            return res.status(200).json({ valid: true, message: "PIN validado correctamente." });
+        } catch (err) {
+            await client.query('ROLLBACK');
+            console.error("Error al validar PIN:", err);
+            return res.status(500).json({ message: "Error al verificar el PIN de seguridad." });
         } finally {
             client.release();
         }

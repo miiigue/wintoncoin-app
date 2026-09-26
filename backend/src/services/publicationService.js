@@ -44,13 +44,16 @@ async function updateUserBoosterLevel(client, userId) {
 
 /**
  * Helper FinTech para resolver billeteras y autorizar la emisión dual on-chain.
- * Arquitectura de Billetera Invisible: firma criptográficamente EIP-712 sin exigir MetaMask al usuario.
- * Garantiza auto-provisionamiento de billeteras encriptadas si no existen previamente.
+ * Arquitectura de Billetera Invisible y Autocustodia:
+ * - Si el pagador tiene PIN configurado (has_transaction_pin = true), se valida y se descifra
+ *   la clave privada exclusivamente en memoria RAM efímera con AES-256-GCM y PBKDF2.
+ * - Firma criptográficamente EIP-712 sin exigir MetaMask ni custodiar fondos por la plataforma.
+ * - Si el usuario no tiene billetera generada, la auto-provisiona de forma segura.
  */
-async function resolveWalletsAndAuthorizePayment(client, payerUsername, payeeUsername, amountBlue, pubId) {
+async function resolveWalletsAndAuthorizePayment(client, payerUsername, payeeUsername, amountBlue, pubId, userPin = null) {
     const walletService = require('./walletService');
     const walletQuery = await client.query(
-        `SELECT id, username, web3_wallet_address, web3_private_key_encrypted FROM users WHERE username IN ($1, $2)`,
+        `SELECT id, username, web3_wallet_address, web3_private_key_encrypted, has_transaction_pin, web3_keystore FROM users WHERE username IN ($1, $2)`,
         [payerUsername, payeeUsername]
     );
 
@@ -60,8 +63,8 @@ async function resolveWalletsAndAuthorizePayment(client, payerUsername, payeeUse
     if (!payerRow) throw new Error(`Usuario pagador no encontrado: ${payerUsername}`);
     if (!payeeRow) throw new Error(`Usuario beneficiario no encontrado: ${payeeUsername}`);
 
-    // Auto-provisionar billeteras invisibles si el usuario fue registrado sin ellas
-    if (!payerRow.web3_wallet_address || !payerRow.web3_private_key_encrypted) {
+    // Auto-provisionar billeteras invisibles si el usuario fue registrado sin ellas ni keystore
+    if (!payerRow.web3_wallet_address || (!payerRow.web3_private_key_encrypted && !payerRow.web3_keystore)) {
         const newWallet = walletService.generateEncryptedWallet();
         await client.query(
             `UPDATE users SET web3_wallet_address = $1, web3_private_key_encrypted = $2 WHERE id = $3`,
@@ -71,7 +74,7 @@ async function resolveWalletsAndAuthorizePayment(client, payerUsername, payeeUse
         payerRow.web3_private_key_encrypted = newWallet.encryptedPrivateKey;
     }
 
-    if (!payeeRow.web3_wallet_address || !payeeRow.web3_private_key_encrypted) {
+    if (!payeeRow.web3_wallet_address || (!payeeRow.web3_private_key_encrypted && !payeeRow.web3_keystore)) {
         const newWallet = walletService.generateEncryptedWallet();
         await client.query(
             `UPDATE users SET web3_wallet_address = $1, web3_private_key_encrypted = $2 WHERE id = $3`,
@@ -81,10 +84,31 @@ async function resolveWalletsAndAuthorizePayment(client, payerUsername, payeeUse
         payeeRow.web3_private_key_encrypted = newWallet.encryptedPrivateKey;
     }
 
-    // Generar la autorización EIP-712 firmada por la billetera invisible del pagador
+    // ── PROTOCOLO DE AUTOCUSTODIA CON PIN DE 6 DÍGITOS ──
+    // Si el usuario configuró su PIN de seguridad, la plataforma NO puede firmar sin su PIN.
+    let payerPrivateKey = null;
+    let payerEncryptedKey = null;
+
+    if (payerRow.has_transaction_pin) {
+        if (!userPin) {
+            throw {
+                status: 400,
+                code: 'PIN_REQUIRED',
+                message: 'Se requiere tu PIN de seguridad de 6 dígitos para autorizar esta transacción.'
+            };
+        }
+        // Descifra la clave privada en memoria RAM efímera validando intentos y bloqueo temporal
+        payerPrivateKey = await walletService.decryptPrivateKeyWithPin(client, payerRow.id, userPin);
+    } else {
+        // Modo de compatibilidad / transición antes de que el usuario configure su PIN
+        payerEncryptedKey = payerRow.web3_private_key_encrypted;
+    }
+
+    // Generar la autorización EIP-712 firmada por la billetera del pagador
     const { authorization, signature } = await Web3BridgeService.generateSignedPaymentAuthorization({
         payerWalletAddress: payerRow.web3_wallet_address,
-        payerEncryptedKey: payerRow.web3_private_key_encrypted,
+        payerPrivateKey,
+        payerEncryptedKey,
         payeeWalletAddress: payeeRow.web3_wallet_address,
         amountBlue,
         pubId
@@ -248,8 +272,9 @@ async function processRequestCompletion(client, acceptance) {
 /**
  * Procesa el pago final para una publicación de tipo 'solicitud'.
  * Maneja la lógica económica tanto para el modo normal como para el pre-lanzamiento.
+ * Soporta autocustodia con PIN de 6 dígitos para autorización de pago Web3.
  */
-async function processRequestPayment(client, acceptance, pubId, preLaunchMode, settings) {
+async function processRequestPayment(client, acceptance, pubId, preLaunchMode, settings, userPin = null) {
     const { blue_cost, base_blue_cost, title, author_username: author, author_id: authorId, workerUsername, workerId: workerIdFromQuery } = acceptance;
     let cost = parseFloat(blue_cost || 0);
     const baseCost = parseFloat(base_blue_cost || 0);
@@ -442,7 +467,7 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
             payeeWallet,
             authorization,
             signature
-        } = await resolveWalletsAndAuthorizePayment(client, author, workerUsername, cost, pubId);
+        } = await resolveWalletsAndAuthorizePayment(client, author, workerUsername, cost, pubId, userPin);
 
         // PASO 1: Registrar intención en la misma transacción (Evita Self-Deadlock PG).
         const intentPayload = { payerWallet, payeeWallet, amountBlue: cost, pubId, author, workerUsername, authorTxId };
@@ -599,8 +624,9 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
 /**
  * Procesa la finalización de una publicación de tipo 'sell' o 'donation'.
  * Maneja la lógica económica de pago en un solo paso.
+ * Soporta autocustodia con PIN de 6 dígitos para autorización de pago Web3.
  */
-async function processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings) {
+async function processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings, userPin = null) {
     const { blue_cost, title, author_username: recipient, acceptance_id, category, completerUsername: payer } = acceptance;
     const cost = parseFloat(blue_cost);
     let resultMessage; // Usaremos una variable para el mensaje de retorno
@@ -748,7 +774,7 @@ async function processDirectPaymentCompletion(client, acceptance, pubId, preLaun
             payeeWallet,
             authorization,
             signature
-        } = await resolveWalletsAndAuthorizePayment(client, payer, recipient, cost, pubId);
+        } = await resolveWalletsAndAuthorizePayment(client, payer, recipient, cost, pubId, userPin);
 
         // PASO 1: Registrar intención en la misma transacción (Evita Self-Deadlock PG).
         const intentPayload = { payerWallet, payeeWallet, amountBlue: cost, pubId, payer, recipient, payerTxId };

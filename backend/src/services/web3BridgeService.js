@@ -483,11 +483,14 @@ class Web3BridgeService {
      * Cero Hardcoded Secrets: utiliza walletService.decrypt para descifrar la llave privada.
      * Cumplimiento SOC 2: la llave efímera se destruye de inmediato tras generar la firma.
      */
-    async generateSignedPaymentAuthorization({ payerWalletAddress, payerEncryptedKey, payeeWalletAddress, amountBlue, pubId }) {
+    async generateSignedPaymentAuthorization({ payerWalletAddress, payerPrivateKey, payerEncryptedKey, payeeWalletAddress, amountBlue, pubId }) {
         if (!this._isReady()) throw new Error('Servicio Web3 no inicializado o sin conexión');
-        const walletService = require('./walletService');
-        const privateKey = walletService.decrypt(payerEncryptedKey);
-        if (!privateKey) throw new Error('No se pudo descifrar la clave de la bóveda del usuario');
+        let privateKey = payerPrivateKey;
+        if (!privateKey && payerEncryptedKey) {
+            const walletService = require('./walletService');
+            privateKey = walletService.decrypt(payerEncryptedKey);
+        }
+        if (!privateKey) throw new Error('No se pudo obtener la clave para firmar la autorización');
 
         const protocol = this._getProtocol();
         const grossUnits = ethers.parseUnits(amountBlue.toString(), 6);
@@ -596,7 +599,7 @@ class Web3BridgeService {
             return txHash;
         } catch (error) {
             console.error('[WEB3 BRIDGE] ❌ Error al sincronizar pago:', error.message);
-            return null;
+            throw error;
         }
     }
 

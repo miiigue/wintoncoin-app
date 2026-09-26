@@ -1649,8 +1649,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     // Ruta para Confirmar y Pagar (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
     router.post('/publications/:id/confirm-payment', verifyAdminToken, requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
         const pubId = req.params.id;
-        const { confirmerUsername, workerUsername } = req.body;
-        console.log(`[DEBUG] Recibida petición confirm-payment: pubId=${pubId}, confirmer=${confirmerUsername}, worker=${workerUsername}`);
+        const { confirmerUsername, workerUsername, pin } = req.body;
+        console.log(`[DEBUG] Recibida petición confirm-payment: pubId=${pubId}, confirmer=${confirmerUsername}, worker=${workerUsername}, hasPin=${!!pin}`);
         const actorUsername = resolveActorUsername(req, confirmerUsername);
 
         const client = await pool.connect();
@@ -1715,7 +1715,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             acceptance.workerId = acceptance.worker_id;
             
             console.log(`[DEBUG] Llamando a processRequestPayment...`);
-            const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings);
+            const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings, pin);
             console.log(`[DEBUG] processRequestPayment finalizado exitosamente.`);
 
             await client.query(`UPDATE publication_acceptances SET status = 'confirmed_paid' WHERE id = $1`, [acceptance.acceptance_id]);

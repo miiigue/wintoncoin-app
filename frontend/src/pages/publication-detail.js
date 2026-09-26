@@ -46,9 +46,19 @@ document.addEventListener('DOMContentLoaded', () => {
         authModalCommissionAmount: document.getElementById('authModalCommissionAmount'),
         authModalTotalRed: document.getElementById('authModalTotalRed'),
         authModalDueDate: document.getElementById('authModalDueDate'),
+        authModalPinInput: document.getElementById('authModalPinInput'),
         authModalStatusNotice: document.getElementById('authModalStatusNotice'),
         authModalCancelBtn: document.getElementById('authModalCancelBtn'),
-        authModalConfirmBtn: document.getElementById('authModalConfirmBtn')
+        authModalConfirmBtn: document.getElementById('authModalConfirmBtn'),
+        // Modal de Configuración Inicial de PIN de Seguridad (Autocustodia)
+        setupPinModal: document.getElementById('setupPinModal'),
+        closeSetupPinModalBtn: document.getElementById('closeSetupPinModalBtn'),
+        setupPinCancelBtn: document.getElementById('setupPinCancelBtn'),
+        setupPinForm: document.getElementById('setupPinForm'),
+        newPinInput: document.getElementById('newPinInput'),
+        confirmPinInput: document.getElementById('confirmPinInput'),
+        setupPinStatusNotice: document.getElementById('setupPinStatusNotice'),
+        setupPinSubmitBtn: document.getElementById('setupPinSubmitBtn')
     };
 
     let uploadedEvidenceUrls = [];
@@ -831,6 +841,9 @@ document.addEventListener('DOMContentLoaded', () => {
             if (event.target == elements.paymentAuthorizationModal) {
                 closePaymentAuthModal();
             }
+            if (event.target == elements.setupPinModal) {
+                closeSetupPinModal();
+            }
         });
 
         if (elements.closePaymentAuthModalBtn) {
@@ -838,6 +851,16 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         if (elements.authModalCancelBtn) {
             elements.authModalCancelBtn.addEventListener('click', closePaymentAuthModal);
+        }
+
+        if (elements.closeSetupPinModalBtn) {
+            elements.closeSetupPinModalBtn.addEventListener('click', closeSetupPinModal);
+        }
+        if (elements.setupPinCancelBtn) {
+            elements.setupPinCancelBtn.addEventListener('click', closeSetupPinModal);
+        }
+        if (elements.setupPinForm) {
+            elements.setupPinForm.addEventListener('submit', handleSetupPinSubmit);
         }
 
         const closeCompleteBtns = elements.completeTaskModal?.querySelectorAll('.complete-close-button, .complete-cancel-button');
@@ -1061,6 +1084,101 @@ Puedes ver los detalles aquí:`;
         }
     }
 
+    let pendingPinCallback = null;
+
+    /**
+     * Muestra el modal para configurar por primera vez el PIN de seguridad de 6 dígitos (Autocustodia).
+     * Explica al usuario de forma clara y sin tecnicismos la importancia de recordarlo para operar.
+     */
+    function openSetupPinModal(onSuccessCallback) {
+        pendingPinCallback = onSuccessCallback;
+        if (elements.setupPinModal) {
+            if (elements.newPinInput) elements.newPinInput.value = '';
+            if (elements.confirmPinInput) elements.confirmPinInput.value = '';
+            if (elements.setupPinStatusNotice) elements.setupPinStatusNotice.style.display = 'none';
+            if (elements.setupPinSubmitBtn) {
+                elements.setupPinSubmitBtn.disabled = false;
+                elements.setupPinSubmitBtn.textContent = 'Guardar Clave de Seguridad';
+            }
+            elements.setupPinModal.style.display = 'flex';
+            if (elements.newPinInput) setTimeout(() => elements.newPinInput.focus(), 150);
+        }
+    }
+
+    /**
+     * Cierra el modal de configuración de PIN.
+     */
+    function closeSetupPinModal() {
+        if (elements.setupPinModal) {
+            elements.setupPinModal.style.display = 'none';
+        }
+        pendingPinCallback = null;
+    }
+
+    /**
+     * Procesa el envío del formulario para crear el PIN de seguridad.
+     * Cifra la clave privada con AES-256-GCM y deriva la clave con PBKDF2 en el backend.
+     */
+    async function handleSetupPinSubmit(event) {
+        event.preventDefault();
+        const pin = elements.newPinInput ? elements.newPinInput.value.trim() : '';
+        const confirmPin = elements.confirmPinInput ? elements.confirmPinInput.value.trim() : '';
+
+        if (!pin || !/^\d{6}$/.test(pin)) {
+            showSetupPinNotice('El PIN debe tener exactamente 6 dígitos numéricos.', true);
+            if (elements.newPinInput) elements.newPinInput.focus();
+            return;
+        }
+
+        if (pin !== confirmPin) {
+            showSetupPinNotice('Las dos claves ingresadas no coinciden. Intenta de nuevo.', true);
+            if (elements.confirmPinInput) elements.confirmPinInput.focus();
+            return;
+        }
+
+        const insecurePins = ['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '123456', '654321'];
+        if (insecurePins.includes(pin)) {
+            showSetupPinNotice('Por tu seguridad, no uses combinaciones obvias o dígitos idénticos.', true);
+            return;
+        }
+
+        try {
+            if (elements.setupPinSubmitBtn) {
+                elements.setupPinSubmitBtn.disabled = true;
+                elements.setupPinSubmitBtn.textContent = 'Configurando seguridad...';
+            }
+
+            const response = await fetchFromServer('/api/me/set-pin', 'POST', { pin });
+            if (response && response.success) {
+                showSetupPinNotice('¡Clave de Seguridad configurada con éxito! Tu billetera está en autocustodia.', false);
+                window.currentUserHasPin = true;
+                setTimeout(() => {
+                    closeSetupPinModal();
+                    if (typeof pendingPinCallback === 'function') {
+                        const cb = pendingPinCallback;
+                        pendingPinCallback = null;
+                        cb();
+                    }
+                }, 1000);
+            }
+        } catch (err) {
+            if (elements.setupPinSubmitBtn) {
+                elements.setupPinSubmitBtn.disabled = false;
+                elements.setupPinSubmitBtn.textContent = 'Guardar Clave de Seguridad';
+            }
+            showSetupPinNotice(err.message || 'Error al configurar tu Clave de Seguridad.', true);
+        }
+    }
+
+    function showSetupPinNotice(msg, isError) {
+        if (!elements.setupPinStatusNotice) return;
+        elements.setupPinStatusNotice.style.display = 'block';
+        elements.setupPinStatusNotice.style.background = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)';
+        elements.setupPinStatusNotice.style.color = isError ? '#ef4444' : '#22c55e';
+        elements.setupPinStatusNotice.style.border = isError ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)';
+        elements.setupPinStatusNotice.textContent = msg;
+    }
+
     /**
      * Cierra el modal de autorización de liquidación y restaura estados.
      */
@@ -1072,6 +1190,9 @@ Puedes ver los detalles aquí:`;
             elements.authModalConfirmBtn.disabled = false;
             elements.authModalConfirmBtn.innerHTML = '<span>✍️</span> Autorizar y Pagar';
         }
+        if (elements.authModalPinInput) {
+            elements.authModalPinInput.value = '';
+        }
         if (elements.authModalStatusNotice) {
             elements.authModalStatusNotice.style.display = 'none';
         }
@@ -1080,9 +1201,28 @@ Puedes ver los detalles aquí:`;
     /**
      * Despliega el modal de consentimiento informado EIP-712 con desglose financiero bancario
      * (monto bruto BLUE con parking, comisión para Tesorería del protocolo y compromiso RED asumido).
+     * Verifica primero si el usuario tiene configurado su PIN de autocustodia; si no, le solicita configurarlo.
      */
-    function openPaymentAuthorizationModal(pubId, workerUsername) {
+    async function openPaymentAuthorizationModal(pubId, workerUsername) {
         if (!elements.paymentAuthorizationModal) return;
+
+        // 1. Verificación de Autocustodia: Consultar si el usuario ya tiene su PIN configurado
+        if (window.currentUserHasPin === undefined) {
+            try {
+                const pinStatus = await fetchFromServer('/api/me/pin-status', 'GET');
+                window.currentUserHasPin = pinStatus?.hasPin === true;
+            } catch (pinErr) {
+                console.warn('[AUTH PIN] No se pudo verificar estado de PIN:', pinErr.message);
+            }
+        }
+
+        // Si el usuario no tiene PIN configurado, solicitar configurarlo antes de autorizar
+        if (window.currentUserHasPin === false) {
+            openSetupPinModal(() => {
+                openPaymentAuthorizationModal(pubId, workerUsername);
+            });
+            return;
+        }
 
         const pub = window.currentPublication || {};
         const platformSettings = window.currentPlatformSettings || {};
@@ -1107,6 +1247,9 @@ Puedes ver los detalles aquí:`;
         if (elements.authModalTotalRed) elements.authModalTotalRed.innerHTML = `${formatBalance(totalRed)} RED`;
         if (elements.authModalDueDate) elements.authModalDueDate.textContent = `${dueDate} (${debtCycleDays} días)`;
 
+        if (elements.authModalPinInput) {
+            elements.authModalPinInput.value = '';
+        }
         if (elements.authModalStatusNotice) elements.authModalStatusNotice.style.display = 'none';
         if (elements.authModalConfirmBtn) {
             elements.authModalConfirmBtn.disabled = false;
@@ -1117,14 +1260,31 @@ Puedes ver los detalles aquí:`;
         }
 
         elements.paymentAuthorizationModal.style.display = 'flex';
+        if (elements.authModalPinInput) {
+            setTimeout(() => elements.authModalPinInput.focus(), 200);
+        }
     }
 
     /**
-     * Ejecuta el pago firmado bajo el paradigma de Billetera Invisible / Account Abstraction.
-     * El backend firma la estructura EIP-712 y la liquida en Optimism Sepolia vía CoreProtocol.
+     * Ejecuta el pago firmado bajo el paradigma de Autocustodia / Billetera Invisible / Account Abstraction.
+     * Envía el PIN de 6 dígitos del usuario para que el servidor descifre la clave efímera en memoria RAM
+     * estrictamente durante la firma criptográfica EIP-712.
      */
     async function executeAuthorizedPayment(pubId, workerUsername) {
         const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText || storedUsername;
+
+        const enteredPin = elements.authModalPinInput ? elements.authModalPinInput.value.trim() : '';
+        if (!enteredPin || !/^\d{6}$/.test(enteredPin)) {
+            if (elements.authModalStatusNotice) {
+                elements.authModalStatusNotice.style.display = 'block';
+                elements.authModalStatusNotice.style.background = 'rgba(239, 68, 68, 0.15)';
+                elements.authModalStatusNotice.style.color = '#ef4444';
+                elements.authModalStatusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+                elements.authModalStatusNotice.textContent = 'Por favor ingresa tu Clave de Seguridad de 6 dígitos para autorizar el pago.';
+            }
+            if (elements.authModalPinInput) elements.authModalPinInput.focus();
+            return;
+        }
 
         try {
             elements.authModalConfirmBtn.disabled = true;
@@ -1135,12 +1295,13 @@ Puedes ver los detalles aquí:`;
                 elements.authModalStatusNotice.style.background = 'rgba(56, 189, 248, 0.12)';
                 elements.authModalStatusNotice.style.color = '#38bdf8';
                 elements.authModalStatusNotice.style.border = '1px solid rgba(56, 189, 248, 0.3)';
-                elements.authModalStatusNotice.textContent = '⏳ Verificando y registrando la operación de forma segura... Por favor espera unos segundos.';
+                elements.authModalStatusNotice.textContent = '⏳ Verificando tu clave y registrando la operación de forma segura... Por favor espera unos segundos.';
             }
 
             const result = await fetchFromServer(`/publications/${pubId}/confirm-payment`, 'POST', {
                 confirmerUsername: storedUsername,
-                workerUsername: workerUsername
+                workerUsername: workerUsername,
+                pin: enteredPin
             });
 
             if (result) {

@@ -11,6 +11,8 @@ import { getApiUrl } from './config.js';
 export const userSession = {
     isAuthenticated: false,
     is_verified: false,
+    kyc_verified: false,
+    has_transaction_pin: false,
     username: null,
     requires_terms_acceptance: false,
     pending_documents: []
@@ -97,6 +99,7 @@ export async function silentRefreshIfNeeded() {
             userSession.isAuthenticated = true;
             userSession.is_verified = data.is_verified;
             userSession.kyc_verified = data.kyc_verified;
+            userSession.has_transaction_pin = data.has_transaction_pin;
             userSession.requires_terms_acceptance = data.requires_terms_acceptance;
             userSession.pending_documents = data.pending_documents || [];
             
@@ -117,6 +120,7 @@ export async function silentRefreshIfNeeded() {
                 userSession.isAuthenticated = false;
                 userSession.is_verified = false;
                 userSession.kyc_verified = false;
+                userSession.has_transaction_pin = false;
                 userSession.requires_terms_acceptance = false;
                 userSession.pending_documents = [];
                 

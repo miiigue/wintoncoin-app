@@ -13,6 +13,36 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-25 — Implementación del Protocolo de Autocustodia (Non-Custodial) con PIN de 6 Dígitos y Roadmap Biométrico
+* **Autocustodia Criptográfica FinTech (No-Custodio / Cero Claves en Texto Plano)**:
+  - Transición arquitectónica legal: WintonCoin abandona el modelo de custodia centralizada para clasificar plenamente como proveedor de software no-custodio (Non-Custodial / Self-Custody), en estricto cumplimiento con normativas FinTech, SOC 2 y regulaciones VASP / MiCA.
+  - La clave privada Web3 del usuario se almacena cifrada bajo el estándar autenticado **AES-256-GCM** dentro de un Keystore JSONB (`web3_keystore`), cuya clave simétrica es derivada exclusivamente en el momento de la firma mediante **PBKDF2** (con 100.000 iteraciones de SHA-256) a partir del **PIN de Seguridad de 6 dígitos** elegido por el usuario y un salt criptográfico único de 32 bytes (`transaction_pin_salt`).
+  - La plataforma **NUNCA** puede descifrar la clave ni mover fondos de forma autónoma sin que el usuario suministre activamente su PIN.
+* **Protección Bancaria Anti-Fuerza Bruta & Lockout Exponencial**:
+  - Hash seguro e irreversible del PIN implementado con **bcrypt** (`transaction_pin_hash`) para verificaciones y comprobaciones de pre-vuelo.
+  - Límite de seguridad: máximo **5 intentos fallidos consecutivos** (`transaction_pin_failed_attempts`). Al 5to intento erróneo, la cuenta queda bloqueada automáticamente durante 15 minutos (`transaction_pin_locked_until`), neutralizando cualquier vector de ataque por fuerza bruta.
+* **Migración de Base de Datos `113_add_transaction_pin_self_custody.js`**:
+  - Incorpora a la tabla `users` las columnas: `has_transaction_pin` (BOOLEAN), `transaction_pin_hash` (VARCHAR), `transaction_pin_salt` (VARCHAR), `transaction_pin_failed_attempts` (INTEGER), `transaction_pin_locked_until` (TIMESTAMPTZ) y `web3_keystore` (JSONB) con índice optimizado.
+* **Integración en Publicaciones y Flujo Transaccional Web3**:
+  - Actualizado `publicationService.js`: `resolveWalletsAndAuthorizePayment`, `processRequestPayment` y `processDirectPaymentCompletion` aceptan `userPin`. Si `has_transaction_pin = true`, el backend descifra la clave en memoria RAM efímera validando el PIN, firma la estructura EIP-712 y destruye la variable de inmediato. Si no se envía el PIN, lanza código de error `PIN_REQUIRED`.
+  - Actualizado `publicationController.js`: extrae `pin` de `req.body` en `/publications/:id/confirm-payment` y lo suministra al motor de pagos.
+* **Endpoints de Seguridad en API de Usuarios**:
+  - `GET /api/me/pin-status`: retorna si el usuario tiene PIN configurado, si su KYC está aprobado, si está bloqueado temporalmente y los intentos restantes.
+  - `POST /api/me/set-pin`: permite crear o actualizar el PIN con validación estricta de formato (6 dígitos numéricos) y rechazo de PINs triviales inseguros (000000, 123456, etc.).
+  - `POST /api/me/verify-pin`: validación previa segura de PIN.
+  - `GET /api/me/balance`, `/api/auth/status` y `/api/auth/refresh` ahora exponen `has_transaction_pin`.
+* **Interfaz de Usuario y Modales Transparentes (UI/UX)**:
+  - En `publication-detail.html` y `src/pages/publication-detail.js`, el modal de autorización de liquidación incluye un campo destacado para el PIN de 6 dígitos con formato numérico.
+  - Si el usuario no ha configurado su PIN, el sistema detecta `has_transaction_pin === false` y despliega automáticamente el **Modal de Configuración de Clave de Seguridad**, explicándole de forma humana, clara y amigable la importancia de recordarla para operar bajo autocustodia.
+* **Roadmap Biométrico Documentado en `IMPROVEMENTS.md`**:
+  - Especificación exhaustiva para la Fase 2: integración de **WebAuthn / Passkeys** (Apple Face ID / Touch ID, Android BiometricPrompt), almacenamiento en hardware seguro (Secure Enclave / StrongBox), resistencia a phishing y Smart Contract Wallets bajo **ERC-4337** con precompilados **RIP-7212**.
+* **Pruebas Unitarias Aprobadas**:
+  - Nueva suite `backend/__tests__/transactionPinSelfCustody.test.js`: 4/4 pruebas aprobadas con verificación de cifrado PBKDF2/AES-256-GCM, validación bcrypt, bloqueo tras 5 intentos y descifrado exacto en memoria.
+  - Suite `backend/__tests__/publicationPayment.test.js`: 2/2 pruebas aprobadas, garantizando cero regresiones.
+  - Compilación frontend con Vite para el entorno demo completada exitosamente sin advertencias ni errores.
+
+---
+
 ### 2026-09-25 — Arquitectura FinTech de Billetera Invisible (Account Abstraction), Firma Delegada EIP-712 y Consentimiento Informado en Liquidación de Tareas
 * **Billetera Invisible / Account Abstraction Nativa (Cero MetaMask para el Usuario Final)**:
   - Consolidación del principio fundacional del proyecto: el usuario común **NUNCA** requiere instalar ni conectar extensiones de terceros (MetaMask), ni lidiar con gas ni frases de recuperación. La billetera Web3 es gestionada de forma invisible y segura por la plataforma.

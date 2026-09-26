@@ -158,8 +158,20 @@
                 </div>
             </div>
 
+            <div id="authModalPinContainer" style="margin-bottom: 20px;">
+                <label for="authModalPinInput" style="display: block; font-size: 0.9rem; font-weight: 600; color: #f8fafc; margin-bottom: 8px;">
+                    🔑 Clave de Seguridad (PIN de 6 dígitos):
+                </label>
+                <div style="position: relative;">
+                    <input type="password" id="authModalPinInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="••••••" autocomplete="off" style="width: 100%; box-sizing: border-box; padding: 12px 16px; font-size: 1.4rem; letter-spacing: 8px; text-align: center; border-radius: 10px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; outline: none;">
+                </div>
+                <div id="authModalPinHint" style="font-size: 0.8rem; color: #94a3b8; margin-top: 6px;">
+                    Tu clave autoriza la firma de la operación bajo el protocolo de autocustodia.
+                </div>
+            </div>
+
             <div style="font-size: 0.85rem; color: #94a3b8; line-height: 1.5; margin-bottom: 20px; padding: 12px; background: rgba(56, 189, 248, 0.05); border-radius: 8px; border: 1px solid rgba(56, 189, 248, 0.15);">
-                🛡️ <strong>Autorización Segura:</strong> Al confirmar, autorizas a WintonCoin a entregar los tokens BLUE al colaborador y asumes el compromiso RED correspondiente en tu cuenta.
+                🛡️ <strong>Autorización Segura:</strong> Al confirmar con tu PIN, autorizas a WintonCoin a entregar los tokens BLUE al colaborador y asumes el compromiso RED correspondiente en tu cuenta.
             </div>
 
             <div id="authModalStatusNotice" style="display: none; padding: 12px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem; text-align: center; font-weight: 600;"></div>
@@ -170,6 +182,49 @@
                     <span>✍️</span> Autorizar y Pagar
                 </button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal de Configuración Inicial de PIN de Seguridad (Autocustodia) -->
+    <div id="setupPinModal" class="modal" style="display: none; background: rgba(0,0,0,0.88); backdrop-filter: blur(10px); z-index: 10000;">
+        <div class="modal-content" style="max-width: 480px; border-radius: 16px; border: 1px solid rgba(56, 189, 248, 0.4); background: #0f172a; color: #f8fafc; padding: 28px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8);">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 12px;">
+                <h3 style="margin: 0; font-size: 1.25rem; font-weight: 700; color: #38bdf8; display: flex; align-items: center; gap: 8px;">
+                    <span>🛡️</span> Configurar Clave de Seguridad
+                </h3>
+                <span class="close-button" id="closeSetupPinModalBtn" style="color: #94a3b8; font-size: 1.5rem; cursor: pointer; line-height: 1;">&times;</span>
+            </div>
+
+            <div style="background: rgba(56, 189, 248, 0.08); border-left: 3px solid #38bdf8; padding: 12px 14px; border-radius: 8px; margin-bottom: 16px; font-size: 0.9rem; line-height: 1.5; color: #e2e8f0;">
+                <strong>Tu billetera pasa a Autocustodia:</strong><br>
+                Esta clave de 6 dígitos protege tus fondos. Solo tú podrás autorizar pagos y operaciones.
+            </div>
+
+            <div style="background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; padding: 12px 14px; border-radius: 8px; margin-bottom: 20px; font-size: 0.85rem; line-height: 1.5; color: #fca5a5;">
+                ⚠️ <strong>Es muy importante que la recuerdes:</strong><br>
+                Por tu seguridad, WintonCoin no almacena tu clave en texto plano. La necesitarás cada vez que vayas a operar o pagar.
+            </div>
+
+            <form id="setupPinForm" style="display: flex; flex-direction: column; gap: 16px;">
+                <div>
+                    <label for="newPinInput" style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: #cbd5e1;">Crea tu PIN (6 dígitos):</label>
+                    <input type="password" id="newPinInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="••••••" autocomplete="new-password" required style="width: 100%; box-sizing: border-box; padding: 12px 16px; font-size: 1.4rem; letter-spacing: 8px; text-align: center; border-radius: 10px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; outline: none;">
+                </div>
+
+                <div>
+                    <label for="confirmPinInput" style="display: block; font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: #cbd5e1;">Confirma tu PIN (6 dígitos):</label>
+                    <input type="password" id="confirmPinInput" maxlength="6" inputmode="numeric" pattern="[0-9]*" placeholder="••••••" autocomplete="new-password" required style="width: 100%; box-sizing: border-box; padding: 12px 16px; font-size: 1.4rem; letter-spacing: 8px; text-align: center; border-radius: 10px; background: rgba(15, 23, 42, 0.9); border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8; outline: none;">
+                </div>
+
+                <div id="setupPinStatusNotice" style="display: none; padding: 10px; border-radius: 8px; font-size: 0.85rem; text-align: center; font-weight: 600;"></div>
+
+                <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+                    <button type="button" id="setupPinCancelBtn" class="action-button cancel-button" style="padding: 10px 18px; border-radius: 8px; font-weight: 600;">Cancelar</button>
+                    <button type="submit" id="setupPinSubmitBtn" class="action-button confirm" style="padding: 10px 22px; border-radius: 8px; font-weight: 700; background: linear-gradient(135deg, #0284c7, #2563eb); border: none; color: #fff; cursor: pointer;">
+                        Guardar Clave de Seguridad
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 

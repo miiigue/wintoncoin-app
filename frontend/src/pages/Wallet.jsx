@@ -31,23 +31,31 @@ function Wallet() {
   const [toastMessage, setToastMessage] = useState(null);
   const [lastTxHash, setLastTxHash] = useState(null);
 
+  const [hasPin, setHasPin] = useState(true);
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [pinError, setPinError] = useState(null);
+
   // Sincronización continua de estado On-Chain desde Optimism Sepolia
   const syncOnChain = async () => {
     try {
       let addr = await web3OnChainService.getConnectedAddress();
       
-      // Si no hay billetera conectada vía MetaMask, intentamos consultar la billetera asignada al usuario
+      // Si no hay billetera conectada vía MetaMask, consultamos la billetera asignada al usuario
       if (!addr) {
         const token = localStorage.getItem('token');
         if (token) {
           const API_URL = getApiUrl();
-          const meRes = await fetch(`${API_URL}/balance/me`, {
+          const meRes = await fetch(`${API_URL}/api/me/balance`, {
             headers: { 'Authorization': `Bearer ${token}` }
           });
           if (meRes.ok) {
             const meData = await meRes.json();
             if (meData.web3_wallet_address) {
               addr = meData.web3_wallet_address;
+            }
+            if (typeof meData.has_transaction_pin === 'boolean') {
+              setHasPin(meData.has_transaction_pin);
             }
           }
         }
@@ -164,6 +172,51 @@ function Wallet() {
     }
   };
 
+  // Manejo de la configuración del PIN de Autocustodia (6 dígitos)
+  const handleSetupPin = async (e) => {
+    e.preventDefault();
+    setPinError(null);
+    if (!newPin || !/^\d{6}$/.test(newPin)) {
+      setPinError('El PIN debe tener exactamente 6 dígitos numéricos.');
+      return;
+    }
+    if (newPin !== confirmPin) {
+      setPinError('Las claves no coinciden.');
+      return;
+    }
+    const insecure = ['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '123456', '654321'];
+    if (insecure.includes(newPin)) {
+      setPinError('Por seguridad, no uses secuencias obvias o dígitos repetidos.');
+      return;
+    }
+    try {
+      setLoading(true);
+      const token = localStorage.getItem('token');
+      const API_URL = getApiUrl();
+      const res = await fetch(`${API_URL}/api/me/set-pin`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ pin: newPin })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.message || 'Error al configurar el PIN');
+      }
+      setHasPin(true);
+      setModalType(null);
+      setNewPin('');
+      setConfirmPin('');
+      showToast('🛡️ Clave de Seguridad configurada con éxito. Tu billetera está en autocustodia.');
+    } catch (err) {
+      setPinError(err.message || 'Error al guardar la Clave de Seguridad.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Balances on-chain reales (o 0 si aún no ha sincronizado)
   const displayTotalBlue = onChainState ? onChainState.blueUnlocked : 0;
   const displayLiquidBlue = onChainState ? onChainState.blueUnlocked : 0;
@@ -266,6 +319,47 @@ function Wallet() {
             >
               Aprobar KYC en Admin Web3 ↗
             </Link>
+          </div>
+        )}
+
+        {/* ALERTA DE AUTOCUSTODIA (PIN DE 6 DÍGITOS NO CONFIGURADO) */}
+        {!hasPin && (
+          <div style={{
+            background: 'linear-gradient(90deg, rgba(2, 132, 199, 0.15), rgba(37, 99, 235, 0.15))',
+            border: '1px solid rgba(56, 189, 248, 0.35)',
+            borderRadius: '12px',
+            padding: '14px 18px',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '12px',
+            flexWrap: 'wrap'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+              <span style={{ fontSize: '1.4rem' }}>🛡️</span>
+              <div>
+                <strong style={{ color: '#38bdf8', fontSize: '0.95rem' }}>Protege tu Billetera con Autocustodia:</strong>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Configura tu Clave de Seguridad de 6 dígitos para autorizar pagos y operaciones.</p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setPinError(null); setModalType('setupPin'); }}
+              style={{
+                background: 'linear-gradient(135deg, #0284c7, #2563eb)',
+                color: '#fff',
+                border: 'none',
+                borderRadius: '8px',
+                padding: '8px 16px',
+                fontWeight: '700',
+                cursor: 'pointer',
+                fontSize: '0.85rem',
+                boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
+              }}
+            >
+              Configurar Clave 🔐
+            </button>
           </div>
         )}
 
@@ -644,6 +738,69 @@ function Wallet() {
                 {loading ? 'Autorizando / Depositando...' : 'Depositar en Bóveda'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL DE CONFIGURACIÓN DE PIN DE AUTOCUSTODIA (REACT) */}
+      {modalType === 'setupPin' && (
+        <div className={styles.modalOverlay}>
+          <div className={styles.modalContent} style={{ maxWidth: '440px' }}>
+            <h3 className={styles.modalTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span>🛡️</span> Configurar Clave de Seguridad
+            </h3>
+            <p className={styles.modalDesc}>
+              Esta clave de 6 dígitos protegerá tu billetera en modo autocustodia. Solo tú podrás autorizar pagos y movimientos.
+            </p>
+            <div style={{ background: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid #ef4444', padding: '10px 12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.85rem', color: '#fca5a5' }}>
+              ⚠️ <strong>Es muy importante que la recuerdes:</strong> WintonCoin no almacena tu clave en texto plano.
+            </div>
+            <form onSubmit={handleSetupPin}>
+              <div className={styles.inputGroup}>
+                <label className={styles.inputLabel}>Crea tu PIN (6 dígitos):</label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className={styles.textInput}
+                  value={newPin}
+                  onChange={(e) => setNewPin(e.target.value)}
+                  placeholder="••••••"
+                  style={{ textAlign: 'center', fontSize: '1.4rem', letterSpacing: '8px' }}
+                  autoFocus
+                  required
+                />
+              </div>
+              <div className={styles.inputGroup}>
+                <label className={styles.inputLabel}>Confirma tu PIN (6 dígitos):</label>
+                <input
+                  type="password"
+                  maxLength={6}
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  className={styles.textInput}
+                  value={confirmPin}
+                  onChange={(e) => setConfirmPin(e.target.value)}
+                  placeholder="••••••"
+                  style={{ textAlign: 'center', fontSize: '1.4rem', letterSpacing: '8px' }}
+                  required
+                />
+              </div>
+              {pinError && (
+                <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '8px 12px', borderRadius: '6px', fontSize: '0.85rem', marginBottom: '14px', textAlign: 'center' }}>
+                  {pinError}
+                </div>
+              )}
+              <div className={styles.modalButtons}>
+                <button type="button" className={styles.btnCancel} onClick={() => setModalType(null)} disabled={loading}>
+                  Cancelar
+                </button>
+                <button type="submit" className={styles.btnSuccess} disabled={loading}>
+                  {loading ? 'Configurando...' : 'Guardar Clave'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
