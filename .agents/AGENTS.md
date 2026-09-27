@@ -31,6 +31,14 @@ Nunca entregues las pruebas en tablas o listas markdown tradicionales. Usa estri
 <RULE[frontend_react_migration]>
 A partir de ahora, cualquier pantalla, interfaz, vista o componente visual nuevo que se cree DEBE construirse obligatoriamente en React, utilizando el stack y la arquitectura de la migración activa ubicada en `frontend/src/` (Vite + React SPA).
 Queda terminantemente prohibido crear nuevas pantallas en HTML o JavaScript vanilla legado, garantizando que todo el trabajo nuevo quede actualizado de una vez en React sin requerir una segunda migración posterior.
+
+**Mandato de Consulta y Actualización del Catálogo:**
+1. Todo agente o desarrollador DEBE consultar el archivo `MIGRACION_REACT_CATALOGO.md` ubicado en la raíz del proyecto antes de realizar cualquier intervención en el frontend para conocer el estado y prioridad de las páginas.
+2. Cada vez que se trabaje y migre una página a React, es OBLIGATORIO actualizar dicho archivo `MIGRACION_REACT_CATALOGO.md`, cambiando su estado a "Migrada a React", especificando el componente creado, rutas enrutadas y fecha.
+
+**Directiva Especial del Panel de Administración (Instrucción Expresa del Usuario):**
+1. El panel de administración actual (e.g. `admin-panel.html`, `admin.html`, `admin-register.html`, `admin-user-detail.html`, etc.) se mantiene en su estado legado (HTML/JS vanilla) y NO se migrará en bloque por ahora.
+2. Si más adelante se crea una nueva pantalla, módulo, vista o herramienta en el panel de administración, DEBE crearse obligatoriamente bajo React de una vez (ejemplo ya implementado: `AdminWeb3Panel.jsx` / `/admin/web3`).
 </RULE[frontend_react_migration]>
 
 <RULE[treasury_incentive_mechanism]>

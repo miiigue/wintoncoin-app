@@ -13,6 +13,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-27 — Auditoría Integral de Frontend y Creación del Catálogo Maestro de Migración a React SPA (`MIGRACION_REACT_CATALOGO.md`)
+* **Diagnóstico y Requerimiento de Auditoría**:
+  - Se realizó una auditoría forense exhaustiva de todas las interfaces de usuario del frontend (47 archivos HTML en total) para determinar con precisión el estado de la transición tecnológica hacia la Single Page Application (SPA) en React (Vite + React Router).
+  - Se formalizó la directiva expresa del usuario para el Panel de Administración: las consolas administrativas legadas en HTML/JS vanilla se conservan en su estado actual sin migración inmediata masiva, y cualquier pantalla, herramienta o módulo administrativo nuevo en el futuro debe construirse directamente bajo la arquitectura React (siguiendo el patrón ya validado de `AdminWeb3Panel.jsx`).
+* **Implementación del Sistema de Trazabilidad y Control**:
+  - *Catálogo Maestro Creado (`MIGRACION_REACT_CATALOGO.md`)*: Documento institucional en la raíz del proyecto que inventaría las 47 páginas divididas en 7 bloques funcionales (1: Migradas a React [8], 2: Panel de Administración Conservado [7], 3: Perfil y Contabilidad [6], 4: Marketplace y P2P [4], 5: Ayuda Humanitaria SOS [5], 6: Winton Momentum [3], 7: Informativas y Legales [14]).
+  - *Regla de Gobernanza en `.agents/AGENTS.md`*: Se fortaleció la directiva `<RULE[frontend_react_migration]>` estableciendo la lectura y actualización obligatoria de `MIGRACION_REACT_CATALOGO.md` cada vez que se trabaje o migre una página, manteniendo siempre el compromiso de "cero código vanilla nuevo" y la terminología bancaria estricta ("compromiso RED" sin usar la palabra "deuda").
+* **Impacto y Preparación para Producción a Gran Escala**:
+  - Habilita una hoja de ruta ordenada, auditable y determinista para completar la migración de las interfaces de mayor impacto (próximo paso recomendado: `estado-cuenta.html` -> `EstadoCuenta.jsx`), garantizando que todo el equipo y agentes operen con una fuente de verdad unificada.
+
+---
+
 ### 2026-09-27 — Auditoría Forense Integral Cero-Omisiones: Erradicación Total de Estilos Inline, Restauración de Modales Faltantes y Tooltips Regulatorios FinTech
 * **Diagnóstico de Auditoría Exhaustiva ("Ni una sola coma ni un solo caracter omitido")**:
   - Tras la refactorización inicial del Dashboard, se ejecutó una inspección forense carácter por carácter comparando `contract_interaction.html` y `contract-interaction.js` contra los submódulos React, identificando que 4 modales (`PublicationTypeModal`, `QuickSaleModal`, `SettingsModal` y `EmergencyBanner`) aún contenían estilos inline y carecían de elementos y clases canónicas de `style.css`.
