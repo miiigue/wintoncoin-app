@@ -53,7 +53,7 @@ const spaFallbackPlugin = () => {
       server.middlewares.use((req, res, next) => {
         const pathname = req.url ? req.url.split('?')[0] : '';
         // Rutas migradas a la SPA React
-        if (['/register', '/login', '/forgot-password', '/wallet', '/exchange', '/admin/web3', '/admin-web3'].includes(pathname)) {
+        if (['/register', '/login', '/forgot-password', '/wallet', '/exchange', '/dashboard', '/admin/web3', '/admin-web3'].includes(pathname)) {
           const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
           req.url = '/index.html' + query;
         }
@@ -107,7 +107,7 @@ export default defineConfig(({ mode }) => ({
         sosVenezuela: resolve(__dirname, 'sos-venezuela.html'),
         legalesCampana: resolve(__dirname, 'legales-campana.html'),
         login: resolve(__dirname, 'login.html'),
-        dashboard: resolve(__dirname, 'contract_interaction.html'),
+        contractInteraction: resolve(__dirname, 'contract_interaction.html'),
         register: resolve(__dirname, 'register.html'),
         forgotPassword: resolve(__dirname, 'forgot-password.html'),
         migrate: resolve(__dirname, 'migrate.html'),
@@ -128,6 +128,7 @@ export default defineConfig(({ mode }) => ({
         pedirAyuda: resolve(__dirname, 'pedir-ayuda.html'),
 
         // Web3 React SPA 2026 (Oficial)
+        dashboard: resolve(__dirname, 'dashboard.html'),
         wallet: resolve(__dirname, 'wallet.html'),
         exchange: resolve(__dirname, 'exchange.html'),
 

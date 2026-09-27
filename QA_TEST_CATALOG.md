@@ -615,3 +615,46 @@ PASOS:
 7. Toca fuera del menú para cerrarlo y comprueba que la pantalla responda con total fluidez.
 ```
 
+---
+
+```text
+TITULO: QA-46 - Configuración Inicial de la Clave de Seguridad (Autocustodia)
+DESCRIPCION: Esta misión tiene como objetivo comprobar que al ingresar a tu Billetera o al intentar autorizar tu primer pago, la aplicación detecte que tu cuenta aún no tiene una Clave de Seguridad, te muestre un aviso amigable y te permita crear tu PIN personal de 6 dígitos para proteger tu dinero bajo el modelo de autocustodia.
+PASOS:
+2. Inicia sesión en la aplicación con una cuenta que no tenga configurada su Clave de Seguridad.
+3. Ve a la sección Billetera desde el menú principal.
+4. Observa el aviso superior con icono de escudo que te invita a proteger tu billetera y presiona el botón Configurar Clave.
+5. Comprueba que se abra la ventana emergente explicando que esta clave protegerá tus fondos y que es vital recordarla para operar.
+6. Escribe un PIN de 6 dígitos numéricos en la primera casilla y repítelo exactamente en la casilla de confirmación.
+7. Presiona el botón Guardar Clave de Seguridad y confirma que aparezca un mensaje verde avisándote que tu billetera ya cuenta con autocustodia protegida.
+```
+
+---
+
+```text
+TITULO: QA-47 - Autorización de Pago de Tarea con Clave de Seguridad de 6 Dígitos
+DESCRIPCION: Esta prueba asegura que cada vez que vayas a pagar una tarea o servicio a otro usuario, la aplicación te pida ingresar tu Clave de Seguridad de 6 dígitos antes de procesar la entrega de tokens BLUE y registrar tu compromiso RED, garantizando que nadie pueda gastar tus fondos sin tu autorización.
+PASOS:
+2. Entra a una publicación o tarea realizada por otro usuario donde seas el autor y debas confirmar el pago.
+3. Presiona el botón para Confirmar y Pagar la tarea realizada.
+4. Verifica que se abra la ventana de autorización mostrando el desglose transparente de tokens BLUE a entregar, la comisión de la plataforma y el compromiso RED que asumirás.
+5. Ubica el campo de Clave de Seguridad de 6 dígitos en la parte inferior e ingresa tu PIN correcto.
+6. Presiona el botón Autorizar y Pagar.
+7. Comprueba que la pantalla procese el pago de forma segura y que la tarea pase al estado de completada con éxito.
+```
+
+---
+
+```text
+TITULO: QA-48 - Protección y Bloqueo Temporal por Intentos Fallidos de Clave
+DESCRIPCION: El objetivo de esta misión es verificar que el sistema bancario de seguridad proteja tu cuenta contra intentos no autorizados, bloqueando temporalmente el uso de la clave por 15 minutos si alguien introduce un PIN incorrecto 5 veces seguidas.
+PASOS:
+2. Dirígete a la ventana de confirmación de pago de una tarea en la plataforma.
+3. Ingresa un PIN de 6 dígitos incorrecto a propósito y presiona Autorizar y Pagar.
+4. Observa que el sistema rechace la operación y te muestre claramente cuántos intentos te quedan antes del bloqueo.
+5. Repite el ingreso de clave equivocada hasta completar los 5 intentos fallidos permitidos.
+6. Verifica que al quinto intento fallido el sistema te muestre un aviso rojo indicando que tu cuenta ha sido bloqueada temporalmente por 15 minutos para proteger tus fondos.
+7. Intenta ingresar nuevamente y confirma que el sistema mantenga el bloqueo activo impidiendo cualquier intento de prueba automatizada.
+```
+
+

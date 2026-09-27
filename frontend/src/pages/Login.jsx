@@ -109,12 +109,12 @@ function Login() {
             showCustomAlert(
               'Tu sesión está activa, pero necesitas aceptar los documentos legales vigentes para operar. Podrás entrar y explorar, pero las acciones estarán bloqueadas hasta aceptar.',
               () => {
-                window.location.href = returnTo || 'contract_interaction.html';
+                window.location.href = returnTo || '/dashboard';
               }
             );
           } else {
-            // Redirección exitosa hacia el Dashboard/Billetera original
-            window.location.href = returnTo || 'contract_interaction.html';
+            // Redirección exitosa hacia el Dashboard en React
+            window.location.href = returnTo || '/dashboard';
           }
         } else {
           showCustomAlert('Error: La respuesta del servidor no incluyó un token de sesión.');

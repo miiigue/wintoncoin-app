@@ -34,6 +34,23 @@ registerRoute(
     new NetworkOnly()
 );
 
+// SPA Navigation Route: Rutas limpias de React SPA (/dashboard, /wallet, /login, /exchange, etc.)
+// Permite que la app cargue instantáneamente y funcione offline entregando el shell React
+try {
+    const spaNavigationHandler = createHandlerBoundToURL('/index.html');
+    const spaNavigationRoute = new NavigationRoute(spaNavigationHandler, {
+        denylist: [
+            /^\/api\//,
+            /^\/notifications\//,
+            /\.(png|jpg|jpeg|svg|gif|ico|webp|woff|woff2|ttf|otf|css|js)$/,
+            /(admin.*\.html|governance-panel\.html|momentum-admin\.html)$/
+        ]
+    });
+    registerRoute(spaNavigationRoute);
+} catch (e) {
+    console.warn('[SW] NavigationRoute SPA fallback warning:', e);
+}
+
 // HTML General: Network First ultra-rápido (prioriza el servidor en 1 segundo; si está offline, entrega caché)
 registerRoute(
     /\.html$/,

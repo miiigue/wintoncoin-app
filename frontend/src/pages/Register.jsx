@@ -531,7 +531,7 @@ function Register() {
           console.warn('[Register] Sincronización push opcional:', pushErr);
         }
 
-        window.location.href = returnTo || 'contract_interaction.html';
+        window.location.href = returnTo || '/dashboard';
       } else {
         showCustomAlert(`Error: ${result.message || 'Código inválido o expirado.'}`);
       }

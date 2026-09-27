@@ -8,6 +8,7 @@ import ForgotPassword from './pages/ForgotPassword.jsx';
 import Wallet from './pages/Wallet.jsx';
 import Exchange from './pages/Exchange.jsx';
 import AdminWeb3Panel from './pages/AdminWeb3Panel.jsx';
+import Dashboard from './pages/Dashboard.jsx';
 
 /**
  * ============================================================================
@@ -17,8 +18,9 @@ import AdminWeb3Panel from './pages/AdminWeb3Panel.jsx';
  * 
  * Estructura de Rutas:
  * - "/" & "/index.html" & "/index" -> MainLayout (Header + Landing + Footer + BackToTop)
- * - "/wallet" & "/wallet.html" -> MainLayout (Billetera FinTech React 2026)
- * - "/exchange" & "/exchange.html" -> MainLayout (Exchange Oficial FIFO 2026)
+ * - "/dashboard" & "/contract_interaction.html" -> Dashboard (Panel central React 2026)
+ * - "/wallet" & "/wallet.html" -> Wallet (Billetera FinTech React 2026)
+ * - "/exchange" & "/exchange.html" -> Exchange (Exchange Oficial FIFO 2026)
  * - "/login" & "/login.html" -> Login (Vista de autenticación independiente)
  * - "/register" & "/register.html" -> Register (Wizard de registro independiente)
  * - "/forgot-password" & "/forgot-password.html" -> ForgotPassword (Recuperación)
@@ -34,6 +36,10 @@ function App() {
         <Route path="index.html" element={<Home />} />
         <Route path="index" element={<Home />} />
       </Route>
+
+      {/* Dashboard Principal del Usuario (100% React SPA) */}
+      <Route path="/dashboard" element={<Dashboard />} />
+      <Route path="/contract_interaction.html" element={<Dashboard />} />
 
       {/* Aplicación Web3 FinTech (Billetera & Exchange) - Sin Footer de marketing innecesario */}
       <Route path="/wallet" element={<Wallet />} />
@@ -62,3 +68,4 @@ function App() {
 }
 
 export default App;
+

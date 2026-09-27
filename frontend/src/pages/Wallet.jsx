@@ -76,7 +76,7 @@ function Wallet() {
     const storedUsername = localStorage.getItem('username');
     if (!token && !storedUsername) {
       const returnTo = encodeURIComponent(window.location.pathname + window.location.search);
-      window.location.replace(`/login.html?returnTo=${returnTo}`);
+      window.location.replace(`/login?returnTo=${returnTo}`);
       return;
     }
     if (storedUsername) setUsername(storedUsername);

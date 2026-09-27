@@ -13,6 +13,48 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-26 — Auditoría Forense Integral de la Migración React SPA: Remediación de Discrepancias, Enlaces Dinámicos y Paridad 100%
+* **Auditoría Forense de Paridad con `contract-interaction.js` y `contract_interaction.html`**:
+  - *Remediación del Endpoint de Quema (`BurnModal.jsx`)*: Se detectó y corrigió el endpoint de amortización voluntaria, alineando la llamada a `POST /users/burn` con cuerpo JSON `{ username, amount }` y token JWT, corrigiendo una incompatibilidad crítica que utilizaba `/api/burn`.
+  - *Alineación de Notificaciones Bancarias (`Dashboard.jsx` & `DashboardHeader.jsx`)*: Conexión canónica con `/api/me/notifications`. Incorporación de la barra de acciones de cabecera con botón "Limpiar" (`POST /api/me/notifications/mark-read`), descarte individual de alertas (`POST /api/me/notifications/:id/dismiss`) y centro de modal de historial inmutable (`GET /api/me/notifications/history`) con detección inteligente de iconos y sellos de fecha.
+  - *Restauración de Enlaces Dinámicos de Menú (`DashboardHeader.jsx`)*: Detección condicional reactiva de Winton Momentum ⚡ (`/api/momentum/profile`) y Donaciones Solidarias ❤️ (`/api/humanitarian/causes/my`), mostrándolos en el dropdown de perfil exactamente igual a como operaba en el frontend legado.
+  - *Enlace Canónico a Estado de Cuenta (`WalletTabs.jsx`)*: Inclusión de acceso directo a `estado-cuenta.html` en la tarjeta de Billetera para consulta de extractos contables.
+  - *Indicador de Pre-Lanzamiento (`Dashboard.jsx`)*: Integración de badge de fase de pre-lanzamiento beta sobre el título de marca WintonCoin cuando la directiva `pre_launch_mode_enabled` está activa en `/api/platform-settings`.
+  - *Preservación Absoluta de Vistas Preexistentes*: Todas las páginas HTML de la plataforma (`history.html`, `transactions.html`, `profile.html`, `causa-solidaria.html`, `publication-detail.html`, etc.) permanecen completamente operativas e intactas en `frontend/` y empaquetadas en `dist-demo/`.
+
+### 2026-09-26 — Migración del Dashboard a React SPA 2026 con Paridad Visual, PWA Integrada y Navegación SPA Offline
+* **Migración Arquitectónica del Panel de Usuario a React SPA (Paridad Visual 100%)**:
+  - Creación del componente orquestador [`frontend/src/pages/Dashboard.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Dashboard.jsx) y modularización en submódulos especializados bajo `frontend/src/components/dashboard/`:
+    1) `DashboardHeader.jsx`: Cabecera superior con selector de perfil de usuario, accesos directos a Billetera Web3, Exchange FIFO, Historial, Transacciones, Referidos, Impulsor, Mi Perfil, y menú de notificaciones con badge en tiempo real.
+    2) `WalletTabs.jsx`: Tarjetas de saldo con selector de pestañas (Impulsor vs Billetera). Desglose de tokens BLUE Líquidos, parking y **compromisos RED** a 30 días, con capacidad disponible, botón de copia rápida de dirección Web3 y temporizadores de cuenta regresiva en vivo para liberación de fondos en custodia y vencimiento de compromisos. Estricto apego a la regla terminológica del protocolo ("Compromiso RED").
+    3) `ReferralPromoCard.jsx`: Tarjeta promocional de referidos conectada a `/api/referral-settings` y `/api/users/:username/referral-info`. Muestra cupos disponibles en tiempo real, monto de bonificación diaria, fondos de campaña dinámicos y botón de invitación interactivo con soporte para la Web Share API en dispositivos móviles Android/PWA con fallback automático a copia en portapapeles.
+    4) `QuickActions.jsx`: Accesos rápidos hacia Creación de Publicación, Venta Rápida (QR), Exchange FIFO oficial y Billetera Web3.
+    5) `PublicationTypeModal.jsx`: Modal selector interactivo que valida en tiempo real las directivas de pre-lanzamiento de la plataforma (`/api/platform-settings`), permitiendo elegir entre "Solicitar un Ayudante", "Venta / Ofrecer Servicio" y "Recibir Donaciones" con rutas y permisos protegidos.
+    6) `QuickSaleModal.jsx`: Generador express de órdenes de venta rápida (`POST /api/quick-sale`) con renderizado instantáneo de códigos QR escaneables en teléfonos y enlace de cobro de un toque.
+    7) `PublicationsFeed.jsx`: Feed activo del marketplace con sanitización anti-XSS pura en React, chips de filtrado completos (Todas, Solicitudes, Servicios, Donaciones, En Proceso, Ocultas), buscador reactivo, selector de ordenación, barras de progreso en vivo para causas humanitarias (recaudado vs meta y saldo en custodia KYC), soporte para imágenes y botones interactivos de ocultar/restaurar publicaciones.
+    8) `BottomNav.jsx`: Barra de navegación inferior fija para experiencia móvil responsiva nativa (Inicio, Publicar, Exchange, Billetera, Perfil) al estilo Rappi/Binance, con visibilidad adaptativa oculta en resoluciones de escritorio (>=768px).
+    9) `EmergencyBanner.jsx`: Banner persistente y modal interactivo para la campaña humanitaria SOS Venezuela.
+    10) `SettingsModal.jsx`: Modal de configuración de notificaciones y botón integrado de descarga e instalación de la PWA.
+    11) `BurnModal.jsx`: Modal para amortización voluntaria y quema simétrica de tokens BLUE contra compromisos RED.
+* **Integración Global de la PWA en el Árbol React (`PWAContext`)**:
+  - Creación de [`frontend/src/context/PWAContext.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/context/PWAContext.jsx) y envolvimiento del root en [`frontend/src/main.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/main.jsx).
+  - Captura global e inmediata del evento `beforeinstallprompt` desde el primer milisegundo de carga en cualquier ruta de la aplicación, evitando la pérdida del evento que ocurría previamente en la landing page.
+  - Actualización de los manifiestos [`frontend/public/manifest.json`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/public/manifest.json) y [`frontend/public/manifest.demo.json`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/public/manifest.demo.json) para que `start_url` apunte a `/dashboard?source=pwa` con `scope: "/"`.
+* **Soporte de Navegación Offline y Resiliencia en Service Worker (`sw-source.js`)**:
+  - Activación de `NavigationRoute(createHandlerBoundToURL('/index.html'))` en [`frontend/src/sw-source.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/sw-source.js) para entregar el shell React precacheado ante navegaciones en rutas limpias SPA (`/dashboard`, `/wallet`, `/exchange`, `/login`, `/register`), permitiendo soporte offline real y arranque ultra-rápido.
+* **Unificación de Enrutamiento y Eliminación de Fugas al Código Legado**:
+  - Actualizadas las redirecciones de éxito en [`frontend/src/pages/Login.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Login.jsx) y [`frontend/src/pages/Register.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Register.jsx) para dirigir a `/dashboard` dentro de React, erradicando los saltos forzados hacia `contract_interaction.html`.
+  - Actualizado [`frontend/src/App.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/App.jsx) con las rutas `/dashboard` y `/contract_interaction.html`.
+  - Registrado [`frontend/dashboard.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/dashboard.html) en [`frontend/vite.config.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/vite.config.js) corrigiendo la advertencia de clave duplicada, y añadido a las reglas mod_rewrite de [`frontend/public/.htaccess`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/public/.htaccess).
+* **Cumplimiento Regulatorio SOC 2 & Optimización de Batería**:
+  - Consulta dual unificada en [`Dashboard.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Dashboard.jsx) contra `/publications/active` y `/api/humanitarian/causes/approved`, garantizando paridad exacta con la lógica del mercado legado.
+  - Verificación automática de cumplimiento legal (`checkLegalCompliance`) al inicio contra `/api/legal/status` con despliegue de modal de aceptación de términos pendientes.
+  - Implementación de la Page Visibility API estándar W3C para suspender sondeos en segundo plano cuando la pestaña está inactiva y refrescar de inmediato al retomar el foco, ahorrando batería y datos en redes móviles.
+* **Verificación de Empaquetado**:
+  - Compilación limpia con Vite en modo demo (`npm run build:demo`): 170 entradas de precache generadas con éxito, 0 errores y 0 advertencias.
+
+---
+
 ### 2026-09-25 — Implementación del Protocolo de Autocustodia (Non-Custodial) con PIN de 6 Dígitos y Roadmap Biométrico
 * **Autocustodia Criptográfica FinTech (No-Custodio / Cero Claves en Texto Plano)**:
   - Transición arquitectónica legal: WintonCoin abandona el modelo de custodia centralizada para clasificar plenamente como proveedor de software no-custodio (Non-Custodial / Self-Custody), en estricto cumplimiento con normativas FinTech, SOC 2 y regulaciones VASP / MiCA.
