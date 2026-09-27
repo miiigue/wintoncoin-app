@@ -80,6 +80,18 @@ export default function DashboardHeader({
     return '🔔';
   };
 
+  // Helper para formatear fechas de notificaciones con tolerancia a fallos en WebView
+  const formatDateSafe = (dateVal) => {
+    if (!dateVal) return '';
+    try {
+      const d = new Date(dateVal);
+      if (isNaN(d.getTime())) return '';
+      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (_) {
+      return '';
+    }
+  };
+
   return (
     <>
       <div className="header-menu" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 20px', background: 'rgba(15, 23, 42, 0.85)', backdropFilter: 'blur(10px)', borderBottom: '1px solid rgba(255, 255, 255, 0.08)' }}>
@@ -234,7 +246,7 @@ export default function DashboardHeader({
                         <div style={{ lineHeight: 1.4 }}>{n.message || n.body}</div>
                         {n.created_at && (
                           <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px' }}>
-                            {new Date(n.created_at).toLocaleString('es-ES', { dateStyle: 'short', timeStyle: 'short' })}
+                            {formatDateSafe(n.created_at)}
                           </div>
                         )}
                       </div>

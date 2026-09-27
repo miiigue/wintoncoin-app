@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 
 /**
@@ -48,7 +48,9 @@ export default function WalletTabs({
 
   const formatCountdown = (targetDate) => {
     if (!targetDate) return null;
-    const diff = new Date(targetDate).getTime() - now;
+    const targetTime = new Date(targetDate).getTime();
+    if (isNaN(targetTime)) return null;
+    const diff = targetTime - now;
     if (diff <= 0) return '¡Tiempo cumplido!';
 
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
@@ -61,11 +63,26 @@ export default function WalletTabs({
     return `${minutes}m ${seconds}s`;
   };
 
-  const handleCopyAddress = () => {
+  const handleCopyAddress = async () => {
     if (!walletAddress) return;
-    navigator.clipboard.writeText(walletAddress);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(walletAddress);
+      } else {
+        const textArea = document.createElement('textarea');
+        textArea.value = walletAddress;
+        textArea.style.position = 'fixed';
+        textArea.style.opacity = '0';
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (e) {
+      console.warn('[WalletTabs] No se pudo copiar dirección al portapapeles:', e);
+    }
   };
 
   const truncatedAddress = walletAddress

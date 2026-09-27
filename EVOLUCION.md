@@ -13,6 +13,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-27 — Corrección Crítica de Renderizado en Dashboard Móvil: Resolución de ReferenceError en WalletTabs y Endurecimiento de ErrorBoundary
+* **Diagnóstico de Causa Raíz ("Inconsistencia de Carga Detectada")**:
+  - Al iniciar sesión desde la aplicación Android (`WintonCoin-Demo.apk`) o navegador móvil y navegar al Dashboard React, el componente `<ErrorBoundary>` capturaba una excepción no controlada mostrando la pantalla de contingencia con el botón "Reiniciar Aplicación".
+  - *Causa Técnica*: En [`frontend/src/components/dashboard/WalletTabs.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/dashboard/WalletTabs.jsx), se invocaba el hook `useEffect` en la línea 41 para el temporizador de cuenta regresiva en vivo, pero dicho hook no había sido incluido en la sentencia de importación de React (`import React, { useState } from 'react';`), arrojando `ReferenceError: useEffect is not defined` durante el montaje inicial del componente.
+* **Solución y Endurecimiento de Nivel Bancario**:
+  - *Corrección de Importación (`WalletTabs.jsx`)*: Se importó `useEffect` junto con `useState`. Se implementó validación defensiva en `formatCountdown` contra valores `NaN` en marcas de tiempo y se añadió un fallback seguro para la copia de la dirección Web3 al portapapeles compatible con WebViews móviles restringidos.
+  - *Formateo Seguro de Fechas en Notificaciones (`DashboardHeader.jsx`)*: Se introdujo la función auxiliar `formatDateSafe` con bloque `try/catch` para evitar fallos de renderizado derivados de métodos de localización no soportados (`dateStyle`/`timeStyle`) en motores WebView de versiones específicas de Android.
+  - *Diagnóstico Técnico en Pantalla (`ErrorBoundary.jsx`)*: Se integró una sección colapsable (`<details>`) con la traza de error y la pila de componentes (`componentStack`) visible directamente bajo demanda en el dispositivo del usuario/tester, permitiendo auditoría técnica y depuración inmediata en pantallas móviles sin requerir herramientas externas.
+* **Verificación de Empaquetado y Pruebas**:
+  - Compilación exitosa con Vite en modo demo (`npm run build:demo`): 0 errores de sintaxis, 161 módulos precacheados en el Service Worker.
+
+---
+
 ### 2026-09-26 — Auditoría Forense Integral de la Migración React SPA: Remediación de Discrepancias, Enlaces Dinámicos y Paridad 100%
 * **Auditoría Forense de Paridad con `contract-interaction.js` y `contract_interaction.html`**:
   - *Remediación del Endpoint de Quema (`BurnModal.jsx`)*: Se detectó y corrigió el endpoint de amortización voluntaria, alineando la llamada a `POST /users/burn` con cuerpo JSON `{ username, amount }` y token JWT, corrigiendo una incompatibilidad crítica que utilizaba `/api/burn`.

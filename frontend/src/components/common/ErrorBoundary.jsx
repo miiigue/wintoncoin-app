@@ -118,6 +118,24 @@ class ErrorBoundary extends Component {
             >
               Reiniciar Aplicación
             </button>
+
+            {this.state.error && (
+              <details style={{ marginTop: '18px', textAlign: 'left', background: 'rgba(0, 0, 0, 0.4)', borderRadius: '10px', padding: '10px 14px', border: '1px solid rgba(255, 255, 255, 0.08)' }}>
+                <summary style={{ cursor: 'pointer', color: '#94a3b8', fontSize: '0.78rem', fontWeight: 600, userSelect: 'none' }}>
+                  🔍 Ver Diagnóstico Técnico
+                </summary>
+                <div style={{ marginTop: '8px', maxHeight: '160px', overflowY: 'auto' }}>
+                  <p style={{ color: '#ef4444', fontSize: '0.75rem', fontFamily: 'monospace', margin: '0 0 6px 0', wordBreak: 'break-word', fontWeight: 600 }}>
+                    {this.state.error?.toString()}
+                  </p>
+                  {this.state.errorInfo?.componentStack && (
+                    <pre style={{ color: '#64748b', fontSize: '0.68rem', fontFamily: 'monospace', margin: 0, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                      {this.state.errorInfo.componentStack}
+                    </pre>
+                  )}
+                </div>
+              </details>
+            )}
           </div>
         </div>
       );
