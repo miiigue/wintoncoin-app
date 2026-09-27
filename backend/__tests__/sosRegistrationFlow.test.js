@@ -23,6 +23,7 @@
 // ── Variables de entorno requeridas para que los módulos carguen sin error ─────
 process.env.JWT_SECRET = 'test-jwt-secret-key-for-sos-flow-2026';
 process.env.ADMIN_SECRET_KEY = 'test-admin-secret-key-2026';
+process.env.ENCRYPTION_SECRET = require('crypto').randomBytes(32).toString('hex');
 
 // ── Mock del Pool de PostgreSQL ───────────────────────────────────────────────
 // Se interceptan TODAS las llamadas a client.query para inspeccionar

@@ -1150,7 +1150,7 @@ Puedes ver los detalles aquí:`;
 
             const response = await fetchFromServer('/api/me/set-pin', 'POST', { pin });
             if (response && response.success) {
-                showSetupPinNotice('¡Clave de Seguridad configurada con éxito! Tu billetera está en autocustodia.', false);
+                showSetupPinNotice('PIN configurado. Tu billetera asociada está protegida para autorizar pagos.', false);
                 window.currentUserHasPin = true;
                 setTimeout(() => {
                     closeSetupPinModal();

@@ -6,7 +6,7 @@
  * - Paridad Estricta: 1 BLUE = 1 USDT (Sin intermediarios fiat ni P2P externo).
  * - Cola FIFO On-Chain: Smart Contract FifoExchange.sol ejecuta en estricto orden de llegada.
  * - Compra Instantánea / Asistida: Compradores adquieren BLUE o liquidan compromisos RED.
- * - Transacciones Reales: Firmadas y transmitidas mediante MetaMask en Optimism Sepolia.
+ * - Transacciones Reales: Autorizadas con PIN en Optimism Sepolia.
  * ============================================================================
  */
 
@@ -61,7 +61,7 @@ export default function Exchange() {
       if (queue && queue.success) {
         setPublicQueue(queue);
       }
-    } catch (_) {}
+    } catch (_) { setOnChainState(null); setExchangeSnapshot(null); setConnectedWallet(null); }
   };
 
   useEffect(() => {
@@ -77,22 +77,6 @@ export default function Exchange() {
     const timer = setInterval(syncData, 5000);
     return () => clearInterval(timer);
   }, []);
-
-  // Conectar MetaMask con la red Optimism Sepolia
-  const handleConnectWallet = async () => {
-    try {
-      setIsConnecting(true);
-      setErrorMsg(null);
-      const addr = await web3OnChainService.connectWallet();
-      setConnectedWallet(addr);
-      setFeedbackMsg(`🦊 MetaMask conectado en Optimism Sepolia: ${addr.slice(0, 6)}...${addr.slice(-4)}`);
-      await syncData();
-    } catch (err) {
-      setErrorMsg(err.message || 'Error al conectar MetaMask');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
 
   // Limpiar mensajes al cambiar de pestaña
   const handleTabChange = (tab) => {
@@ -111,9 +95,7 @@ export default function Exchange() {
     setIsSubmitting(true);
 
     try {
-      if (!connectedWallet) {
-        await handleConnectWallet();
-      }
+      if (!connectedWallet) throw new Error('No se pudo verificar tu billetera.');
 
       const res = await web3OnChainService.createSellOrder(amountInput);
       setLastTxHash(res.txHash);
@@ -135,24 +117,17 @@ export default function Exchange() {
     setIsSubmitting(true);
 
     try {
-      if (!connectedWallet) {
-        await handleConnectWallet();
-      }
+      if (!connectedWallet) throw new Error('No se pudo verificar tu billetera.');
 
-      const res = await web3OnChainService.createBuyOrder(amountInput);
+      let res;
+      if(autoBurnRed) {
+        await web3OnChainService.depositCollateral(amountInput);
+        try {res=await web3OnChainService.repayWithCollateral(amountInput);}
+        catch(error){throw new Error('El depósito ya fue confirmado en la bóveda. La reserva para amortizar no se completó: '+error.message);}
+      } else res=await web3OnChainService.createBuyOrder(amountInput);
       setLastTxHash(res.txHash);
 
-      if (autoBurnRed && onChainState && onChainState.redCommitment > 0) {
-        setFeedbackMsg(`¡Compra registrada on-chain! Procediendo a amortizar compromiso RED...`);
-        try {
-          const burnRes = await web3OnChainService.amortizeWithBlue(amountInput);
-          setFeedbackMsg(`¡Éxito total! Compraste BLUE y amortizaste tu compromiso RED (Tx Amortización: ${burnRes.txHash.slice(0, 10)}...).`);
-        } catch (burnErr) {
-          setFeedbackMsg(`¡Orden de compra completada! Sin embargo, la amortización automática requiere un paso adicional: ${burnErr.message}`);
-        }
-      } else {
-        setFeedbackMsg(`¡Orden de compra de ${fmt(amountInput)} USDT confirmada en Optimism Sepolia!`);
-      }
+      setFeedbackMsg(autoBurnRed?'USDT reservados para amortizar respetando la cola FIFO. El compromiso se amortiza cuando se compre y queme BLUE.':'Orden de compra confirmada. Puede seguir esperando vendedor; crear la orden no significa haber amortizado un compromiso.');
 
       setAmountInput('');
       await syncData();
@@ -249,25 +224,7 @@ export default function Exchange() {
               </code>
             )}
           </div>
-          <button
-            onClick={handleConnectWallet}
-            disabled={isConnecting}
-            style={{
-              background: 'linear-gradient(135deg, #FF5E00 0%, #E2761B 100%)',
-              color: '#fff',
-              border: 'none',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            🦊 {connectedWallet ? 'Cambiar Billetera' : (isConnecting ? 'Conectando...' : 'Conectar MetaMask')}
-          </button>
+          <span>Autorización mediante PIN</span>
         </div>
 
         {/* ALERTA DE KYC ON-CHAIN (SI NO ESTÁ VERIFICADO EN COREPROTOCOL) */}
@@ -287,22 +244,9 @@ export default function Exchange() {
             gap: '8px'
           }}>
             <div>
-              <strong>⚠️ KYC On-Chain Pendiente:</strong> Tu dirección no está verificada en el contrato CoreProtocol.sol. Para colocar órdenes en el Exchange, aprueba tu KYC desde el Panel de Control Web3.
+              <strong>⚠️ KYC On-Chain Pendiente:</strong> Tu dirección no está verificada en el contrato CoreProtocol.sol. Para colocar órdenes en el Exchange, completa la verificación de identidad de tu cuenta.
             </div>
-            <Link
-              to="/admin-web3.html"
-              style={{
-                background: '#f59e0b',
-                color: '#1a1a2e',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontWeight: 700,
-                textDecoration: 'none',
-                fontSize: '0.78rem'
-              }}
-            >
-              Aprobar KYC en Admin ↗
-            </Link>
+
           </div>
         )}
 
@@ -460,9 +404,9 @@ export default function Exchange() {
                   onChange={(e) => setAutoBurnRed(e.target.checked)}
                 />
                 <div>
-                  <strong>⚡ Amortizar mi Compromiso RED al Instante</strong>
+                  <strong>Reservar esta compra para amortizar mi compromiso</strong>
                   <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
-                    Usa los BLUE comprados para amortizar tu compromiso de {fmt(userRedCommitment)} RED en CoreProtocol.sol.
+                    Deposita y reserva USDT en garantía. Cuando llegue el turno FIFO, la compra amortiza tu compromiso de {fmt(userRedCommitment)} RED en CoreProtocol.sol.
                   </div>
                 </div>
               </label>
@@ -487,13 +431,13 @@ export default function Exchange() {
             {/* Botón de compra on-chain */}
             <button
               className={styles.actionBtn}
-              disabled={isSubmitting || parsedAmount <= 0}
+              disabled={isSubmitting || !connectedWallet || parsedAmount <= 0}
               onClick={handleBuy}
             >
               {isSubmitting
-                ? 'Firmando en MetaMask / Sepolia...'
+                ? 'Autorizando con PIN...'
                 : !connectedWallet
-                ? '🦊 Conectar MetaMask para Comprar'
+                ? 'Verificando cuenta…'
                 : autoBurnRed
                 ? 'Comprar y Amortizar Compromiso RED'
                 : 'Comprar BLUE en FIFO Exchange'}
@@ -580,9 +524,9 @@ export default function Exchange() {
               onClick={handleSell}
             >
               {isSubmitting
-                ? 'Firmando en MetaMask / Sepolia...'
+                ? 'Autorizando con PIN...'
                 : !connectedWallet
-                ? '🦊 Conectar MetaMask para Vender'
+                ? 'Verificando cuenta…'
                 : parsedAmount > userBlueAvailable
                 ? 'Saldo Disponible Insuficiente'
                 : 'Vender en la Cola FIFO'}

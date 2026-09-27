@@ -28,11 +28,13 @@ const mockAuthenticateAdmin = (req, res, next) => {
 
 // Montar la ruta a probar de forma aislada
 app.post('/api/admin/settings', mockAuthenticateAdmin, adminController.updateSetting);
+app.post('/api/admin/web3/configuration', mockAuthenticateAdmin, (req,res,next)=>{req.contractConfiguration=true;next();}, adminController.updateSetting);
 
 // Mockear servicios externos que interactúan con el controlador para evitar llamadas reales
 jest.mock('../src/services/auditService', () => ({
     logAuditEvent: jest.fn().mockResolvedValue(true)
 }));
+jest.mock('../src/services/web3BridgeService', () => ({setCommissionRate:jest.fn().mockResolvedValue({success:true,txHash:'synthetic-confirmed-transaction'})}));
 
 describe('Governance Bypass Test Suite', () => {
     let poolQuerySpy;
@@ -57,7 +59,7 @@ describe('Governance Bypass Test Suite', () => {
         });
 
         const res = await request(app)
-            .post('/api/admin/settings')
+            .post('/api/admin/web3/configuration')
             .send({ key: 'platform_commission_percentage', value: '5.5' });
 
         // Debe retornar 403 Forbidden
@@ -82,7 +84,7 @@ describe('Governance Bypass Test Suite', () => {
         });
 
         const res = await request(app)
-            .post('/api/admin/settings')
+            .post('/api/admin/web3/configuration')
             .send({ key: 'platform_commission_percentage', value: '5.5' });
 
         // Debe retornar 200 OK

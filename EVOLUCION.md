@@ -13,6 +13,23 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-27 — Integración y Verificación de Seguridad: Blindaje Administrativo, Operaciones Durables On-Chain, Persistencia Atómica de PIN y Preflight Web3
+* **Diagnóstico y Evaluación Conjunta de Seguridad (CODEX-074 a CODEX-078 / ANTIGRAVITY-055)**:
+  - Se identificó la necesidad de endurecer el acceso a las funciones de gobernanza de contratos, separar las responsabilidades de las claves privadas de servidor, evitar que un rollback transaccional borrara los intentos fallidos de PIN, y registrar de forma durable las transacciones on-chain antes de su envío para garantizar tolerancia a fallos y evitar duplicación de pagos.
+* **Implementación de Componentes de Seguridad y Arquitectura Bancaria**:
+  - *Blindaje Administrativo (`AdminGate.jsx` & `adminSession.js`)*: Eliminación de accesos directos al panel de contratos desde las pantallas de usuario ordinario (`Wallet.jsx` y `Exchange.jsx`). Verificación estricta de sesión administrativa en servidor antes de renderizar formularios de gobernanza. Separación de credenciales en `ADMIN_CHAIN_PRIVATE_KEY` (gobernanza on-chain), `RELAYER_PRIVATE_KEY` (liquidación ordinaria) y `GAS_SPONSOR_PRIVATE_KEY` (patrocinio de gas).
+  - *Persistencia Atómica de Intentos de PIN (`pinAttemptsPool.js`)*: Los intentos fallidos de PIN se gestionan en una conexión independiente con PostgreSQL fuera de la transacción principal, garantizando que el incremento de intentos y el bloqueo preventivo temporal de 15 minutos persistan aun cuando la operación económica subyacente se revierta.
+  - *Operaciones Durables On-Chain (Migración 116 & `chainOperationStore.js`)*: Registro de la transacción firmada exacta en la tabla `chain_operations` previo a su difusión a la red. Permite recuperación atómica por hash y bloque canónico safe en caso de fallos de transporte o reinicios de servicio, impidiendo pagos duplicados.
+  - *Patrocinio de Gas en Optimism (`gasSponsorship.js`)*: Implementación del cálculo de tarifa L1 sobre la transacción serializada sin firma sumada al coste L2 y a la tarifa de operador conforme a la especificación de `GasPriceOracle.sol` de OP Bedrock, con límites diarios y por paso configurables.
+  - *Alineación Conceptual de Custodia*: Se adoptó la precisión formal de "Autorización de Transacciones Asistida por Servidor con PIN" para la fase actual, reservando el término "Autocustodia Pura por Hardware" para la Fase 2 basada en WebAuthn / Passkeys.
+* **Verificación Técnica y Calidad de Código**:
+  - Pruebas unitarias de PIN y keystore (`transactionPinSelfCustody.test.js`): 8 de 8 pruebas pasadas al 100%.
+  - Pruebas de firma y cálculo de gas (`chainSigning.test.js`): 3 de 3 pruebas pasadas.
+  - Compilación Vite en modo demo (`npm run build:demo`): código de salida 0, empaquetado limpio en `dist-demo/` en 12.18s.
+  - Registro de evaluación técnica sincronizado en el puente mediante el mensaje `ANTIGRAVITY-055` en `puente-agentes/PARA_CODEX.md` y `ESTADO_ANTIGRAVITY.md`.
+
+---
+
 ### 2026-09-27 — Auditoría Integral de Frontend y Creación del Catálogo Maestro de Migración a React SPA (`MIGRACION_REACT_CATALOGO.md`)
 * **Diagnóstico y Requerimiento de Auditoría**:
   - Se realizó una auditoría forense exhaustiva de todas las interfaces de usuario del frontend (47 archivos HTML en total) para determinar con precisión el estado de la transición tecnológica hacia la Single Page Application (SPA) en React (Vite + React Router).

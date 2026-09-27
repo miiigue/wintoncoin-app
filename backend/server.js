@@ -239,6 +239,7 @@ async function startServer() {
         app.use('/api/solidario', solidarioRoutes); // Registrar rutas de Winton Solidario
         app.use('/api/admin', adminRoutes); // <<< NUEVAS RUTAS MODULARES ADMIN
         const web3Routes = require('./src/routes/web3Routes');
+        app.use('/api/me/operations', require('./src/routes/walletOperationRoutes'));
         app.use('/api/web3', web3Routes); // <<< RUTAS PUBLICAS Y FAUCET WEB3 V4
         app.use('/api', masterApiRouter); // <<< RUTA CENTRALIZADA MODULAR
 
@@ -738,7 +739,16 @@ cron.schedule('*/5 * * * *', async () => {
     }
 });
 
-if (process.env.NODE_ENV !== 'test') { startServer(); }
+if (process.env.NODE_ENV !== 'test') {
+    cron.schedule('*/20 * * * * *', async()=>{
+        try {
+            await require('./src/services/durableAdministration').reconcile();
+            await require('./src/services/creditPolicyJobs').tick(pool,require('./src/services/creditScoringService'));
+        }
+        catch { console.warn('[CHAIN RECOVERY] No se pudo completar el ciclo; se conserva el registro para reintentar.'); }
+    });
+    startServer();
+}
 
 
 

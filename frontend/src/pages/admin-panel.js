@@ -1434,8 +1434,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSettings(settings) {
+        settings = settings.filter(s => !/^(platform_commission_percentage|debt_cycle_|blue_escrow_|red_credit_|gas_sponsor_)/.test(s.setting_key));
         const phaseSettings = settings.filter(s => ['pre_launch_mode_enabled', 'allow_request_publications', 'allow_sell_publications', 'allow_donation_publications', 'allow_quick_sale_publications'].includes(s.setting_key));
-        const timeSettingsRaw = settings.filter(s => s.setting_key.startsWith('debt_cycle_') || s.setting_key.startsWith('blue_escrow_'));
+        const timeSettingsRaw = []; // Contract periods have one editor in Contratos.
 
         const referralKeys = [
             'referral_system_enabled', 'referral_reward_amount',
@@ -1482,7 +1483,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            for (const groupKey in timeSettingsGrouped) {
+            for (const groupKey of []) {
                 elements.settingsContainer.innerHTML += getTimeGroupHTML(timeSettingsGrouped[groupKey]);
             }
 

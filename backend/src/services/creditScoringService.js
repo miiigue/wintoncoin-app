@@ -29,22 +29,29 @@ class CreditScoringService {
      * @param {number} userId 
      * @returns {Promise<number>} Límite total de compromiso calculado en RED
      */
-    async calculateUserScore(userId) {
-        const client = await pool.connect();
+    async calculateUserScore(userId, existingClient = null) {
+        const client = existingClient || await pool.connect();
         try {
+            const identity = await client.query('SELECT red_credit_limit_override FROM users WHERE id=$1', [userId]);
+            if (!identity.rows.length) throw new Error('Usuario no encontrado');
+            if (identity.rows[0].red_credit_limit_override != null) return Number(identity.rows[0].red_credit_limit_override);
             // 1. Obtener los multiplicadores y bases desde app_settings (configurables por admin)
             const settingsRes = await client.query(
                 "SELECT setting_key, setting_value FROM app_settings WHERE setting_key LIKE 'red_credit_%'"
             );
             const settings = {};
-            settingsRes.rows.forEach(r => settings[r.setting_key] = parseFloat(r.setting_value));
+            settingsRes.rows.forEach(r => {
+                if (!/^\d+(\.\d{1,6})?$/.test(String(r.setting_value)) || Number(r.setting_value)>100000000)
+                    throw new Error('Valor de política RED inválido');
+                settings[r.setting_key] = Number(r.setting_value);
+            });
 
             // Valores por defecto si no existen en la tabla
-            const baseLimit = settings['red_credit_base_limit'] || 100;
-            const refBonus = settings['red_credit_referral'] || 5;
-            const quizBonus = settings['red_credit_culture_quiz'] || 1;
-            const activityBonus = settings['red_credit_monthly_activity'] || 1;
-            const earlyPayBonus = settings['red_credit_early_payment'] || 2;
+            const baseLimit = settings['red_credit_base_limit'] ?? 100;
+            const refBonus = settings['red_credit_referral'] ?? 5;
+            const quizBonus = settings['red_credit_culture_quiz'] ?? 1;
+            const activityBonus = settings['red_credit_monthly_activity'] ?? 1;
+            const earlyPayBonus = settings['red_credit_early_payment'] ?? 2;
 
             // 2. Obtener métricas reales del usuario en la base de datos
             
@@ -81,34 +88,25 @@ class CreditScoringService {
             // E. Pagos tempranos - Próximamente integrado
             const earlyPayCount = 0;
 
-            // F. BÓVEDA DE GARANTÍAS (Collateral Vault - WintonCollateralVault)
-            // Consulta el saldo neto de Stablecoins depositadas por el usuario.
-            // Los depósitos suman (+), los retiros y liquidaciones restan (-).
-            // El resultado se convierte de 18 decimales (wei) a unidades legibles.
-            const collateralRes = await client.query(
-                `SELECT COALESCE(SUM(amount), 0) AS net_collateral 
-                 FROM collateral_deposits 
-                 WHERE user_id = $1`,
-                [userId]
-            );
-            const collateralBonus = parseFloat(collateralRes.rows[0].net_collateral) || 0;
+            // Collateral is added exactly once by CoreProtocol from the Vault.
+            for (const value of [baseLimit, refBonus, quizBonus, activityBonus, earlyPayBonus]) {
+                if (!Number.isFinite(value) || value < 0) throw new Error('Política RED inválida');
+            }
 
             // 3. Cálculo final (Únicamente los referidos con KYC verificado otorgan bonificación)
-            let score = baseLimit;
-            score += (verifiedRefCount * refBonus);       // Bono por referidos verificados
-            score += (quizCount * quizBonus);             // Bono por quizzes (próximamente)
-            if (hasActivityBonus) score += activityBonus;  // Bono por actividad mensual
-            score += (earlyPayCount * earlyPayBonus);      // Bono por pagos tempranos (próximamente)
-            score += collateralBonus;                      // Bono por garantía depositada en bóveda
+            const unit=value=>ethers.parseUnits(String(value),6);
+            const exact=unit(baseLimit)+BigInt(verifiedRefCount)*unit(refBonus)+BigInt(quizCount)*unit(quizBonus)+(hasActivityBonus?unit(activityBonus):0n)+BigInt(earlyPayCount)*unit(earlyPayBonus);
+            if(exact>100000000n*1000000n)throw new Error('El límite calculado supera el máximo de la política.');
+            const score=Number(ethers.formatUnits(exact,6));
 
-            console.log(`[SCORING] Límite de compromiso RED calculado para Usuario #${userId}: ${score} RED (Total Refs: ${totalRefCount}, Refs KYC Verificados: ${verifiedRefCount}, Actividad: ${taskCount}, Colateral: ${collateralBonus})`);
+            console.log(`[SCORING] Límite de compromiso RED calculado para Usuario #${userId}: ${score} RED (Total Refs: ${totalRefCount}, Refs KYC Verificados: ${verifiedRefCount}, Actividad: ${taskCount})`);
             return score;
 
         } catch (error) {
             console.error('[SCORING] Error al calcular límite de compromiso:', error.message);
-            return 100; // Fallback al límite base en caso de error
+            throw new Error('No se pudo calcular el límite RED; no se modifica el límite vigente.');
         } finally {
-            client.release();
+            if (!existingClient) client.release();
         }
     }
 
@@ -118,57 +116,22 @@ class CreditScoringService {
      * @param {number} userId 
      */
     async syncCreditLimitOnChain(userId) {
-        const client = await pool.connect();
-        try {
-            // Obtener datos del usuario
-            const userRes = await client.query(
-                "SELECT id, username, web3_wallet_address FROM users WHERE id = $1", 
-                [userId]
-            );
-            const user = userRes.rows[0];
-
-            if (!user) {
-                throw new Error(`Usuario #${userId} no encontrado.`);
-            }
-
-            const walletAddress = user.web3_wallet_address;
-            const newScore = await this.calculateUserScore(userId);
-
-            // Obtener último score registrado para trazabilidad de auditoría
-            const lastLogRes = await client.query(
-                "SELECT new_limit FROM user_trust_score_logs WHERE user_id = $1 ORDER BY id DESC LIMIT 1",
-                [userId]
-            );
-            const previousLimit = lastLogRes.rows[0]?.new_limit || 0;
-
-            // Registrar log de auditoría inmutable en PostgreSQL (SOC 2)
-            await client.query(`
-                INSERT INTO user_trust_score_logs 
-                (user_id, wallet_address, previous_limit, new_limit, total_referrals_count, verified_referrals_count, calculation_details)
-                VALUES ($1, $2, $3, $4, 0, 0, $5)
-            `, [
-                userId,
-                walletAddress || null,
-                previousLimit,
-                newScore,
-                JSON.stringify({ calculatedAt: new Date().toISOString(), trigger: 'syncCreditLimitOnChain' })
-            ]);
-
-            const Web3BridgeService = require('./web3BridgeService');
-            console.log(`[SCORING] Sincronizando límite de compromiso on-chain para ${walletAddress}: ${newScore} RED...`);
-            const syncResult = await Web3BridgeService.setCreditLimit(walletAddress, newScore);
-            if (syncResult && syncResult.success) {
-                console.log(`[SCORING] Sincronización on-chain EXITOSA. Tx: ${syncResult.txHash}`);
-            } else {
-                console.warn(`[SCORING] Nota al sincronizar on-chain:`, syncResult?.error || 'Sin respuesta');
-            }
-
-        } catch (error) {
-            console.error(`[SCORING] Fallo de sincronización de compromiso:`, error.message);
-        } finally {
-            client.release();
-        }
+        const {locked}=require('./chainOperationStore');
+        const identity=(await pool.query('SELECT web3_wallet_address FROM users WHERE id=$1',[userId])).rows[0];
+        if(!identity?.web3_wallet_address) return {skipped:true};
+        const wallet=identity.web3_wallet_address;
+        return locked(pool,'credit:'+wallet.toLowerCase(),async client=>{
+            const outstanding=await client.query("SELECT id FROM chain_operations WHERE resource_key=$1 AND state IN ('pending','conflict') LIMIT 1",['credit:'+wallet.toLowerCase()]);
+            if(outstanding.rowCount)return {pending:true,operationId:outstanding.rows[0].id};
+            const override=(await client.query('SELECT red_credit_limit_override FROM users WHERE id=$1',[userId])).rows[0];
+            if(override?.red_credit_limit_override!=null)return {skipped:true,reason:'individual_exception'};
+            const score=await this.calculateUserScore(userId,client);
+            const bridge=require('./web3BridgeService');
+            if(await bridge._getProtocol().creditLimits(wallet)===ethers.parseUnits(String(score),6))return {skipped:true,reason:'already_current'};
+            return bridge.setCreditLimit(wallet,score,{manual:false,alreadyLocked:true});
+        });
     }
+
 }
 
 module.exports = new CreditScoringService();

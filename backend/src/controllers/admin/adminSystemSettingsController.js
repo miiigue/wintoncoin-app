@@ -52,6 +52,7 @@ async function getSettings(req, res) {
  */
 async function updateSetting(req, res) {
     const { key, value } = req.body;
+    let onChainSync = { attempted: false, success: false, txHash: null, error: null };
     
     if (!key || typeof value !== 'string') {
         return res.status(400).json({ message: "Se requiere 'key' y 'value' en formato de texto válido." });
@@ -78,6 +79,19 @@ async function updateSetting(req, res) {
     }
 
     try {
+        if (/^(platform_commission_percentage|debt_cycle_|blue_escrow_|red_credit_|gas_sponsor_)/.test(key) && !req.contractConfiguration)
+            return res.status(409).json({message:'Este parámetro se administra exclusivamente desde Contratos.'});
+        if (/^(debt_cycle_|blue_escrow_)/.test(key) && key !== 'debt_cycle_days')
+            return res.status(409).json({message:'Usa el plazo del contrato en días; no un plazo local independiente.'});
+        if (key === 'platform_commission_percentage' && (!/^\d+(\.\d{1,2})?$/.test(value) || Number(value)>10))
+            return res.status(400).json({message:'Comisión entre 0 y 10%, con hasta dos decimales.'});
+        if (key === 'debt_cycle_days' && (!/^\d+$/.test(value) || Number(value)<1 || Number(value)>365))
+            return res.status(400).json({message:'Plazo entero entre 1 y 365 días.'});
+        if (key.startsWith('red_credit_') && (!/^\d+(\.\d{1,6})?$/.test(value) || Number(value)>100000000))
+            return res.status(400).json({message:'La política RED debe ser un importe no negativo válido.'});
+        if (key==='gas_sponsor_enabled' && !['true','false'].includes(value))return res.status(400).json({message:'Usa true o false para el patrocinio.'});
+        if (key.startsWith('gas_sponsor_') && key!=='gas_sponsor_enabled' && (!/^\d{1,24}$/.test(value) || (key==='gas_sponsor_daily_user_operations'&&Number(value)>1000)))
+            return res.status(400).json({message:'Límite de patrocinio inválido.'});
         const isNonCriticalSetting = key.startsWith('daily_modal_') || 
                                      key === 'global_app_interstitial_enabled' ||
                                      key === 'referral_custom_share_code' ||
@@ -101,6 +115,48 @@ async function updateSetting(req, res) {
             });
         }
 
+        if(key.startsWith('red_credit_')) {
+            const result=await require('../../services/creditPolicyJobs').savePolicy(pool,key,value,req.user?.userId);
+            return res.json({success:true,...result,message:'Política versionada. Aplicación gradual en blockchain, conservando excepciones individuales.'});
+        }
+        // ── SINCRONIZACIÓN AUTOMÁTICA CON SMART CONTRACTS ON-CHAIN ──
+        if (key === 'platform_commission_percentage') {
+            const pct = parseFloat(value);
+            if (!isNaN(pct) && pct >= 0 && pct <= 10) {
+                const bps = Math.round(pct * 100);
+                const web3Bridge = require('../../services/web3BridgeService');
+                onChainSync.attempted = true;
+                try {
+                    const chainResult = await web3Bridge.setCommissionRate(bps);
+                    if (chainResult?.pending) return res.status(202).json({...chainResult,success:false,accepted:true});
+                    onChainSync.success = chainResult?.success === true;
+                    onChainSync.txHash = chainResult?.txHash || null;
+                    onChainSync.error = chainResult?.error || null;
+                } catch (err) {
+                    console.error('[AdminSystemSettingsController] Error sincronizando comisión on-chain:', err.message);
+                    onChainSync.error = err.message;
+                }
+            }
+        } else if (key === 'debt_cycle_days') {
+            const days = parseInt(value, 10);
+            if (!isNaN(days) && days > 0 && days <= 365) {
+                const web3Bridge = require('../../services/web3BridgeService');
+                onChainSync.attempted = true;
+                try {
+                    const chainResult = await web3Bridge.setCommitmentDuration(days * 86400);
+                    if (chainResult?.pending) return res.status(202).json({...chainResult,success:false,accepted:true});
+                    onChainSync.success = chainResult?.success === true;
+                    onChainSync.txHash = chainResult?.txHash || null;
+                    onChainSync.error = chainResult?.error || null;
+                } catch (err) {
+                    console.error('[AdminSystemSettingsController] Error sincronizando duración on-chain:', err.message);
+                    onChainSync.error = err.message;
+                }
+            }
+        }
+
+        if (onChainSync.attempted && !onChainSync.success)
+            return res.status(503).json({success:false,message:onChainSync.error || 'El contrato no confirmó el cambio. El valor vigente no se modificó.',on_chain_sync:onChainSync});
         if (key === 'pre_launch_mode_enabled' && value === 'false') {
             await pool.query(
                 `INSERT INTO app_settings (setting_key, setting_value) VALUES ('pre_launch_deactivated_at', NOW()::text)
@@ -113,7 +169,7 @@ async function updateSetting(req, res) {
         const result = await pool.query(
             `INSERT INTO app_settings (setting_key, setting_value, updated_at)
              VALUES ($2, $1, NOW())
-             ON CONFLICT (setting_key) 
+             ON CONFLICT (setting_key)
              DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
              RETURNING *`,
             [value, key]
@@ -126,40 +182,8 @@ async function updateSetting(req, res) {
             metadata: { setting_key: key, new_value: value }
         });
 
-        // ── SINCRONIZACIÓN AUTOMÁTICA CON SMART CONTRACTS ON-CHAIN ──
-        let onChainSync = { attempted: false, success: false, txHash: null, error: null };
-        if (key === 'platform_commission_percentage') {
-            const pct = parseFloat(value);
-            if (!isNaN(pct) && pct >= 0 && pct <= 10) {
-                const bps = Math.round(pct * 100);
-                const web3Bridge = require('../../services/web3BridgeService');
-                onChainSync.attempted = true;
-                try {
-                    const txHash = await web3Bridge.setCommissionRate(bps);
-                    onChainSync.success = !!txHash;
-                    onChainSync.txHash = txHash;
-                } catch (err) {
-                    console.error('[AdminSystemSettingsController] Error sincronizando comisión on-chain:', err.message);
-                    onChainSync.error = err.message;
-                }
-            }
-        } else if (key === 'debt_cycle_days') {
-            const days = parseInt(value, 10);
-            if (!isNaN(days) && days > 0 && days <= 365) {
-                const web3Bridge = require('../../services/web3BridgeService');
-                onChainSync.attempted = true;
-                try {
-                    const txHash = await web3Bridge.setCommitmentDuration(days * 86400);
-                    onChainSync.success = !!txHash;
-                    onChainSync.txHash = txHash;
-                } catch (err) {
-                    console.error('[AdminSystemSettingsController] Error sincronizando duración on-chain:', err.message);
-                    onChainSync.error = err.message;
-                }
-            }
-        }
-
         res.status(200).json({ 
+            success: true,
             message: onChainSync.attempted && !onChainSync.success 
                 ? "Configuración guardada en base de datos. Advertencia: La sincronización on-chain no pudo completarse de inmediato." 
                 : "Configuración actualizada correctamente.", 
@@ -168,6 +192,8 @@ async function updateSetting(req, res) {
         });
     } catch (error) {
         console.error("[AdminSystemSettingsController] Error al actualizar configuración:", error);
+        if (onChainSync.success) return res.status(202).json({success:true,pendingReconciliation:true,
+            message:'El contrato confirmó el cambio, pero falta actualizar el registro administrativo. No repitas la transacción.',on_chain_sync:onChainSync});
         res.status(500).json({ message: "Error interno del servidor." });
     }
 }

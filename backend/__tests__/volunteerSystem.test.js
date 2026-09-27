@@ -11,6 +11,7 @@
 
 process.env.JWT_SECRET = 'test-secret-key-12345';
 process.env.ADMIN_SECRET_KEY = 'admin-secret-key-12345';
+process.env.ENCRYPTION_SECRET = require('crypto').randomBytes(32).toString('hex');
 
 const mockClient = {
     query: jest.fn().mockResolvedValue({ rowCount: 0, rows: [] }),

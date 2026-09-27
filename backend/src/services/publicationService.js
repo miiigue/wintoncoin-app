@@ -63,46 +63,13 @@ async function resolveWalletsAndAuthorizePayment(client, payerUsername, payeeUse
     if (!payerRow) throw new Error(`Usuario pagador no encontrado: ${payerUsername}`);
     if (!payeeRow) throw new Error(`Usuario beneficiario no encontrado: ${payeeUsername}`);
 
-    // Auto-provisionar billeteras invisibles si el usuario fue registrado sin ellas ni keystore
-    if (!payerRow.web3_wallet_address || (!payerRow.web3_private_key_encrypted && !payerRow.web3_keystore)) {
-        const newWallet = walletService.generateEncryptedWallet();
-        await client.query(
-            `UPDATE users SET web3_wallet_address = $1, web3_private_key_encrypted = $2 WHERE id = $3`,
-            [newWallet.address, newWallet.encryptedPrivateKey, payerRow.id]
-        );
-        payerRow.web3_wallet_address = newWallet.address;
-        payerRow.web3_private_key_encrypted = newWallet.encryptedPrivateKey;
-    }
-
-    if (!payeeRow.web3_wallet_address || (!payeeRow.web3_private_key_encrypted && !payeeRow.web3_keystore)) {
-        const newWallet = walletService.generateEncryptedWallet();
-        await client.query(
-            `UPDATE users SET web3_wallet_address = $1, web3_private_key_encrypted = $2 WHERE id = $3`,
-            [newWallet.address, newWallet.encryptedPrivateKey, payeeRow.id]
-        );
-        payeeRow.web3_wallet_address = newWallet.address;
-        payeeRow.web3_private_key_encrypted = newWallet.encryptedPrivateKey;
-    }
-
-    // ── PROTOCOLO DE AUTOCUSTODIA CON PIN DE 6 DÍGITOS ──
-    // Si el usuario configuró su PIN de seguridad, la plataforma NO puede firmar sin su PIN.
-    let payerPrivateKey = null;
-    let payerEncryptedKey = null;
-
-    if (payerRow.has_transaction_pin) {
-        if (!userPin) {
-            throw {
-                status: 400,
-                code: 'PIN_REQUIRED',
-                message: 'Se requiere tu PIN de seguridad de 6 dígitos para autorizar esta transacción.'
-            };
-        }
-        // Descifra la clave privada en memoria RAM efímera validando intentos y bloqueo temporal
-        payerPrivateKey = await walletService.decryptPrivateKeyWithPin(client, payerRow.id, userPin);
-    } else {
-        // Modo de compatibilidad / transición antes de que el usuario configure su PIN
-        payerEncryptedKey = payerRow.web3_private_key_encrypted;
-    }
+    if (!payerRow.web3_wallet_address || !payeeRow.web3_wallet_address)
+        throw Object.assign(new Error('Ambos usuarios deben tener una billetera asociada verificada.'), {status:412});
+    if (!payerRow.has_transaction_pin || !payerRow.web3_keystore)
+        throw Object.assign(new Error('Configura tu PIN antes de autorizar el pago.'), {status:412, code:'PIN_REQUIRED'});
+    if (!userPin) throw Object.assign(new Error('Se requiere tu PIN para autorizar este pago.'), {status:400,code:'PIN_REQUIRED'});
+    const payerPrivateKey = await walletService.decryptPrivateKeyWithPin(client, payerRow.id, userPin);
+    const payerEncryptedKey = null;
 
     // Generar la autorización EIP-712 firmada por la billetera del pagador
     const { authorization, signature } = await Web3BridgeService.generateSignedPaymentAuthorization({

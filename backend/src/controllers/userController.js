@@ -1189,12 +1189,12 @@ const UserController = {
                 success: true,
                 message: isUpdate 
                     ? "Tu PIN de seguridad ha sido actualizado con éxito."
-                    : "PIN de seguridad configurado exitosamente. Tu billetera ahora cuenta con autocustodia protegida."
+                    : "PIN de seguridad configurado exitosamente. Tu billetera está protegida con PIN."
             });
         } catch (err) {
             await client.query('ROLLBACK');
             console.error("Error al configurar PIN de seguridad:", err);
-            return res.status(500).json({ message: err.message || "Error al configurar PIN de seguridad." });
+            return res.status(err.status || 500).json({ message: err.status ? err.message : "No se pudo configurar el PIN." });
         } finally {
             client.release();
         }
@@ -1230,7 +1230,7 @@ const UserController = {
         } catch (err) {
             await client.query('ROLLBACK');
             console.error("Error al validar PIN:", err);
-            return res.status(500).json({ message: "Error al verificar el PIN de seguridad." });
+            return res.status(err.status || 500).json({ message: err.status ? err.message : "No se pudo verificar el PIN." });
         } finally {
             client.release();
         }

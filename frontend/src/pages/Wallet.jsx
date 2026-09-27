@@ -4,7 +4,7 @@
  * ============================================================================
  * Pantalla central de la Billetera WintonCoin con arquitectura 2026:
  * - Conexión On-Chain en Vivo: Lee contratos de Optimism Sepolia (Suite V4).
- * - Soporte MetaMask nativo para Depósito de Garantías USDT y Amortización BLUE.
+ * - Autorización integrada con PIN para Depósito de Garantías USDT y Amortización BLUE.
  * - Desglose visual en tiempo real de Saldo Líquido, Garantías y Compromisos RED.
  * - Compensación en 1 Toque con quema simétrica de lotes en CoreProtocol.sol.
  * - Desglose justo de garantías USDT (Pignorado vs Libre para Retiro en Bóveda).
@@ -18,15 +18,15 @@ import styles from './Wallet.module.css';
 import { displayAmount } from '../modules/financialUnits.js';
 import { getApiUrl } from '../modules/config.js';
 
-const fmt = displayAmount;
+const fmt = value => value == null ? 'No disponible' : displayAmount(value);
 
 function Wallet() {
   const [username, setUsername] = useState(() => localStorage.getItem('username') || 'Usuario');
   const [onChainState, setOnChainState] = useState(null);
   const [connectedWallet, setConnectedWallet] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false);
   const [modalType, setModalType] = useState(null); // 'routeA', 'withdrawUsdt', 'depositUsdt', 'infoLots'
   const [amountInput, setAmountInput] = useState('');
+  const [withdrawDestination,setWithdrawDestination]=useState('');
   const [loading, setLoading] = useState(false);
   const [toastMessage, setToastMessage] = useState(null);
   const [lastTxHash, setLastTxHash] = useState(null);
@@ -39,36 +39,15 @@ function Wallet() {
   // Sincronización continua de estado On-Chain desde Optimism Sepolia
   const syncOnChain = async () => {
     try {
-      let addr = await web3OnChainService.getConnectedAddress();
-      
-      // Si no hay billetera conectada vía MetaMask, consultamos la billetera asignada al usuario
-      if (!addr) {
-        const token = localStorage.getItem('token');
-        if (token) {
-          const API_URL = getApiUrl();
-          const meRes = await fetch(`${API_URL}/api/me/balance`, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (meRes.ok) {
-            const meData = await meRes.json();
-            if (meData.web3_wallet_address) {
-              addr = meData.web3_wallet_address;
-            }
-            if (typeof meData.has_transaction_pin === 'boolean') {
-              setHasPin(meData.has_transaction_pin);
-            }
-          }
-        }
-      }
-
+      const account = await web3OnChainService.getAssociatedAccount();
+      const addr = account.web3_wallet_address;
+      setHasPin(Boolean(account.has_transaction_pin));
       if (addr) {
         setConnectedWallet(addr);
         const state = await web3OnChainService.fetchUserOnChainState(addr);
-        if (state) {
-          setOnChainState(state);
-        }
+        setOnChainState(state);
       }
-    } catch (_) {}
+    } catch (_) { setOnChainState(null); setConnectedWallet(null); }
   };
 
   useEffect(() => {
@@ -96,30 +75,11 @@ function Wallet() {
     }, 6000);
   };
 
-  // Conectar cuenta MetaMask con la red Optimism Sepolia
-  const handleConnectMetaMask = async () => {
-    try {
-      setIsConnecting(true);
-      const addr = await web3OnChainService.connectWallet();
-      setConnectedWallet(addr);
-      showToast(`🦊 MetaMask conectado: ${addr.slice(0, 6)}...${addr.slice(-4)}`);
-      const state = await web3OnChainService.fetchUserOnChainState(addr);
-      if (state) setOnChainState(state);
-    } catch (err) {
-      alert(err.message || 'Error al conectar MetaMask');
-    } finally {
-      setIsConnecting(false);
-    }
-  };
-
   // Manejo de la acción: Compensar compromiso con BLUE en CoreProtocol.sol
   const handleRepayRouteA = async () => {
     try {
       setLoading(true);
-      if (!web3OnChainService.hasInjectedProvider()) {
-        alert('Por favor conecta MetaMask para firmar la compensación en Optimism Sepolia.');
-        return;
-      }
+
       const res = await web3OnChainService.amortizeWithBlue(amountInput);
       setModalType(null);
       setAmountInput('');
@@ -136,14 +96,15 @@ function Wallet() {
   const handleWithdrawUsdt = async () => {
     try {
       setLoading(true);
-      if (!web3OnChainService.hasInjectedProvider()) {
-        alert('Por favor conecta MetaMask para retirar fondos de la Bóveda en Optimism Sepolia.');
-        return;
+
+      const res = modalType==='transferUsdt' ? await web3OnChainService.transferUsdt(amountInput,withdrawDestination.trim()) : await web3OnChainService.withdrawCollateral(amountInput);
+      if(modalType==='withdrawUsdt' && withdrawDestination.trim()) {
+        try {const transfer=await web3OnChainService.transferUsdt(amountInput,withdrawDestination.trim());res.txHash=transfer.txHash;}
+        catch(error){setModalType(null);showToast('La garantía ya está en tu billetera Winton. El envío externo no se completó: '+error.message,res.txHash);return;}
       }
-      const res = await web3OnChainService.withdrawCollateral(amountInput);
       setModalType(null);
       setAmountInput('');
-      showToast(`🎉 Retiro completado. USDT transferidos a tu billetera.`, res.txHash);
+      showToast(modalType==='transferUsdt'||withdrawDestination.trim()?'Envío de USDT confirmado al destino indicado.':'Garantía retirada a tu billetera Winton.', res.txHash);
       await syncOnChain();
     } catch (err) {
       alert(err.message || 'Error al retirar colateral');
@@ -156,10 +117,7 @@ function Wallet() {
   const handleDepositUsdt = async () => {
     try {
       setLoading(true);
-      if (!web3OnChainService.hasInjectedProvider()) {
-        alert('Por favor conecta MetaMask para depositar garantía en Optimism Sepolia.');
-        return;
-      }
+
       const res = await web3OnChainService.depositCollateral(amountInput);
       setModalType(null);
       setAmountInput('');
@@ -172,7 +130,7 @@ function Wallet() {
     }
   };
 
-  // Manejo de la configuración del PIN de Autocustodia (6 dígitos)
+  // Manejo de la configuración del PIN de Billetera protegida (6 dígitos)
   const handleSetupPin = async (e) => {
     e.preventDefault();
     setPinError(null);
@@ -209,7 +167,7 @@ function Wallet() {
       setModalType(null);
       setNewPin('');
       setConfirmPin('');
-      showToast('🛡️ Clave de Seguridad configurada con éxito. Tu billetera está en autocustodia.');
+      showToast('🛡️ PIN configurado. Tu dirección de billetera se mantiene.');
     } catch (err) {
       setPinError(err.message || 'Error al guardar la Clave de Seguridad.');
     } finally {
@@ -218,15 +176,15 @@ function Wallet() {
   };
 
   // Balances on-chain reales (o 0 si aún no ha sincronizado)
-  const displayTotalBlue = onChainState ? onChainState.blueUnlocked : 0;
-  const displayLiquidBlue = onChainState ? onChainState.blueUnlocked : 0;
-  const displayRedDebt = onChainState ? onChainState.redCommitment : 0;
-  const displayCreditLimit = onChainState ? onChainState.baseCreditLimit : 0;
-  const displayAvailableCapacity = onChainState ? onChainState.availableCapacity : 0;
-  const displayTotalCollateral = onChainState ? onChainState.collateralLocked : 0;
-  const displayFreeCollateral = onChainState ? onChainState.collateralFree : 0;
-  const displayReservedCollateral = onChainState ? onChainState.collateralReserved : 0;
-  const displayWalletUsdt = onChainState ? onChainState.usdtWalletBalance : 0;
+  const displayTotalBlue = onChainState ? onChainState.blueUnlocked : null;
+  const displayLiquidBlue = onChainState ? onChainState.blueUnlocked : null;
+  const displayRedDebt = onChainState ? onChainState.redCommitment : null;
+  const displayCreditLimit = onChainState ? onChainState.baseCreditLimit : null;
+  const displayAvailableCapacity = onChainState ? onChainState.availableCapacity : null;
+  const displayTotalCollateral = onChainState ? onChainState.collateralLocked : null;
+  const displayFreeCollateral = onChainState ? onChainState.collateralFree : null;
+  const displayReservedCollateral = onChainState ? onChainState.collateralReserved : null;
+  const displayWalletUsdt = onChainState ? onChainState.usdtWalletBalance : null;
   const displayAddress = connectedWallet || 'No conectada';
   const isKycOk = onChainState ? onChainState.isKYCVerified : false;
   const debtLots = onChainState?.debtLots || [];
@@ -257,7 +215,7 @@ function Wallet() {
               display: 'inline-block'
             }}></span>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: onChainState ? '#10B981' : '#38BDF8' }}>
-              {onChainState ? '🟢 Optimism Sepolia (Suite V4 On-Chain)' : '🟡 Conecta tu Billetera Web3'}
+              {onChainState ? `🟢 ${String(CONTRACT_ADDRESSES.chainId)==='10'?'Optimism':'Optimism Sepolia'} · Datos confirmados` : '🟡 Consultando tu billetera asociada'}
             </span>
             {connectedWallet && (
               <code style={{ fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#cbd5e1' }}>
@@ -265,25 +223,7 @@ function Wallet() {
               </code>
             )}
           </div>
-          <button
-            onClick={handleConnectMetaMask}
-            disabled={isConnecting}
-            style={{
-              background: 'linear-gradient(135deg, #FF5E00 0%, #E2761B 100%)',
-              color: '#fff',
-              border: 'none',
-              padding: '6px 14px',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px'
-            }}
-          >
-            🦊 {connectedWallet ? 'Cambiar Billetera' : (isConnecting ? 'Conectando...' : 'Conectar MetaMask')}
-          </button>
+
         </div>
 
         {/* ALERTA DE KYC ON-CHAIN (SI NO ESTÁ VERIFICADO EN COREPROTOCOL) */}
@@ -305,20 +245,7 @@ function Wallet() {
             <div>
               <strong>⚠️ Identidad KYC On-Chain no aprobada:</strong> Tu billetera ({connectedWallet.slice(0, 6)}...{connectedWallet.slice(-4)}) no está verificada en CoreProtocol.sol.
             </div>
-            <Link
-              to="/admin-web3.html"
-              style={{
-                background: '#f59e0b',
-                color: '#1a1a2e',
-                padding: '4px 10px',
-                borderRadius: '6px',
-                fontWeight: 700,
-                textDecoration: 'none',
-                fontSize: '0.78rem'
-              }}
-            >
-              Aprobar KYC en Admin Web3 ↗
-            </Link>
+
           </div>
         )}
 
@@ -339,7 +266,7 @@ function Wallet() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '1.4rem' }}>🛡️</span>
               <div>
-                <strong style={{ color: '#38bdf8', fontSize: '0.95rem' }}>Protege tu Billetera con Autocustodia:</strong>
+                <strong style={{ color: '#38bdf8', fontSize: '0.95rem' }}>Protege tus pagos con un PIN:</strong>
                 <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Configura tu Clave de Seguridad de 6 dígitos para autorizar pagos y operaciones.</p>
               </div>
             </div>
@@ -388,25 +315,7 @@ function Wallet() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
               <h2 className={styles.userName}>@{username}</h2>
               <div style={{ display: 'flex', gap: '8px' }}>
-                <Link
-                  to="/admin-web3.html"
-                  style={{
-                    background: 'rgba(56, 189, 248, 0.15)',
-                    border: '1px solid rgba(56, 189, 248, 0.3)',
-                    color: '#38bdf8',
-                    padding: '3px 8px',
-                    borderRadius: '8px',
-                    fontSize: '0.72rem',
-                    textDecoration: 'none',
-                    fontWeight: 600,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '4px'
-                  }}
-                  title="Panel de Gobernanza y Smart Contracts Web3"
-                >
-                  ⛓️ Smart Contracts ↗
-                </Link>
+
               </div>
             </div>
             <div className={styles.smartAccountTag}>
@@ -439,7 +348,7 @@ function Wallet() {
           </div>
           <div className={styles.balanceSubrow}>
             <div>
-              <span className={styles.subItemLabel}>Disponible para Venta o Transferencia</span>
+              <span className={styles.subItemLabel}>Disponible para vender en el Exchange</span>
               <span className={`${styles.subItemValue} ${styles.unlockedColor}`}>
                 {fmt(displayLiquidBlue)} BLUE
               </span>
@@ -448,6 +357,7 @@ function Wallet() {
               <span className={styles.subItemLabel}>USDT en tu Billetera</span>
               <span className={`${styles.subItemValue} ${styles.parkingColor}`}>
                 {fmt(displayWalletUsdt)} USDT
+                <button className={styles.btnSuccess} disabled={!isKycOk||!hasPin||loading||!(displayWalletUsdt>0)} onClick={()=>{setAmountInput('');setWithdrawDestination('');setModalType('transferUsdt');}}>Enviar USDT</button>
               </span>
             </div>
           </div>
@@ -550,7 +460,7 @@ function Wallet() {
             <div className={styles.creditBox}>
               <div className={styles.creditBoxTitle}>Estatus de Mora</div>
               <div className={styles.creditBoxValue} style={{ color: onChainState?.isDelinquent ? '#ef4444' : '#10b981', fontSize: '0.92rem' }}>
-                {onChainState?.isDelinquent ? '⚠️ Vencido (Mora)' : 'Al Día (Sin Mora)'}
+                {!onChainState?'No disponible':onChainState.isDelinquent ? '⚠️ Vencido (Mora)' : 'Al Día (Sin Mora)'}
               </div>
             </div>
           </div>
@@ -638,10 +548,8 @@ function Wallet() {
           textAlign: 'center'
         }}>
           ¿Quieres probar el flujo completo con tokens de prueba en Demo?{' '}
-          <Link to="/admin-web3.html" style={{ color: '#38bdf8', fontWeight: 600, textDecoration: 'underline' }}>
-            Abre el Panel de Smart Contracts (Web3)
-          </Link>{' '}
-          para mintear USDT de prueba o aprobar el KYC de tu billetera.
+          {' '}
+          Solicita al equipo de pruebas la habilitación correspondiente.
         </div>
 
       </div>
@@ -671,7 +579,7 @@ function Wallet() {
                 Cancelar
               </button>
               <button className={styles.btnRouteA} onClick={handleRepayRouteA} disabled={loading}>
-                {loading ? 'Firmando en MetaMask...' : 'Confirmar en 1 Toque On-Chain'}
+                {loading ? 'Autorizando con PIN...' : 'Confirmar en 1 Toque On-Chain'}
               </button>
             </div>
           </div>
@@ -679,12 +587,12 @@ function Wallet() {
       )}
 
       {/* MODAL DE RETIRO DE USDT */}
-      {modalType === 'withdrawUsdt' && (
+      {(modalType === 'withdrawUsdt' || modalType === 'transferUsdt') && (
         <div className={styles.modalOverlay}>
           <div className={styles.modalContent}>
-            <h3 className={styles.modalTitle}>Retirar Garantía USDT</h3>
+            <h3 className={styles.modalTitle}>{modalType==='transferUsdt'?'Enviar USDT de mi billetera':'Retirar garantía USDT'}</h3><label className={styles.inputLabel}>{modalType==='transferUsdt'?'Dirección de destino (misma red)':'Destino externo opcional (misma red)'}<input className={styles.textInput} value={withdrawDestination} onChange={e=>setWithdrawDestination(e.target.value)} placeholder="0x..." /></label><p>{modalType==='transferUsdt'?'Se envía únicamente el USDT disponible en tu billetera. Comprueba que el destino admita USDT en esta misma red.':'Primero se libera la garantía en tu billetera Winton. El envío externo requiere una segunda autorización y nunca usa garantía reservada.'}</p>
             <p className={styles.modalDesc}>
-              Este monto corresponde a tu capital libre en CollateralVault.sol. La transacción transferirá los USDT directamente a tu billetera personal.
+              {modalType==='transferUsdt'?'Este envío no retira ni utiliza garantías del Vault.':'La garantía libre se transferirá a tu billetera Winton.'}
             </p>
             <div className={styles.inputGroup}>
               <label className={styles.inputLabel}>Monto a retirar en USDT:</label>
@@ -703,7 +611,7 @@ function Wallet() {
                 Cancelar
               </button>
               <button className={styles.btnSuccess} onClick={handleWithdrawUsdt} disabled={loading}>
-                {loading ? 'Firmando en MetaMask...' : 'Retirar USDT On-Chain'}
+                {loading ? 'Autorizando con PIN...' : 'Retirar USDT On-Chain'}
               </button>
             </div>
           </div>
@@ -750,7 +658,7 @@ function Wallet() {
               <span>🛡️</span> Configurar Clave de Seguridad
             </h3>
             <p className={styles.modalDesc}>
-              Esta clave de 6 dígitos protegerá tu billetera en modo autocustodia. Solo tú podrás autorizar pagos y movimientos.
+              Esta clave de 6 dígitos protegerá tu billetera en modo billetera protegida. Solo tú podrás autorizar pagos y movimientos.
             </p>
             <div style={{ background: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid #ef4444', padding: '10px 12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.85rem', color: '#fca5a5' }}>
               ⚠️ <strong>Es muy importante que la recuerdes:</strong> WintonCoin no almacena tu clave en texto plano.

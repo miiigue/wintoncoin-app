@@ -7,6 +7,10 @@ const UserController = require('../controllers/userController');
 // Importamos el middleware de seguridad OFICIAL
 const { authenticateToken } = require('../middleware/authMiddleware');
 const { requireAcceptedLegalByUsernameField } = require('../middleware/legalAcceptanceMiddleware');
+const { rateLimit } = require('express-rate-limit');
+// Additional request throttling; the persistent per-user PIN lock lives in walletService.
+const pinLimiter = rateLimit({windowMs:15*60*1000,limit:30,standardHeaders:true,legacyHeaders:false,
+    keyGenerator:req=>String(req.user.userId),message:{message:'Demasiadas solicitudes de PIN. Intenta más tarde.'}});
 
 // ==========================================
 // RUTAS DE USUARIO (SEGURAS Y MODULARIZADAS)
@@ -55,9 +59,9 @@ router.get('/api/users/:username/booster-profile', UserController.getUserBooster
 router.get('/api/me/pin-status', authenticateToken, UserController.getMyPinStatus);
 
 // 14. Configurar o actualizar PIN de seguridad de 6 dígitos (Autocustodia)
-router.post('/api/me/set-pin', authenticateToken, UserController.setMyPin);
+router.post('/api/me/set-pin', authenticateToken, pinLimiter, UserController.setMyPin);
 
 // 15. Validar PIN de seguridad de 6 dígitos antes de una operación sensible
-router.post('/api/me/verify-pin', authenticateToken, UserController.verifyMyPin);
+router.post('/api/me/verify-pin', authenticateToken, pinLimiter, UserController.verifyMyPin);
 
 module.exports = router;

@@ -230,6 +230,7 @@ export default defineConfig(({ mode }) => ({
         // Excluir archivos
         globIgnores: [
           '**/node_modules/**',
+          '**/admin*.html', 'governance-panel.html', 'momentum-admin.html',
           'sw.js',
           'generate-*.js',
           'generate-*.html'

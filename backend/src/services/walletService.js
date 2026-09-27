@@ -1,326 +1,117 @@
-/**
- * src/services/walletService.js
- * Servicio de gestión de carteras Web3 y Autocustodia (Non-Custodial Keystore).
- * Implementa encriptación AES-256-CBC de respaldo y AES-256-GCM con derivación PBKDF2 (100,000 iteraciones)
- * protegida por PIN de 6 dígitos del usuario, con mitigación de fuerza bruta vía bcrypt.
- */
-
+'use strict';
+// Server-assisted signing, not exclusive user custody.
 const { ethers } = require('ethers');
 const crypto = require('crypto');
+const { promisify } = require('util');
 const bcrypt = require('bcrypt');
-
-// Secreto de encriptación maestro desde variables de entorno con fallback de seguridad preventiva
-const ENCRYPTION_SECRET = process.env.ENCRYPTION_SECRET || 'WintonCoin_Military_Grade_Vault_Secret_2024_!_Xyz';
-const ALGORITHM = 'aes-256-cbc';
-const GCM_ALGORITHM = 'aes-256-gcm';
-const IV_LENGTH = 16; // Para AES-CBC, siempre 16 bytes
-const GCM_IV_LENGTH = 12; // Para AES-GCM (estándar NIST), 12 bytes
-
+const pbkdf2 = promisify(crypto.pbkdf2);
+const failure = (status, message) => Object.assign(new Error(message), {status});
+function secret() {
+    if (!process.env.ENCRYPTION_SECRET || process.env.ENCRYPTION_SECRET.length < 32)
+        throw failure(503, 'La protección de billeteras no está configurada. No se modificó tu billetera.');
+    return process.env.ENCRYPTION_SECRET;
+}
+function pinText(pin) {
+    if (typeof pin !== 'string' || !/^\d{6}$/.test(pin)) throw failure(400, 'El PIN debe tener seis dígitos.');
+    return pin;
+}
+function pepper(pin) { return crypto.createHmac('sha256', secret()).update('winton-pin-v2:').update(pinText(pin)).digest('base64'); }
+function seal(text, key) {
+    const iv=crypto.randomBytes(12), cipher=crypto.createCipheriv('aes-256-gcm',key,iv);
+    const ciphertext=Buffer.concat([cipher.update(text,'utf8'),cipher.final()]);
+    return {iv:iv.toString('hex'),authTag:cipher.getAuthTag().toString('hex'),ciphertext:ciphertext.toString('hex')};
+}
+function open(box,key) {
+    const decipher=crypto.createDecipheriv('aes-256-gcm',key,Buffer.from(box.iv,'hex'));
+    decipher.setAuthTag(Buffer.from(box.authTag,'hex'));
+    return Buffer.concat([decipher.update(Buffer.from(box.ciphertext,'hex')),decipher.final()]).toString('utf8');
+}
 class WalletService {
-    constructor() {
-        if (!process.env.ENCRYPTION_SECRET) {
-            console.warn('[WALLET SERVICE] ℹ️ Usando ENCRYPTION_SECRET predeterminado del sistema para el entorno actual.');
-        }
-    }
-
-    /**
-     * Genera una nueva billetera Web3 y retorna la dirección pública y la privada encriptada.
-     * @returns {Object} { address, encryptedPrivateKey }
-     */
     generateEncryptedWallet() {
-        // 1. Crear billetera aleatoria con ethers
-        const wallet = ethers.Wallet.createRandom();
-        
-        // 2. Encriptar la clave privada
-        const encryptedKey = this.encrypt(wallet.privateKey);
-
-        return {
-            address: wallet.address,
-            encryptedPrivateKey: encryptedKey
-        };
+        secret(); const wallet=ethers.Wallet.createRandom();
+        return {address:wallet.address,encryptedPrivateKey:this.encrypt(wallet.privateKey)};
     }
-
-    /**
-     * Encripta un texto plano (private key) con AES-256-CBC de plataforma.
-     * @param {string} text 
-     */
-    encrypt(text) {
-        if (!ENCRYPTION_SECRET) return text;
-
-        const iv = crypto.randomBytes(IV_LENGTH);
-        const key = crypto.scryptSync(ENCRYPTION_SECRET, 'salt', 32);
-        const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
-        
-        let encrypted = cipher.update(text, 'utf8', 'hex');
-        encrypted += cipher.final('hex');
-
-        // Retornamos el IV + el texto encriptado para poder desencriptar después
-        return iv.toString('hex') + ':' + encrypted;
+    encrypt(text) { return 'v2:'+Buffer.from(JSON.stringify(seal(text,crypto.scryptSync(secret(),'winton-wallet-envelope-v2',32)))).toString('base64'); }
+    decrypt(value) {
+        const master=secret();
+        if (typeof value !== 'string') throw failure(409,'No hay material de billetera válido.');
+        if(value.startsWith('v2:')) return open(JSON.parse(Buffer.from(value.slice(3),'base64').toString('utf8')),crypto.scryptSync(master,'winton-wallet-envelope-v2',32));
+        const [iv,ciphertext]=value.split(':');
+        const decipher=crypto.createDecipheriv('aes-256-cbc',crypto.scryptSync(master,'salt',32),Buffer.from(iv,'hex'));
+        return Buffer.concat([decipher.update(Buffer.from(ciphertext,'hex')),decipher.final()]).toString('utf8');
     }
-
-    /**
-     * Desencripta una clave privada usando la clave maestra de plataforma.
-     * @param {string} encryptedText 
-     */
-    decrypt(encryptedText) {
+    deriveKeyFromPin(pin,saltHex) { return crypto.pbkdf2Sync(pinText(pin),Buffer.from(saltHex,'hex'),100000,32,'sha256'); }
+    async unlock(ks,pin) {
+        if(typeof ks==='string') ks=JSON.parse(ks);
+        if(!ks || ![1,2].includes(ks.version) || ks.iterations !== 100000) throw failure(409,'Formato de billetera no compatible.');
+        const key=await pbkdf2(ks.version===2 ? pepper(pin) : pinText(pin),Buffer.from(ks.salt,'hex'),100000,32,'sha256');
+        return open(ks,key);
+    }
+    async verifyTransactionPin(_businessClient,userId,pin) {
+        pinText(pin);
+        // Independent row/transaction: a financial rollback cannot erase an attempt.
+        const client=await require('./pinAttemptsPool').connect(); let committed=false;
         try {
-            const textParts = encryptedText.split(':');
-            const iv = Buffer.from(textParts.shift(), 'hex');
-            const encryptedData = Buffer.from(textParts.join(':'), 'hex');
-            const key = crypto.scryptSync(ENCRYPTION_SECRET, 'salt', 32);
-            const decipher = crypto.createDecipheriv(ALGORITHM, key, iv);
-            
-            let decrypted = decipher.update(encryptedData, 'hex', 'utf8');
-            decrypted += decipher.final('utf8');
-            
-            return decrypted;
-        } catch (error) {
-            console.error('[WALLET SERVICE] Error al desencriptar llave:', error.message);
-            throw new Error('Fallo en la desencriptación de la bóveda.');
-        }
+            await client.query('BEGIN');
+            await client.query('INSERT INTO wallet_pin_attempts (user_id) VALUES ($1) ON CONFLICT DO NOTHING',[userId]);
+            const attempts=(await client.query('SELECT failed_attempts, locked_until FROM wallet_pin_attempts WHERE user_id=$1 FOR UPDATE',[userId])).rows[0];
+            const user=(await client.query('SELECT has_transaction_pin, transaction_pin_hash, web3_keystore FROM users WHERE id=$1',[userId])).rows[0];
+            if(!user?.has_transaction_pin || !user.transaction_pin_hash) throw failure(412,'Configura tu PIN antes de continuar.');
+            if(attempts.locked_until && new Date(attempts.locked_until)>new Date()) throw failure(429,'PIN bloqueado temporalmente. Intenta nuevamente en 15 minutos.');
+            const ks=typeof user.web3_keystore==='string' ? JSON.parse(user.web3_keystore) : user.web3_keystore;
+            const match=await bcrypt.compare(ks?.version===2 ? pepper(pin) : pin,user.transaction_pin_hash);
+            if(!match) {
+                const count=(attempts.locked_until ? 0 : attempts.failed_attempts)+1;
+                await client.query("UPDATE wallet_pin_attempts SET failed_attempts=$2, locked_until=CASE WHEN $2>=5 THEN NOW()+INTERVAL '15 minutes' ELSE NULL END WHERE user_id=$1",[userId,count]);
+                await client.query('COMMIT'); committed=true;
+                throw failure(count>=5 ? 429 : 401,count>=5 ? 'PIN bloqueado por 15 minutos.' : `PIN incorrecto. Quedan ${5-count} intentos.`);
+            }
+            await client.query('UPDATE wallet_pin_attempts SET failed_attempts=0, locked_until=NULL WHERE user_id=$1',[userId]);
+            await client.query('COMMIT'); committed=true; return {valid:true};
+        } catch(error) { if(!committed) await client.query('ROLLBACK'); throw error; }
+        finally { client.release(); }
     }
-
-    // ========================================================================
-    // AUTOCUSTODIA CON PIN DE 6 DÍGITOS (NON-CUSTODIAL KEYSTORE)
-    // ========================================================================
-
-    /**
-     * Deriva una clave de 256 bits a partir del PIN de 6 dígitos del usuario y un salt criptográfico.
-     * Utiliza PBKDF2 con 100,000 iteraciones y SHA-256 (estándar bancario NIST).
-     * @param {string} pin - PIN de 6 dígitos
-     * @param {string} saltHex - Salt en hexadecimal
-     * @returns {Buffer}
-     */
-    deriveKeyFromPin(pin, saltHex) {
-        if (!/^\d{6}$/.test(String(pin))) {
-            throw new Error('El PIN debe contener exactamente 6 dígitos numéricos.');
-        }
-        const salt = Buffer.from(saltHex, 'hex');
-        return crypto.pbkdf2Sync(String(pin), salt, 100000, 32, 'sha256');
-    }
-
-    /**
-     * Configura el PIN de 6 dígitos para la autocustodia del usuario.
-     * Cifra la clave privada de la billetera con AES-256-GCM usando la clave derivada del PIN.
-     * Genera un hash bcrypt del PIN para control de intentos fallidos y bloqueos por fuerza bruta.
-     * @param {Object} clientOrPool - Cliente de conexión a PostgreSQL
-     * @param {number} userId - ID del usuario
-     * @param {string} pin - PIN numérico de 6 dígitos
-     */
-    async setupTransactionPin(clientOrPool, userId, pin, currentPin = null) {
-        if (!/^\d{6}$/.test(String(pin))) {
-            throw new Error('El PIN debe contener exactamente 6 dígitos numéricos.');
-        }
-
-        // Obtener usuario y su estado criptográfico actual
-        const userRes = await clientOrPool.query(
-            `SELECT id, username, web3_wallet_address, web3_private_key_encrypted, web3_keystore, has_transaction_pin FROM users WHERE id = $1`,
-            [userId]
-        );
-        if (userRes.rows.length === 0) throw new Error('Usuario no encontrado.');
-
-        const user = userRes.rows[0];
+    async setupTransactionPin(client,userId,pin,currentPin=null) {
+        pinText(pin); secret();
+        const user=(await client.query('SELECT id, username, web3_wallet_address, web3_private_key_encrypted, web3_keystore, has_transaction_pin FROM users WHERE id=$1 FOR UPDATE',[userId])).rows[0];
+        if(!user) throw failure(404,'Usuario no encontrado.');
         let privateKey;
-
-        if (user.has_transaction_pin && user.web3_keystore) {
-            // Si ya cuenta con un keystore de autocustodia, desciframos la clave en RAM con el PIN actual
-            if (!currentPin) {
-                throw new Error('Se requiere tu PIN actual para actualizar la clave de seguridad.');
-            }
-            privateKey = await this.decryptPrivateKeyWithPin(clientOrPool, userId, currentPin);
-        } else if (user.web3_private_key_encrypted) {
-            // Migración desde el modelo legado: descifrar con clave del sistema
-            privateKey = this.decrypt(user.web3_private_key_encrypted);
-        } else {
-            // Si no tiene billetera previa, generamos un nuevo par de claves Web3
-            const newWallet = ethers.Wallet.createRandom();
-            privateKey = newWallet.privateKey;
-            user.web3_wallet_address = newWallet.address;
-        }
-
-        // 1. Generar salt criptográfico único por usuario (32 bytes)
-        const salt = crypto.randomBytes(32);
-        const saltHex = salt.toString('hex');
-
-        // 2. Derivar clave de cifrado
-        const derivedKey = crypto.pbkdf2Sync(String(pin), salt, 100000, 32, 'sha256');
-
-        // 3. Cifrar con AES-256-GCM (autocustodia autenticada)
-        const iv = crypto.randomBytes(GCM_IV_LENGTH);
-        const cipher = crypto.createCipheriv(GCM_ALGORITHM, derivedKey, iv);
-        let ciphertext = cipher.update(privateKey, 'utf8', 'hex');
-        ciphertext += cipher.final('hex');
-        const authTag = cipher.getAuthTag().toString('hex');
-
-        const keystore = {
-            version: 1,
-            algorithm: GCM_ALGORITHM,
-            kdf: 'pbkdf2-sha256',
-            iterations: 100000,
-            salt: saltHex,
-            iv: iv.toString('hex'),
-            authTag: authTag,
-            ciphertext: ciphertext
-        };
-
-        // 4. Hash del PIN para control de intentos y mitigación de fuerza bruta (bcrypt)
-        const pinHash = await bcrypt.hash(String(pin), 10);
-
-        // 5. Guardar en base de datos de forma atómica
-        await clientOrPool.query(
-            `UPDATE users SET 
-                has_transaction_pin = TRUE,
-                transaction_pin_hash = $1,
-                transaction_pin_salt = $2,
-                transaction_pin_failed_attempts = 0,
-                transaction_pin_locked_until = NULL,
-                web3_keystore = $3,
-                web3_wallet_address = COALESCE(web3_wallet_address, $4)
-             WHERE id = $5`,
-            [pinHash, saltHex, JSON.stringify(keystore), user.web3_wallet_address, userId]
-        );
-
-        return {
-            success: true,
-            walletAddress: user.web3_wallet_address,
-            message: 'PIN de transacción configurado exitosamente. Tu billetera de autocustodia está activa.'
-        };
+        if(user.has_transaction_pin) {
+            if(!currentPin) throw failure(400,'Se requiere el PIN actual.');
+            await this.verifyTransactionPin(client,userId,currentPin);
+            privateKey=await this.unlock(user.web3_keystore,currentPin);
+        } else if(user.web3_private_key_encrypted) privateKey=this.decrypt(user.web3_private_key_encrypted);
+        else if(user.web3_wallet_address || user.web3_keystore) throw failure(409,'La billetera asociada requiere recuperación; no se reemplazará su dirección.');
+        else privateKey=ethers.Wallet.createRandom().privateKey;
+        const address=new ethers.Wallet(privateKey).address;
+        if(user.web3_wallet_address && address.toLowerCase()!==user.web3_wallet_address.toLowerCase()) throw failure(409,'La clave no corresponde a la billetera asociada. Se requiere revisión.');
+        const salt=crypto.randomBytes(32).toString('hex'), key=await pbkdf2(pepper(pin),Buffer.from(salt,'hex'),100000,32,'sha256');
+        const ks={version:2,algorithm:'aes-256-gcm',kdf:'pbkdf2-sha256-server-pepper',iterations:100000,salt,...seal(privateKey,key)};
+        if(new ethers.Wallet(await this.unlock(ks,pin)).address!==address) throw failure(500,'No se pudo verificar la protección de la billetera.');
+        const hash=await bcrypt.hash(pepper(pin),10);
+        await client.query(`UPDATE users SET has_transaction_pin=TRUE,transaction_pin_hash=$1,transaction_pin_salt=$2,
+            web3_keystore=$3,web3_wallet_address=$4,web3_private_key_encrypted=NULL,
+            transaction_pin_failed_attempts=0,transaction_pin_locked_until=NULL WHERE id=$5`,[hash,salt,JSON.stringify(ks),address,userId]);
+        await client.query('INSERT INTO wallet_pin_attempts (user_id,failed_attempts,locked_until) VALUES ($1,0,NULL) ON CONFLICT (user_id) DO UPDATE SET failed_attempts=0,locked_until=NULL',[userId]);
+        return {success:true,walletAddress:address,message:'PIN actualizado; dirección de billetera preservada.'};
     }
-
-    /**
-     * Valida el PIN de 6 dígitos del usuario aplicando protección contra fuerza bruta
-     * (máximo 5 intentos antes de un bloqueo temporal de 15 minutos).
-     * @param {Object} clientOrPool - Cliente de conexión
-     * @param {number} userId - ID del usuario
-     * @param {string} pin - PIN de 6 dígitos ingresado
-     */
-    async verifyTransactionPin(clientOrPool, userId, pin) {
-        if (!/^\d{6}$/.test(String(pin))) {
-            throw { status: 400, message: 'El PIN debe tener exactamente 6 dígitos numéricos.' };
-        }
-
-        const res = await clientOrPool.query(
-            `SELECT id, has_transaction_pin, transaction_pin_hash, transaction_pin_failed_attempts, transaction_pin_locked_until
-             FROM users WHERE id = $1`,
-            [userId]
-        );
-        if (res.rows.length === 0) throw { status: 404, message: 'Usuario no encontrado.' };
-
-        const user = res.rows[0];
-        if (!user.has_transaction_pin || !user.transaction_pin_hash) {
-            throw { status: 412, message: 'No has configurado tu PIN de seguridad aún. Por favor configúralo para continuar.', requiresPinSetup: true };
-        }
-
-        // Verificar si la cuenta está temporalmente bloqueada por fuerza bruta
-        if (user.transaction_pin_locked_until && new Date(user.transaction_pin_locked_until) > new Date()) {
-            const minutesLeft = Math.ceil((new Date(user.transaction_pin_locked_until) - new Date()) / 60000);
-            throw { 
-                status: 429, 
-                message: `PIN bloqueado temporalmente por seguridad debido a múltiples intentos fallidos. Intenta nuevamente en ${minutesLeft} minutos.` 
-            };
-        }
-
-        const isMatch = await bcrypt.compare(String(pin), user.transaction_pin_hash);
-
-        if (!isMatch) {
-            const newAttempts = (user.transaction_pin_failed_attempts || 0) + 1;
-            const MAX_ATTEMPTS = 5;
-
-            if (newAttempts >= MAX_ATTEMPTS) {
-                await clientOrPool.query(
-                    `UPDATE users SET 
-                        transaction_pin_failed_attempts = $1, 
-                        transaction_pin_locked_until = NOW() + INTERVAL '15 minutes' 
-                     WHERE id = $2`,
-                    [newAttempts, userId]
-                );
-                throw { 
-                    status: 429, 
-                    message: 'Has alcanzado el límite de 5 intentos fallidos. Tu PIN ha sido bloqueado temporalmente por 15 minutos para proteger tu cuenta.' 
-                };
-            } else {
-                await clientOrPool.query(
-                    `UPDATE users SET transaction_pin_failed_attempts = $1 WHERE id = $2`,
-                    [newAttempts, userId]
-                );
-                const remaining = MAX_ATTEMPTS - newAttempts;
-                throw { 
-                    status: 401, 
-                    message: `PIN incorrecto. Te ${remaining === 1 ? 'queda 1 intento' : `quedan ${remaining} intentos`} antes del bloqueo temporal.` 
-                };
-            }
-        }
-
-        // Si fue exitoso, resetear contador de intentos fallidos
-        if (user.transaction_pin_failed_attempts > 0 || user.transaction_pin_locked_until) {
-            await clientOrPool.query(
-                `UPDATE users SET transaction_pin_failed_attempts = 0, transaction_pin_locked_until = NULL WHERE id = $1`,
-                [userId]
-            );
-        }
-
-        return { valid: true };
+    async decryptPrivateKeyWithPin(client,userId,pin) {
+        await this.verifyTransactionPin(client,userId,pin);
+        const user=(await client.query('SELECT web3_keystore,web3_wallet_address FROM users WHERE id=$1',[userId])).rows[0];
+        const key=await this.unlock(user?.web3_keystore,pin);
+        if(!user.web3_wallet_address || new ethers.Wallet(key).address.toLowerCase()!==user.web3_wallet_address.toLowerCase()) throw failure(409,'La clave no corresponde a tu billetera.');
+        // Upgrade legacy PIN protection only after successful authorization and address validation.
+        const ks=typeof user.web3_keystore==='string'?JSON.parse(user.web3_keystore):user.web3_keystore;
+        if(ks.version===1) await this.setupTransactionPin(client,userId,pin,pin);
+        return key;
     }
-
-    /**
-     * Desencripta la clave privada de la billetera en memoria RAM utilizando el PIN del usuario.
-     * @param {Object} clientOrPool - Cliente de conexión
-     * @param {number} userId - ID del usuario
-     * @param {string} pin - PIN de 6 dígitos
-     * @returns {string} Clave privada en texto plano (en memoria efímera)
-     */
-    async decryptPrivateKeyWithPin(clientOrPool, userId, pin) {
-        await this.verifyTransactionPin(clientOrPool, userId, pin);
-
-        const res = await clientOrPool.query(
-            `SELECT web3_keystore, web3_private_key_encrypted FROM users WHERE id = $1`,
-            [userId]
-        );
-        const row = res.rows[0];
-
-        // Si tiene keystore GCM de autocustodia
-        if (row && row.web3_keystore) {
-            const ks = typeof row.web3_keystore === 'string' ? JSON.parse(row.web3_keystore) : row.web3_keystore;
-            const derivedKey = crypto.pbkdf2Sync(String(pin), Buffer.from(ks.salt, 'hex'), ks.iterations || 100000, 32, 'sha256');
-            const decipher = crypto.createDecipheriv(GCM_ALGORITHM, derivedKey, Buffer.from(ks.iv, 'hex'));
-            decipher.setAuthTag(Buffer.from(ks.authTag, 'hex'));
-            let decrypted = decipher.update(ks.ciphertext, 'hex', 'utf8');
-            decrypted += decipher.final('utf8');
-            return decrypted;
-        }
-
-        // Fallback de retrocompatibilidad
-        if (row && row.web3_private_key_encrypted) {
-            return this.decrypt(row.web3_private_key_encrypted);
-        }
-
-        throw new Error('No se encontró billetera asociada al usuario.');
-    }
-
-    /**
-     * Consulta el estado del PIN del usuario.
-     * @param {Object} clientOrPool 
-     * @param {number} userId 
-     */
-    async getPinStatus(clientOrPool, userId) {
-        const res = await clientOrPool.query(
-            `SELECT id, username, kyc_verified, has_transaction_pin, transaction_pin_failed_attempts, transaction_pin_locked_until 
-             FROM users WHERE id = $1`,
-            [userId]
-        );
-        if (res.rows.length === 0) throw new Error('Usuario no encontrado.');
-
-        const row = res.rows[0];
-        const isLocked = Boolean(row.transaction_pin_locked_until && new Date(row.transaction_pin_locked_until) > new Date());
-        const remainingAttempts = Math.max(0, 5 - (row.transaction_pin_failed_attempts || 0));
-
-        return {
-            hasPin: Boolean(row.has_transaction_pin),
-            kycVerified: Boolean(row.kyc_verified),
-            isLocked,
-            remainingAttempts
-        };
+    async getPinStatus(client,userId) {
+        const row=(await client.query(`SELECT u.kyc_verified,u.has_transaction_pin,a.failed_attempts,a.locked_until
+            FROM users u LEFT JOIN wallet_pin_attempts a ON a.user_id=u.id WHERE u.id=$1`,[userId])).rows[0];
+        if(!row) throw failure(404,'Usuario no encontrado.');
+        const isLocked=Boolean(row.locked_until && new Date(row.locked_until)>new Date());
+        return {hasPin:Boolean(row.has_transaction_pin),kycVerified:Boolean(row.kyc_verified),isLocked,
+            remainingAttempts:isLocked ? 0 : row.locked_until ? 5 : Math.max(0,5-(row.failed_attempts||0))};
     }
 }
-
-module.exports = new WalletService();
+module.exports=new WalletService();

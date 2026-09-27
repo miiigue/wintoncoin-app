@@ -44,21 +44,8 @@ async function up(client) {
     }
 }
 
-async function down(client) {
-    console.log('[MIGRATION 113] Revirtiendo migración 113: Eliminando columnas de PIN y autocustodia...');
-
-    await client.query(`
-        DROP INDEX IF EXISTS idx_users_has_transaction_pin;
-        ALTER TABLE users
-        DROP COLUMN IF EXISTS has_transaction_pin,
-        DROP COLUMN IF EXISTS transaction_pin_hash,
-        DROP COLUMN IF EXISTS transaction_pin_salt,
-        DROP COLUMN IF EXISTS transaction_pin_failed_attempts,
-        DROP COLUMN IF EXISTS transaction_pin_locked_until,
-        DROP COLUMN IF EXISTS web3_keystore;
-    `);
-
-    console.log('[MIGRATION 113] ✅ Reversión de migración 113 completada.');
+async function down() {
+    throw new Error('No se permite eliminar keystores mediante rollback automático; se requiere un plan de recuperación verificado.');
 }
 
 module.exports = { up, down };

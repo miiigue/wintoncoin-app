@@ -124,20 +124,53 @@ router.post('/email-templates/:key/preview', verifyAdminToken, emailTemplateCont
 // GOBERNANZA, AUDITORÍA Y LABORATORIO WEB3 SUITE V4
 // ========================================================================
 const adminWeb3Controller = require('../controllers/admin/adminWeb3Controller');
-router.get('/web3/status', verifyAdminToken, adminWeb3Controller.getWeb3Status);
-router.post('/web3/credit-limit', verifyAdminToken, adminWeb3Controller.setCreditLimit);
-router.post('/web3/kyc', verifyAdminToken, adminWeb3Controller.setKYCStatus);
-router.post('/web3/max-tx', verifyAdminToken, adminWeb3Controller.setMaxTransactionAmount);
-router.post('/web3/extension-params', verifyAdminToken, adminWeb3Controller.setExtensionParams);
-router.post('/web3/user-benefits', verifyAdminToken, adminWeb3Controller.setUserBenefits);
-router.post('/web3/commission-rate', verifyAdminToken, adminWeb3Controller.setCommissionRate);
-router.post('/web3/pause', verifyAdminToken, adminWeb3Controller.setPause);
-router.get('/web3/user-audit/:wallet', verifyAdminToken, adminWeb3Controller.getUserAudit);
+const contractAdmin = require('../middleware/contractAdministration');
+router.use('/web3', verifyAdminToken, contractAdmin.guard);
+router.get('/web3/recovery-status', async(req,res)=>{
+    try {
+        const pool=require('../config/db');
+        const jobs=await pool.query('SELECT * FROM credit_policy_jobs ORDER BY version_id DESC LIMIT 5');
+        const operations=await pool.query("SELECT id,kind,state,error_code,created_at FROM chain_operations WHERE state IN ('pending','conflict') ORDER BY created_at LIMIT 25");
+        res.json({success:true,jobs:jobs.rows,operations:operations.rows});
+    } catch{res.status(503).json({success:false,message:'No se pudo consultar la recuperación.'});}
+});
+router.get('/web3/operations/:id', async(req,res)=>{
+    if(!/^[a-f0-9-]{36}$/i.test(req.params.id))return res.status(400).json({message:'Referencia inválida.'});
+    const deployment=require('../services/chainDeployment');
+    const rpc=deployment.provider();
+    try {
+        const {ChainOperationStore}=require('../services/chainOperationStore');
+        const result=await new ChainOperationStore(require('../config/db'),rpc).reconcile(req.params.id);
+        res.status(result.success?200:202).json(result);
+    } catch(e){res.status(e.status||503).json({success:false,message:'No se pudo consultar la operación.'});}
+    finally{rpc.destroy();}
+});
+router.get('/web3/configuration', contractAdmin.getConfiguration);
+router.get('/web3/identity', (req,res,next) => {
+    req.body = {username:req.query.username};
+    return contractAdmin.resolveUser(req,res,()=>res.json({success:true,username:req.targetUser.username,walletAddress:req.targetUser.web3_wallet_address}));
+});
+router.post('/web3/configuration', contractAdmin.updateConfiguration, adminController.updateSetting);
+router.get('/web3/status', adminWeb3Controller.getWeb3Status);
+router.post('/web3/credit-limit', contractAdmin.resolveUser, adminWeb3Controller.setCreditLimit);
+router.post('/web3/kyc', contractAdmin.resolveUser, adminWeb3Controller.setKYCStatus);
+router.post('/web3/max-tx', adminWeb3Controller.setMaxTransactionAmount);
+router.post('/web3/extension-params', adminWeb3Controller.setExtensionParams);
+router.post('/web3/user-benefits', contractAdmin.resolveUser, adminWeb3Controller.setUserBenefits);
+router.post('/web3/commission-rate', (req,res,next) => {
+    const bps=String(req.body?.commissionBps);
+    if (!/^\d+$/.test(bps) || Number(bps)>1000) return res.status(400).json({success:false,message:'Comisión entre 0 y 1000 BPS.'});
+    req.body={key:'platform_commission_percentage',value:String(Number(bps)/100)};
+    req.contractConfiguration=true;
+    return adminController.updateSetting(req,res,next);
+});
+router.post('/web3/pause', adminWeb3Controller.setPause);
+router.get('/web3/user-audit/:wallet', adminWeb3Controller.getUserAudit);
 
 // Laboratorio de Pruebas y Simulación
-router.post('/web3/test/process-payment', verifyAdminToken, adminWeb3Controller.simulatePayment);
-router.post('/web3/test/match-orders', verifyAdminToken, adminWeb3Controller.executeMatching);
-router.post('/web3/test/mint-test-tokens', verifyAdminToken, adminWeb3Controller.mintTestTokens);
+router.post('/web3/test/process-payment', contractAdmin.resolvePaymentUsers, adminWeb3Controller.simulatePayment);
+router.post('/web3/test/match-orders', adminWeb3Controller.executeMatching);
+router.post('/web3/test/mint-test-tokens', contractAdmin.resolveUser, adminWeb3Controller.mintTestTokens);
 
 module.exports = router;
 

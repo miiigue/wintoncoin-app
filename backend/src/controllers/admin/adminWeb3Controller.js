@@ -45,7 +45,7 @@ async function logGovernanceAction({ actionType, targetContract, affectedWallet,
  */
 async function auditAction(req, { adminUser, action, details }) {
     return logAuditEvent(pool, req, { eventType: action, actorUsername: adminUser,
-        actorId: req.user?.id ?? null, category: 'web3_governance', metadata: { details } });
+        actorId: req.user?.userId ?? null, category: 'web3_governance', metadata: { details, targetUserId: req.targetUser?.id ?? null, targetUsername: req.targetUser?.username ?? null } });
 }
 
 function isValidEthereumAddress(address) {
@@ -80,16 +80,20 @@ async function setCreditLimit(req, res) {
     }
 
     const parsedLimit = parseFloat(limit);
-    if (isNaN(parsedLimit) || parsedLimit < 0) {
+    if (!/^\d+(\.\d{1,6})?$/.test(String(limit)) || !Number.isFinite(parsedLimit) || parsedLimit < 0 || parsedLimit > 100000000) {
         return res.status(400).json({ success: false, message: 'Límite debe ser un número mayor o igual a 0.' });
     }
 
+    let confirmedResult;
     try {
         const result = await web3BridgeService.setCreditLimit(walletAddress, parsedLimit);
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error || 'Error al ejecutar transacción on-chain.' });
         }
 
+        confirmedResult = result;
+        // The durable operation projects the confirmed exception atomically.
         await auditAction(req, {
             adminUser,
             action: 'WEB3_SET_CREDIT_LIMIT',
@@ -113,6 +117,9 @@ async function setCreditLimit(req, res) {
         });
     } catch (error) {
         console.error('[AdminWeb3Controller] Error en setCreditLimit:', error);
+        if (confirmedResult) return res.status(202).json({ success: true, pendingReconciliation: true,
+            txHash: confirmedResult.txHash,
+            message: 'El límite se confirmó en blockchain, pero falta registrar la excepción. No repitas la transacción; revisa su sincronización antes de recalcular el límite.' });
         return res.status(500).json({ success: false, message: 'Error interno del servidor.' });
     }
 }
@@ -132,6 +139,7 @@ async function setKYCStatus(req, res) {
     try {
         if (typeof status !== 'boolean') return res.status(400).json({ success: false, message: 'El estado KYC debe ser true o false.' });
         const result = await web3BridgeService.setKYCStatus(walletAddress, status);
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error || 'Error al modificar KYC on-chain.' });
         }
@@ -172,12 +180,13 @@ async function setMaxTransactionAmount(req, res) {
     const adminUser = req.user?.username || 'admin';
 
     const parsedAmount = parseFloat(maxAmount);
-    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+    if (!/^\d+(\.\d{1,6})?$/.test(String(maxAmount)) || !Number.isFinite(parsedAmount) || parsedAmount <= 0 || parsedAmount > 100000000) {
         return res.status(400).json({ success: false, message: 'El monto máximo debe ser un número positivo.' });
     }
 
     try {
         const result = await web3BridgeService.setMaxTransactionAmount(parsedAmount);
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error || 'Error al ajustar monto máximo.' });
         }
@@ -223,6 +232,7 @@ async function setCommissionRate(req, res) {
 
     try {
         const result = await web3BridgeService.setCommissionRate(parsedBps);
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error || 'Error al ajustar comisión.' });
         }
@@ -273,6 +283,7 @@ async function setPause(req, res) {
             result = action === 'pause' ? await web3BridgeService.pauseVault() : await web3BridgeService.unpauseVault();
         }
 
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error || 'Fallo en la operación de pausa.' });
         }
@@ -386,6 +397,7 @@ async function executeMatching(req, res) {
             parseInt(maxOrdersScanned || 20, 10)
         );
 
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error || 'Error al ejecutar matching.' });
         }
@@ -426,6 +438,7 @@ async function mintTestTokens(req, res) {
 
     try {
         const result = await web3BridgeService.mintMockUsdt(walletAddress, parsedAmount);
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) {
             return res.status(500).json({ success: false, message: result.error || 'Error al mintear tokens de prueba.' });
         }
@@ -456,9 +469,10 @@ async function setExtensionParams(req, res) {
         return res.status(400).json({ success: false, message: 'Plazo entero de 1–365 días, comisión entera de 0–10000 BPS y estado booleano requeridos.' });
     try {
         const result = await web3BridgeService.setExtensionParams(Number(extensionDays), Number(extensionBps), enabled);
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) return res.status(503).json(result);
         await auditAction(req, { adminUser: req.user?.username, action: 'WEB3_EXTENSION_OPTION',
-            details: JSON.stringify({ extensionDays, extensionBps, enabled, txHash: result.txHash }) });
+            details: JSON.stringify({ extensionDays, extensionBps, enabled, txHash: result.txHash }) }).catch(() => {});
         return res.status(200).json(result);
     } catch (error) { return res.status(500).json({ success: false, message: 'No se pudo actualizar la opción de prórroga.' }); }
 }
@@ -468,9 +482,10 @@ async function setUserBenefits(req, res) {
         return res.status(400).json({ success: false, message: 'Dirección, nivel entero y margen con hasta seis decimales requeridos.' });
     try {
         const result = await web3BridgeService.setUserBenefits(walletAddress, Number(level), String(margin));
+        if (result.pending) return res.status(202).json({...result,success:false,accepted:true});
         if (!result.success) return res.status(503).json(result);
         await auditAction(req, { adminUser: req.user?.username, action: 'WEB3_USER_BENEFITS',
-            details: JSON.stringify({ walletAddress, level, margin, txHash: result.txHash }) });
+            details: JSON.stringify({ walletAddress, level, margin, txHash: result.txHash }) }).catch(() => {});
         return res.status(200).json(result);
     } catch (error) { return res.status(500).json({ success: false, message: 'No se pudieron actualizar los beneficios.' }); }
 }

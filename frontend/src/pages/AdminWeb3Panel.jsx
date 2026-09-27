@@ -13,6 +13,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getApiUrl } from '../modules/config.js';
+import ContractConfiguration from '../components/ContractConfiguration.jsx';
 import styles from './AdminWeb3Panel.module.css';
 
 export default function AdminWeb3Panel() {
@@ -70,12 +71,12 @@ export default function AdminWeb3Panel() {
     try {
       setLoadingStatus(true);
       const API_URL = getApiUrl();
-      const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+
       
       const res = await fetch(`${API_URL}/api/admin/web3/status`, {
         credentials: 'include',
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
+
           'Content-Type': 'application/json'
         }
       });
@@ -102,27 +103,36 @@ export default function AdminWeb3Panel() {
 
   // Helper genérico para peticiones administrativas
   const executeAdminPost = async (endpoint, body, successMsg) => {
+    if (!statusData || loadingStatus) { showToast('Espera una lectura confirmada del contrato.'); return; }
     const API_URL = getApiUrl();
-    const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+
 
     try {
       setActionLoading(true);
+      if (body.username) {
+        const identityResponse = await fetch(`${API_URL}/api/admin/web3/identity?username=${encodeURIComponent(body.username)}`, {credentials:'include',cache:'no-store'});
+        const identity = await identityResponse.json();
+        if (!identityResponse.ok || !identity.success) throw new Error(identity.message || 'No se pudo verificar al usuario.');
+        if (!window.confirm(`Confirmar cambio para @${identity.username}\nBilletera asociada: ${identity.walletAddress}`)) return;
+        body = {...body, walletAddress:identity.walletAddress};
+      }
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': token ? `Bearer ${token}` : ''
         },
         body: JSON.stringify(body)
       });
 
       const data = await res.json();
+      if (res.status===202 && data.accepted) {showToast('Operación registrada. Referencia: '+data.operationId+'. Se confirmará automáticamente.');return data;}
       if (!res.ok || data.success !== true) {
-        throw new Error(data.message || 'Error en la operación');
+        if (res.status === 401) { window.location.assign('/admin.html'); return; }
+        throw new Error(data.message || data.error || 'No se pudo confirmar la operación.');
       }
 
-      showToast(`✅ ${successMsg}`);
+      showToast(data.pendingReconciliation ? data.message : `✅ ${successMsg}`);
       fetchStatus(); // Refrescar parámetros
       return data;
     } catch (err) {
@@ -138,7 +148,7 @@ export default function AdminWeb3Panel() {
     if (!creditLimitWallet || !creditLimitAmount) return;
     executeAdminPost(
       '/api/admin/web3/credit-limit',
-      { walletAddress: creditLimitWallet, limit: creditLimitAmount },
+      { username: creditLimitWallet, limit: creditLimitAmount },
       `Límite de ${creditLimitAmount} RED asignado a ${creditLimitWallet.slice(0, 8)}...`
     );
   };
@@ -149,7 +159,7 @@ export default function AdminWeb3Panel() {
     if (!kycWallet) return;
     executeAdminPost(
       '/api/admin/web3/kyc',
-      { walletAddress: kycWallet, status: kycStatus },
+      { username: kycWallet, status: kycStatus },
       `KYC actualizado a ${kycStatus ? 'Activo' : 'Inactivo'} para ${kycWallet.slice(0, 8)}...`
     );
   };
@@ -210,12 +220,15 @@ export default function AdminWeb3Panel() {
     try {
       setAuditing(true);
       const API_URL = getApiUrl();
-      const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
 
-      const res = await fetch(`${API_URL}/api/admin/web3/user-audit/${auditWallet}`, {
+
+      const identityResponse = await fetch(`${API_URL}/api/admin/web3/identity?username=${encodeURIComponent(auditWallet)}`, {credentials:'include',cache:'no-store'});
+      const identity = await identityResponse.json();
+      if (!identityResponse.ok || !identity.success) throw new Error(identity.message || 'Usuario no encontrado.');
+      const res = await fetch(`${API_URL}/api/admin/web3/user-audit/${identity.walletAddress}`, {
         credentials: 'include',
         headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
+
           'Content-Type': 'application/json'
         }
       });
@@ -239,7 +252,7 @@ export default function AdminWeb3Panel() {
     if (!faucetWallet || !faucetAmount) return;
     executeAdminPost(
       '/api/admin/web3/test/mint-test-tokens',
-      { walletAddress: faucetWallet, amount: faucetAmount },
+      { username: faucetWallet, amount: faucetAmount },
       `${faucetAmount} USDT transferidos a ${faucetWallet.slice(0, 8)}...`
     );
   };
@@ -253,7 +266,7 @@ export default function AdminWeb3Panel() {
     catch { showToast('La autorización firmada debe ser un objeto JSON válido.'); return; }
     executeAdminPost(
       '/api/admin/web3/test/process-payment',
-      { payerWallet: simPayer, payeeWallet: simPayee, amount: simAmount, authorization, signature: simSignature },
+      { payerUsername: simPayer, payeeUsername: simPayee, amount: simAmount, authorization, signature: simSignature },
       `Pago de ${simAmount} BLUE procesado con emisión pareada 1:1`
     );
   };
@@ -276,7 +289,7 @@ export default function AdminWeb3Panel() {
             <span>⚙️</span> Panel de Control Smart Contracts (Suite V4)
           </h1>
           <p className={styles.headerSubtitle}>
-            Gobernanza Bancaria SOC 2, Calibración On-Chain y Laboratorio de Pruebas
+            Configuración de contratos, permisos e historial de operaciones
           </p>
         </div>
 
@@ -408,18 +421,20 @@ export default function AdminWeb3Panel() {
       {/* TAB 2: GOBERNANZA Y PARÁMETROS */}
       {activeTab === 'governance' && (
         <div className={styles.actionsGrid}>
+<ContractConfiguration onUpdated={fetchStatus} />
+
           {/* Asignar Límite de Crédito */}
           <div className={styles.actionPanel}>
-            <h3 className={styles.actionPanelTitle}>💳 Asignar Límite de Crédito Base</h3>
+            <h3 className={styles.actionPanelTitle}>💳 Excepción individual del límite RED</h3>
             <p className={styles.actionPanelDesc}>
-              Fija la línea de crédito aprobada en tokens RED. Define la capacidad máxima de gasto de compromisos sin colateral obligatorio.
+              Aplica un límite aprobado a una persona concreta. Esta excepción se conserva cuando se recalculan las reglas generales; la garantía se suma por separado.
             </p>
             <form onSubmit={handleSetCreditLimit}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Dirección de Billetera (0x...)</label>
+                <label className={styles.formLabel}>Nombre de usuario</label>
                 <input
                   type="text"
-                  placeholder="0x..."
+                  placeholder="Nombre de usuario"
                   value={creditLimitWallet}
                   onChange={(e) => setCreditLimitWallet(e.target.value)}
                   className={styles.formInput}
@@ -438,7 +453,7 @@ export default function AdminWeb3Panel() {
                   required
                 />
               </div>
-              <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
+              <button type="submit" disabled={actionLoading || loadingStatus || !statusData} className={styles.submitBtn}>
                 {actionLoading ? 'Procesando...' : 'Asignar Límite On-Chain'}
               </button>
             </form>
@@ -452,10 +467,10 @@ export default function AdminWeb3Panel() {
             </p>
             <form onSubmit={handleSetKYC}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Dirección de Billetera (0x...)</label>
+                <label className={styles.formLabel}>Nombre de usuario</label>
                 <input
                   type="text"
-                  placeholder="0x..."
+                  placeholder="Nombre de usuario"
                   value={kycWallet}
                   onChange={(e) => setKycWallet(e.target.value)}
                   className={styles.formInput}
@@ -473,7 +488,7 @@ export default function AdminWeb3Panel() {
                   <option value="false">Revocado / Suspendido (Bloqueado)</option>
                 </select>
               </div>
-              <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
+              <button type="submit" disabled={actionLoading || loadingStatus || !statusData} className={styles.submitBtn}>
                 {actionLoading ? 'Procesando...' : 'Actualizar Estado KYC'}
               </button>
             </form>
@@ -481,9 +496,9 @@ export default function AdminWeb3Panel() {
 
           {/* Circuit Breaker & Parámetros */}
           <div className={styles.actionPanel}>
-            <h3 className={styles.actionPanelTitle}>⚡ Circuit Breakers & Tasas</h3>
+            <h3 className={styles.actionPanelTitle}>⚡ Límite por pago</h3>
             <p className={styles.actionPanelDesc}>
-              Ajusta el techo máximo por pago individual y la comisión de plataforma de marketplace.
+              Ajusta el importe máximo permitido por operación. La comisión se configura en Reglas generales.
             </p>
             <form onSubmit={handleSetMaxTx} style={{ marginBottom: '1.25rem' }}>
               <div className={styles.formGroup}>
@@ -499,29 +514,12 @@ export default function AdminWeb3Panel() {
                   required
                 />
               </div>
-              <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
+              <button type="submit" disabled={actionLoading || loadingStatus || !statusData} className={styles.submitBtn}>
                 Actualizar Techo por Tx
               </button>
             </form>
 
-            <form onSubmit={handleSetCommission}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>
-                  Comisión Marketplace BPS (Actual: {statusData?.parameters?.commissionRateBps || '500'} BPS)
-                </label>
-                <input
-                  type="number"
-                  placeholder="Ej: 500 (5.00%)"
-                  value={commissionBps}
-                  onChange={(e) => setCommissionBps(e.target.value)}
-                  className={styles.formInput}
-                  required
-                />
-              </div>
-              <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
-                Actualizar Comisión
-              </button>
-            </form>
+
           </div>
 
           {/* Configuración de Prórroga de Compromiso (Nivel 4+) */}
@@ -556,7 +554,7 @@ export default function AdminWeb3Panel() {
                   required
                 />
               </div>
-              <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
+              <button type="submit" disabled={actionLoading || loadingStatus || !statusData} className={styles.submitBtn}>
                 Guardar opción de prórroga
               </button>
             </form>
@@ -567,11 +565,11 @@ export default function AdminWeb3Panel() {
             <p>El margen empieza en cero, solo se utiliza desde el nivel 5 y no permite pagar nuevos servicios.
               Cambiar el nivel no elimina compromisos ni márgenes ya utilizados.</p>
             <form onSubmit={(event) => { event.preventDefault(); executeAdminPost('/api/admin/web3/user-benefits',
-              { walletAddress: benefitWallet, level: benefitLevel, margin: benefitMargin }, 'Beneficios confirmados en blockchain'); }}>
-              <label>Billetera<input className={styles.formInput} value={benefitWallet} onChange={(event) => setBenefitWallet(event.target.value)} required /></label>
-              <label>Nivel<input className={styles.formInput} type="number" min="0" max="255" step="1" value={benefitLevel} onChange={(event) => setBenefitLevel(event.target.value)} required /></label>
-              <label>Margen máximo para recargos (RED)<input className={styles.formInput} inputMode="decimal" value={benefitMargin} onChange={(event) => setBenefitMargin(event.target.value)} required /></label>
-              <button className={styles.submitBtn} disabled={actionLoading}>Guardar beneficios</button>
+              { username: benefitWallet, level: benefitLevel, margin: benefitMargin }, 'Beneficios confirmados en blockchain'); }}>
+              <label className={styles.formGroup}>Nombre de usuario<input className={styles.formInput} value={benefitWallet} onChange={(event) => setBenefitWallet(event.target.value)} required /></label>
+              <label className={styles.formGroup}>Nivel<input className={styles.formInput} type="number" min="0" max="255" step="1" value={benefitLevel} onChange={(event) => setBenefitLevel(event.target.value)} required /></label>
+              <label className={styles.formGroup}>Margen máximo para recargos (RED)<input className={styles.formInput} inputMode="decimal" value={benefitMargin} onChange={(event) => setBenefitMargin(event.target.value)} required /></label>
+              <button className={styles.submitBtn} disabled={actionLoading || loadingStatus || !statusData}>Guardar beneficios</button>
             </form>
           </div>
 
@@ -584,7 +582,7 @@ export default function AdminWeb3Panel() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <button
                 onClick={() => handleTogglePause('protocol', statusData?.parameters?.paused)}
-                disabled={actionLoading}
+                disabled={actionLoading || loadingStatus || !statusData}
                 className={`${styles.submitBtn} ${statusData?.parameters?.paused ? styles.successBtn : styles.dangerBtn}`}
               >
                 {statusData?.parameters?.paused
@@ -594,7 +592,7 @@ export default function AdminWeb3Panel() {
 
               <button
                 onClick={() => handleTogglePause('vault', statusData?.parameters?.vaultPaused || false)}
-                disabled={actionLoading}
+                disabled={actionLoading || loadingStatus || !statusData}
                 className={`${styles.submitBtn} ${statusData?.parameters?.vaultPaused ? styles.successBtn : styles.dangerBtn}`}
               >
                 {statusData?.parameters?.vaultPaused
@@ -762,10 +760,10 @@ export default function AdminWeb3Panel() {
             </p>
             <form onSubmit={handleMintFaucet}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Billetera de Destino (0x...)</label>
+                <label className={styles.formLabel}>Nombre del usuario que recibe USDT de prueba</label>
                 <input
                   type="text"
-                  placeholder="0x..."
+                  placeholder="Nombre de usuario"
                   value={faucetWallet}
                   onChange={(e) => setFaucetWallet(e.target.value)}
                   className={styles.formInput}
@@ -783,7 +781,7 @@ export default function AdminWeb3Panel() {
                   required
                 />
               </div>
-              <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
+              <button type="submit" disabled={actionLoading || loadingStatus || !statusData} className={styles.submitBtn}>
                 {actionLoading ? 'Enviando...' : 'Transferir USDT de Prueba'}
               </button>
             </form>
@@ -798,10 +796,10 @@ export default function AdminWeb3Panel() {
             </p>
             <form onSubmit={handleSimulatePayment}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Billetera Pagador (Adquiere Compromiso RED)</label>
+                <label className={styles.formLabel}>Usuario pagador (adquiere compromiso RED)</label>
                 <input
                   type="text"
-                  placeholder="0x..."
+                  placeholder="Nombre de usuario"
                   value={simPayer}
                   onChange={(e) => setSimPayer(e.target.value)}
                   className={styles.formInput}
@@ -809,10 +807,10 @@ export default function AdminWeb3Panel() {
                 />
               </div>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Billetera Prestador (Recibe Tokens BLUE)</label>
+                <label className={styles.formLabel}>Usuario prestador (recibe BLUE)</label>
                 <input
                   type="text"
-                  placeholder="0x..."
+                  placeholder="Nombre de usuario"
                   value={simPayee}
                   onChange={(e) => setSimPayee(e.target.value)}
                   className={styles.formInput}
@@ -830,7 +828,7 @@ export default function AdminWeb3Panel() {
                   required
                 />
               </div>
-              <button type="submit" disabled={actionLoading} className={styles.submitBtn}>
+              <button type="submit" disabled={actionLoading || loadingStatus || !statusData} className={styles.submitBtn}>
                 {actionLoading ? 'Procesando...' : 'Enviar pago autorizado a blockchain'}
               </button>
               <label className={styles.formLabel}>Autorización del pagador (JSON con importes en unidades base)</label>
@@ -849,7 +847,7 @@ export default function AdminWeb3Panel() {
             <div style={{ marginTop: '1.5rem' }}>
               <button
                 onClick={handleMatchOrders}
-                disabled={actionLoading}
+                disabled={actionLoading || loadingStatus || !statusData}
                 className={styles.submitBtn}
               >
                 {actionLoading ? 'Cruzando...' : '⚡ Forzar Cruce de Órdenes FIFO'}

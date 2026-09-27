@@ -8,22 +8,10 @@
 
 import { ethers, BrowserProvider, JsonRpcProvider, Contract, parseUnits, formatUnits } from 'ethers';
 import { getApiUrl } from './config.js';
+import {requestOperation} from './pinOperations.js';
 
 // Direcciones oficiales de la Suite V4 en Optimism Sepolia
-export const CONTRACT_ADDRESSES = {
-  chainId: 11155420,
-  chainIdHex: '0xaa37dc',
-  chainName: 'Optimism Sepolia',
-  rpcUrl: 'https://sepolia.optimism.io',
-  blockExplorerUrl: 'https://sepolia-optimism.etherscan.io',
-  CoreProtocol: '0x56a83A394B40d83Ab40ff5e6884F08D6648bd92d',
-  CollateralVault: '0xA2c5095A5D6b4e881a28921Ce144394F27C1F618',
-  FifoExchange: '0xdE41187f8943623E34Af7249D9691d58e28230cA',
-  BlueToken: '0xb1B6a07373719c5311639E2A64657d9596ADc544',
-  RedToken: '0xe077391D3729673634a3ee4C8963Cb57b74D386b',
-  USDT: '0xA558A97CdD986a2f342684a8E89EAea4F01F28F3',
-  ProtocolTreasury: '0x5040555a602446695c03CCBBBE26276e6B913245'
-};
+export const CONTRACT_ADDRESSES = {}
 
 // ABIs mínimas oficiales para interacción on-chain
 const ERC20_ABI = [
@@ -78,95 +66,34 @@ class Web3OnChainService {
   /**
    * Conecta MetaMask y asegura que la red sea Optimism Sepolia
    */
-  async connectWallet() {
-    if (!this.hasInjectedProvider()) {
-      throw new Error('MetaMask no detectado. Instala la extensión o abre en el navegador Web3 de MetaMask.');
-    }
-
-    this.provider = new BrowserProvider(window.ethereum);
-    
-    // Solicitar cuentas
-    const accounts = await this.provider.send('eth_requestAccounts', []);
-    if (!accounts || accounts.length === 0) {
-      throw new Error('No se seleccionó ninguna cuenta en MetaMask.');
-    }
-
-    // Asegurar red Optimism Sepolia (11155420)
-    await this.ensureOptimismSepoliaNetwork();
-
-    this.signer = await this.provider.getSigner();
-    this.connectedAddress = await this.signer.getAddress();
-
-    // Guardar en localStorage para persistencia
-    localStorage.setItem('web3ConnectedWallet', this.connectedAddress);
-
-    return this.connectedAddress;
+  async connectWallet() { return this.getConnectedAddress(); }
+  async ensureDeployment() {
+    if(this.deploymentCheckedAt && Date.now()-this.deploymentCheckedAt<30000)return;
+    const response=await fetch(getApiUrl()+'/api/web3/deployment',{cache:'no-store'});
+    const data=await response.json();
+    if(!response.ok||!data.success)throw new Error('El despliegue no pudo verificarse.');
+    const networks={'10':{rpcUrl:'https://mainnet.optimism.io',blockExplorerUrl:'https://optimistic.etherscan.io'},'11155420':{rpcUrl:'https://sepolia.optimism.io',blockExplorerUrl:'https://sepolia-optimistic.etherscan.io'}};
+    const network=networks[data.chainId];if(!network)throw new Error('Red no admitida por la interfaz.');
+    Object.assign(CONTRACT_ADDRESSES,data.contracts,network,{chainId:data.chainId});
+    this.deploymentCheckedAt=Date.now();
   }
-
-  /**
-   * Obtiene la dirección conectada actualmente
-   */
-  async getConnectedAddress() {
-    if (this.connectedAddress) return this.connectedAddress;
-    
-    if (this.hasInjectedProvider()) {
-      try {
-        this.provider = new BrowserProvider(window.ethereum);
-        const accounts = await this.provider.send('eth_accounts', []);
-        if (accounts && accounts.length > 0) {
-          this.signer = await this.provider.getSigner();
-          this.connectedAddress = accounts[0];
-          return this.connectedAddress;
-        }
-      } catch (_) {}
-    }
-
-    // Fallback a localStorage si el usuario ya inició sesión
-    const saved = localStorage.getItem('web3ConnectedWallet');
-    if (saved && /^0x[a-fA-F0-9]{40}$/.test(saved)) {
-      return saved;
-    }
-
-    return null;
+  async getAssociatedAccount() {
+    const token = localStorage.getItem('token');
+    const response = await fetch(`${getApiUrl()}/api/me/balance`, {
+      credentials:'include', cache:'no-store', headers:token ? {Authorization:`Bearer ${token}`} : {}
+    });
+    if (!response.ok) { this.signer=null; this.connectedAddress=null; throw new Error('No se pudo verificar tu cuenta. Inicia sesión nuevamente.'); }
+    const account = await response.json();
+    if (!ethers.isAddress(account.web3_wallet_address)) throw new Error('Tu cuenta aún no tiene una billetera asociada válida.');
+    return account;
   }
+  async getConnectedAddress() { return (await this.getAssociatedAccount()).web3_wallet_address; }
 
   /**
    * Cambia o añade la red Optimism Sepolia en MetaMask
    */
-  async ensureOptimismSepoliaNetwork() {
-    if (!this.provider) this.provider = new BrowserProvider(window.ethereum);
-    const network = await this.provider.getNetwork();
-    
-    if (Number(network.chainId) !== CONTRACT_ADDRESSES.chainId) {
-      try {
-        await window.ethereum.request({
-          method: 'wallet_switchEthereumChain',
-          params: [{ chainId: CONTRACT_ADDRESSES.chainIdHex }]
-        });
-      } catch (switchError) {
-        // Código 4902: la red no está agregada en MetaMask
-        if (switchError.code === 4902) {
-          await window.ethereum.request({
-            method: 'wallet_addEthereumChain',
-            params: [{
-              chainId: CONTRACT_ADDRESSES.chainIdHex,
-              chainName: CONTRACT_ADDRESSES.chainName,
-              nativeCurrency: { name: 'Sepolia ETH', symbol: 'ETH', decimals: 18 },
-              rpcUrls: [CONTRACT_ADDRESSES.rpcUrl],
-              blockExplorerUrls: [CONTRACT_ADDRESSES.blockExplorerUrl]
-            }]
-          });
-        } else {
-          throw switchError;
-        }
-      }
-    }
-  }
-
-  /**
-   * Consulta el saldo de USDT ERC-20 en la billetera del usuario
-   */
   async getUsdtBalance(walletAddress) {
+    await this.ensureDeployment();
     const target = walletAddress || (await this.getConnectedAddress());
     if (!target) return 0;
     try {
@@ -175,7 +102,7 @@ class Web3OnChainService {
       const bal = await usdt.balanceOf(target);
       return parseFloat(formatUnits(bal, 6));
     } catch (_) {
-      return 0;
+      throw new Error('No se pudo consultar el saldo USDT.');
     }
   }
 
@@ -188,6 +115,7 @@ class Web3OnChainService {
     if (!target) return null;
 
     try {
+      await this.ensureDeployment();
       const res = await fetch(`${API_URL}/api/web3/user/${target}`, {
         headers: { 'Content-Type': 'application/json' }
       });
@@ -196,7 +124,8 @@ class Web3OnChainService {
       if (!json.success) return null;
 
       // Consultar también saldo líquido de USDT en billetera
-      const usdtWalletBalance = await this.getUsdtBalance(target);
+      if(json.usdtWalletBalance==null)throw new Error('Saldo USDT no disponible.');
+      const usdtWalletBalance = Number(json.usdtWalletBalance);
 
       return {
         wallet: json.wallet,
@@ -260,116 +189,16 @@ class Web3OnChainService {
   /**
    * Deposita USDT de garantía en CollateralVault.sol
    */
-  async depositCollateral(amountUsdt) {
-    await this.connectWallet();
-    const parsed = parseUnits(String(amountUsdt), 6);
-    
-    // 1. Aprobar USDT para la Bóveda si es necesario
-    const usdtContract = new Contract(CONTRACT_ADDRESSES.USDT, ERC20_ABI, this.signer);
-    const allowance = await usdtContract.allowance(this.connectedAddress, CONTRACT_ADDRESSES.CollateralVault);
-    
-    if (allowance < parsed) {
-      const approveTx = await usdtContract.approve(CONTRACT_ADDRESSES.CollateralVault, parsed);
-      await approveTx.wait();
-    }
-
-    // 2. Depositar en la Bóveda
-    const vaultContract = new Contract(CONTRACT_ADDRESSES.CollateralVault, VAULT_ABI, this.signer);
-    const tx = await vaultContract.deposit(parsed);
-    const receipt = await tx.wait();
-    return { success: true, txHash: receipt.hash };
-  }
-
-  /**
-   * Retira colateral USDT libre de CollateralVault.sol
-   */
-  async withdrawCollateral(amountUsdt) {
-    await this.connectWallet();
-    const parsed = parseUnits(String(amountUsdt), 6);
-    const vaultContract = new Contract(CONTRACT_ADDRESSES.CollateralVault, VAULT_ABI, this.signer);
-    const tx = await vaultContract.withdraw(parsed);
-    const receipt = await tx.wait();
-    return { success: true, txHash: receipt.hash };
-  }
-
-  /**
-   * Amortiza compromiso RED utilizando tokens BLUE líquidos en CoreProtocol.sol
-   */
-  async amortizeWithBlue(amountBlue) {
-    await this.connectWallet();
-    const parsed = parseUnits(String(amountBlue), 6);
-    const coreContract = new Contract(CONTRACT_ADDRESSES.CoreProtocol, CORE_ABI, this.signer);
-    const tx = await coreContract.amortizeWithBlue(parsed);
-    const receipt = await tx.wait();
-    return { success: true, txHash: receipt.hash };
-  }
-
-  /**
-   * Crea una orden de venta de BLUE en FifoExchange.sol
-   */
-  async createSellOrder(amountBlue) {
-    await this.connectWallet();
-    const parsed = parseUnits(String(amountBlue), 6);
-
-    // 1. Aprobar BLUE para el Exchange
-    const blueContract = new Contract(CONTRACT_ADDRESSES.BlueToken, ERC20_ABI, this.signer);
-    const allowance = await blueContract.allowance(this.connectedAddress, CONTRACT_ADDRESSES.FifoExchange);
-    if (allowance < parsed) {
-      const approveTx = await blueContract.approve(CONTRACT_ADDRESSES.FifoExchange, parsed);
-      await approveTx.wait();
-    }
-
-    // 2. Crear orden de venta
-    const exchangeContract = new Contract(CONTRACT_ADDRESSES.FifoExchange, EXCHANGE_ABI, this.signer);
-    const tx = await exchangeContract.createBlueOrder(parsed);
-    const receipt = await tx.wait();
-    return { success: true, txHash: receipt.hash };
-  }
-
-  /**
-   * Crea una orden de compra de BLUE entregando USDT en FifoExchange.sol
-   */
-  async createBuyOrder(amountUsdt) {
-    await this.connectWallet();
-    const parsed = parseUnits(String(amountUsdt), 6);
-
-    // 1. Aprobar USDT para el Exchange
-    const usdtContract = new Contract(CONTRACT_ADDRESSES.USDT, ERC20_ABI, this.signer);
-    const allowance = await usdtContract.allowance(this.connectedAddress, CONTRACT_ADDRESSES.FifoExchange);
-    if (allowance < parsed) {
-      const approveTx = await usdtContract.approve(CONTRACT_ADDRESSES.FifoExchange, parsed);
-      await approveTx.wait();
-    }
-
-    // 2. Crear orden de compra
-    const exchangeContract = new Contract(CONTRACT_ADDRESSES.FifoExchange, EXCHANGE_ABI, this.signer);
-    const tx = await exchangeContract.createUsdtOrder(parsed);
-    const receipt = await tx.wait();
-    return { success: true, txHash: receipt.hash };
-  }
-
-  /**
-   * Cancela una orden activa en FifoExchange.sol
-   */
-  async cancelOrder(orderId) {
-    await this.connectWallet();
-    const exchangeContract = new Contract(CONTRACT_ADDRESSES.FifoExchange, EXCHANGE_ABI, this.signer);
-    const tx = await exchangeContract.cancelOrder(orderId);
-    const receipt = await tx.wait();
-    return { success: true, txHash: receipt.hash };
-  }
-
-  /**
-   * Reclama devoluciones pendientes en FifoExchange.sol
-   */
-  async claimRefunds() {
-    await this.connectWallet();
-    const exchangeContract = new Contract(CONTRACT_ADDRESSES.FifoExchange, EXCHANGE_ABI, this.signer);
-    const tx = await exchangeContract.claimPendingRefunds();
-    const receipt = await tx.wait();
-    return { success: true, txHash: receipt.hash };
-  }
+  async depositCollateral(amount) {return requestOperation('deposit',{amount:String(amount)});}
+  async withdrawCollateral(amount) {return requestOperation('withdraw',{amount:String(amount)});}
+  async transferUsdt(amount,destination) {return requestOperation('transfer',{amount:String(amount),destination});}
+  async amortizeWithBlue(amount) {return requestOperation('amortize',{amount:String(amount)});}
+  async repayWithCollateral(amount) {return requestOperation('repayCollateral',{amount:String(amount)});}
+  async createSellOrder(amount) {return requestOperation('sell',{amount:String(amount)});}
+  async createBuyOrder(amount) {return requestOperation('buy',{amount:String(amount)});}
+  async cancelOrder(orderId) {return requestOperation('cancel',{orderId:String(orderId)});}
+  async resumeOrder(orderId) {return requestOperation('resume',{orderId:String(orderId)});}
+  async claimRefunds() {return requestOperation('claim');}
 }
-
-export const web3OnChainService = new Web3OnChainService();
+export const web3OnChainService=new Web3OnChainService();
 export default web3OnChainService;

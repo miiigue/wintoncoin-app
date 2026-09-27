@@ -13,6 +13,13 @@ const router = express.Router();
 const web3BridgeService = require('../services/web3BridgeService');
 const { identityFromEnv } = require('../services/exchangeChainReader');
 const { readExchangeSnapshot } = require('../services/exchangeSnapshotService');
+router.get('/deployment', async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    const deployment=require('../services/chainDeployment');const rpc=deployment.provider();
+    try {res.json({success:true,...await deployment.validate(rpc)});}
+    catch {res.status(503).json({success:false,message:'El despliegue no pudo verificarse.'});}
+    finally {rpc.destroy();}
+});
 
 // Public blockchain facts only. No identity documents, arbitrary RPC targets,
 // or unverified legacy order rows are returned by this endpoint.

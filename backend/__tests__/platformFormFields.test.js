@@ -1,5 +1,9 @@
 const request = require('supertest');
 const jwt = require('jsonwebtoken');
+// This suite checks form parsing; real session validation has its own integration tests.
+jest.mock('../src/middleware/adminSession', () => ({verifySession:(req,res,next)=>{
+    req.user={userId:1,username:'admin',role:'admin'};next();
+}}));
 
 process.env.JWT_SECRET = 'test-secret-key-12345';
 process.env.ADMIN_SECRET_KEY = 'admin-secret-key-12345';

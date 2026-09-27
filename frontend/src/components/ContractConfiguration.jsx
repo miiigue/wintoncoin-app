@@ -1,0 +1,21 @@
+import React,{useEffect,useState} from 'react';
+import {getApiUrl} from '../modules/config.js';
+import styles from '../pages/AdminWeb3Panel.module.css';
+import {formatEther,parseEther} from 'ethers';
+import RecoveryStatus from './RecoveryStatus.jsx';
+const labels={platform_commission_percentage:'Comisión de plataforma (%)',debt_cycle_days:'Plazo del compromiso (días)',red_credit_base_limit:'Límite base de la política RED',red_credit_referral:'Incremento por referido verificado',red_credit_culture_quiz:'Incremento por cuestionario',red_credit_monthly_activity:'Incremento por actividad mensual',red_credit_early_payment:'Incremento por pago anticipado',gas_sponsor_enabled:'Patrocinio de gas habilitado',gas_sponsor_daily_user_operations:'Operaciones patrocinadas por usuario y día',gas_sponsor_daily_budget_wei:'Presupuesto diario total de gas (ETH)',gas_sponsor_max_topup_wei:'Máximo patrocinado por paso (ETH)'};
+export default function ContractConfiguration({onUpdated}) {
+ const [settings,setSettings]=useState({}),[message,setMessage]=useState(''),[busy,setBusy]=useState(false);
+ useEffect(()=>{fetch(`${getApiUrl()}/api/admin/web3/configuration`,{credentials:'include',cache:'no-store'})
+  .then(async r=>{const data=await r.json();if(!r.ok||!data.success)throw new Error(data.message||'No disponible');setSettings(Object.fromEntries(data.settings.map(x=>[x.setting_key,x.setting_key.endsWith('_wei')?formatEther(x.setting_value):x.setting_value])));})
+  .catch(e=>setMessage(e.message));},[]);
+ async function save(key){setBusy(true);setMessage('Esperando confirmación…');try{
+  const r=await fetch(`${getApiUrl()}/api/admin/web3/configuration`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,value:key.endsWith('_wei')?parseEther(String(settings[key])).toString():String(settings[key])})});
+  const data=await r.json();if(r.status===202&&data.accepted){setMessage('Cambio registrado. Referencia: '+data.operationId+'. La configuración vigente se actualizará al confirmarse.');return;}if(!r.ok||data.success!==true)throw new Error(data.message||data.error||'No confirmado');
+  setMessage(data.pendingReconciliation?data.message:key.startsWith('red_credit_')?'Política versionada. Se aplicará progresivamente respetando las excepciones individuales.':key.startsWith('gas_sponsor_')?'Configuración de patrocinio guardada.':'Cambio confirmado por el contrato.');onUpdated?.();
+ }catch(e){setMessage(e.message);}finally{setBusy(false);}}
+ return <section style={{gridColumn:'1 / -1',padding:20,border:'1px solid #334155',borderRadius:12,marginBottom:20}}><h2>Reglas generales</h2>
+ <p>Las reglas RED se aplican progresivamente a las cuentas; la garantía se suma únicamente en el contrato. Una excepción individual se gestiona por nombre de usuario. Cuestionarios y pago anticipado aún no tienen métricas integradas.</p>
+ <p>Comisión y plazo se leen del contrato y se confirman en blockchain. Las reglas de cálculo RED se guardan como política administrativa.</p>
+ <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(240px,1fr))',gap:16}}>{Object.entries(labels).map(([key,label])=><div className={styles.formGroup} key={key}><label className={styles.formLabel} htmlFor={`policy-${key}`}>{label}</label>{key==='gas_sponsor_enabled'?<select id={`policy-${key}`} className={styles.formInput} aria-label={label} value={settings[key]??'false'} onChange={e=>setSettings({...settings,[key]:e.target.value})} disabled={busy}><option value="false">Desactivado</option><option value="true">Activado</option></select>:<input type="number" step="any" placeholder={key==='gas_sponsor_enabled'?'true / false':undefined} id={`policy-${key}`} className={styles.formInput} aria-label={label} value={settings[key]??''} onChange={e=>setSettings({...settings,[key]:e.target.value})} inputMode="decimal" disabled={busy}/>}<button className={styles.submitBtn} disabled={busy||settings[key]===undefined||settings[key]===''} onClick={()=>save(key)}>Guardar</button></div>)}</div><p role="status">{message}</p><p>El patrocinio usa una billetera y presupuesto separados. Con presupuesto cero no se financian operaciones; nunca se crea RED para pagar gas.</p><RecoveryStatus /></section>;
+}

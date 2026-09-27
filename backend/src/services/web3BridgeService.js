@@ -292,119 +292,25 @@ class Web3BridgeService {
     // GOBERNANZA & PARÁMETROS ON-CHAIN (ADMIN)
     // ========================================================================
 
-    async setCreditLimit(walletAddress, limitUnits) {
-        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
-        try {
-            const protocol = this._getProtocol();
-            const limitUnitsParsed = ethers.parseUnits(limitUnits.toString(), 6);
-            const tx = await protocol.setCreditLimit(walletAddress, limitUnitsParsed);
-            const txHash = await this._waitForConfirmation(tx, 'setCreditLimit');
-            return { success: true, txHash };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] Error en setCreditLimit:', error.message);
-            return { success: false, error: error.message };
-        }
+    async setCreditLimit(walletAddress, limitUnits, options) {
+        return require('./durableAdministration').credit(this,walletAddress,limitUnits,options);
     }
-
-    async setKYCStatus(walletAddress, status) {
-        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
-        try {
-            const protocol = this._getProtocol();
-            const tx = await protocol.setKYCStatus(walletAddress, Boolean(status));
-            const txHash = await this._waitForConfirmation(tx, 'setKYCStatus');
-            return { success: true, txHash };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] Error en setKYCStatus:', error.message);
-            return { success: false, error: error.message };
-        }
+    async setKYCStatus(walletAddress,status) {
+        return require('./durableAdministration').execute(this,this._getProtocol(),'setKYCStatus',[walletAddress,Boolean(status)],{type:'kyc',value:Boolean(status),wallet:walletAddress});
     }
-
     async setMaxTransactionAmount(amountUnits) {
-        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
-        try {
-            const protocol = this._getProtocol();
-            const tx = await protocol.setMaxTransactionAmount(ethers.parseUnits(amountUnits.toString(), 6));
-            const txHash = await this._waitForConfirmation(tx, 'setMaxTransactionAmount');
-            return { success: true, txHash };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] Error en setMaxTransactionAmount:', error.message);
-            return { success: false, error: error.message };
-        }
+        return require('./durableAdministration').execute(this,this._getProtocol(),'setMaxTransactionAmount',[ethers.parseUnits(String(amountUnits),6)]);
     }
-
     async setCommissionRate(rateBps) {
-        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
-        try {
-            const protocol = this._getProtocol();
-            const tx = await protocol.setCommissionBps(parseInt(rateBps, 10));
-            const txHash = await this._waitForConfirmation(tx, 'setCommissionRate');
-            return { success: true, txHash };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] Error en setCommissionRate:', error.message);
-            return { success: false, error: error.message };
-        }
+        return require('./durableAdministration').execute(this,this._getProtocol(),'setCommissionBps',[rateBps],{type:'setting',key:'platform_commission_percentage',value:String(Number(rateBps)/100)});
     }
-
     async setCommitmentDuration(durationSeconds) {
-        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
-        try {
-            const protocol = this._getProtocol();
-            const tx = await protocol.setCommitmentDuration(parseInt(durationSeconds, 10));
-            const txHash = await this._waitForConfirmation(tx, 'setCommitmentDuration');
-            return { success: true, txHash };
-        } catch (error) {
-            console.error('[WEB3 BRIDGE] Error en setCommitmentDuration:', error.message);
-            return { success: false, error: error.message };
-        }
+        return require('./durableAdministration').execute(this,this._getProtocol(),'setCommitmentDuration',[durationSeconds],{type:'setting',key:'debt_cycle_days',value:String(Number(durationSeconds)/86400)});
     }
-
-    async pauseProtocol() {
-        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
-        try {
-            const protocol = this._getProtocol();
-            const tx = await protocol.pause();
-            const txHash = await this._waitForConfirmation(tx, 'pauseProtocol');
-            return { success: true, txHash };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-
-    async unpauseProtocol() {
-        if (!this._isReady()) return { success: false, error: 'Relayer no configurado' };
-        try {
-            const protocol = this._getProtocol();
-            const tx = await protocol.unpause();
-            const txHash = await this._waitForConfirmation(tx, 'unpauseProtocol');
-            return { success: true, txHash };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-
-    async pauseVault() {
-        if (!this._isReady() || !VAULT_ADDRESS) return { success: false, error: 'Vault no configurado' };
-        try {
-            const vault = this._getVault();
-            const tx = await vault.pause();
-            const txHash = await this._waitForConfirmation(tx, 'pauseVault');
-            return { success: true, txHash };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
-
-    async unpauseVault() {
-        if (!this._isReady() || !VAULT_ADDRESS) return { success: false, error: 'Vault no configurado' };
-        try {
-            const vault = this._getVault();
-            const tx = await vault.unpause();
-            const txHash = await this._waitForConfirmation(tx, 'unpauseVault');
-            return { success: true, txHash };
-        } catch (error) {
-            return { success: false, error: error.message };
-        }
-    }
+    async pauseProtocol() {return require('./durableAdministration').execute(this,this._getProtocol(),'pause',[]);}
+    async unpauseProtocol() {return require('./durableAdministration').execute(this,this._getProtocol(),'unpause',[]);}
+    async pauseVault() {return require('./durableAdministration').execute(this,this._getVault(),'pause',[]);}
+    async unpauseVault() {return require('./durableAdministration').execute(this,this._getVault(),'unpause',[]);}
 
     // ========================================================================
     // OPERACIONES DE USUARIO Y AUDITORÍA 360°
@@ -418,19 +324,19 @@ class Web3BridgeService {
             const core = this._getProtocol(), vault = this._getVault();
             const block = await this.provider.getBlock('latest');
             const options = { blockTag: block.number };
-            const [blue, red, collateral, free, capacity, required, delinquent, kyc, base, count, level, margin, used, reserved, pending] = await Promise.all([
+            const [blue, red, collateral, free, capacity, required, delinquent, kyc, base, count, level, margin, used, reserved, pending, usdt] = await Promise.all([
                 this._getERC20(BLUE_ADDRESS).balanceOf(walletAddress, options), this._getERC20(RED_ADDRESS).balanceOf(walletAddress, options),
                 vault.userCollateral(walletAddress, options), vault.getFreeCollateral(walletAddress, options),
                 core.getAvailableCreditCapacity(walletAddress, options), core.getRequiredCollateral(walletAddress, options),
                 core.isDelinquent(walletAddress, options), core.isKYCVerified(walletAddress, options), core.creditLimits(walletAddress, options),
                 core.getUserDebtLotsCount(walletAddress, options), core.userLevels(walletAddress, options),
                 core.extensionMarginLimits(walletAddress, options), core.extensionMarginUsed(walletAddress, options),
-                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options)
+                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options), this._getERC20(USDT_ADDRESS).balanceOf(walletAddress, options)
             ]);
             const length = Number(count), stop = Math.min(offset + limit, length);
             const lots = await Promise.all(Array.from({ length: Math.max(0, stop - offset) }, (_, i) => core.userDebtLots(walletAddress, offset + i, options)));
             return { success: true, wallet: walletAddress, blockNumber: block.number,
-                blueBalance: ethers.formatUnits(blue,6), redCommitment: ethers.formatUnits(red,6),
+                usdtWalletBalance: ethers.formatUnits(usdt,6), blueBalance: ethers.formatUnits(blue,6), redCommitment: ethers.formatUnits(red,6),
                 collateralVault: { totalLocked: ethers.formatUnits(collateral,6), freeForWithdrawal: ethers.formatUnits(free,6),
                     reservedInExchange: ethers.formatUnits(reserved,6), pendingReserve: ethers.formatUnits(pending,6) },
                 credit: { baseLimit: ethers.formatUnits(base,6), availableCapacity: ethers.formatUnits(capacity,6),
@@ -443,20 +349,11 @@ class Web3BridgeService {
         } catch (error) { return { success: false, error: error.message }; }
     }
 
-    async setExtensionParams(days, bps, enabled) {
-        if (!this._isReady()) return { success: false, error: 'Gobernanza no configurada' };
-        try {
-            const tx = await this._getProtocol().setExtensionOption(days, bps, enabled);
-            return { success: true, txHash: await this._waitForConfirmation(tx, 'setExtensionOption') };
-        } catch (error) { return { success: false, error: error.message }; }
+    async setExtensionParams(days,bps,enabled) {
+        return require('./durableAdministration').execute(this,this._getProtocol(),'setExtensionOption',[days,bps,enabled]);
     }
-
-    async setUserBenefits(wallet, level, margin) {
-        if (!this._isReady()) return { success: false, error: 'Gobernanza no configurada' };
-        try {
-            const tx = await this._getProtocol().setUserBenefits(wallet, level, ethers.parseUnits(String(margin), 6));
-            return { success: true, txHash: await this._waitForConfirmation(tx, 'setUserBenefits') };
-        } catch (error) { return { success: false, error: error.message }; }
+    async setUserBenefits(wallet,level,margin) {
+        return require('./durableAdministration').execute(this,this._getProtocol(),'setUserBenefits',[wallet,level,ethers.parseUnits(String(margin),6)]);
     }
 
     async checkUserKYC(walletAddress) {
@@ -552,39 +449,15 @@ class Web3BridgeService {
             if (authorization.payer.toLowerCase() !== payerWalletAddress.toLowerCase()
                 || authorization.payee.toLowerCase() !== payeeWalletAddress.toLowerCase()
                 || BigInt(authorization.amount) !== grossUnits) throw new Error('La firma no corresponde al pago solicitado');
-            // ── BLINDAJE FINTECH PREVIO: Validar y auto-habilitar precondiciones on-chain ──
-            const [isPayerKyc, isPayeeKyc, isTreasuryKyc] = await Promise.all([
-                protocol.isKYCVerified(payerWalletAddress),
-                protocol.isKYCVerified(payeeWalletAddress),
-                TREASURY_ADDRESS ? protocol.isKYCVerified(TREASURY_ADDRESS) : true
+            // Economic preconditions are decisions, not conditions to auto-grant.
+            const [payerKyc, payeeKyc, treasuryKyc, capacity] = await Promise.all([
+                protocol.isKYCVerified(payerWalletAddress), protocol.isKYCVerified(payeeWalletAddress),
+                TREASURY_ADDRESS ? protocol.isKYCVerified(TREASURY_ADDRESS) : false,
+                protocol.getAvailableCreditCapacity(payerWalletAddress)
             ]);
-
-            if (!isPayerKyc) {
-                console.log(`[WEB3 BRIDGE] 🛡️ Auto-habilitando KYC on-chain para pagador ${payerWalletAddress}`);
-                const txKyc = await protocol.setKYCStatus(payerWalletAddress, true);
-                await this._waitForConfirmation(txKyc, 'autoPayerKYC');
-            }
-            if (!isPayeeKyc) {
-                console.log(`[WEB3 BRIDGE] 🛡️ Auto-habilitando KYC on-chain para beneficiario ${payeeWalletAddress}`);
-                const txKyc = await protocol.setKYCStatus(payeeWalletAddress, true);
-                await this._waitForConfirmation(txKyc, 'autoPayeeKYC');
-            }
-            if (!isTreasuryKyc && TREASURY_ADDRESS) {
-                console.log(`[WEB3 BRIDGE] 🛡️ Auto-habilitando KYC on-chain para Tesorería ${TREASURY_ADDRESS}`);
-                const txKyc = await protocol.setKYCStatus(TREASURY_ADDRESS, true);
-                await this._waitForConfirmation(txKyc, 'autoTreasuryKYC');
-            }
-
-            const capacity = await protocol.getAvailableCreditCapacity(payerWalletAddress);
-            const feeUnits = (grossUnits * BigInt(authorization.feeBps)) / 10000n;
-            const requiredCapacity = grossUnits + feeUnits;
-
-            if (capacity < requiredCapacity) {
-                console.log(`[WEB3 BRIDGE] 🛡️ Capacidad insuficiente (${capacity} < ${requiredCapacity}). Asignando capacidad de compromiso on-chain...`);
-                const limitUnits = requiredCapacity + ethers.parseUnits('500', 6);
-                const txCredit = await protocol.setCreditLimit(payerWalletAddress, limitUnits);
-                await this._waitForConfirmation(txCredit, 'autoCreditCapacity');
-            }
+            if (!payerKyc || !payeeKyc || !treasuryKyc) throw new Error('KYC no aprobado para los participantes del pago');
+            const requiredCapacity = grossUnits + grossUnits * BigInt(authorization.feeBps) / 10000n;
+            if (capacity < requiredCapacity) throw new Error('Límite RED insuficiente para importe y comisión');
 
             const tx = await protocol.processAuthorizedPayment(authorization, signature);
             const txHash = await this._waitForConfirmation(tx, 'syncPayment');

@@ -21,7 +21,15 @@ self.skipWaiting();
 clientsClaim();
 
 // Precache manifest (inyectado automáticamente por Workbox)
-precacheAndRoute(self.__WB_MANIFEST);
+const isAdminPath = path => /^\/(?:admin(?:[/.\-]|$)|governance-panel|momentum-admin)/.test(path);
+precacheAndRoute(self.__WB_MANIFEST.filter(entry => !isAdminPath(new URL(typeof entry === 'string' ? entry : entry.url, self.location.origin).pathname)));
+self.addEventListener('activate', event => event.waitUntil((async () => {
+  for (const name of await caches.keys()) {
+    if (!name.startsWith('wintoncoin-') && !name.startsWith('workbox-precache')) continue;
+    const cache = await caches.open(name);
+    for (const request of await cache.keys()) if (isAdminPath(new URL(request.url).pathname)) await cache.delete(request);
+  }
+})()));
 cleanupOutdatedCaches();
 
 // ============================================================================
@@ -30,8 +38,8 @@ cleanupOutdatedCaches();
 
 // Admin & Dynamic Management HTML: NetworkOnly (Siempre fresco desde el servidor, sin caché estático para paneles de control)
 registerRoute(
-    /(admin.*\.html|governance-panel\.html|momentum-admin\.html)$/,
-    new NetworkOnly()
+    ({url}) => isAdminPath(url.pathname),
+    new NetworkOnly({fetchOptions:{cache:'no-store'}})
 );
 
 // SPA Navigation Route: Rutas limpias de React SPA (/dashboard, /wallet, /login, /exchange, etc.)
@@ -39,11 +47,12 @@ registerRoute(
 try {
     const spaNavigationHandler = createHandlerBoundToURL('/index.html');
     const spaNavigationRoute = new NavigationRoute(spaNavigationHandler, {
+        allowlist: [/^\/(?:index(?:\.html)?|dashboard|wallet(?:\.html)?|exchange(?:\.html)?|login(?:\.html)?|register(?:\.html)?|forgot-password(?:\.html)?|contract_interaction\.html)?(?:\?.*)?$/],
         denylist: [
             /^\/api\//,
             /^\/notifications\//,
             /\.(png|jpg|jpeg|svg|gif|ico|webp|woff|woff2|ttf|otf|css|js)$/,
-            /(admin.*\.html|governance-panel\.html|momentum-admin\.html)$/
+            /^\/(?:admin(?:[/.\-]|$)|governance-panel|momentum-admin)/
         ]
     });
     registerRoute(spaNavigationRoute);

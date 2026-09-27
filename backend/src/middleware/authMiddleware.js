@@ -47,7 +47,8 @@ const authenticateToken = (req, res, next) => {
                 'SELECT password_invalidate_before FROM users WHERE id = $1',
                 [user.userId]
             );
-            if (result.rows.length > 0 && result.rows[0].password_invalidate_before) {
+            if (!result.rows.length) return res.status(401).json({ message: 'Cuenta no encontrada.' });
+            if (result.rows[0].password_invalidate_before) {
                 const invalidateBefore = new Date(result.rows[0].password_invalidate_before);
                 const tokenIssuedAt = new Date((user.iat || 0) * 1000); // JWT iat está en segundos
 
@@ -61,7 +62,7 @@ const authenticateToken = (req, res, next) => {
             }
         } catch (dbError) {
             console.error('[AUTH] Error al verificar invalidación de sesión:', dbError);
-            // En caso de error de base de datos, dejamos pasar para no bloquear la disponibilidad del servicio
+            return res.status(503).json({ message: 'No se pudo verificar la sesión.' });
         }
 
         // 6. Inyectamos la información del usuario autenticado en el objeto request y continuamos
@@ -74,92 +75,7 @@ const authenticateToken = (req, res, next) => {
  * Usa ADMIN_SECRET_KEY y cookies 'admin_token'.
  * ESTÁNDAR PROFESIONAL: Separación estricta de roles.
  */
-const authenticateAdmin = (req, res, next) => {
-    // 1. Extraemos la cookie HttpOnly que contiene el token JWT
-    const token = req.cookies && req.cookies.admin_token ? req.cookies.admin_token : null;
-
-    if (!token) {
-        return res.status(401).json({ message: 'Acceso denegado. Se requiere autenticación de administrador.' });
-    }
-
-    // 2. Verificamos la firma criptográfica del JWT usando la clave simétrica del entorno
-    jwt.verify(token, process.env.ADMIN_SECRET_KEY, async (err, decoded) => {
-        if (err) {
-            console.error('[AUTH ADMIN] Token inválido o expirado:', err.message);
-            return res.status(403).json({ message: 'Token de administrador inválido o expirado.' });
-        }
-
-        // [TEST ENVIRONMENT BYPASS]
-        // Para pruebas unitarias (Jest) donde la base de datos se mockea con respuestas predefinidas,
-        // evitamos realizar la consulta en tiempo real para no interferir con las llamadas mockeadas del Pool.
-        if (process.env.NODE_ENV === 'test') {
-            req.user = {
-                userId: decoded.userId || decoded.id,
-                username: decoded.username,
-                role: decoded.role || 'admin'
-            };
-            return next();
-        }
-
-        try {
-            // 3. [FINTECH SECURITY] Verificación de estado en tiempo real (Real-Time Status Check)
-            // Realizamos una consulta parametrizada a la tabla admin_users utilizando el ID del token.
-            // Esto asegura la revocación inmediata de accesos huérfanos sin esperar a la expiración del JWT (8 horas).
-            const result = await pool.query(
-                'SELECT account_status, role, password_hash FROM admin_users WHERE id = $1',
-                [decoded.userId]
-            );
-
-            // 4. Si el registro del usuario ya no existe en la base de datos
-            if (result.rowCount === 0) {
-                console.warn(`[AUTH ADMIN] Intento de acceso con token válido pero usuario inexistente ID: ${decoded.userId}`);
-                // Limpiamos la cookie de sesión en el navegador por seguridad
-                res.clearCookie('admin_token', { path: '/' });
-                return res.status(403).json({ message: 'Acceso denegado. Cuenta administrativa no encontrada.' });
-            }
-
-            const adminUser = result.rows[0];
-
-            // [Zero-Trust] Validar si el token fue emitido antes de un cambio de contraseña
-            if (decoded.pwdVersion) {
-                const currentPwdVersion = adminUser.password_hash.slice(-10);
-                if (decoded.pwdVersion !== currentPwdVersion) {
-                    console.warn(`[AUTH ADMIN] Token invalidado por cambio de contraseña para: ${decoded.username}`);
-                    res.clearCookie('admin_token', { path: '/' });
-                    return res.status(401).json({ message: 'Tu sesión ha sido invalidada por un cambio de contraseña. Por favor, inicia sesión nuevamente.' });
-                }
-            } else {
-                // Si el token es de una versión vieja que no tiene pwdVersion, lo invalidamos preventivamente en producción.
-                if (process.env.NODE_ENV === 'production') {
-                    console.warn(`[AUTH ADMIN] Token antiguo sin pwdVersion rechazado en producción para: ${decoded.username}`);
-                    res.clearCookie('admin_token', { path: '/' });
-                    return res.status(401).json({ message: 'Sesión administrativa obsoleta. Por favor, inicia sesión nuevamente.' });
-                }
-            }
-
-            // 5. [IMMEDIATE TERMINATION] Si la cuenta del administrador ha sido suspendida o inactivada
-            if (adminUser.account_status !== 'active') {
-                console.warn(`[AUTH ADMIN] Bloqueado acceso a cuenta suspendida/inactiva: ${decoded.username} (ID: ${decoded.userId})`);
-                // Limpiamos la cookie de sesión inmediatamente para forzar el deslogueo
-                res.clearCookie('admin_token', { path: '/' });
-                return res.status(403).json({ message: 'Acceso denegado. La cuenta de administrador está inactiva o suspendida.' });
-            }
-
-            // 6. Si es válido y activo, inyectamos los datos de identidad verificados en la solicitud
-            req.user = {
-                userId: decoded.userId,
-                username: decoded.username,
-                role: adminUser.role || decoded.role || 'admin' // Priorizamos el rol obtenido en tiempo real de DB
-            };
-            next();
-        } catch (dbError) {
-            console.error('[AUTH ADMIN] Error al validar estado del administrador en DB:', dbError);
-            // 7. [FAIL-SECURE] En caso de caída temporal o error en base de datos, denegamos el acceso preventivamente.
-            // Evita que una falla de infraestructura exponga el sistema a bypasses de autorización.
-            return res.status(500).json({ message: 'Error interno de base de datos al validar la sesión.' });
-        }
-    });
-};
+const authenticateAdmin = (req, res, next) => require('./adminSession').verifySession(req, res, next);
 
 /**
  * Middleware de AUTORIZACIÓN para guardianes activos.
@@ -239,8 +155,7 @@ const authenticateUserOrAdmin = (req, res, next) => {
     if (userToken) {
         jwt.verify(userToken, process.env.JWT_SECRET, (err, user) => {
             if (!err && user && user.tokenType === 'access') {
-                req.user = user;
-                return next();
+                return authenticateToken(req, res, next);
             }
             
             // Si falló el de usuario pero hay token de admin, intentamos con admin
@@ -256,48 +171,7 @@ const authenticateUserOrAdmin = (req, res, next) => {
 };
 
 // Función auxiliar para verificar el token administrativo
-const verifyAdminToken = (token, req, res, next) => {
-    jwt.verify(token, process.env.ADMIN_SECRET_KEY, async (err, decoded) => {
-        if (err) {
-            return res.status(401).json({ message: 'Token administrativo inválido o expirado.' });
-        }
-
-        if (process.env.NODE_ENV === 'test') {
-            req.user = {
-                userId: decoded.userId || decoded.id,
-                username: decoded.username,
-                role: decoded.role || 'admin'
-            };
-            return next();
-        }
-
-        try {
-            const result = await pool.query(
-                'SELECT account_status, role FROM admin_users WHERE id = $1',
-                [decoded.userId]
-            );
-
-            if (result.rowCount === 0) {
-                return res.status(403).json({ message: 'Cuenta administrativa no encontrada.' });
-            }
-
-            const adminUser = result.rows[0];
-            if (adminUser.account_status !== 'active') {
-                return res.status(403).json({ message: 'La cuenta administrativa está inactiva o suspendida.' });
-            }
-
-            req.user = {
-                userId: decoded.userId,
-                username: decoded.username,
-                role: adminUser.role || 'admin'
-            };
-            next();
-        } catch (dbError) {
-            console.error('[AUTH USER OR ADMIN] Error al validar administrador en DB:', dbError);
-            return res.status(500).json({ message: 'Error interno de base de datos al validar la sesión.' });
-        }
-    });
-};
+const verifyAdminToken = (token, req, res, next) => require('./adminSession').verifySession(req, res, next, token);
 
 module.exports = {
     authenticateToken,
