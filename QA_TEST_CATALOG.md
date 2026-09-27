@@ -657,4 +657,31 @@ PASOS:
 7. Intenta ingresar nuevamente y confirma que el sistema mantenga el bloqueo activo impidiendo cualquier intento de prueba automatizada.
 ```
 
+---
+
+```text
+TITULO: QA-49 - Consulta del Estado del Sistema y Billeteras en el Panel de Administración
+DESCRIPCION: Esta misión tiene como objetivo comprobar que los administradores puedan verificar desde su teléfono móvil o computadora el estado de salud de la plataforma, comprobando que las direcciones de los contratos inteligentes y las billeteras del sistema se encuentren activas y listas para procesar transacciones.
+PASOS:
+2. Inicia sesión en el Panel de Administración de WintonCoin desde tu navegador.
+3. Dirígete a la sección de Configuración del Sistema o Web3 en el menú lateral.
+4. Observa el panel de diagnóstico y verifica que aparezca la insignia verde indicando que el sistema está listo.
+5. Confirma que se muestren las direcciones públicas de los contratos inteligentes y la billetera encargada de enviar las operaciones.
+6. Presiona el botón para actualizar el estado y comprueba que la pantalla confirme la conexión en tiempo real sin mostrar errores.
+```
+
+---
+
+```text
+TITULO: QA-50 - Reintento Seguro y Consulta de Estado en Operaciones Pendientes
+DESCRIPCION: Esta prueba asegura que si una transacción o pago tarda en completarse o presenta intermitencias en la conexión, la aplicación mantenga el registro seguro de la operación permitiéndote consultar su estado y confirmar que no se dupliquen cobros ni se pierda tu dinero.
+PASOS:
+2. Ingresa a tu cuenta de WintonCoin y dirígete a tu Billetera o Historial de Operaciones.
+3. Observa si tienes alguna operación reciente en estado de procesamiento o completada.
+4. Toca sobre la operación para ver el detalle de la tarjeta de seguimiento.
+5. Comprueba que la pantalla te muestre el identificador de la operación, el estado actual y el botón de actualización.
+6. Presiona el botón de actualizar y confirma que el estado se refresque de inmediato mostrando la confirmación final de la operación.
+```
+
+
 
