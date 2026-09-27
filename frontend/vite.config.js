@@ -45,17 +45,17 @@ const demoModePlugin = (mode) => {
   };
 };
 
-// Plugin para enrutar rutas SPA migradas (/register, /login, /forgot-password) hacia index.html
+// Plugin para enrutar rutas SPA React Web3 (/dashboard, /wallet, /exchange, /admin/web3) hacia dashboard.html
 const spaFallbackPlugin = () => {
   return {
     name: 'spa-fallback-plugin',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const pathname = req.url ? req.url.split('?')[0] : '';
-        // Rutas migradas a la SPA React
-        if (['/register', '/login', '/forgot-password', '/wallet', '/exchange', '/dashboard', '/admin/web3', '/admin-web3'].includes(pathname)) {
+        // Rutas Web3 React SPA 2026: servir dashboard.html para montar React SPA
+        if (['/wallet', '/exchange', '/dashboard', '/admin/web3', '/admin-web3'].includes(pathname)) {
           const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
-          req.url = '/index.html' + query;
+          req.url = '/dashboard.html' + query;
         }
         next();
       });

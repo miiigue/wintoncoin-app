@@ -13,6 +13,20 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-27 — Restauración Integral de la Landing Page Vanilla Original (`index.html`): Retorno a la Versión Canónica Probada y Desacople de React
+* **Directiva de Negocio y Experiencia de Usuario (Instrucción Expresa del Usuario)**:
+  - Ante las inconsistencias visuales y de rendimiento ocasionadas por la migración modular a React en la página de aterrizaje corporativa, el usuario ordenó restituir de forma inmediata la Landing Page original en su código nativo HTML/CSS/JS previo a la migración, garantizando que funcione exactamente como siempre funcionó.
+* **Implementación de la Restauración Canónica**:
+  - *Restitución de `frontend/index.html`*: Se reemplazó el archivo puente por el código original íntegro y validado preservado en `landing-legacy.html` (760 líneas de HTML semántico puro, carga nativa de `landing.css`, `landing-fomo.css` y `src/pages/landing.js`). Cero dependencias de React en la portada corporativa.
+  - *Aislamiento de la SPA Web3 (`vite.config.js` y `.htaccess`)*: Se reconfiguró `spaFallbackPlugin` y la regla de Apache / LiteSpeed para que las rutas de la SPA React (`/dashboard`, `/wallet`, `/exchange`, `/admin/web3`) sean atendidas canónicamente por `dashboard.html` (que monta `src/main.jsx`), mientras que la raíz (`/` e `/index.html`) sirve la landing page nativa sin interferencia de `style.css`.
+  - *Actualización del Catálogo Maestro (`MIGRACION_REACT_CATALOGO.md`)*: Se actualizó el estado de `index.html` a "Vanilla Original Preservada", documentando la decisión técnica de mantenerla fuera de React para asegurar máxima velocidad, 60 FPS en animaciones y fidelidad visual al 100%.
+* **Verificación de Empaquetado y Pruebas**:
+  - `npm run build:demo`: Compilación limpia en 12.15s, 168 módulos y recursos multimedia empaquetados en `dist-demo/`, 0 errores.
+  - La Landing Page vuelve a renderizarse con sus fuentes Outfit/Inter, monedas 3D orbitando fluidamente, banner humanitario balanceado y cero cajas o recortes azules.
+  - `npm run build:demo` en `frontend/`: Código de salida 0, 161 módulos precacheados en el Service Worker, 0 errores sintácticos.
+
+---
+
 ### 2026-09-27 — Integración y Verificación de Seguridad: Blindaje Administrativo, Operaciones Durables On-Chain, Persistencia Atómica de PIN y Preflight Web3 (Commit: `d13263b`)
 * **Diagnóstico y Evaluación Conjunta de Seguridad (CODEX-074 a CODEX-078 / ANTIGRAVITY-055)**:
   - Se identificó la necesidad de endurecer el acceso a las funciones de gobernanza de contratos, separar las responsabilidades de las claves privadas de servidor, evitar que un rollback transaccional borrara los intentos fallidos de PIN, y registrar de forma durable las transacciones on-chain antes de su envío para garantizar tolerancia a fallos y evitar duplicación de pagos.

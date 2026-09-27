@@ -41,7 +41,7 @@
 
 | # | Archivo Original HTML | Componente / Ruta React | Estado | Endpoints / Servicios Vinculados |
 | :---: | :--- | :--- | :---: | :--- |
-| 1 | `index.html` | `src/pages/Home.jsx` (`/`, `/index.html`) | **Migrada a React** | Estadísticas globales, landing institucional, FAQ dinámico |
+| 1 | `index.html` | Vanilla HTML/JS (`/`, `/index.html`) | **Vanilla Original Preservada** | Landing institucional original, animaciones GPU nativas, FAQ dinámico (Restaurada por directiva de estabilidad visual) |
 | 2 | `dashboard.html` / `contract_interaction.html` | `src/pages/Dashboard.jsx` (`/dashboard`, `/contract_interaction.html`) | **Migrada a React** | `/api/users/profile`, `/api/users/transactions`, `/api/referrals/stats`, balance BLUE/RED, modals |
 | 3 | `wallet.html` | `src/pages/Wallet.jsx` (`/wallet`, `/wallet.html`) | **Migrada a React** | `/api/wallet/summary`, Web3 providers, gestión de activos y transferencias |
 | 4 | `exchange.html` | `src/pages/Exchange.jsx` (`/exchange`, `/exchange.html`) | **Migrada a React** | `/api/exchange/orderbook`, motor FIFO BLUE/USDT, amortizaciones |

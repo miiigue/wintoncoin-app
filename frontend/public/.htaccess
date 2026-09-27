@@ -66,6 +66,6 @@
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Rutas SPA migradas a React: enrutar internamente a index.html (preservando query string)
-    RewriteRule ^(register|login|forgot-password|home|wallet|exchange|dashboard|admin/web3|admin-web3)$ index.html [L,QSA]
+    # Rutas SPA Web3 React: enrutar internamente a dashboard.html (preservando query string)
+    RewriteRule ^(dashboard|wallet|exchange|admin/web3|admin-web3)$ dashboard.html [L,QSA]
 </IfModule>
