@@ -2,13 +2,12 @@ import React, { useState } from 'react';
 
 /**
  * ============================================================================
- * [WINTONCOIN] - DASHBOARD: EmergencyBanner
+ * [WINTONCOIN] - DASHBOARD: EmergencyBanner (React SPA 2026)
  * ============================================================================
- * Banner de Campaña Humanitaria SOS Venezuela:
- * - Informa sobre la campaña de emergencia por terremotos.
- * - Permite donar tokens BLUE IOU sin costo para el usuario.
- * - Incluye modal interactivo con detalles y enlace directo a causas solidarias.
- * - Diseñado para no obstruir si el usuario decide cerrarlo.
+ * Banner y modal de Campaña Humanitaria SOS Venezuela:
+ * - Paridad 100% con #venezuelaEmergencyBanner y #venezuelaEmergencyModal
+ * - Clases maestras de style.css (.venezuela-emergency-modal-overlay, etc.)
+ * - Cero estilos inline en el modal, textos idénticos carácter por carácter.
  * ============================================================================
  */
 export default function EmergencyBanner({ onSelectSolidarioFilter }) {
@@ -17,8 +16,18 @@ export default function EmergencyBanner({ onSelectSolidarioFilter }) {
 
   if (isDismissed) return null;
 
+  const handleDonateClick = () => {
+    setShowModal(false);
+    if (onSelectSolidarioFilter) {
+      onSelectSolidarioFilter();
+    } else {
+      window.location.href = 'sos-venezuela.html';
+    }
+  };
+
   return (
     <>
+      {/* Banner de Emergencia Terremoto Venezuela */}
       <div id="venezuelaEmergencyBanner" className="emergency-banner">
         <div className="emergency-banner-content">
           <span className="emergency-badge">🚨 EMERGENCIA VENEZUELA</span>
@@ -45,8 +54,10 @@ export default function EmergencyBanner({ onSelectSolidarioFilter }) {
         </div>
       </div>
 
+      {/* Modal de Emergencia Terremoto Venezuela (Paridad 100% con contract_interaction.html) */}
       {showModal && (
         <div
+          id="venezuelaEmergencyModal"
           className="venezuela-emergency-modal-overlay"
           onClick={() => setShowModal(false)}
         >
@@ -59,38 +70,33 @@ export default function EmergencyBanner({ onSelectSolidarioFilter }) {
               style={{ backgroundImage: "url('./assets/images/venezuela_earthquake_banner.png')" }}
             >
               <div className="venezuela-emergency-img-overlay">
-                <span className="emergency-badge" style={{ margin: '15px' }}>
-                  CAMPAÑA DE AYUDA DIRECTA
-                </span>
+                <span className="venezuela-emergency-badge">Campaña de Ayuda</span>
               </div>
             </div>
-            <div style={{ padding: '1.5rem' }}>
-              <h3 style={{ fontSize: '1.4rem', color: '#fff', marginBottom: '0.75rem', fontWeight: 700 }}>
-                SOS Venezuela: Dos Terremotos
-              </h3>
-              <p style={{ fontSize: '0.9rem', color: '#cbd5e1', lineHeight: 1.5, marginBottom: '0.75rem' }}>
-                Dos terremotos devastadores han afectado a comunidades vulnerables en Venezuela. Familias enteras necesitan refugio, alimentos e insumos de emergencia.
+            <div className="venezuela-emergency-body">
+              <h3 className="venezuela-emergency-title">SOS Venezuela: Dos Terremotos</h3>
+              <p className="venezuela-emergency-text">
+                Dos terremotos devastadores han afectado a Venezuela. Familias enteras se encuentran damnificadas y necesitan alimentos, refugio y auxilio de forma urgente.
               </p>
-              <p style={{ fontSize: '0.85rem', color: '#94a3b8', lineHeight: 1.5, marginBottom: '1.5rem' }}>
-                Puedes ayudar desde donde estés donando tus tokens <strong>BLUE IOU</strong> acumulados de forma totalmente gratuita. El 100% de lo recaudado se destina a casos verificados.
+              <p className="venezuela-emergency-subtext">
+                Si puedes ayudar desde donde estés donando tus tokens <strong>BLUE IOU</strong> acumulados de forma totalmente gratuita. El 100% de las donaciones llega a causas verificadas.
               </p>
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div className="venezuela-emergency-actions">
                 <button
                   type="button"
-                  onClick={() => {
-                    setShowModal(false);
-                    if (onSelectSolidarioFilter) onSelectSolidarioFilter();
-                  }}
-                  style={{ flex: 1, background: 'linear-gradient(135deg, #ef4444, #b91c1c)', color: '#fff', border: 'none', padding: '10px', borderRadius: '10px', fontWeight: 700, cursor: 'pointer' }}
+                  className="venezuela-emergency-btn confirm"
+                  id="venezuelaEmergencyDonateBtn"
+                  onClick={handleDonateClick}
                 >
                   ❤️ Ir a Donar
                 </button>
                 <button
                   type="button"
+                  className="venezuela-emergency-btn secondary"
+                  id="venezuelaEmergencyCloseBtn"
                   onClick={() => setShowModal(false)}
-                  style={{ background: 'rgba(255,255,255,0.08)', color: '#cbd5e1', border: '1px solid rgba(255,255,255,0.1)', padding: '10px 16px', borderRadius: '10px', cursor: 'pointer' }}
                 >
-                  Quizás luego
+                  Quizás más tarde
                 </button>
               </div>
             </div>

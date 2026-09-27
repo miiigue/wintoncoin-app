@@ -1,147 +1,241 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { usePWA } from '../../context/PWAContext';
+import { getApiUrl } from '../../modules/config';
+import { showCustomAlert } from '../../modules/alerts';
 
 /**
  * ============================================================================
- * [WINTONCOIN] - DASHBOARD: SettingsModal
+ * [WINTONCOIN] - DASHBOARD: SettingsModal (React SPA 2026)
  * ============================================================================
- * Modal de configuración de usuario e instalación de la PWA:
- * - Integrado con PWAContext para lanzar el diálogo de instalación nativo.
- * - Ajuste de preferencias de notificaciones.
+ * Modal de configuración de usuario, preferencias y descarga PWA:
+ * - Paridad visual 100% con #settingsModal de style.css y admin-switch.css.
+ * - Tres switches canónicos de notificaciones:
+ *   1. Seguridad y Transacciones (Siempre activo, inmutable por seguridad bancaria).
+ *   2. Actividad Social.
+ *   3. Novedades y Promociones.
+ * - Guardado persistente contra PUT /api/notifications/settings.
+ * - Sección de Descarga PWA (.settings-pwa-section) integrada con PWAContext.
  * - Cierre de sesión seguro.
  * ============================================================================
  */
 export default function SettingsModal({ isOpen, onClose, onLogout }) {
   const { isInstallable, isInstalled, promptInstall } = usePWA();
+  const [socialEnabled, setSocialEnabled] = useState(true);
+  const [marketingEnabled, setMarketingEnabled] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [pwaStatus, setPwaStatus] = useState('');
+
+  // Cargar preferencias del backend al abrir el modal
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const loadSettings = async () => {
+      try {
+        const token = localStorage.getItem('token');
+        if (!token) return;
+        const API_URL = getApiUrl();
+        const res = await fetch(`${API_URL}/api/notifications/settings`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (res.ok) {
+          const data = await res.json();
+          setSocialEnabled(data.social !== false);
+          setMarketingEnabled(data.marketing !== false);
+        }
+      } catch (err) {
+        console.warn('[SettingsModal] Error al cargar preferencias:', err);
+      }
+    };
+
+    loadSettings();
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
+  const handleSaveSettings = async () => {
+    setIsSaving(true);
+    try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        showCustomAlert('Debes iniciar sesión para guardar la configuración.');
+        return;
+      }
+      const API_URL = getApiUrl();
+      const res = await fetch(`${API_URL}/api/notifications/settings`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          settings: {
+            social: socialEnabled,
+            marketing: marketingEnabled,
+            security: true,
+            transactional: true
+          }
+        })
+      });
+
+      if (res.ok) {
+        showCustomAlert('✅ Preferencias guardadas correctamente.');
+      } else {
+        showCustomAlert('Error al guardar las preferencias.');
+      }
+    } catch (err) {
+      console.error('[SettingsModal] Error al guardar preferencias:', err);
+      showCustomAlert('Error de conexión al guardar preferencias.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleInstallClick = async () => {
-    const success = await promptInstall();
-    if (success) {
-      alert('¡Gracias por instalar WintonCoin!');
+    try {
+      const success = await promptInstall();
+      if (success) {
+        setPwaStatus('¡Gracias por instalar WintonCoin!');
+      } else {
+        setPwaStatus('Instalación pospuesta o no disponible en este navegador.');
+      }
+    } catch (_) {
+      setPwaStatus('Usa el menú del navegador: "Agregar a pantalla principal".');
     }
   };
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        background: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100000,
-        padding: '16px'
+      id="settingsModal"
+      className="modal"
+      style={{ display: 'flex' }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
       }}
-      onClick={onClose}
     >
-      <div
-        style={{
-          background: '#0f172a',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '24px',
-          maxWidth: '460px',
-          width: '100%',
-          padding: '24px',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)',
-          position: 'relative'
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <button
-          type="button"
+      <div className="modal-content" style={{ maxWidth: '500px' }}>
+        <span
+          className="close-button"
+          id="closeSettingsModal"
           onClick={onClose}
-          style={{ position: 'absolute', top: '18px', right: '18px', background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.4rem', cursor: 'pointer' }}
+          role="button"
+          tabIndex={0}
+          aria-label="Cerrar"
         >
           &times;
-        </button>
+        </span>
 
-        <h2 style={{ fontSize: '1.3rem', color: '#fff', margin: '0 0 20px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>⚙️</span> Configuración
-        </h2>
+        <h2 style={{ marginBottom: '20px' }}>⚙️ Configuración</h2>
 
-        {/* Sección: Descarga e Instalación PWA */}
-        <div style={{ background: 'rgba(56, 189, 248, 0.08)', border: '1px solid rgba(56, 189, 248, 0.25)', borderRadius: '16px', padding: '16px', marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '1rem', color: '#38bdf8', margin: '0 0 8px 0', display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span>📲</span> Aplicación Móvil (PWA)
-          </h3>
-          <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.4, margin: '0 0 14px 0' }}>
-            Instala WintonCoin en la pantalla de inicio de tu teléfono para una experiencia fluida a pantalla completa.
+        {/* Sección de Notificaciones */}
+        <div className="settings-section">
+          <h3 style={{ marginBottom: '15px', color: '#4a90d9' }}>🔔 Notificaciones</h3>
+          <p style={{ fontSize: '0.9em', color: '#888', marginBottom: '20px' }}>
+            Controla qué tipo de notificaciones deseas recibir.
           </p>
 
+          {/* Switch 1: Seguridad y Transacciones (Bloqueado) */}
+          <div className="notification-setting-item">
+            <div className="notification-setting-info">
+              <strong>🔒 Seguridad y Transacciones</strong>
+              <p style={{ fontSize: '0.85em', color: '#999', margin: '5px 0 0 0' }}>
+                Alertas críticas de seguridad, pagos y verificaciones. <strong>Siempre activas.</strong>
+              </p>
+            </div>
+            <label className="admin-switch" style={{ opacity: 0.6, cursor: 'not-allowed' }}>
+              <input type="checkbox" id="notifSecuritySwitch" checked disabled readOnly />
+              <span className="admin-slider"></span>
+            </label>
+          </div>
+
+          {/* Switch 2: Actividad Social */}
+          <div className="notification-setting-item">
+            <div className="notification-setting-info">
+              <strong>👥 Actividad Social</strong>
+              <p style={{ fontSize: '0.85em', color: '#999', margin: '5px 0 0 0' }}>
+                Mensajes, interacciones, tareas completadas y actividad de tus publicaciones.
+              </p>
+            </div>
+            <label className="admin-switch">
+              <input
+                type="checkbox"
+                id="notifSocialSwitch"
+                checked={socialEnabled}
+                onChange={(e) => setSocialEnabled(e.target.checked)}
+              />
+              <span className="admin-slider"></span>
+            </label>
+          </div>
+
+          {/* Switch 3: Novedades y Promociones */}
+          <div className="notification-setting-item">
+            <div className="notification-setting-info">
+              <strong>📢 Novedades y Promociones</strong>
+              <p style={{ fontSize: '0.85em', color: '#999', margin: '5px 0 0 0' }}>
+                Nuevas campañas, bonos, actualizaciones de la plataforma y ofertas especiales.
+              </p>
+            </div>
+            <label className="admin-switch">
+              <input
+                type="checkbox"
+                id="notifMarketingSwitch"
+                checked={marketingEnabled}
+                onChange={(e) => setMarketingEnabled(e.target.checked)}
+              />
+              <span className="admin-slider"></span>
+            </label>
+          </div>
+
+          <button
+            id="saveNotificationSettings"
+            type="button"
+            className="action-button"
+            style={{ marginTop: '25px', width: '100%' }}
+            onClick={handleSaveSettings}
+            disabled={isSaving}
+          >
+            {isSaving ? 'Guardando...' : 'Guardar Preferencias'}
+          </button>
+        </div>
+
+        {/* Sección de Descarga de la Aplicación (PWA Install) */}
+        <div className="settings-section settings-pwa-section" id="pwa-settings-section">
+          <h3 style={{ marginBottom: '15px', color: '#00d4aa' }}>📲 Descargar App</h3>
+          <p style={{ fontSize: '0.9em', color: '#888', marginBottom: '20px' }}>
+            Instala WintonCoin en tu dispositivo para acceso rápido desde la pantalla de inicio.
+          </p>
           {isInstalled ? (
-            <div style={{ background: 'rgba(16, 185, 129, 0.15)', color: '#10b981', padding: '10px 14px', borderRadius: '10px', fontSize: '0.85rem', fontWeight: 600, textAlign: 'center' }}>
+            <div style={{ color: '#10b981', fontWeight: 600, fontSize: '0.9rem' }}>
               ✅ Aplicación instalada en este dispositivo
             </div>
-          ) : isInstallable ? (
+          ) : (
             <button
+              id="pwa-settings-install-btn"
               type="button"
               onClick={handleInstallClick}
-              style={{
-                width: '100%',
-                background: 'linear-gradient(135deg, #00d4aa 0%, #009e7e 100%)',
-                color: '#fff',
-                border: 'none',
-                padding: '12px',
-                borderRadius: '12px',
-                fontWeight: 700,
-                fontSize: '0.92rem',
-                cursor: 'pointer',
-                boxShadow: '0 4px 15px rgba(0, 212, 170, 0.35)'
-              }}
             >
-              📲 Instalar App en Teléfono
+              📲 Descargar App
             </button>
-          ) : (
-            <div style={{ fontSize: '0.82rem', color: '#94a3b8', fontStyle: 'italic', textAlign: 'center' }}>
-              Para instalar, abre el menú de tu navegador y selecciona "Agregar a la pantalla principal" o "Instalar aplicación".
-            </div>
+          )}
+          {pwaStatus && (
+            <p id="pwa-settings-status" className="pwa-settings-status">
+              {pwaStatus}
+            </p>
           )}
         </div>
 
-        {/* Sección: Notificaciones */}
-        <div style={{ marginBottom: '20px' }}>
-          <h3 style={{ fontSize: '0.95rem', color: '#fff', margin: '0 0 12px 0' }}>
-            🔔 Preferencias de Notificaciones
-          </h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: '#cbd5e1' }}>
-              <span>Seguridad y Transacciones (Crítico)</span>
-              <input type="checkbox" defaultChecked disabled />
-            </label>
-            <label style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.85rem', color: '#cbd5e1' }}>
-              <span>Actividad en Publicaciones</span>
-              <input type="checkbox" defaultChecked />
-            </label>
+        {/* Botón de Cierre de Sesión Seguro */}
+        {onLogout && (
+          <div style={{ marginTop: '20px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '15px' }}>
+            <button
+              type="button"
+              className="action-button"
+              style={{ width: '100%', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid rgba(239, 68, 68, 0.4)', color: '#ef4444' }}
+              onClick={onLogout}
+            >
+              Cerrar Sesión
+            </button>
           </div>
-        </div>
-
-        {/* Botón de Cierre de Sesión */}
-        <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.08)', paddingTop: '16px' }}>
-          <button
-            type="button"
-            onClick={onLogout}
-            style={{
-              width: '100%',
-              background: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              color: '#ef4444',
-              padding: '12px',
-              borderRadius: '12px',
-              fontWeight: 700,
-              fontSize: '0.9rem',
-              cursor: 'pointer'
-            }}
-          >
-            🚪 Cerrar Sesión
-          </button>
-        </div>
+        )}
       </div>
     </div>
   );

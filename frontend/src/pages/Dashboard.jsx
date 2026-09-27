@@ -11,6 +11,7 @@ import SettingsModal from '../components/dashboard/SettingsModal';
 import BurnModal from '../components/dashboard/BurnModal';
 import PublicationTypeModal from '../components/dashboard/PublicationTypeModal';
 import QuickSaleModal from '../components/dashboard/QuickSaleModal';
+import SolidarioHistoryModal from '../components/dashboard/SolidarioHistoryModal';
 import { getApiUrl } from '../modules/config';
 import { displayAmount } from '../modules/financialUnits';
 import { silentRefreshIfNeeded } from '../modules/auth';
@@ -67,9 +68,11 @@ export default function Dashboard() {
   const [burnModalOpen, setBurnModalOpen] = useState(false);
   const [publicationTypeModalOpen, setPublicationTypeModalOpen] = useState(false);
   const [quickSaleModalOpen, setQuickSaleModalOpen] = useState(false);
+  const [solidarioHistoryOpen, setSolidarioHistoryOpen] = useState(false);
 
-  // Estados de Configuración y Enlaces Dinámicos
+  // Estados de Configuración, Tooltips y Enlaces Dinámicos
   const [isPreLaunch, setIsPreLaunch] = useState(false);
+  const [showPrelaunchTooltip, setShowPrelaunchTooltip] = useState(false);
   const [hasMomentum, setHasMomentum] = useState(false);
   const [hasDonations, setHasDonations] = useState(false);
 
@@ -458,6 +461,7 @@ export default function Dashboard() {
         onClearNotifications={handleClearNotifications}
         onDismissNotification={handleDismissNotification}
         onOpenSettings={() => setSettingsOpen(true)}
+        onOpenSolidarioHistory={() => setSolidarioHistoryOpen(true)}
         onLogout={handleLogout}
       />
 
@@ -469,11 +473,33 @@ export default function Dashboard() {
           <div className="pre-launch-ribbon">
             <span className="pre-launch-text">
               <span className="ribbon-shine-overlay"></span>
-              <span className="ribbon-text-content">
+              <span
+                className="ribbon-text-content info-text-clickable"
+                role="button"
+                tabIndex={0}
+                aria-label="Información sobre el estado de pre-lanzamiento"
+                data-tooltip-id="tooltip-prelaunch"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowPrelaunchTooltip(prev => !prev);
+                }}
+              >
                 Pre-lanzamiento<br />
                 <span className="ribbon-subtext">VERSION BETA</span>
               </span>
             </span>
+            <div
+              id="tooltip-prelaunch"
+              className={`info-tooltip prelaunch-tooltip ${showPrelaunchTooltip ? 'show' : ''}`}
+              role="tooltip"
+              aria-hidden={!showPrelaunchTooltip}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p>
+                Estás en fase de pre-lanzamiento. Las recompensas en BLUE iou se registran en el Perfil de Impulsor y los
+                saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.
+              </p>
+            </div>
           </div>
         )}
 
@@ -569,6 +595,12 @@ export default function Dashboard() {
         isOpen={quickSaleModalOpen}
         onClose={() => setQuickSaleModalOpen(false)}
         username={username}
+      />
+
+      {/* 12. Modal Historial de Causas Solidarias Propias */}
+      <SolidarioHistoryModal
+        isOpen={solidarioHistoryOpen}
+        onClose={() => setSolidarioHistoryOpen(false)}
       />
     </div>
   );

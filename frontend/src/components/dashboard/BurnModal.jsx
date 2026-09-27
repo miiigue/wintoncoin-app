@@ -3,11 +3,12 @@ import { getApiUrl } from '../../modules/config';
 
 /**
  * ============================================================================
- * [WINTONCOIN] - DASHBOARD: BurnModal
+ * [WINTONCOIN] - DASHBOARD: BurnModal (React SPA 2026)
  * ============================================================================
  * Modal de amortización / compensación voluntaria de compromisos RED con BLUE:
  * - Permite al usuario quemar tokens BLUE líquidos para reducir su compromiso RED.
- * - Respeta estrictamente la regla de terminología: "Compromiso RED".
+ * - Paridad visual 100% con .burn-confirm-modal y style.css.
+ * - Respeta estrictamente la regla de terminología bancaria: "Compromiso RED".
  * ============================================================================
  */
 export default function BurnModal({
@@ -76,17 +77,21 @@ export default function BurnModal({
   return (
     <div
       className="modal burn-confirm-modal"
-      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-      onClick={onClose}
+      style={{ display: 'flex' }}
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
     >
       <div
         className="modal-content burn-confirm-content"
         onClick={(e) => e.stopPropagation()}
       >
         <span
-          className="close-button burn-confirm-close"
-          style={{ position: 'absolute', top: '16px', right: '16px', cursor: 'pointer', fontSize: '1.5rem', color: '#94a3b8', lineHeight: 1 }}
+          className="close-button"
           onClick={onClose}
+          role="button"
+          tabIndex={0}
+          aria-label="Cerrar"
         >
           &times;
         </span>
@@ -116,30 +121,22 @@ export default function BurnModal({
           </p>
         </div>
 
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px', textAlign: 'left' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '6px', fontWeight: 600 }}>
+        <form id="burnForm" onSubmit={handleSubmit}>
+          <div className="form-group">
+            <label htmlFor="burnAmount">
               Cantidad a amortizar (BLUE):
             </label>
             <input
               type="text"
+              id="burnAmount"
+              name="burnAmount"
               inputMode="decimal"
               placeholder="Ej: 10.5000"
               value={amount}
               onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ''))}
               required
-              style={{
-                width: '100%',
-                background: 'rgba(0, 0, 0, 0.4)',
-                border: '1px solid rgba(255, 255, 255, 0.2)',
-                borderRadius: '10px',
-                padding: '12px 14px',
-                color: '#fff',
-                fontSize: '1rem',
-                outline: 'none',
-                boxSizing: 'border-box'
-              }}
             />
+            <small className="input-hint">Usa un punto (.) o una coma (,) para los decimales.</small>
           </div>
 
           {error && (
@@ -152,6 +149,7 @@ export default function BurnModal({
             <button
               type="button"
               className="burn-confirm-btn cancel"
+              id="burnConfirmCancel"
               onClick={onClose}
             >
               Cancelar
@@ -159,9 +157,10 @@ export default function BurnModal({
             <button
               type="submit"
               className="burn-confirm-btn confirm"
+              id="burnConfirmAccept"
               disabled={loading}
             >
-              {loading ? 'Procesando...' : 'Confirmar Quema'}
+              {loading ? 'Procesando...' : '🔥 Confirmar Amortización'}
             </button>
           </div>
         </form>

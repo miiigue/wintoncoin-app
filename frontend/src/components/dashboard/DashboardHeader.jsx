@@ -23,6 +23,7 @@ export default function DashboardHeader({
   onClearNotifications,
   onDismissNotification,
   onOpenSettings,
+  onOpenSolidarioHistory,
   onLogout
 }) {
   const [profileOpen, setProfileOpen] = useState(false);
@@ -144,8 +145,16 @@ export default function DashboardHeader({
 
               {/* Enlace dinámico Donaciones ❤️ (oculto por defecto, visible si tiene causas) */}
               {hasDonations && (
-                <a href="solicitud-solidaria.html" id="menuSolidarioHistory"
-                  style={{ color: '#e83e8c', fontWeight: 600 }} onClick={() => setProfileOpen(false)}>
+                <a
+                  href="#"
+                  id="menuSolidarioHistory"
+                  style={{ color: '#e83e8c', fontWeight: 600 }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setProfileOpen(false);
+                    if (onOpenSolidarioHistory) onOpenSolidarioHistory();
+                  }}
+                >
                   Donaciones ❤️
                 </a>
               )}

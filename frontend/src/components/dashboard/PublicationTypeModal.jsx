@@ -5,14 +5,18 @@ import { getApiUrl } from '../../modules/config';
  * ============================================================================
  * [WINTONCOIN] - DASHBOARD: PublicationTypeModal (React SPA 2026)
  * ============================================================================
- * Modal selector del tipo de publicación a crear:
+ * Modal selector del tipo de publicación a crear con paridad 100% idéntica al
+ * HTML legado (#publicationTypeModal y #createPostPrelaunchModal):
  * 1. Solicitar un Ayudante (type=request): Contratar servicios pagando BLUE y asumiendo compromiso RED.
  * 2. Venta / Ofrecer Servicio (type=sell): Ofrecer productos, servicios o monedas a cambio de BLUE.
  * 3. Recibir Donaciones (type=donation): Recaudación comunitaria y causas solidarias.
  * 
- * Cumplimiento de Políticas de Pre-lanzamiento:
- * - Valida en vivo las directivas del backend (/api/platform-settings).
- * - Protege los flujos según el rol del usuario (plataforma vs usuario general).
+ * Reglas de Pre-Lanzamiento y Compliance:
+ * - Si el modo pre-lanzamiento está activo y el usuario no es de la plataforma,
+ *   muestra primero el diálogo de aviso oficial (.prelaunch-modal-overlay)
+ *   "Fase de Desarrollo", y al pulsar "Entendido" despliega las opciones.
+ * - Erradicación absoluta de estilos inline; uso canónico de frontend/style.css.
+ * - Estricta regla terminológica contable: "Compromiso RED" (nunca "deuda").
  * ============================================================================
  */
 export default function PublicationTypeModal({
@@ -27,10 +31,14 @@ export default function PublicationTypeModal({
     allow_donation_publications: true,
     platform_username: 'wintoncoin'
   });
-  const [loadingSettings, setLoadingSettings] = useState(true);
+  const [showPrelaunchNotice, setShowPrelaunchNotice] = useState(false);
 
+  // Consulta de configuración de plataforma al abrir el modal
   useEffect(() => {
-    if (!isOpen) return;
+    if (!isOpen) {
+      setShowPrelaunchNotice(false);
+      return;
+    }
 
     const fetchSettings = async () => {
       try {
@@ -39,25 +47,35 @@ export default function PublicationTypeModal({
         if (res.ok) {
           const data = await res.json();
           setPlatformSettings(data);
+
+          // Si el modo pre-lanzamiento está habilitado y el usuario no es plataforma,
+          // mostrar primero el modal de aviso de pre-lanzamiento como en el legacy
+          const currentNormalized = (username || localStorage.getItem('username') || '').toLowerCase();
+          const platformNormalized = (data.platform_username || 'wintoncoin').toLowerCase();
+          const isPlatform = currentNormalized === platformNormalized || currentNormalized === 'plataforma';
+
+          if (data.pre_launch_mode_enabled && !isPlatform) {
+            setShowPrelaunchNotice(true);
+          } else {
+            setShowPrelaunchNotice(false);
+          }
         }
       } catch (err) {
         console.warn('[PublicationTypeModal] Aviso consultando platform settings:', err);
-      } finally {
-        setLoadingSettings(false);
       }
     };
 
     fetchSettings();
-  }, [isOpen]);
+  }, [isOpen, username]);
 
   if (!isOpen) return null;
 
-  // Lógica de permisos de publicación
+  // Lógica de permisos de publicación según rol y fase
   const currentNormalized = (username || localStorage.getItem('username') || '').toLowerCase();
   const platformNormalized = (platformSettings.platform_username || 'wintoncoin').toLowerCase();
   const isPlatformUser = currentNormalized === platformNormalized || currentNormalized === 'plataforma';
-
   const isPreLaunch = platformSettings.pre_launch_mode_enabled === true;
+
   const allowRequest = isPreLaunch ? isPlatformUser : platformSettings.allow_request_publications !== false;
   const allowSell = isPreLaunch ? isPlatformUser : platformSettings.allow_sell_publications !== false;
   const allowDonation = platformSettings.allow_donation_publications !== false;
@@ -72,221 +90,135 @@ export default function PublicationTypeModal({
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        background: 'rgba(0, 0, 0, 0.75)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 10000,
-        padding: '16px'
-      }}
-      onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
-    >
-      <div
-        style={{
-          background: '#0f172a',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          borderRadius: '24px',
-          padding: '28px',
-          maxWidth: '520px',
-          width: '100%',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)',
-          position: 'relative',
-          color: '#fff',
-          maxHeight: '90vh',
-          overflowY: 'auto'
-        }}
-      >
-        {/* Botón Cerrar */}
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            position: 'absolute',
-            top: '20px',
-            right: '20px',
-            background: 'none',
-            border: 'none',
-            color: '#94a3b8',
-            fontSize: '1.5rem',
-            cursor: 'pointer',
-            lineHeight: 1
+    <>
+      {/* 1. Modal Aviso Pre-Lanzamiento (Aparece primero si pre-launch está activo) */}
+      {showPrelaunchNotice && (
+        <div
+          className="prelaunch-modal-overlay"
+          id="createPostPrelaunchModal"
+          style={{ display: 'flex' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
           }}
-          aria-label="Cerrar"
         >
-          &times;
-        </button>
-
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0 0 8px 0', color: '#fff' }}>
-          ¿Qué te gustaría hacer?
-        </h2>
-        <p style={{ fontSize: '0.88rem', color: '#94a3b8', margin: '0 0 24px 0', lineHeight: 1.5 }}>
-          Elige una opción para continuar. Cada acción te llevará a su formulario específico.
-        </p>
-
-        {isPreLaunch && !isPlatformUser && (
-          <div
-            style={{
-              background: 'rgba(56, 189, 248, 0.1)',
-              border: '1px solid rgba(56, 189, 248, 0.25)',
-              borderRadius: '12px',
-              padding: '12px',
-              marginBottom: '20px',
-              fontSize: '0.82rem',
-              color: '#38bdf8',
-              lineHeight: 1.4
-            }}
-          >
-            🚀 <strong>Modo Pre-lanzamiento activo:</strong> Las publicaciones comerciales están restringidas. Puedes postular causas solidarias o participar en misiones comunitarias.
+          <div className="prelaunch-modal">
+            <div className="prelaunch-modal-icon">🚀</div>
+            <h3 className="prelaunch-modal-title">Fase de Desarrollo</h3>
+            <div className="prelaunch-modal-text">
+              <p>
+                Durante la <strong>fase de pre-lanzamiento</strong>, las publicaciones de usuarios están
+                deshabilitadas.
+              </p>
+              <p>
+                Solo tareas de la plataforma con fines educativos, promocion, desarrollo y pruebas.
+              </p>
+            </div>
+            <button
+              type="button"
+              className="prelaunch-modal-btn"
+              id="createPostPrelaunchAccept"
+              onClick={() => setShowPrelaunchNotice(false)}
+            >
+              Entendido
+            </button>
           </div>
-        )}
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {/* Opción 1: Solicitar un Ayudante */}
-          <button
-            type="button"
-            disabled={!allowRequest}
-            onClick={() => allowRequest && handleSelectType('request')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              padding: '16px',
-              borderRadius: '16px',
-              border: allowRequest ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
-              background: allowRequest ? 'rgba(56, 189, 248, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-              cursor: allowRequest ? 'pointer' : 'not-allowed',
-              opacity: allowRequest ? 1 : 0.45,
-              textAlign: 'left',
-              transition: 'all 0.2s',
-              color: '#fff'
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'rgba(56, 189, 248, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.4rem',
-                flexShrink: 0
-              }}
-            >
-              🤝
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.98rem', color: '#38bdf8', marginBottom: '4px' }}>
-                Solicitar un Ayudante
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                Pagarás BLUE a cambio de una tarea o servicio, asumiendo compromiso RED amortizable.
-              </div>
-            </div>
-          </button>
-
-          {/* Opción 2: Venta / Ofrecer Servicio */}
-          <button
-            type="button"
-            disabled={!allowSell}
-            onClick={() => allowSell && handleSelectType('sell')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              padding: '16px',
-              borderRadius: '16px',
-              border: allowSell ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
-              background: allowSell ? 'rgba(16, 185, 129, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-              cursor: allowSell ? 'pointer' : 'not-allowed',
-              opacity: allowSell ? 1 : 0.45,
-              textAlign: 'left',
-              transition: 'all 0.2s',
-              color: '#fff'
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'rgba(16, 185, 129, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.4rem',
-                flexShrink: 0
-              }}
-            >
-              🏷️
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.98rem', color: '#10b981', marginBottom: '4px' }}>
-                Venta / Ofrecer Servicio
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                Recibirás tokens BLUE por un producto, servicio o monedas que vendas a otros usuarios.
-              </div>
-            </div>
-          </button>
-
-          {/* Opción 3: Recibir Donaciones */}
-          <button
-            type="button"
-            disabled={!allowDonation}
-            onClick={() => allowDonation && handleSelectType('donation')}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '16px',
-              padding: '16px',
-              borderRadius: '16px',
-              border: allowDonation ? '1px solid rgba(232, 62, 140, 0.3)' : '1px solid rgba(255, 255, 255, 0.05)',
-              background: allowDonation ? 'rgba(232, 62, 140, 0.08)' : 'rgba(255, 255, 255, 0.02)',
-              cursor: allowDonation ? 'pointer' : 'not-allowed',
-              opacity: allowDonation ? 1 : 0.45,
-              textAlign: 'left',
-              transition: 'all 0.2s',
-              color: '#fff'
-            }}
-          >
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'rgba(232, 62, 140, 0.2)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: '1.4rem',
-                flexShrink: 0
-              }}
-            >
-              ❤️
-            </div>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: '0.98rem', color: '#e83e8c', marginBottom: '4px' }}>
-                Recibir Donaciones
-              </div>
-              <div style={{ fontSize: '0.82rem', color: '#cbd5e1', lineHeight: 1.4 }}>
-                Publica una causa benéfica o humanitaria para recibir apoyo voluntario en BLUE.
-              </div>
-            </div>
-          </button>
         </div>
-      </div>
-    </div>
+      )}
+
+      {/* 2. Modal Canónico de Selección de Tipo de Publicación (style.css #publicationTypeModal) */}
+      {!showPrelaunchNotice && (
+        <div
+          id="publicationTypeModal"
+          className="modal"
+          style={{ display: 'flex' }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget) onClose();
+          }}
+        >
+          <div className="modal-content">
+            <span
+              className="close-button publication-type-close"
+              onClick={onClose}
+              role="button"
+              tabIndex={0}
+              aria-label="Cerrar"
+            >
+              &times;
+            </span>
+
+            <h2>¿Qué te gustaría hacer?</h2>
+            <p>Elige una opción para continuar. Cada acción te llevará a un formulario específico.</p>
+
+            <div className="modal-options">
+              {/* Opción 1: Solicitar un Ayudante (Request) */}
+              <a
+                href={allowRequest ? 'publish.html?type=request' : '#'}
+                className={`modal-option-button request ${!allowRequest ? 'disabled' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (allowRequest) handleSelectType('request');
+                }}
+                style={!allowRequest ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+              >
+                <div className="option-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                    className="bi bi-person-plus" viewBox="0 0 16 16">
+                    <path
+                      d="M6 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0zm4 8c0 1-1 1-1 1H1s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C9.516 10.68 8.289 10 6 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z" />
+                    <path fillRule="evenodd"
+                      d="M13.5 5a.5.5 0 0 1 .5V7h1.5a.5.5 0 0 1 0 1H14v1.5a.5.5 0 0 1-1 0V8h-1.5a.5.5 0 0 1 0-1H13V5.5a.5.5 0 0 1 .5-.5z" />
+                  </svg>
+                </div>
+                <h3>Solicitar un Ayudante</h3>
+                <p>Pagarás BLUE a cambio de una tarea o servicio, asumirás compromiso RED.</p>
+              </a>
+
+              {/* Opción 2: Venta / Ofrecer Servicio (Sell) */}
+              <a
+                href={allowSell ? 'publish.html?type=sell' : '#'}
+                className={`modal-option-button sell ${!allowSell ? 'disabled' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (allowSell) handleSelectType('sell');
+                }}
+                style={!allowSell ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+              >
+                <div className="option-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                    className="bi bi-tag" viewBox="0 0 16 16">
+                    <path d="M6 4.5a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0zm-1 0a.5.5 0 1 0-1 0 .5.5 0 0 0 1 0z" />
+                    <path
+                      d="M2 1h4.586a1 1 0 0 1 .707.293l7 7a1 1 0 0 1 0 1.414l-4.586 4.586a1 1 0 0 1-1.414 0l-7-7A1 1 0 0 1 1 6.586V2a1 1 0 0 1 1-1zm0 5.586 7 7L13.586 9l-7-7H2v4.586z" />
+                  </svg>
+                </div>
+                <h3>Venta / Ofrecer Servicio</h3>
+                <p>Recibirás BLUE por un producto, servicio o monedas que vendas a otros usuarios.</p>
+              </a>
+
+              {/* Opción 3: Recibir Donaciones (Donation) */}
+              <a
+                href={allowDonation ? (isPreLaunch ? 'solicitud-solidaria.html' : 'publish.html?type=donation') : '#'}
+                className={`modal-option-button donation ${!allowDonation ? 'disabled' : ''}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  if (allowDonation) handleSelectType('donation');
+                }}
+                style={!allowDonation ? { opacity: 0.5, pointerEvents: 'none' } : undefined}
+              >
+                <div className="option-icon">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" fill="currentColor"
+                    className="bi bi-heart-fill" viewBox="0 0 16 16">
+                    <path fillRule="evenodd"
+                      d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314z" />
+                  </svg>
+                </div>
+                <h3>Recibir Donaciones</h3>
+                <p>Publica una causa para recibir apoyo de la comunidad en BLUE.</p>
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

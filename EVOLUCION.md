@@ -13,6 +13,29 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-27 — Auditoría Forense Integral Cero-Omisiones: Erradicación Total de Estilos Inline, Restauración de Modales Faltantes y Tooltips Regulatorios FinTech
+* **Diagnóstico de Auditoría Exhaustiva ("Ni una sola coma ni un solo caracter omitido")**:
+  - Tras la refactorización inicial del Dashboard, se ejecutó una inspección forense carácter por carácter comparando `contract_interaction.html` y `contract-interaction.js` contra los submódulos React, identificando que 4 modales (`PublicationTypeModal`, `QuickSaleModal`, `SettingsModal` y `EmergencyBanner`) aún contenían estilos inline y carecían de elementos y clases canónicas de `style.css`.
+  - Asimismo, se detectó la ausencia del modal de advertencia de pre-lanzamiento (`createPostPrelaunchModal`), del modal de historial solidario propio (`solidarioHistoryModal`), y de los 5 tooltips educativos/regulatorios (`tooltip-disponibles`, `tooltip-proxima-liberacion`, `tooltip-saldo-red-label`, `tooltip-proximo-vencimiento`, `tooltip-prelaunch`).
+* **Implementación Sistemática por Componentes y Remediación Total**:
+  - *Selector de Tipo de Publicación (`PublicationTypeModal.jsx`)*: Adopción canónica de las clases `#publicationTypeModal.modal`, `.modal-content`, `.close-button.publication-type-close`, `.modal-options`, `.modal-option-button.request`, `.modal-option-button.sell` y `.modal-option-button.donation`. Integración del diálogo previo `.prelaunch-modal-overlay#createPostPrelaunchModal` ("Fase de Desarrollo") activado condicionalmente en modo pre-lanzamiento.
+  - *Venta Rápida y Generador QR (`QuickSaleModal.jsx`)*: Migración a las clases maestras `#quickSaleModal.modal`, `.close-button.quick-sale-close`, `#quickSaleForm`, `.form-group`, `.input-hint`, `#qrCodeModal.modal`, `.qr-code-container`, `#copyQrCodeUrl`, con copia reactiva al portapapeles y renderizado instantáneo de QR.
+  - *Configuración y Descarga PWA (`SettingsModal.jsx`)*: Migración a `#settingsModal.modal`, `.settings-section`, `.notification-setting-item`, `.notification-setting-info`, y los 3 interruptores oficiales con `.admin-switch` y `.admin-slider` (Seguridad bloqueado, Social y Marketing) conectados a `PUT /api/notifications/settings`. Sección PWA `.settings-section.settings-pwa-section` con `#pwa-settings-install-btn`.
+  - *Modal de Emergencia SOS (`EmergencyBanner.jsx`)*: Eliminación total de estilos inline y adopción de las clases `.venezuela-emergency-modal-overlay`, `.venezuela-emergency-modal`, `.venezuela-emergency-banner-img`, `.venezuela-emergency-img-overlay`, `.venezuela-emergency-badge` ("Campaña de Ayuda"), `.venezuela-emergency-body`, `.venezuela-emergency-title`, `.venezuela-emergency-text`, `.venezuela-emergency-subtext`, `.venezuela-emergency-actions`, `.venezuela-emergency-btn.confirm` ("❤️ Ir a Donar") y `.venezuela-emergency-btn.secondary` ("Quizás más tarde").
+  - *Tooltips Regulatorios y Explicativos (`WalletTabs.jsx` y `Dashboard.jsx`)*: Incorporación de los tooltips `.info-tooltip` con estado reactivo interactivo `.show`:
+    1. `#tooltip-disponibles`: Definición del token BLUE como activo y paridad 1 BLUE = 1 USD al 14-2-2027.
+    2. `#tooltip-proxima-liberacion`: Explicación del período de espera en parking para protección de las partes.
+    3. `#tooltip-saldo-red-label`: Regla Materia-Antimateria, compromiso RED y prevención de listado en la Página L.O.V.
+    4. `#tooltip-proximo-vencimiento`: Plazo determinista a 30 días para amortización on-chain.
+    5. `#tooltip-prelaunch`: Advertencia de fase beta en cinta diagonal superior.
+  - *Modal de Historial Solidario Propio (`SolidarioHistoryModal.jsx`)*: Creación del componente modal con las clases `#solidarioHistoryModal.modal`, `.modal-content`, `.solidario-history-close`, `#solidarioHistoryList`, conectado a `menuSolidarioHistory` en `DashboardHeader.jsx`.
+  - *Amortización Voluntaria RED (`BurnModal.jsx`)*: Erradicación de estilos inline en el formulario, adoptando `.close-button` y `#burnForm .form-group` de `style.css`.
+* **Verificación de Empaquetado y Pruebas Unitarias**:
+  - Compilación Vite en modo demo (`npm run build:demo`): código de salida 0, 161 módulos precacheados en el Service Worker.
+  - Suite de pruebas del backend (`npm test`): 18 suites aprobadas, 114 pruebas pasadas, 0 fallos.
+
+---
+
 ### 2026-09-27 — Refactorización Integral a Paridad Visual 100% Legacy en Dashboard React SPA: Adopción Canónica de `style.css` y Erradicación de Estilos Inline
 * **Diagnóstico de Necesidad Arquitectónica y Experiencia de Usuario (UI/UX)**:
   - El usuario requirió paridad visual estricta y absoluta (100% idéntica, "Opción A: como si nada hubiese pasado") entre el nuevo Dashboard React SPA y la interfaz legada (`contract_interaction.html`), eliminando elementos no existentes en el diseño original (como `BottomNav`) y sustituyendo todos los estilos inline ad-hoc por las clases CSS maestras ya consolidadas en `frontend/style.css`.

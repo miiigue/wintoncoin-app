@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
 
 /**
  * ============================================================================
- * [WINTONCOIN] - DASHBOARD: WalletTabs
+ * [WINTONCOIN] - DASHBOARD: WalletTabs (React SPA 2026)
  * ============================================================================
- * Tarjeta interactiva de saldos y compromisos con paridad visual idéntica:
+ * Tarjeta interactiva de saldos y compromisos con paridad visual 100% legacy:
  * - Pestaña 1 (Impulsor): Saldo BLUE IOU acumulado por misiones y estado de caso SOS.
  * - Pestaña 2 (Billetera):
  *   * Tokens BLUE Líquidos (Activo disponible).
- *   * Tokens BLUE en Parking (Liberación programada).
+ *   * Tokens BLUE en Parking (Liberación programada con temporizador dinámico).
  *   * Compromiso RED asumido (Vigencia determinista a 30 días, amortización con BLUE).
  *   * Capacidad crediticia disponible.
  *   * Dirección de billetera Web3 con botón de copia rápida.
- * 
- * Regla de Oro:
- * - CERO mención a la palabra prohibida; siempre se utiliza "Compromiso RED".
+ * - Tooltips informativos regulatorios y de educación financiera (.info-tooltip)
+ *   idénticos carácter por carácter a contract_interaction.html.
+ * - Cumplimiento FinTech: Regla terminológica absoluta ("Compromiso RED").
  * ============================================================================
  */
 export default function WalletTabs({
@@ -36,6 +35,7 @@ export default function WalletTabs({
 }) {
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
+  const [activeTooltip, setActiveTooltip] = useState(null);
 
   // Actualizador de tiempo en vivo para las cuentas regresivas
   useEffect(() => {
@@ -45,6 +45,11 @@ export default function WalletTabs({
     }, 1000);
     return () => clearInterval(timer);
   }, [nextUnlockAt, nextDueAt]);
+
+  const toggleTooltip = (tooltipId, e) => {
+    e.stopPropagation();
+    setActiveTooltip(prev => prev === tooltipId ? null : tooltipId);
+  };
 
   const formatCountdown = (targetDate) => {
     if (!targetDate) return null;
@@ -63,7 +68,8 @@ export default function WalletTabs({
     return `${minutes}m ${seconds}s`;
   };
 
-  const handleCopyAddress = async () => {
+  const handleCopyAddress = async (e) => {
+    e.stopPropagation();
     if (!walletAddress) return;
     try {
       if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -80,8 +86,8 @@ export default function WalletTabs({
       }
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (e) {
-      console.warn('[WalletTabs] No se pudo copiar dirección al portapapeles:', e);
+    } catch (err) {
+      console.warn('[WalletTabs] No se pudo copiar dirección al portapapeles:', err);
     }
   };
 
@@ -203,7 +209,7 @@ export default function WalletTabs({
             <div
               className="balance-section blue-section"
               onClick={() => window.location.href = 'estado-cuenta.html'}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'pointer', position: 'relative' }}
               title="Ver Estado de Cuenta"
             >
               <div className="balance-items">
@@ -214,18 +220,56 @@ export default function WalletTabs({
                       role="button"
                       tabIndex={0}
                       aria-label="Información sobre Liquidez"
+                      data-tooltip-id="tooltip-disponibles"
+                      onClick={(e) => toggleTooltip('tooltip-disponibles', e)}
                     >
                       LIQUIDEZ
                     </span>
                   </span>
+
+                  {/* Tooltip Explicativo BLUE */}
+                  <div
+                    id="tooltip-disponibles"
+                    className={`info-tooltip ${activeTooltip === 'tooltip-disponibles' ? 'show' : ''}`}
+                    role="tooltip"
+                    aria-hidden={activeTooltip !== 'tooltip-disponibles'}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <p>
+                      <strong>Los tokens BLUE son tu activo.</strong> Puedes usarlos para pagar servicios, transferirlos o quemarlos para amortizar tu compromiso RED. Al lanzamiento oficial <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.
+                    </p>
+                  </div>
+
                   <div className="balance-item">
                     <span id="saldoBlue" className="balance-amount blue-amount">{liquidBlue}</span>
                   </div>
+
                   {parseFloat(parkingBlue) > 0 && (
-                    <div id="available-countdown-container" className="countdown-container" style={{ display: 'block' }}>
-                      <p id="available-countdown-text" className="countdown-text info-text-clickable">
+                    <div id="available-countdown-container" className="countdown-container" style={{ display: 'block', position: 'relative' }}>
+                      <p
+                        id="available-countdown-text"
+                        className="countdown-text info-text-clickable"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Información sobre próxima liberación"
+                        data-tooltip-id="tooltip-proxima-liberacion"
+                        onClick={(e) => toggleTooltip('tooltip-proxima-liberacion', e)}
+                      >
                         ⏳ En parking: {parkingBlue} BLUE {unlockCountdownStr ? `(${unlockCountdownStr})` : ''}
                       </p>
+
+                      {/* Tooltip Explicativo Parking BLUE */}
+                      <div
+                        id="tooltip-proxima-liberacion"
+                        className={`info-tooltip ${activeTooltip === 'tooltip-proxima-liberacion' ? 'show' : ''}`}
+                        role="tooltip"
+                        aria-hidden={activeTooltip !== 'tooltip-proxima-liberacion'}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <p>
+                          Tiempo restante para que tus tokens BLUE pendientes se liberen y estén disponibles para usar. Este período de espera protege a ambas partes en las transacciones.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -236,7 +280,7 @@ export default function WalletTabs({
             <div
               className="balance-section red-section"
               onClick={() => window.location.href = 'estado-cuenta.html'}
-              style={{ cursor: 'pointer' }}
+              style={{ cursor: 'pointer', position: 'relative' }}
               title="Ver Estado de Cuenta"
             >
               <div className="balance-items red-balance-items">
@@ -247,21 +291,59 @@ export default function WalletTabs({
                       role="button"
                       tabIndex={0}
                       aria-label="Información sobre Compromiso"
+                      data-tooltip-id="tooltip-saldo-red-label"
+                      onClick={(e) => toggleTooltip('tooltip-saldo-red-label', e)}
                     >
                       Tu compromiso
                     </span>
                   </span>
+
+                  {/* Tooltip Explicativo Compromiso RED */}
+                  <div
+                    id="tooltip-saldo-red-label"
+                    className={`info-tooltip ${activeTooltip === 'tooltip-saldo-red-label' ? 'show' : ''}`}
+                    role="tooltip"
+                    aria-hidden={activeTooltip !== 'tooltip-saldo-red-label'}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <p>
+                      <strong>Los tokens RED representan tu compromiso.</strong> Se crean cuando realizas un pago. Gracias a la <strong>Regla Materia-Antimateria</strong>, este compromiso se amortiza automáticamente al recibir tokens BLUE líquidos. Si llegas a la fecha límite sin haberlo amortizado, serás listado en la <strong>página L.O.V.</strong> (Lista de Obligaciones Vencidas).
+                    </p>
+                  </div>
+
                   <div className="balance-item">
                     <span id="saldoRed" className="balance-amount red-amount">{redCommitment}</span>
                     <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, letterSpacing: '0.5px' }}>
                       DISPONIBLE: <span id="saldoRedDisponible">{availableRedCapacity}</span>
                     </div>
                   </div>
+
                   {nextDueAt && parseFloat(redCommitment) > 0 && dueCountdownStr && (
-                    <div id="debt-countdown-container" className="countdown-container" style={{ display: 'block' }}>
-                      <p id="debt-countdown-text" className="countdown-text info-text-clickable">
+                    <div id="debt-countdown-container" className="countdown-container" style={{ display: 'block', position: 'relative' }}>
+                      <p
+                        id="debt-countdown-text"
+                        className="countdown-text info-text-clickable"
+                        role="button"
+                        tabIndex={0}
+                        aria-label="Información sobre próximo vencimiento"
+                        data-tooltip-id="tooltip-proximo-vencimiento"
+                        onClick={(e) => toggleTooltip('tooltip-proximo-vencimiento', e)}
+                      >
                         ⏰ Vencimiento de compromiso en: {dueCountdownStr}
                       </p>
+
+                      {/* Tooltip Explicativo Vencimiento Compromiso RED */}
+                      <div
+                        id="tooltip-proximo-vencimiento"
+                        className={`info-tooltip ${activeTooltip === 'tooltip-proximo-vencimiento' ? 'show' : ''}`}
+                        role="tooltip"
+                        aria-hidden={activeTooltip !== 'tooltip-proximo-vencimiento'}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <p>
+                          Tiempo restante antes de que tu compromiso RED expire. Recuerda realizar trabajos o tareas remuneradas para recibir tokens BLUE; la aniquilación del compromiso será automática on-chain. Si llegas al límite, serás listado en la <strong>página L.O.V.</strong>.
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
