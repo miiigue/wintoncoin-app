@@ -13,7 +13,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
-### 2026-09-27 — Integración y Verificación de Seguridad: Blindaje Administrativo, Operaciones Durables On-Chain, Persistencia Atómica de PIN y Preflight Web3
+### 2026-09-27 — Integración y Verificación de Seguridad: Blindaje Administrativo, Operaciones Durables On-Chain, Persistencia Atómica de PIN y Preflight Web3 (Commit: `d13263b`)
 * **Diagnóstico y Evaluación Conjunta de Seguridad (CODEX-074 a CODEX-078 / ANTIGRAVITY-055)**:
   - Se identificó la necesidad de endurecer el acceso a las funciones de gobernanza de contratos, separar las responsabilidades de las claves privadas de servidor, evitar que un rollback transaccional borrara los intentos fallidos de PIN, y registrar de forma durable las transacciones on-chain antes de su envío para garantizar tolerancia a fallos y evitar duplicación de pagos.
 * **Implementación de Componentes de Seguridad y Arquitectura Bancaria**:
