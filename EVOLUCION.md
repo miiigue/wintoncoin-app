@@ -13,6 +13,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-27 — Refactorización Integral a Paridad Visual 100% Legacy en Dashboard React SPA: Adopción Canónica de `style.css` y Erradicación de Estilos Inline
+* **Diagnóstico de Necesidad Arquitectónica y Experiencia de Usuario (UI/UX)**:
+  - El usuario requirió paridad visual estricta y absoluta (100% idéntica, "Opción A: como si nada hubiese pasado") entre el nuevo Dashboard React SPA y la interfaz legada (`contract_interaction.html`), eliminando elementos no existentes en el diseño original (como `BottomNav`) y sustituyendo todos los estilos inline ad-hoc por las clases CSS maestras ya consolidadas en `frontend/style.css`.
+* **Implementación Sistemática por Componentes**:
+  - *Importación Global de Estilos (`main.jsx`)*: Se integraron `style.css` y `admin-switch.css` a nivel raíz de la aplicación React, habilitando toda la paleta de colores zafiro/esmeralda, tipografía Poppins/Inter y variables CSS del protocolo.
+  - *Contenedor Maestro y Logotipo (`Dashboard.jsx`)*: Reemplazo del contenedor raíz con las clases legacy `.container.interaction-container`, restauración del lazo diagonal `.pre-launch-ribbon` con animación de brillo (`.ribbon-shine-overlay`), logotipo `.main-title` con `.logo-winton` y `.logo-coin`, y eliminación de `BottomNav`.
+  - *Cabecera y Menús Dinámicos (`DashboardHeader.jsx`)*: Migración a las clases `.header-menu`, `.profile-menu`, `.profile-trigger`, `.dropdown-content`, `.notification-menu`, `.notification-trigger` y `.notification-badge`.
+  - *Saldos y Compromisos Contables (`WalletTabs.jsx`)*: Adopción de `.wallet-tabs-container`, `.wallet-tabs-nav`, `.wallet-tab-btn` (con atributos `data-tab="impulsor"` y `data-tab="billetera"` y gradientes nativos), `#panelImpulsor .booster-banner` con animación `greenShine`, `#panelBilletera .balances-container` con animaciones de destello `blueGleam` y `redGleam`, secciones `.blue-section` y `.red-section`, y botón de amortización voluntaria `.burn-item .burn-trigger` con animación `fireFlicker`. Estricto apego al estándar terminológico bancario: "Compromiso RED".
+  - *Botones de Acción Rápida (`QuickActions.jsx`)*: Sustitución de la cuadrícula de botones por el contenedor canónico `.main-actions-container` con enlaces `.button-link.primary-action` ("Crear Nueva Publicación") y `.button-link.secondary-action` ("⚡ Venta Rápida") con animación `glowing-border`.
+  - *Tarjeta Promocional de Referidos (`ReferralPromoCard.jsx`)*: Implementación con `.referral-motivation-section`, `.referral-promo-card`, `.promo-timer-container`, `.promo-reward-info`, `.reward-value.gold-premium` y botón `.referral-share-button` con `.button-content`.
+  - *Banner y Modal de Emergencia (`EmergencyBanner.jsx` y `style.css`)*: Centralización de estilos en `style.css` (`.emergency-banner`, `.emergency-badge`, `.emergency-text`, `.emergency-banner-btn`, `.emergency-banner-close`, `.venezuela-emergency-modal-overlay`, `.venezuela-emergency-modal`) y uso directo en React.
+  - *Feed Activo del Marketplace (`PublicationsFeed.jsx`)*: Integración de `.publications-title`, `.publication-controls`, chips `.publication-filter-chips .filter-chip`, buscador y select de ordenamiento `.publication-sort-container`, e ítems del listado `#publications-list` con `.publication-item-link`, `.publication-item`, cabecera flotante `.card-top-row`, ribbons `.cost-ribbon-right` (`.booster-ribbon`, `.donation-ribbon`, `.sell-ribbon`), `.hero-scrim`, `.hero-content`, `.donation-progress-container` y metadatos `.publication-footer`.
+  - *Modal de Amortización Voluntaria (`BurnModal.jsx`)*: Migración a `.burn-confirm-modal`, `.burn-confirm-content`, `.burn-confirm-icon`, `.burn-confirm-title`, `.burn-confirm-summary`, `.burn-confirm-amounts`, advertencia `.burn-confirm-warning` y botones `.burn-confirm-buttons .burn-confirm-btn`.
+* **Verificación de Empaquetado y Calidad de Código**:
+  - Compilación exitosa en modo demo (`npm run build:demo`): código de salida 0, 161 entradas de Service Worker precacheadas, cero errores de sintaxis y paridad visual completa.
+
+---
+
 ### 2026-09-27 — Corrección Crítica de Renderizado en Dashboard Móvil: Resolución de ReferenceError en WalletTabs y Endurecimiento de ErrorBoundary
 * **Diagnóstico de Causa Raíz ("Inconsistencia de Carga Detectada")**:
   - Al iniciar sesión desde la aplicación Android (`WintonCoin-Demo.apk`) o navegador móvil y navegar al Dashboard React, el componente `<ErrorBoundary>` capturaba una excepción no controlada mostrando la pantalla de contingencia con el botón "Reiniciar Aplicación".

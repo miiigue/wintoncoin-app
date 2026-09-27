@@ -19,50 +19,50 @@ export default function EmergencyBanner({ onSelectSolidarioFilter }) {
 
   return (
     <>
-      <div className="emergency-banner" style={{ margin: '15px auto', maxWidth: '800px', background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(185, 28, 28, 0.95))', borderRadius: '16px', padding: '12px 18px', color: '#fff', boxShadow: '0 8px 25px rgba(239, 68, 68, 0.35)' }}>
-        <div className="emergency-banner-content" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: '240px' }}>
-            <span style={{ background: '#fff', color: '#b91c1c', fontWeight: 800, fontSize: '0.72rem', padding: '3px 8px', borderRadius: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              🚨 EMERGENCIA
-            </span>
-            <span style={{ fontSize: '0.88rem', fontWeight: 500, lineHeight: 1.4 }}>
-              Dos Terremotos en Venezuela. Dona tus BLUE IOU acumulados para apoyar a damnificados.
-            </span>
-          </div>
-
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <button
-              type="button"
-              onClick={() => setShowModal(true)}
-              style={{ background: '#fff', color: '#b91c1c', border: 'none', padding: '7px 16px', borderRadius: '8px', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', boxShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
-            >
-              Ver Causas
-            </button>
-            <button
-              type="button"
-              onClick={() => setIsDismissed(true)}
-              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.8)', fontSize: '1.4rem', cursor: 'pointer', lineHeight: 1, padding: '0 4px' }}
-              title="Cerrar aviso"
-            >
-              &times;
-            </button>
-          </div>
+      <div id="venezuelaEmergencyBanner" className="emergency-banner">
+        <div className="emergency-banner-content">
+          <span className="emergency-badge">🚨 EMERGENCIA VENEZUELA</span>
+          <span className="emergency-text">
+            Dos Terremotos en Venezuela. Dona tus BLUE IOU acumulados gratis para apoyar.
+          </span>
+          <button
+            id="emergencyBannerBtn"
+            type="button"
+            className="emergency-banner-btn"
+            onClick={() => setShowModal(true)}
+          >
+            Ver Causas
+          </button>
+          <button
+            id="closeEmergencyBanner"
+            type="button"
+            className="emergency-banner-close"
+            onClick={() => setIsDismissed(true)}
+            aria-label="Cerrar"
+          >
+            &times;
+          </button>
         </div>
       </div>
 
       {showModal && (
         <div
-          style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', background: 'rgba(0, 0, 0, 0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100000, padding: '16px' }}
+          className="venezuela-emergency-modal-overlay"
           onClick={() => setShowModal(false)}
         >
           <div
-            style={{ background: '#0f172a', border: '1px solid rgba(239, 68, 68, 0.4)', borderRadius: '24px', maxWidth: '480px', width: '100%', overflow: 'hidden', boxShadow: '0 25px 60px rgba(239, 68, 68, 0.25)' }}
+            className="venezuela-emergency-modal"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ height: '160px', background: 'linear-gradient(135deg, #b91c1c 0%, #450a0a 100%)', display: 'flex', alignItems: 'flex-end', padding: '1.5rem' }}>
-              <span style={{ background: 'rgba(255,255,255,0.2)', color: '#fff', fontWeight: 800, fontSize: '0.75rem', padding: '4px 10px', borderRadius: '50px', letterSpacing: '1px' }}>
-                CAMPAÑA DE AYUDA DIRECTA
-              </span>
+            <div
+              className="venezuela-emergency-banner-img"
+              style={{ backgroundImage: "url('./assets/images/venezuela_earthquake_banner.png')" }}
+            >
+              <div className="venezuela-emergency-img-overlay">
+                <span className="emergency-badge" style={{ margin: '15px' }}>
+                  CAMPAÑA DE AYUDA DIRECTA
+                </span>
+              </div>
             </div>
             <div style={{ padding: '1.5rem' }}>
               <h3 style={{ fontSize: '1.4rem', color: '#fff', marginBottom: '0.75rem', fontWeight: 700 }}>

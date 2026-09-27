@@ -8546,3 +8546,144 @@ body.wallet-tour-active #prelaunchWalletModal {
     margin-top: 0 !important;
     margin-bottom: 10px !important; /* Espacio idéntico de 10px abajo */
 }
+
+/* =====================================================================
+   ESTILOS DE EMERGENCIA SOS VENEZUELA (Canónicos en style.css)
+   ===================================================================== */
+.emergency-banner {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.95), rgba(185, 28, 28, 0.95));
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: 16px;
+    padding: 1rem 1.5rem;
+    margin: 15px auto 25px auto;
+    max-width: 1200px;
+    box-shadow: 0 10px 25px rgba(239, 68, 68, 0.3);
+    animation: slideDown-emb 0.5s ease-out;
+    z-index: 10;
+    position: relative;
+}
+
+@keyframes slideDown-emb {
+    from { transform: translateY(-20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+}
+
+.emergency-banner-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.emergency-badge {
+    background: white;
+    color: #b91c1c;
+    font-weight: 800;
+    font-size: 0.75rem;
+    padding: 4px 10px;
+    border-radius: 50px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+}
+
+.emergency-text {
+    flex: 1;
+    font-size: 0.95rem;
+    font-weight: 500;
+    color: white;
+    min-width: 250px;
+}
+
+.emergency-banner-btn {
+    background: white;
+    color: #b91c1c;
+    border: none;
+    border-radius: 50px;
+    padding: 8px 20px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.emergency-banner-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 15px rgba(0, 0, 0, 0.25);
+    background: #f8fafc;
+}
+
+.emergency-banner-close {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1.5rem;
+    font-weight: 300;
+    cursor: pointer;
+    line-height: 1;
+    opacity: 0.8;
+    transition: opacity 0.2s;
+    padding: 0 5px;
+}
+
+.emergency-banner-close:hover {
+    opacity: 1;
+}
+
+/* Modal Emergencia */
+.venezuela-emergency-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(12px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100000;
+    animation: fadeIn-emb 0.4s ease;
+}
+
+@keyframes fadeIn-emb {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.venezuela-emergency-modal {
+    background: #0b0b14;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 24px;
+    max-width: 500px;
+    width: 90%;
+    overflow: hidden;
+    box-shadow: 0 25px 60px rgba(239, 68, 68, 0.15);
+    transform: scale(0.9);
+    animation: scaleUp-emb 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes scaleUp-emb {
+    to { transform: scale(1); }
+}
+
+.venezuela-emergency-banner-img {
+    height: 220px;
+    background-size: cover;
+    background-position: center;
+    position: relative;
+}
+
+.venezuela-emergency-img-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom, rgba(11, 11, 20, 0.1), rgba(11, 11, 20, 0.95));
+    display: flex;
+    align-items: flex-end;
+}
+

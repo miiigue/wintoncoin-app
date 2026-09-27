@@ -75,66 +75,50 @@ export default function BurnModal({
 
   return (
     <div
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100%',
-        height: '100%',
-        background: 'rgba(0, 0, 0, 0.8)',
-        backdropFilter: 'blur(8px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        zIndex: 100000,
-        padding: '16px'
-      }}
+      className="modal burn-confirm-modal"
+      style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}
       onClick={onClose}
     >
       <div
-        style={{
-          background: '#0f172a',
-          border: '1px solid rgba(239, 68, 68, 0.3)',
-          borderRadius: '24px',
-          maxWidth: '440px',
-          width: '100%',
-          padding: '24px',
-          boxShadow: '0 25px 60px rgba(0, 0, 0, 0.6)',
-          position: 'relative'
-        }}
+        className="modal-content burn-confirm-content"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          type="button"
+        <span
+          className="close-button burn-confirm-close"
+          style={{ position: 'absolute', top: '16px', right: '16px', cursor: 'pointer', fontSize: '1.5rem', color: '#94a3b8', lineHeight: 1 }}
           onClick={onClose}
-          style={{ position: 'absolute', top: '18px', right: '18px', background: 'none', border: 'none', color: '#94a3b8', fontSize: '1.4rem', cursor: 'pointer' }}
         >
           &times;
-        </button>
+        </span>
 
-        <h2 style={{ fontSize: '1.3rem', color: '#fff', margin: '0 0 12px 0', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span>🔥</span> Amortizar Compromiso RED
-        </h2>
+        <div className="burn-confirm-icon">🔥</div>
+        <h2 className="burn-confirm-title">Amortizar Compromiso RED</h2>
 
-        <p style={{ fontSize: '0.85rem', color: '#cbd5e1', lineHeight: 1.4, margin: '0 0 16px 0' }}>
-          Al amortizar, se queman tokens BLUE líquidos y se cancela la misma cantidad de tu <strong>compromiso RED</strong> en proporción simétrica 1:1.
-        </p>
-
-        <div style={{ background: 'rgba(255, 255, 255, 0.04)', borderRadius: '12px', padding: '12px', marginBottom: '16px', display: 'flex', justifyContent: 'space-around', textAlign: 'center' }}>
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Saldo BLUE Líquido</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#38bdf8' }}>{liquidBlue}</div>
-          </div>
-          <div style={{ width: '1px', background: 'rgba(255, 255, 255, 0.1)' }} />
-          <div>
-            <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Tu Compromiso RED</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ef4444' }}>{redCommitment}</div>
+        <div className="burn-confirm-summary">
+          <div className="burn-confirm-label">Saldos Contables</div>
+          <div className="burn-confirm-amounts">
+            <div className="burn-confirm-amount blue">
+              <span className="amount-value">{liquidBlue}</span>
+              <span className="amount-label">BLUE LÍQUIDO</span>
+            </div>
+            <div className="burn-confirm-amount red">
+              <span className="amount-value">{redCommitment}</span>
+              <span className="amount-label">COMPROMISO RED</span>
+            </div>
           </div>
         </div>
 
+        <div className="burn-confirm-warning">
+          <span className="warning-icon">⚠️</span>
+          <p>
+            Al amortizar, se queman tokens BLUE líquidos y se cancela la misma cantidad de tu{' '}
+            <strong>compromiso RED</strong> en proporción simétrica 1:1.
+          </p>
+        </div>
+
         <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{ display: 'block', fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '6px' }}>
+          <div style={{ marginBottom: '16px', textAlign: 'left' }}>
+            <label style={{ display: 'block', fontSize: '0.85rem', color: '#cbd5e1', marginBottom: '6px', fontWeight: 600 }}>
               Cantidad a amortizar (BLUE):
             </label>
             <input
@@ -146,47 +130,38 @@ export default function BurnModal({
               required
               style={{
                 width: '100%',
-                background: 'rgba(30, 41, 59, 0.8)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
+                background: 'rgba(0, 0, 0, 0.4)',
+                border: '1px solid rgba(255, 255, 255, 0.2)',
                 borderRadius: '10px',
-                padding: '10px 14px',
+                padding: '12px 14px',
                 color: '#fff',
                 fontSize: '1rem',
-                outline: 'none'
+                outline: 'none',
+                boxSizing: 'border-box'
               }}
             />
           </div>
 
           {error && (
-            <div style={{ background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', padding: '8px 12px', borderRadius: '8px', fontSize: '0.82rem', marginBottom: '14px' }}>
+            <div style={{ background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', padding: '10px 12px', borderRadius: '8px', fontSize: '0.85rem', marginBottom: '14px', textAlign: 'left' }}>
               ⚠️ {error}
             </div>
           )}
 
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="burn-confirm-buttons">
             <button
               type="button"
+              className="burn-confirm-btn cancel"
               onClick={onClose}
-              style={{ flex: 1, background: 'rgba(255, 255, 255, 0.08)', color: '#cbd5e1', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '10px', borderRadius: '10px', cursor: 'pointer' }}
             >
               Cancelar
             </button>
             <button
               type="submit"
+              className="burn-confirm-btn confirm"
               disabled={loading}
-              style={{
-                flex: 1,
-                background: 'linear-gradient(135deg, #ef4444 0%, #b91c1c 100%)',
-                color: '#fff',
-                border: 'none',
-                padding: '10px',
-                borderRadius: '10px',
-                fontWeight: 700,
-                cursor: 'pointer',
-                opacity: loading ? 0.6 : 1
-              }}
             >
-              {loading ? 'Procesando...' : 'Confirmar'}
+              {loading ? 'Procesando...' : 'Confirmar Quema'}
             </button>
           </div>
         </form>

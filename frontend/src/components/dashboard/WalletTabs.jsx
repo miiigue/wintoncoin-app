@@ -93,90 +93,56 @@ export default function WalletTabs({
   const dueCountdownStr = formatCountdown(nextDueAt);
 
   return (
-    <div className="wallet-tabs-container" style={{ margin: '0 auto 20px auto', maxWidth: '800px' }}>
-      {/* Selector de Pestañas (Impulsor vs Billetera) */}
-      <div className="wallet-tabs-nav" style={{ display: 'flex', gap: '8px', marginBottom: '14px' }}>
+    <div className="wallet-tabs-container">
+      {/* Selector de Pestañas (Impulsor vs Billetera) - Clases legacy de style.css */}
+      <div className="wallet-tabs-nav">
         <button
           type="button"
           className={`wallet-tab-btn ${activeTab === 'impulsor' ? 'active' : ''}`}
+          data-tab="impulsor"
+          id="tabImpulsor"
           onClick={() => onTabChange && onTabChange('impulsor')}
-          style={{
-            flex: 1,
-            padding: '12px',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: activeTab === 'impulsor' ? 'linear-gradient(135deg, #0284c7, #0369a1)' : 'rgba(255, 255, 255, 0.05)',
-            color: '#fff',
-            boxShadow: activeTab === 'impulsor' ? '0 4px 15px rgba(2, 132, 199, 0.4)' : 'none',
-            transition: 'all 0.2s'
-          }}
         >
-          🚀 Impulsor
+          Impulsor
         </button>
         <button
           type="button"
           className={`wallet-tab-btn ${activeTab === 'billetera' ? 'active' : ''}`}
+          data-tab="billetera"
+          id="tabBilletera"
           onClick={() => onTabChange && onTabChange('billetera')}
-          style={{
-            flex: 1,
-            padding: '12px',
-            border: 'none',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            fontWeight: 700,
-            fontSize: '0.95rem',
-            background: activeTab === 'billetera' ? 'linear-gradient(135deg, #10b981, #059669)' : 'rgba(255, 255, 255, 0.05)',
-            color: '#fff',
-            boxShadow: activeTab === 'billetera' ? '0 4px 15px rgba(16, 185, 129, 0.4)' : 'none',
-            transition: 'all 0.2s'
-          }}
         >
-          💳 Billetera
+          Billetera
         </button>
       </div>
 
       {/* PANEL 1: IMPULSOR */}
       {activeTab === 'impulsor' && (
-        <div className="wallet-tab-panel active" style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          <a
-            href="booster-profile.html"
-            className="booster-banner"
-            style={{
-              display: 'block',
-              textDecoration: 'none',
-              background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.9), rgba(15, 23, 42, 0.95))',
-              border: '1px solid rgba(56, 189, 248, 0.3)',
-              borderRadius: '20px',
-              padding: '24px',
-              textAlign: 'center',
-              boxShadow: '0 10px 30px rgba(0, 0, 0, 0.3)'
-            }}
-          >
-            <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '8px' }}>
-              SALDO DE IMPULSOR
+        <div className="wallet-tab-panel active" id="panelImpulsor" data-panel="impulsor">
+          <a id="boosterSummary" className="booster-banner" href="booster-profile.html">
+            <div className="booster-banner-header">
+              <span className="booster-banner-title">SALDO DE IMPULSOR</span>
             </div>
-            <div style={{ fontSize: '2.5rem', fontWeight: 800, color: '#fff', textShadow: '0 2px 10px rgba(56, 189, 248, 0.5)' }}>
-              {boosterBalance} <span style={{ fontSize: '1.2rem', color: '#38bdf8' }}>BLUE iou</span>
-            </div>
-            <div style={{ marginTop: '10px', fontSize: '0.85rem', color: '#94a3b8' }}>
-              Toca para ver tus misiones y recompensas acumuladas →
+            <div className="booster-banner-body">
+              <div id="boosterTotalBlue" className="booster-amount">
+                {boosterBalance} BLUE iou
+              </div>
             </div>
           </a>
 
-          {/* Expediente SOS Venezuela (si el usuario tiene uno registrado) */}
+          {/* Expediente SOS Venezuela si existe */}
           {sosCase && (
-            <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '16px', padding: '16px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                <span style={{ fontWeight: 700, color: '#ef4444', fontSize: '0.9rem' }}>🚨 Mi Expediente SOS Venezuela</span>
-                <span style={{ background: sosCase.status === 'approved' ? '#dcfce7' : '#fef3c7', color: sosCase.status === 'approved' ? '#166534' : '#92400e', padding: '3px 8px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700 }}>
-                  {sosCase.status === 'approved' ? 'Aprobado' : 'En Verificación'}
-                </span>
-              </div>
-              <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
-                {sosCase.state}, {sosCase.municipality} — {sosCase.beneficiaries || 1} persona(s) a cargo
+            <div id="sos-my-case-dashboard" style={{ marginTop: '12px' }}>
+              <div style={{ background: 'rgba(239, 68, 68, 0.08)', border: '1px solid rgba(239, 68, 68, 0.25)', borderRadius: '16px', padding: '16px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <span style={{ fontWeight: 700, color: '#ef4444', fontSize: '0.9rem' }}>🚨 Mi Expediente SOS Venezuela</span>
+                  <span style={{ background: sosCase.status === 'approved' ? '#dcfce7' : '#fef3c7', color: sosCase.status === 'approved' ? '#166534' : '#92400e', padding: '3px 8px', borderRadius: '50px', fontSize: '0.75rem', fontWeight: 700 }}>
+                    {sosCase.status === 'approved' ? 'Aprobado' : 'En Verificación'}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.85rem', color: '#cbd5e1' }}>
+                  {sosCase.state}, {sosCase.municipality} — {sosCase.beneficiaries || 1} persona(s) a cargo
+                </div>
               </div>
             </div>
           )}
@@ -185,119 +151,134 @@ export default function WalletTabs({
 
       {/* PANEL 2: BILLETERA */}
       {activeTab === 'billetera' && (
-        <div className="wallet-tab-panel active">
-          {/* Dirección de Billetera Web3 */}
+        <div className="wallet-tab-panel active" id="panelBilletera" data-panel="billetera">
+          {/* Contenedor de Dirección de Billetera Web3 */}
           {walletAddress && (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', background: 'rgba(0, 0, 0, 0.3)', border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '50px', padding: '6px 16px', width: 'fit-content', margin: '0 auto 16px auto' }}>
-              <span style={{ fontSize: '0.8rem', color: '#94a3b8' }}>Dirección Web3:</span>
-              <code style={{ fontSize: '0.82rem', color: '#38bdf8', fontFamily: 'monospace' }}>{truncatedAddress}</code>
+            <div
+              id="myWalletAddressContainer"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '20px',
+                background: 'rgba(0,0,0,0.25)',
+                padding: '6px 14px',
+                borderRadius: '50px',
+                border: '1px solid rgba(255,255,255,0.05)',
+                width: 'fit-content',
+                margin: '0 auto 20px auto',
+                boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.1)'
+              }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" />
+                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5" />
+                <path d="M18 12a2 2 0 0 0 0 4h4v-4Z" />
+              </svg>
+              <span id="myWalletAddressText" style={{ fontFamily: "'Courier New', Courier, monospace", fontSize: '13px', color: '#e2e8f0', marginRight: '10px', fontWeight: 'normal', letterSpacing: '0.5px' }}>
+                {truncatedAddress}
+              </span>
               <button
+                id="copyMyWalletBtn"
                 type="button"
                 onClick={handleCopyAddress}
-                style={{ background: 'none', border: 'none', color: copied ? '#10b981' : '#38bdf8', cursor: 'pointer', fontSize: '0.85rem' }}
+                style={{ background: 'none', border: 'none', cursor: 'pointer', color: copied ? '#10b981' : '#4da6ff', padding: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s ease' }}
                 title="Copiar dirección"
               >
-                {copied ? '✅' : '📋'}
+                {copied ? (
+                  <span style={{ fontSize: '12px' }}>✓</span>
+                ) : (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                )}
               </button>
             </div>
           )}
 
-          {/* Tarjetas de Saldo Líquido y Compromiso RED */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '14px' }}>
-            {/* Sección BLUE (Activo) */}
+          {/* Tarjetas de Saldo Líquido y Compromiso RED con clases legacy .balances-container */}
+          <div className="balances-container">
+            {/* Sección BLUE */}
             <div
-              style={{
-                background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.15), rgba(30, 41, 59, 0.8))',
-                border: '1px solid rgba(2, 132, 199, 0.35)',
-                borderRadius: '20px',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}
+              className="balance-section blue-section"
+              onClick={() => window.location.href = 'estado-cuenta.html'}
+              style={{ cursor: 'pointer' }}
+              title="Ver Estado de Cuenta"
             >
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#38bdf8', letterSpacing: '1px' }}>LIQUIDEZ (ACTIVO)</span>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>1 BLUE = 1 USD</span>
-                </div>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: '#fff' }}>
-                  {liquidBlue} <span style={{ fontSize: '1.1rem', color: '#38bdf8' }}>BLUE</span>
-                </div>
-                {parseFloat(parkingBlue) > 0 && (
-                  <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#f59e0b' }}>
-                    ⏳ En parking: <strong>{parkingBlue} BLUE</strong>
-                    {unlockCountdownStr && (
-                      <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '3px' }}>
-                        Próxima liberación en: <strong>{unlockCountdownStr}</strong>
-                      </div>
-                    )}
+              <div className="balance-items">
+                <div className="balance-item-wrapper">
+                  <span className="balance-label">
+                    <span
+                      className="info-text-clickable"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Información sobre Liquidez"
+                    >
+                      LIQUIDEZ
+                    </span>
+                  </span>
+                  <div className="balance-item">
+                    <span id="saldoBlue" className="balance-amount blue-amount">{liquidBlue}</span>
                   </div>
-                )}
-              </div>
-              <div style={{ marginTop: '16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <Link
-                  to="/exchange?tab=sell"
-                  style={{ flex: 1, minWidth: '120px', textAlign: 'center', background: 'linear-gradient(135deg, #0ea5e9, #0284c7)', color: '#fff', padding: '8px', borderRadius: '10px', textDecoration: 'none', fontWeight: 700, fontSize: '0.82rem' }}
-                >
-                  💱 Vender en Exchange
-                </Link>
-                <a
-                  href="estado-cuenta.html"
-                  style={{ flex: 1, minWidth: '120px', textAlign: 'center', background: 'rgba(255, 255, 255, 0.08)', color: '#38bdf8', padding: '8px', borderRadius: '10px', textDecoration: 'none', fontWeight: 600, fontSize: '0.82rem' }}
-                  title="Ver Estado de Cuenta"
-                >
-                  📄 Estado de Cuenta
-                </a>
+                  {parseFloat(parkingBlue) > 0 && (
+                    <div id="available-countdown-container" className="countdown-container" style={{ display: 'block' }}>
+                      <p id="available-countdown-text" className="countdown-text info-text-clickable">
+                        ⏳ En parking: {parkingBlue} BLUE {unlockCountdownStr ? `(${unlockCountdownStr})` : ''}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            {/* Sección RED (Compromiso) */}
+            {/* Sección RED */}
             <div
-              style={{
-                background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(30, 41, 59, 0.8))',
-                border: '1px solid rgba(239, 68, 68, 0.35)',
-                borderRadius: '20px',
-                padding: '20px',
-                display: 'flex',
-                flexDirection: 'column',
-                justifyContent: 'space-between'
-              }}
+              className="balance-section red-section"
+              onClick={() => window.location.href = 'estado-cuenta.html'}
+              style={{ cursor: 'pointer' }}
+              title="Ver Estado de Cuenta"
             >
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#ef4444', letterSpacing: '1px' }}>TU COMPROMISO</span>
-                  <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Vigencia: 30 días</span>
-                </div>
-                <div style={{ fontSize: '2rem', fontWeight: 800, color: '#fff' }}>
-                  {redCommitment} <span style={{ fontSize: '1.1rem', color: '#ef4444' }}>RED</span>
-                </div>
-                <div style={{ marginTop: '8px', fontSize: '0.85rem', color: '#10b981' }}>
-                  Capacidad disponible: <strong>{availableRedCapacity} RED</strong>
-                </div>
-                {nextDueAt && parseFloat(redCommitment) > 0 && dueCountdownStr && (
-                  <div style={{ marginTop: '6px', fontSize: '0.78rem', color: '#f87171' }}>
-                    ⏰ Próximo vencimiento de compromiso en: <strong>{dueCountdownStr}</strong>
+              <div className="balance-items red-balance-items">
+                <div className="balance-item-wrapper red-balance-wrapper">
+                  <span className="balance-label">
+                    <span
+                      className="info-text-clickable"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Información sobre Compromiso"
+                    >
+                      Tu compromiso
+                    </span>
+                  </span>
+                  <div className="balance-item">
+                    <span id="saldoRed" className="balance-amount red-amount">{redCommitment}</span>
+                    <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, letterSpacing: '0.5px' }}>
+                      DISPONIBLE: <span id="saldoRedDisponible">{availableRedCapacity}</span>
+                    </div>
                   </div>
-                )}
-              </div>
-
-              <div style={{ marginTop: '16px', display: 'flex', gap: '8px' }}>
-                <button
-                  type="button"
-                  onClick={onOpenBurnModal}
-                  style={{ flex: 1, background: 'linear-gradient(135deg, #ef4444, #dc2626)', color: '#fff', border: 'none', padding: '8px', borderRadius: '10px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}
-                >
-                  🔥 Amortizar con BLUE
-                </button>
-                <Link
-                  to="/exchange?tab=buy"
-                  style={{ flex: 1, textAlign: 'center', background: 'rgba(255, 255, 255, 0.08)', color: '#cbd5e1', padding: '8px', borderRadius: '10px', textDecoration: 'none', fontWeight: 600, fontSize: '0.82rem' }}
-                >
-                  Comprar BLUE
-                </Link>
+                  {nextDueAt && parseFloat(redCommitment) > 0 && dueCountdownStr && (
+                    <div id="debt-countdown-container" className="countdown-container" style={{ display: 'block' }}>
+                      <p id="debt-countdown-text" className="countdown-text info-text-clickable">
+                        ⏰ Vencimiento de compromiso en: {dueCountdownStr}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
+          </div>
+
+          {/* Botón Quemar / Amortizar Voluntariamente (.burn-item legacy de style.css) */}
+          <div className="burn-item" style={{ textAlign: 'center' }}>
+            <button
+              className="burn-trigger"
+              type="button"
+              onClick={onOpenBurnModal}
+              title="Amortizar compromiso con tokens BLUE"
+            >
+              <span className="fire-icon">🔥</span> Amortizar con BLUE
+            </button>
           </div>
         </div>
       )}

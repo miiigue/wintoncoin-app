@@ -116,291 +116,291 @@ export default function PublicationsFeed({
   };
 
   return (
-    <div style={{ margin: '0 auto', maxWidth: '800px' }}>
-      {/* Título de Sección con Conteo */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-        <h2 style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fff', margin: 0 }}>
-          Publicaciones Activas
-        </h2>
-        <span style={{ background: 'rgba(56, 189, 248, 0.15)', color: '#38bdf8', padding: '4px 10px', borderRadius: '50px', fontSize: '0.8rem', fontWeight: 700 }}>
-          {filteredPublications.length} disponibles
+    <>
+      {/* Título de Sección con Conteo (publications-title legacy) */}
+      <div className="publications-title">
+        Publicaciones Activas{' '}
+        <span className="publications-count-wrapper">
+          <span id="publicationsCount" className="publications-count">
+            {filteredPublications.length}
+          </span>
         </span>
       </div>
 
-      {/* Controles de Filtrado: Chips */}
-      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px', marginBottom: '14px', scrollbarWidth: 'none' }}>
-        {[
-          { id: 'all', label: 'Todos' },
-          { id: 'request', label: '🤝 Solicitudes' },
-          { id: 'sell', label: '🏷️ Servicios' },
-          { id: 'donation', label: '❤️ Donaciones' },
-          { id: 'pending', label: '⏳ En proceso' },
-          { id: 'hidden', label: '📁 Ocultas' },
-        ].map((chip) => (
+      {/* Controles de filtrado y ordenamiento (publication-controls legacy) */}
+      <div className="publication-controls">
+        {/* Chips de filtro por tipo de publicación */}
+        <div className="publication-filter-chips" id="publicationFilterChips" role="group" aria-label="Filtrar publicaciones por tipo">
           <button
-            key={chip.id}
             type="button"
-            onClick={() => handleChipClick(chip.id)}
-            style={{
-              padding: '6px 14px',
-              borderRadius: '50px',
-              border: activeFilter === chip.id ? '1px solid #38bdf8' : '1px solid rgba(255, 255, 255, 0.1)',
-              background: activeFilter === chip.id ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-              color: activeFilter === chip.id ? '#38bdf8' : '#94a3b8',
-              fontWeight: 600,
-              fontSize: '0.82rem',
-              cursor: 'pointer',
-              whiteSpace: 'nowrap',
-              transition: 'all 0.2s'
-            }}
+            className={`filter-chip ${activeFilter === 'all' ? 'active' : ''}`}
+            data-filter="all"
+            onClick={() => handleChipClick('all')}
           >
-            {chip.label}
+            Todos
           </button>
-        ))}
-      </div>
-
-      {/* Barra de Búsqueda y Ordenamiento */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '18px', flexWrap: 'wrap' }}>
-        <div style={{ flex: 1, minWidth: '220px', position: 'relative' }}>
-          <input
-            type="text"
-            placeholder="Buscar por título, descripción o usuario..."
-            value={searchText}
-            onChange={(e) => setSearchText(e.target.value)}
-            style={{
-              width: '100%',
-              background: 'rgba(30, 41, 59, 0.6)',
-              border: '1px solid rgba(255, 255, 255, 0.1)',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              color: '#fff',
-              fontSize: '0.88rem',
-              outline: 'none',
-              boxSizing: 'border-box'
-            }}
-          />
-          {searchText && (
-            <button
-              type="button"
-              onClick={() => setSearchText('')}
-              style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '1rem' }}
-            >
-              &times;
-            </button>
-          )}
+          <button
+            type="button"
+            className={`filter-chip ${activeFilter === 'pending' ? 'active' : ''}`}
+            data-filter="pending"
+            onClick={() => handleChipClick('pending')}
+          >
+            En proceso
+          </button>
+          <button
+            type="button"
+            className={`filter-chip ${activeFilter === 'request' ? 'active' : ''}`}
+            data-filter="request"
+            onClick={() => handleChipClick('request')}
+          >
+            Solicitud
+          </button>
+          <button
+            type="button"
+            className={`filter-chip ${activeFilter === 'sell' ? 'active' : ''}`}
+            data-filter="sell"
+            onClick={() => handleChipClick('sell')}
+          >
+            Venta
+          </button>
+          <button
+            type="button"
+            className={`filter-chip ${activeFilter === 'donation' ? 'active' : ''}`}
+            data-filter="donation"
+            onClick={() => handleChipClick('donation')}
+          >
+            Donación
+          </button>
+          <button
+            type="button"
+            className={`filter-chip ${activeFilter === 'hidden' ? 'active' : ''}`}
+            data-filter="hidden"
+            onClick={() => handleChipClick('hidden')}
+          >
+            Ocultas
+          </button>
         </div>
 
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value)}
-          style={{
-            background: 'rgba(30, 41, 59, 0.8)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            borderRadius: '10px',
-            padding: '10px 14px',
-            color: '#cbd5e1',
-            fontSize: '0.85rem',
-            outline: 'none',
-            cursor: 'pointer'
-          }}
-        >
-          <option value="recent">Más reciente</option>
-          <option value="oldest">Más antigua</option>
-          <option value="reward_desc">Mayor recompensa</option>
-          <option value="reward_asc">Menor recompensa</option>
-        </select>
-      </div>
-
-      {/* Lista de Publicaciones */}
-      {isLoading ? (
-        <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
-          <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⏳</div>
-          <div>Cargando publicaciones activas...</div>
-        </div>
-      ) : filteredPublications.length === 0 ? (
-        <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(30, 41, 59, 0.4)', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.05)', color: '#94a3b8' }}>
-          <div style={{ fontSize: '2rem', marginBottom: '8px' }}>
-            {activeFilter === 'hidden' ? '📁' : '🚀'}
+        {/* Búsqueda + Ordenamiento (en línea horizontal) */}
+        <div className="publication-sort-container">
+          <div className="publication-search-wrapper">
+            <input
+              type="text"
+              id="publicationSearchInput"
+              className="publication-search-input"
+              placeholder="Buscar..."
+              autoComplete="off"
+              aria-label="Buscar publicaciones por título, descripción o autor"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+            />
+            {searchText && (
+              <button
+                type="button"
+                className="publication-search-clear"
+                id="publicationSearchClear"
+                aria-label="Limpiar búsqueda"
+                style={{ display: 'flex' }}
+                onClick={() => setSearchText('')}
+              >
+                &times;
+              </button>
+            )}
           </div>
-          <p style={{ margin: 0, fontSize: '0.95rem' }}>
-            {activeFilter === 'hidden'
-              ? 'No tienes publicaciones archivadas u ocultas.'
-              : 'No se encontraron publicaciones en esta categoría.'}
-          </p>
+          <label htmlFor="publicationSortSelect" className="publication-sort-label">Ordenar:</label>
+          <select
+            id="publicationSortSelect"
+            className="publication-sort-select"
+            aria-label="Ordenar publicaciones"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+          >
+            <option value="recent">Más reciente</option>
+            <option value="oldest">Más antigua</option>
+            <option value="reward_desc">Mayor recompensa</option>
+            <option value="reward_asc">Menor recompensa</option>
+          </select>
         </div>
-      ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-          {filteredPublications.map((pub) => {
-            const badgeStyle = getBadgeStyle(pub);
-            const badgeLabel = getBadgeLabel(pub);
+      </div>
+
+      {/* Lista de Publicaciones con id y clases legacy */}
+      <div id="publications-list">
+        {isLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#94a3b8' }}>
+            <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⏳</div>
+            <div>Cargando publicaciones activas...</div>
+          </div>
+        ) : filteredPublications.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '40px 20px', background: 'rgba(30, 41, 59, 0.4)', borderRadius: '16px', border: '1px solid rgba(255, 255, 255, 0.05)', color: '#94a3b8' }}>
+            <div style={{ fontSize: '2rem', marginBottom: '8px' }}>
+              {activeFilter === 'hidden' ? '📁' : '🚀'}
+            </div>
+            <p style={{ margin: 0, fontSize: '0.95rem' }}>
+              {activeFilter === 'hidden'
+                ? 'No tienes publicaciones archivadas u ocultas.'
+                : 'No se encontraron publicaciones en esta categoría.'}
+            </p>
+          </div>
+        ) : (
+          filteredPublications.map((pub) => {
             const isDonation = pub.is_humanitarian_cause || pub.category === 'donation';
-            const amountText = getAmountDisplay(pub);
+            const rewardText = isDonation
+              ? `${getAmountDisplay(pub)} BLUE`
+              : `${getAmountDisplay(pub)} BLUE`;
+
+            let ribbonClass = '';
+            if (pub.is_booster_task) ribbonClass = 'booster-ribbon';
+            else if (isDonation) ribbonClass = 'donation-ribbon';
+            else if (pub.is_sell_post) ribbonClass = 'sell-ribbon';
+
+            const slotsClass = (pub.available_slots > 0) ? 'available' : 'full';
+            const slotsText = isDonation
+              ? 'Campaña Activa'
+              : (pub.available_slots > 0 ? `${pub.available_slots} cupos` : 'Cupos agotados');
+
+            const hasImage = pub.image_urls && pub.image_urls.length > 0;
+            const isHiddenView = activeFilter === 'hidden';
+
+            const detailUrl = pub.is_humanitarian_cause
+              ? `causa-solidaria.html?id=${pub.cause_id}`
+              : `publication-detail.html?id=${pub.id}`;
 
             // Cálculo de barra de progreso en donaciones
             const currentAmount = parseFloat(pub.current_amount || 0);
             const goalAmount = parseFloat(pub.goal_amount || 0);
             const holdAmount = parseFloat(pub.amount_on_hold || 0);
             const totalRaised = currentAmount + holdAmount;
+            const percentageReleased = goalAmount > 0 ? Math.min((currentAmount / goalAmount) * 100, 100) : 0;
+            const percentageHold = goalAmount > 0 ? Math.min((holdAmount / goalAmount) * 100, 100 - percentageReleased) : 0;
             const percentageTotal = goalAmount > 0 ? Math.min(100, Math.round((totalRaised / goalAmount) * 100)) : 0;
-            const percentageReleased = goalAmount > 0 ? Math.min(100, (currentAmount / goalAmount) * 100) : 0;
-            const percentageHold = goalAmount > 0 ? Math.min(100 - percentageReleased, (holdAmount / goalAmount) * 100) : 0;
 
-            const hasImage = pub.image_urls && pub.image_urls.length > 0;
-            const imageUrl = hasImage ? pub.image_urls[0] : null;
+            const titleAndDesc = (
+              <>
+                <div className="publication-header">
+                  <h3>{pub.title}</h3>
+                </div>
+                {!pub.is_humanitarian_cause && (
+                  <p className="pub-description">{pub.description}</p>
+                )}
+              </>
+            );
 
             return (
-              <div
+              <a
                 key={pub.id}
-                onClick={() => {
+                href={detailUrl}
+                className="publication-item-link"
+                onClick={(e) => {
                   if (onSelectPublication) {
+                    e.preventDefault();
                     onSelectPublication(pub);
-                  } else if (pub.is_humanitarian_cause) {
-                    window.location.href = `causa-solidaria.html?id=${pub.cause_id}`;
-                  } else {
-                    window.location.href = `publication-detail.html?id=${pub.id}`;
                   }
                 }}
-                style={{
-                  background: 'rgba(30, 41, 59, 0.7)',
-                  border: isDonation ? '1px solid rgba(232, 62, 140, 0.3)' : '1px solid rgba(255, 255, 255, 0.08)',
-                  borderRadius: '16px',
-                  padding: '18px',
-                  cursor: 'pointer',
-                  transition: 'transform 0.15s ease, border-color 0.15s ease',
-                  boxShadow: '0 4px 14px rgba(0, 0, 0, 0.25)',
-                  position: 'relative',
-                  overflow: 'hidden'
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.borderColor = isDonation ? '#e83e8c' : 'rgba(56, 189, 248, 0.4)';
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = isDonation ? 'rgba(232, 62, 140, 0.3)' : 'rgba(255, 255, 255, 0.08)';
-                  e.currentTarget.style.transform = 'none';
-                }}
               >
-                {/* Fila superior: Autor, badge y botón de ocultar/restaurar */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#e2e8f0' }}>
-                      @{pub.author_username || 'usuario'}
-                    </span>
-                    <span style={{ ...badgeStyle, padding: '2px 8px', borderRadius: '50px', fontSize: '0.72rem', fontWeight: 700 }}>
-                      {badgeLabel}
-                    </span>
-                    {pub.available_slots && !isDonation && (
-                      <span style={{ background: 'rgba(255, 255, 255, 0.05)', color: '#94a3b8', padding: '2px 6px', borderRadius: '4px', fontSize: '0.72rem' }}>
-                        {pub.available_slots > 0 ? `${pub.available_slots} cupos` : 'Agotado'}
-                      </span>
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 800, color: isDonation ? '#f472b6' : '#38bdf8' }}>
-                      {amountText} <small style={{ fontSize: '0.75rem' }}>BLUE</small>
+                <div className={`publication-item ${isDonation ? 'donation-card' : ''} ${hasImage ? 'has-images' : ''}`} data-id={pub.id}>
+                  {/* Si tiene imágenes: Hero Wrapper con clases legacy de style.css */}
+                  {hasImage && (
+                    <div className="card-images-wrapper">
+                      <div className={`card-images-container ${pub.image_urls.length > 1 ? 'is-carousel' : 'single-image'}`}>
+                        {pub.image_urls.map((url, idx) => (
+                          <img key={idx} src={url} alt="Imagen de publicación" loading="lazy" />
+                        ))}
+                      </div>
+                      {pub.image_urls.length > 1 && (
+                        <div className="carousel-dots">
+                          {pub.image_urls.map((_, i) => (
+                            <span key={i} className={`carousel-dot ${i === 0 ? 'active' : ''}`} />
+                          ))}
+                        </div>
+                      )}
+                      <div className="hero-scrim" />
+                      <div className="hero-content">
+                        {titleAndDesc}
+                      </div>
                     </div>
+                  )}
 
-                    {/* Botón Ocultar / Restaurar */}
-                    {activeFilter === 'hidden' ? (
+                  {/* Fila superior: Botón ocultar/restaurar y ribbon de precio */}
+                  <div className="card-top-row">
+                    {isHiddenView ? (
                       <button
                         type="button"
+                        className="card-close-btn restore-btn"
+                        title="Restaurar publicación"
                         onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
                           if (onUnhidePublication) onUnhidePublication(pub);
                         }}
-                        style={{ background: 'none', border: 'none', color: '#10b981', cursor: 'pointer', fontSize: '1rem', padding: '2px 6px' }}
-                        title="Restaurar publicación"
                       >
-                        ↩
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                          <polyline points="3 3 3 8 8 8" />
+                        </svg>
                       </button>
                     ) : (
                       <button
                         type="button"
+                        className="card-close-btn"
+                        title="Ocultar publicación"
                         onClick={(e) => {
+                          e.preventDefault();
                           e.stopPropagation();
                           if (onHidePublication) onHidePublication(pub);
                         }}
-                        style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.2rem', padding: '2px 6px', lineHeight: 1 }}
-                        title="Ocultar publicación"
                       >
-                        &times;
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <line x1="18" y1="6" x2="6" y2="18" />
+                          <line x1="6" y1="6" x2="18" y2="18" />
+                        </svg>
                       </button>
                     )}
-                  </div>
-                </div>
 
-                {/* Imagen opcional si la publicación la incluye */}
-                {imageUrl && (
-                  <div style={{ marginBottom: '12px', borderRadius: '12px', overflow: 'hidden', maxHeight: '180px' }}>
-                    <img
-                      src={imageUrl}
-                      alt={pub.title}
-                      loading="lazy"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-                    />
-                  </div>
-                )}
-
-                {/* Título de la publicación */}
-                <h3 style={{ fontSize: '1.05rem', color: '#fff', margin: '0 0 6px 0', fontWeight: 600 }}>
-                  {pub.title}
-                </h3>
-
-                {/* Descripción resumida */}
-                <p style={{ fontSize: '0.85rem', color: '#94a3b8', margin: '0 0 12px 0', lineHeight: 1.4, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-                  {pub.description}
-                </p>
-
-                {/* Barra de progreso para donaciones / causas */}
-                {isDonation && (
-                  <div style={{ marginTop: '10px', marginBottom: '12px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#cbd5e1', marginBottom: '6px' }}>
-                      <span>
-                        <strong style={{ color: '#fff' }}>{totalRaised.toLocaleString('es-ES')}</strong> de {goalAmount.toLocaleString('es-ES')} BLUE
-                      </span>
-                      <span style={{ fontWeight: 700, color: '#f472b6' }}>
-                        {percentageTotal}%
-                      </span>
+                    <div className={`cost-ribbon-right ${ribbonClass}`}>
+                      {rewardText}
                     </div>
-                    <div style={{ height: '8px', background: 'rgba(255, 255, 255, 0.08)', borderRadius: '50px', overflow: 'hidden', display: 'flex' }}>
-                      <div
-                        style={{
-                          width: `${percentageReleased}%`,
-                          height: '100%',
-                          background: 'linear-gradient(90deg, #ec4899, #db2777)'
-                        }}
-                      />
-                      {percentageHold > 0 && (
-                        <div
-                          style={{
-                            width: `${percentageHold}%`,
-                            height: '100%',
-                            background: 'repeating-linear-gradient(45deg, rgba(232, 62, 140, 0.4), rgba(232, 62, 140, 0.4) 6px, rgba(232, 62, 140, 0.7) 6px, rgba(232, 62, 140, 0.7) 12px)'
-                          }}
-                        />
+                  </div>
+
+                  {/* Si NO tiene imágenes, renderizar título y descripción en el cuerpo */}
+                  {!hasImage && titleAndDesc}
+
+                  {/* Barra de progreso para donaciones */}
+                  {isDonation && (
+                    <div className="donation-progress-container">
+                      <div className="donation-progress-labels" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px', fontSize: '0.78rem' }}>
+                        <span>
+                          <strong style={{ color: '#fff' }}>{totalRaised.toLocaleString('es-ES')}</strong> de {goalAmount.toLocaleString('es-ES')} BLUE
+                        </span>
+                        <span style={{ fontWeight: 700, color: '#f472b6' }}>
+                          {percentageTotal}%
+                        </span>
+                      </div>
+                      <div className="donation-progress-bar" style={{ display: 'flex', height: '8px', background: 'rgba(255,255,255,0.08)', borderRadius: '5px', overflow: 'hidden' }}>
+                        <div className="donation-progress-fill" style={{ width: `${percentageReleased}%`, background: 'linear-gradient(90deg, #ec4899, #db2777)' }} />
+                        {percentageHold > 0 && (
+                          <div style={{ width: `${percentageHold}%`, background: 'repeating-linear-gradient(45deg, rgba(232, 62, 140, 0.4), rgba(232, 62, 140, 0.4) 6px, rgba(232, 62, 140, 0.7) 6px, rgba(232, 62, 140, 0.7) 12px)' }} />
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Footer de la tarjeta */}
+                  <div className="publication-footer">
+                    <div className="pub-meta">
+                      <span>Por: <strong>{pub.author_username || 'usuario'}</strong></span>
+                    </div>
+                    <div className="pub-meta-right">
+                      {!isDonation && (
+                        <div className={`slots-info ${slotsClass}`}>{slotsText}</div>
                       )}
                     </div>
-                    {holdAmount > 0 && (
-                      <div style={{ fontSize: '0.72rem', color: '#f472b6', marginTop: '4px' }}>
-                        {holdAmount} BLUE en custodia preventiva hasta validación KYC
-                      </div>
-                    )}
                   </div>
-                )}
-
-                {/* Fila inferior: Ubicación y enlace a detalle */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.78rem', color: '#64748b' }}>
-                  <span>📍 {pub.location || 'En línea'}</span>
-                  <span style={{ color: isDonation ? '#f472b6' : '#38bdf8', fontWeight: 600 }}>
-                    {isDonation ? 'Ver causa y donar →' : 'Ver detalles →'}
-                  </span>
                 </div>
-              </div>
+              </a>
             );
-          })}
-        </div>
-      )}
-    </div>
+          })
+        )}
+      </div>
+    </>
   );
 }

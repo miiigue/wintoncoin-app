@@ -6,7 +6,7 @@ import WalletTabs from '../components/dashboard/WalletTabs';
 import ReferralPromoCard from '../components/dashboard/ReferralPromoCard';
 import QuickActions from '../components/dashboard/QuickActions';
 import PublicationsFeed from '../components/dashboard/PublicationsFeed';
-import BottomNav from '../components/dashboard/BottomNav';
+// BottomNav eliminado: no existía en contract_interaction.html original
 import SettingsModal from '../components/dashboard/SettingsModal';
 import BurnModal from '../components/dashboard/BurnModal';
 import PublicationTypeModal from '../components/dashboard/PublicationTypeModal';
@@ -447,8 +447,8 @@ export default function Dashboard() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', background: '#0b0f19', color: '#fff', paddingBottom: '80px', fontFamily: "'Inter', -apple-system, sans-serif" }}>
-      {/* 1. Barra de Navegación Superior */}
+    <div className="dashboard-main-content">
+      {/* 1. Barra de Navegación Superior (header-menu legacy) */}
       <DashboardHeader
         username={username}
         unreadCount={unreadCount}
@@ -461,19 +461,30 @@ export default function Dashboard() {
         onLogout={handleLogout}
       />
 
-      <div style={{ maxWidth: '960px', margin: '0 auto', padding: '16px' }}>
-        {/* Logotipo y Título de Marca */}
-        <div style={{ textAlign: 'center', margin: '8px 0 18px 0' }}>
-          {isPreLaunch && (
-            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', background: 'rgba(56, 189, 248, 0.12)', border: '1px solid rgba(56, 189, 248, 0.3)', borderRadius: '50px', padding: '4px 14px', fontSize: '0.72rem', fontWeight: 800, color: '#38bdf8', marginBottom: '8px', letterSpacing: '0.8px', textTransform: 'uppercase' }}>
-              <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#38bdf8', boxShadow: '0 0 8px #38bdf8' }} />
-              Pre-lanzamiento • VERSIÓN BETA
-            </div>
-          )}
-          <h1 style={{ fontSize: '2.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.5px' }}>
-            <span style={{ color: '#fff' }}>Winton</span>
-            <span style={{ background: 'linear-gradient(135deg, #38bdf8 0%, #0284c7 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Coin</span>
-          </h1>
+      {/* Contenedor principal: las clases .container .interaction-container ya tienen
+          max-width, padding, border-radius, box-shadow y centrado definidos en style.css */}
+      <div className="container interaction-container">
+        {/* Banda diagonal de Pre-lanzamiento (pre-launch-ribbon legacy) */}
+        {isPreLaunch && (
+          <div className="pre-launch-ribbon">
+            <span className="pre-launch-text">
+              <span className="ribbon-shine-overlay"></span>
+              <span className="ribbon-text-content">
+                Pre-lanzamiento<br />
+                <span className="ribbon-subtext">VERSION BETA</span>
+              </span>
+            </span>
+          </div>
+        )}
+
+        {/* Logotipo y Título de Marca usando clases legacy */}
+        <div className="main-title-container">
+          <div className="main-title-row">
+            <h1 className="main-title">
+              <span className="logo-winton">Winton</span>
+              <span className="logo-coin">Coin</span>
+            </h1>
+          </div>
         </div>
 
         {/* 2. Banner de Campaña Humanitaria SOS Venezuela */}
@@ -511,8 +522,8 @@ export default function Dashboard() {
           onOpenQuickSale={() => setQuickSaleModalOpen(true)}
         />
 
-        {/* 6. Feed de Publicaciones del Marketplace */}
-        <div id="publications-feed-section" style={{ marginTop: '24px' }}>
+        {/* 6. Feed de Publicaciones del Marketplace (publications-section legacy) */}
+        <div id="publications-feed-section" className="publications-section">
           <PublicationsFeed
             publications={publications}
             isLoading={isLoadingPublications}
@@ -529,11 +540,6 @@ export default function Dashboard() {
           />
         </div>
       </div>
-
-      {/* 7. Barra de Navegación Móvil Inferior (BottomNav) */}
-      <BottomNav
-        onOpenCreatePublication={() => setPublicationTypeModalOpen(true)}
-      />
 
       {/* 8. Modal de Configuración y Descarga PWA */}
       <SettingsModal
