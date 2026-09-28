@@ -33,7 +33,8 @@ class WalletOperations {
         this.store=new ChainOperationStore(pool,rpc,options);
     }
     async identity(userId) {
-        const row=(await this.pool.query('SELECT id,web3_wallet_address,has_transaction_pin FROM users WHERE id=$1',[userId])).rows[0];
+        const row=(await this.pool.query('SELECT id,web3_wallet_address,has_transaction_pin,account_status FROM users WHERE id=$1',[userId])).rows[0];
+        if(row?.account_status!=='active')throw error('La cuenta no está habilitada para operar.',403);
         if(!row?.has_transaction_pin)throw error('Configura tu PIN en Billetera antes de operar.',412);
         try {row.address=getAddress(row.web3_wallet_address);}catch {throw error('Tu cuenta necesita revisar su billetera.',409);}
         const count=await this.pool.query('SELECT id FROM users WHERE LOWER(web3_wallet_address)=LOWER($1)',[row.address]);
@@ -80,6 +81,7 @@ class WalletOperations {
     async authorize(userId,id,pin) {
         const user=await this.identity(userId);
         return this.store.authorize(id,userId,async(row,client)=>{
+            await this.identity(userId);
             if(row.sender!==user.address.toLowerCase()||row.payload.fingerprint!==this.config.fingerprint)throw error('La cuenta o el despliegue cambió.');
             if(!row.steps.length && row.payload.expiresAt<Date.now())throw error('La autorización venció. Consulta el estado antes de preparar otra operación.');
             await deployment.validate(this.rpc,this.config);
@@ -100,6 +102,10 @@ class WalletOperations {
                 }
             } finally {key=null;}
         });
+    }
+    async abandon(userId,id) {
+        await this.identity(userId);
+        return this.store.abandon(id,userId);
     }
     async status(userId,id) {
         const row=await this.store.get(id,userId); // Ownership check before any reconciliation.

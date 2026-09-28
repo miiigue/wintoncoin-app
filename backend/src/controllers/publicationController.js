@@ -403,7 +403,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error al guardar la publicación:", error);
-            res.status(error.status || 500).json({ message: error.message || "Error interno del servidor." });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error interno del servidor." });
         } finally {
             client.release();
         }
@@ -715,7 +715,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error('Error al crear la Venta Rápida:', error);
-            res.status(error.status || 500).json({ message: error.message || 'Error interno del servidor.' });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || 'Error interno del servidor.' });
         } finally {
             client.release();
         }
@@ -724,7 +724,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     // NUEVO: Endpoint para PAGAR una Venta Rápida
     router.post('/api/quick-sale/:id/pay', requireAcceptedLegalByUsernameField(['buyerUsername']), async (req, res) => {
         const { id } = req.params;
-        const { buyerUsername } = req.body;
+        const { buyerUsername, pin, expectedFeeBps } = req.body;
 
         if (!buyerUsername) {
             return res.status(400).json({ message: "Se requiere el nombre de usuario del comprador." });
@@ -831,7 +831,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             };
 
             // Procesar el pago según las reglas económicas
-            const result = await processDirectPaymentCompletion(client, acceptance, id, preLaunchMode, settings);
+            acceptance.expectedFeeBps=expectedFeeBps;
+            const result = await processDirectPaymentCompletion(client, acceptance, id, preLaunchMode, settings, pin);
 
             // 4. Actualizar el estado de la publicación a 'completed'
             await client.query(`UPDATE publications SET status = 'completed', available_slots = 0 WHERE id = $1`, [id]);
@@ -869,7 +870,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error(`Error al procesar el pago de la Venta Rápida ${id}:`, error);
-            res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error crítico en la transacción." });
         } finally {
             client.release();
         }
@@ -878,7 +879,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     // Ruta para Aceptar una publicación
     router.post('/publications/:id/accept', requireAcceptedLegalByUsernameField(['acceptorUsername']), async (req, res) => {
         const { id } = req.params;
-        const { acceptorUsername, donationAmount } = req.body;
+        const { acceptorUsername, donationAmount, pin, expectedFeeBps, paymentRequestId } = req.body;
 
         const client = await pool.connect();
         try {
@@ -992,7 +993,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 };
 
                 // Procesar pago instantáneo
-                const result = await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings);
+                virtualAcceptance.expectedFeeBps=expectedFeeBps;virtualAcceptance.paymentRequestId=paymentRequestId;
+                const result = await processDirectPaymentCompletion(client, virtualAcceptance, id, preLaunchMode, settings, pin);
 
                 // Registrar la donación confirmada
                 await client.query(
@@ -1179,7 +1181,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error en /accept:", error);
-            res.status(error.status || 500).json({ message: error.message || "Error interno al procesar la solicitud." });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error interno al procesar la solicitud." });
         } finally {
             client.release();
         }
@@ -1199,6 +1201,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            await require('../services/marketplacePayments').assertPublicationMutable(client,id);
 
             // 1. Verificar existencia y estado de la publicación
             const pubResult = await client.query(
@@ -1277,7 +1280,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error en /desist:", error);
-            res.status(error.status || 500).json({ message: error.message || "Error interno al desistir de la tarea." });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error interno al desistir de la tarea." });
         } finally {
             client.release();
         }
@@ -1292,6 +1295,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            await require('../services/marketplacePayments').assertPublicationMutable(client,id);
 
             // 1. Verificar existencia de la publicación
             const pubResult = await client.query(
@@ -1377,7 +1381,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error al descartar solicitud:", error);
-            res.status(error.status || 500).json({ message: error.message || "Error interno." });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error interno." });
         } finally {
             client.release();
         }
@@ -1444,7 +1448,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error al aprobar:", error);
-            res.status(error.status || 500).json({ message: error.message || "Error interno." });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error interno." });
         } finally {
             client.release();
         }
@@ -1453,7 +1457,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     // Ruta para Marcar como Culminada
     router.post('/publications/:id/complete', requireAcceptedLegalByUsernameField(['completerUsername']), async (req, res) => {
         const pubId = req.params.id;
-        const { completerUsername, formResponses, evidence_urls } = req.body;
+        const { completerUsername, formResponses, evidence_urls, pin, expectedFeeBps } = req.body;
 
         const client = await pool.connect();
         try {
@@ -1593,7 +1597,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             switch (acceptance.category) {
                 case 'sell':
                 case 'donation':
-                    result = await processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings);
+                    acceptance.expectedFeeBps=expectedFeeBps;acceptance.chainCompletion={formResponses:sanitizedFormResponses||null,evidenceUrls:urlsToSave};
+                    result = await processDirectPaymentCompletion(client, acceptance, pubId, preLaunchMode, settings, pin);
                     break;
                 case 'request':
                     result = await processRequestCompletion(client, acceptance);
@@ -1640,7 +1645,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error al completar tarea/venta:", error);
-            res.status(error.status || 500).json({ message: error.message || "Error interno." });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error interno." });
         } finally {
             client.release();
         }
@@ -1649,7 +1654,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
     // Ruta para Confirmar y Pagar (REFACTORIZADA PARA MÁXIMA SEGURIDAD)
     router.post('/publications/:id/confirm-payment', verifyAdminToken, requireAcceptedLegalByUsernameField(['confirmerUsername']), async (req, res) => {
         const pubId = req.params.id;
-        const { confirmerUsername, workerUsername, pin } = req.body;
+        const { confirmerUsername, workerUsername, pin, expectedFeeBps } = req.body;
         console.log(`[DEBUG] Recibida petición confirm-payment: pubId=${pubId}, confirmer=${confirmerUsername}, worker=${workerUsername}, hasPin=${!!pin}`);
         const actorUsername = resolveActorUsername(req, confirmerUsername);
 
@@ -1715,6 +1720,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             acceptance.workerId = acceptance.worker_id;
             
             console.log(`[DEBUG] Llamando a processRequestPayment...`);
+            acceptance.expectedFeeBps=expectedFeeBps;
             const result = await processRequestPayment(client, acceptance, pubId, preLaunchMode, settings, pin);
             console.log(`[DEBUG] processRequestPayment finalizado exitosamente.`);
 
@@ -1764,7 +1770,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error en confirm-payment:", error);
-            res.status(error.status || 500).json({ message: error.message || "Error crítico en la transacción." });
+            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error crítico en la transacción." });
         } finally {
             if (client) client.release();
         }
@@ -1930,6 +1936,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            await require('../services/marketplacePayments').assertPublicationMutable(client,id);
 
             const pubResult = await client.query(
                 `SELECT p.*, u.username as author_username
@@ -1992,6 +1999,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
+            await require('../services/marketplacePayments').assertPublicationMutable(client,id);
 
             // 1. OBTENER la publicación y VERIFICAR permisos explícitamente.
             const pubResult = await client.query(

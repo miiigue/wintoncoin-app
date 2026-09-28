@@ -17,6 +17,12 @@ const pinLimiter = rateLimit({windowMs:15*60*1000,limit:30,standardHeaders:true,
 // ==========================================
 
 // 1. Obtener balance consolidado del usuario autenticado
+router.get('/api/me/wallet-identity',authenticateToken,async(req,res)=>{
+ res.set('Cache-Control','no-store');
+ try{const result=await require('../config/db').query('SELECT username,web3_wallet_address,has_transaction_pin FROM users WHERE id=$1',[req.user.userId]);
+ if(!result.rowCount)return res.status(404).json({message:'Cuenta no encontrada.'});res.json(result.rows[0]);}
+ catch{res.status(503).json({message:'No se pudo verificar la cuenta.'});}
+});
 router.get('/api/me/balance', authenticateToken, UserController.getMyBalance);
 
 // 1b. Registrar depósito/retiro de garantía en la Bóveda (Collateral Vault)

@@ -14,6 +14,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const urlParams = new URLSearchParams(window.location.search);
     const publicationId = urlParams.get('id');
 
+    let pendingPaymentAction=null;
+    const recoveryKey='winton-publication-payment:'+storedUsername+':'+publicationId;
+    const donationKey=recoveryKey+':donation';
+    let recoveringPayment=false;
+    async function recoverPayment(){
+        const id=sessionStorage.getItem(recoveryKey);if(!id||recoveringPayment)return;
+        recoveringPayment=true;
+        try {
+            const response=await fetch(API_URL+'/api/me/operations/marketplace/'+id,{credentials:'include',headers:storedToken?{Authorization:'Bearer '+storedToken}:{},cache:'no-store'});
+            const result=await response.json();
+            if(!response.ok)throw new Error(result.message);
+            if(result.settled){sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();}
+            else if(['failed','conflict'].includes(result.state)){if(result.state==='failed')sessionStorage.removeItem(recoveryKey);showCustomAlert(result.message+' Referencia: '+id);}
+            else setTimeout(recoverPayment,5000);
+        }catch{showCustomAlert('No se pudo consultar el pago. Conservamos su referencia para recuperarlo al volver a esta página.');}
+        finally{recoveringPayment=false;}
+    }
+    setTimeout(recoverPayment,1000);
+    function isVirtualPayment(){return window.currentPublication?.is_booster_task===true || [true,'true'].includes(window.currentPlatformSettings?.pre_launch_mode_enabled);}
+    async function payWithConsent(endpoint,body,amount,payee){
+        if(isVirtualPayment())return fetchFromServer(endpoint,'POST',body);
+        if(sessionStorage.getItem(recoveryKey)){await recoverPayment();return;}
+        try{return await openPaymentAuthorizationModal(publicationId,payee,{endpoint,body,amount});}catch{showCustomAlert('No se pudo consultar el resumen del pago. Intenta nuevamente más tarde.');}
+    }
     let modalDismissed = false; // Flag para evitar que el modal reaparezca al refrescar con acciones
 
     const elements = {
@@ -936,7 +960,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 showCustomConfirm(`¿Confirmas el pago de ${document.querySelector('.detail-cost-badge').innerText} a ${document.querySelector('.detail-meta strong').innerText}?`, async () => {
                     endpoint = `/api/quick-sale/${publicationId}/pay`;
                     body = { buyerUsername: storedUsername };
-                    await fetchFromServer(endpoint, 'POST', body);
+                    await payWithConsent(endpoint,body,window.currentPublication?.blue_cost,window.currentPublication?.author_username);
                 });
                 return;
             case 'accept':
@@ -952,10 +976,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 const author = document.querySelector('.detail-meta strong').textContent.trim();
                 showCustomConfirm(`¿Deseas donar ${amount} BLUE a ${author}?\n\nRecuerda que esto generará un compromiso de reciprocidad RED equivalente en tu cuenta.`, async () => {
-                    await fetchFromServer(`/publications/${publicationId}/accept`, 'POST', {
-                        acceptorUsername: storedUsername,
-                        donationAmount: amount
-                    });
+                    let paymentRequestId=sessionStorage.getItem(donationKey);
+                    if(!paymentRequestId){paymentRequestId=crypto.randomUUID();sessionStorage.setItem(donationKey,paymentRequestId);}
+                    await payWithConsent('/publications/'+publicationId+'/accept',{acceptorUsername:storedUsername,donationAmount:String(amount),paymentRequestId},amount,window.currentPublication?.author_username);
                 });
                 return;
             }
@@ -1015,7 +1038,7 @@ document.addEventListener('DOMContentLoaded', () => {
             case 'confirm-payment':
                 try {
                     // Abrir modal de consentimiento informado y desglose financiero bancario
-                    openPaymentAuthorizationModal(publicationId, userInAction);
+                    await payWithConsent(`/publications/${publicationId}/confirm-payment`,{confirmerUsername:storedUsername,workerUsername:userInAction},window.currentPublication?.blue_cost,userInAction);
                 } catch (err) {
                     showCustomAlert("Error al preparar autorización: " + err.message);
                 }
@@ -1203,7 +1226,7 @@ Puedes ver los detalles aquí:`;
      * (monto bruto BLUE con parking, comisión para Tesorería del protocolo y compromiso RED asumido).
      * Verifica primero si el usuario tiene configurado su PIN de autocustodia; si no, le solicita configurarlo.
      */
-    async function openPaymentAuthorizationModal(pubId, workerUsername) {
+    async function openPaymentAuthorizationModal(pubId, workerUsername, action=null) {
         if (!elements.paymentAuthorizationModal) return;
 
         // 1. Verificación de Autocustodia: Consultar si el usuario ya tiene su PIN configurado
@@ -1219,7 +1242,7 @@ Puedes ver los detalles aquí:`;
         // Si el usuario no tiene PIN configurado, solicitar configurarlo antes de autorizar
         if (window.currentUserHasPin === false) {
             openSetupPinModal(() => {
-                openPaymentAuthorizationModal(pubId, workerUsername);
+                openPaymentAuthorizationModal(pubId, workerUsername, action);
             });
             return;
         }
@@ -1227,11 +1250,15 @@ Puedes ver los detalles aquí:`;
         const pub = window.currentPublication || {};
         const platformSettings = window.currentPlatformSettings || {};
 
-        const grossBlue = parseFloat(pub.blue_cost) || 0;
-        const commissionPct = parseFloat(platformSettings.platform_commission_percentage ?? 5);
-        const commissionAmount = grossBlue * (commissionPct / 100);
+        const termsResponse=await fetch(API_URL+'/api/me/operations/marketplace/terms',{credentials:'include',cache:'no-store',headers:storedToken?{Authorization:'Bearer '+storedToken}:{}});
+        const terms=await termsResponse.json();
+        if(!termsResponse.ok||!terms.success){showCustomAlert('No se pudo comprobar la comisión del contrato. Intenta abrir el resumen más tarde.');return;}
+        const grossBlue = Number(action?.amount ?? pub.blue_cost);
+        const commissionPct = Number(terms.feeBps)/100;
+        pendingPaymentAction={...(action||{endpoint:`/publications/${pubId}/confirm-payment`,body:{confirmerUsername:storedUsername,workerUsername}}),expectedFeeBps:terms.feeBps};
+        const commissionAmount = Math.floor(Math.round(grossBlue*1e6)*Number(terms.feeBps)/10000)/1e6;
         const totalRed = grossBlue + commissionAmount;
-        const debtCycleDays = parseInt(platformSettings.debt_cycle_days ?? 30, 10);
+        const debtCycleDays = Number(terms.durationSeconds)/86400;
 
         const dueDate = new Date(Date.now() + debtCycleDays * 24 * 60 * 60 * 1000).toLocaleDateString('es-ES', {
             year: 'numeric',
@@ -1245,7 +1272,7 @@ Puedes ver los detalles aquí:`;
         if (elements.authModalCommissionLabel) elements.authModalCommissionLabel.textContent = `Comisión Plataforma (${commissionPct}%):`;
         if (elements.authModalCommissionAmount) elements.authModalCommissionAmount.innerHTML = `+ ${formatBalance(commissionAmount)} BLUE`;
         if (elements.authModalTotalRed) elements.authModalTotalRed.innerHTML = `${formatBalance(totalRed)} RED`;
-        if (elements.authModalDueDate) elements.authModalDueDate.textContent = `${dueDate} (${debtCycleDays} días)`;
+        if (elements.authModalDueDate) elements.authModalDueDate.textContent = `${dueDate} · estimado: ${debtCycleDays} días desde su confirmación`;
 
         if (elements.authModalPinInput) {
             elements.authModalPinInput.value = '';
@@ -1298,15 +1325,15 @@ Puedes ver los detalles aquí:`;
                 elements.authModalStatusNotice.textContent = '⏳ Verificando tu clave y registrando la operación de forma segura... Por favor espera unos segundos.';
             }
 
-            const result = await fetchFromServer(`/publications/${pubId}/confirm-payment`, 'POST', {
-                confirmerUsername: storedUsername,
-                workerUsername: workerUsername,
-                pin: enteredPin
-            });
+            const action=pendingPaymentAction;
+            if(!action)throw new Error('Abre nuevamente el resumen del pago.');
+            const result=await fetchFromServer(action.endpoint,'POST',{...action.body,pin:enteredPin,expectedFeeBps:action.expectedFeeBps});
+            if(elements.authModalPinInput)elements.authModalPinInput.value='';
+            if(result?.pending){closePaymentAuthModal();return;}
 
             if (result) {
                 closePaymentAuthModal();
-                openRatingModal(pubId, authorUsername, workerUsername);
+                if(window.currentPublication?.category==='request')openRatingModal(pubId, authorUsername, workerUsername);
             } else {
                 elements.authModalConfirmBtn.disabled = false;
                 elements.authModalConfirmBtn.innerHTML = '<span>✍️</span> Autorizar y Pagar';
@@ -1315,7 +1342,7 @@ Puedes ver los detalles aquí:`;
                     elements.authModalStatusNotice.style.background = 'rgba(239, 68, 68, 0.15)';
                     elements.authModalStatusNotice.style.color = '#ef4444';
                     elements.authModalStatusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-                    elements.authModalStatusNotice.textContent = 'No se pudo liquidar el pago. Tus saldos y compromisos no fueron alterados. Por favor verifica tu capacidad disponible o intenta de nuevo.';
+                    elements.authModalStatusNotice.textContent = 'No se pudo completar la comprobación del pago. Consulta el estado antes de volver a autorizar.';
                 }
             }
         } catch (error) {
@@ -1326,7 +1353,7 @@ Puedes ver los detalles aquí:`;
                 elements.authModalStatusNotice.style.background = 'rgba(239, 68, 68, 0.15)';
                 elements.authModalStatusNotice.style.color = '#ef4444';
                 elements.authModalStatusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-                elements.authModalStatusNotice.textContent = error.message || 'La operación no pudo ser completada. Tus fondos están a salvo.';
+                elements.authModalStatusNotice.textContent = error.message || 'No se pudo comprobar el resultado. Consulta el estado del pago.';
             }
         }
     }
@@ -1370,6 +1397,12 @@ Puedes ver los detalles aquí:`;
                 throw new Error("Respuesta no-JSON del servidor");
             }
 
+            if(result.code==='PAYMENT_PENDING'){
+                sessionStorage.setItem(recoveryKey,result.operationId);showCustomAlert(result.message);setTimeout(recoverPayment,1000);return {...result,pending:true};
+            }
+            if(result.code==='PAYMENT_SETTLED'){
+                sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();return {success:true};
+            }
             if (!response.ok) {
                 // [SEGURIDAD FINTECH] Interceptar sesión expirada (401)
                 if (handleSessionExpired(response)) return null;
@@ -1421,7 +1454,8 @@ Puedes ver los detalles aquí:`;
         if (elements.completeTaskModal) {
             elements.completeTaskModal.style.display = 'none';
         }
-        await fetchFromServer(endpoint, 'POST', body);
+        if(['sell','donation'].includes(window.currentPublication?.category))await payWithConsent(endpoint,body,window.currentPublication.blue_cost,window.currentPublication.author_username);
+        else await fetchFromServer(endpoint,'POST',body);
     }
 
     // --- Evidence Upload Helpers ---

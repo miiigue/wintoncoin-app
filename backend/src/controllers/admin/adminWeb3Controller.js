@@ -354,7 +354,7 @@ async function simulatePayment(req, res) {
     }
 
     try {
-        const txHash = await web3BridgeService.syncPaymentToBlockchain({
+        const payment = await web3BridgeService.syncPaymentToBlockchain({
             payerWalletAddress: payerWallet,
             payeeWalletAddress: payeeWallet,
             amountBlue: parsedAmount,
@@ -362,6 +362,8 @@ async function simulatePayment(req, res) {
             payeeUsername: 'admin_test_payee', authorization, signature
         });
 
+        if(payment?.pending)return res.status(202).json({...payment,success:false,accepted:true});
+        const txHash=payment?.success?payment.txHash:null;
         if (!txHash) {
             return res.status(500).json({ success: false, message: 'Error al procesar el pago on-chain (verifique límites y KYC).' });
         }

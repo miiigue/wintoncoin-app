@@ -324,19 +324,20 @@ class Web3BridgeService {
             const core = this._getProtocol(), vault = this._getVault();
             const block = await this.provider.getBlock('latest');
             const options = { blockTag: block.number };
-            const [blue, red, collateral, free, capacity, required, delinquent, kyc, base, count, level, margin, used, reserved, pending, usdt] = await Promise.all([
+            const [blue, red, collateral, free, capacity, required, delinquent, kyc, base, count, level, margin, used, reserved, pending, usdt, blueLocked] = await Promise.all([
                 this._getERC20(BLUE_ADDRESS).balanceOf(walletAddress, options), this._getERC20(RED_ADDRESS).balanceOf(walletAddress, options),
                 vault.userCollateral(walletAddress, options), vault.getFreeCollateral(walletAddress, options),
                 core.getAvailableCreditCapacity(walletAddress, options), core.getRequiredCollateral(walletAddress, options),
                 core.isDelinquent(walletAddress, options), core.isKYCVerified(walletAddress, options), core.creditLimits(walletAddress, options),
                 core.getUserDebtLotsCount(walletAddress, options), core.userLevels(walletAddress, options),
                 core.extensionMarginLimits(walletAddress, options), core.extensionMarginUsed(walletAddress, options),
-                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options), this._getERC20(USDT_ADDRESS).balanceOf(walletAddress, options)
+                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options), this._getERC20(USDT_ADDRESS).balanceOf(walletAddress, options),
+                new ethers.Contract(BLUE_ADDRESS,["function lockedBalanceOf(address) view returns(uint256)"],this.provider).lockedBalanceOf(walletAddress,options)
             ]);
             const length = Number(count), stop = Math.min(offset + limit, length);
             const lots = await Promise.all(Array.from({ length: Math.max(0, stop - offset) }, (_, i) => core.userDebtLots(walletAddress, offset + i, options)));
             return { success: true, wallet: walletAddress, blockNumber: block.number,
-                usdtWalletBalance: ethers.formatUnits(usdt,6), blueBalance: ethers.formatUnits(blue,6), redCommitment: ethers.formatUnits(red,6),
+                usdtWalletBalance: ethers.formatUnits(usdt,6), blueBalance: ethers.formatUnits(blue,6), blueLocked: ethers.formatUnits(blueLocked,6), blueAvailable: ethers.formatUnits(blue-blueLocked,6), redCommitment: ethers.formatUnits(red,6),
                 collateralVault: { totalLocked: ethers.formatUnits(collateral,6), freeForWithdrawal: ethers.formatUnits(free,6),
                     reservedInExchange: ethers.formatUnits(reserved,6), pendingReserve: ethers.formatUnits(pending,6) },
                 credit: { baseLimit: ethers.formatUnits(base,6), availableCapacity: ethers.formatUnits(capacity,6),
@@ -459,17 +460,7 @@ class Web3BridgeService {
             const requiredCapacity = grossUnits + grossUnits * BigInt(authorization.feeBps) / 10000n;
             if (capacity < requiredCapacity) throw new Error('Límite RED insuficiente para importe y comisión');
 
-            const tx = await protocol.processAuthorizedPayment(authorization, signature);
-            const txHash = await this._waitForConfirmation(tx, 'syncPayment');
-
-            if (dbTransactionId && txHash) {
-                await pool.query(
-                    `UPDATE transactions SET tx_hash = $1 WHERE id = $2`,
-                    [txHash, dbTransactionId]
-                ).catch(err => console.error('[WEB3 BRIDGE] Error guardando tx_hash:', err.message));
-            }
-
-            return txHash;
+            return require('./durableRelayer').execute(this,protocol,'processAuthorizedPayment',[authorization,signature],{deduplicate:true});
         } catch (error) {
             console.error('[WEB3 BRIDGE] ❌ Error al sincronizar pago:', error.message);
             throw error;
@@ -480,9 +471,7 @@ class Web3BridgeService {
         if (!this._isReady() || !EXCHANGE_ADDRESS) return { success: false, error: 'Exchange no configurado' };
         try {
             const exchange = this._getExchange();
-            const tx = await exchange.matchOrders(maxMatches, maxOrdersScanned);
-            const txHash = await this._waitForConfirmation(tx, 'matchOrders');
-            return { success: true, txHash };
+            return require('./durableRelayer').execute(this,exchange,'matchOrders',[maxMatches,maxOrdersScanned]);
         } catch (error) {
             console.error('[WEB3 BRIDGE] Error en matchOrders:', error.message);
             return { success: false, error: error.message };
@@ -499,9 +488,7 @@ class Web3BridgeService {
             if (!/^\d+(\.\d{1,6})?$/.test(String(amountUnits)) || ethers.parseUnits(String(amountUnits),6) <= 0n
                 || ethers.parseUnits(String(amountUnits),6) > 5_000_000_000n) throw new Error('Importe de prueba inválido');
             const usdt = this._getERC20(USDT_ADDRESS);
-            const tx = await usdt.mint(walletAddress, ethers.parseUnits(amountUnits.toString(), 6));
-            const txHash = await this._waitForConfirmation(tx, 'mintMockUsdt');
-            return { success: true, txHash };
+            return require('./durableRelayer').execute(this,usdt,'mint',[walletAddress,ethers.parseUnits(amountUnits.toString(),6)]);
         } catch (error) {
             console.error('[WEB3 BRIDGE] Error en mintMockUsdt:', error.message);
             return { success: false, error: error.message };

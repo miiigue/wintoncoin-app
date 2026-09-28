@@ -18,12 +18,16 @@ import { displayAmount } from '../modules/financialUnits.js';
 
 // Helper canónico para mostrar siempre 4 decimales en interfaces financieras
 const fmt = displayAmount;
+const validAddress = value => typeof value === 'string' && /^0x[0-9a-fA-F]{40}$/.test(value);
+const shortAddress = value => validAddress(value) ? value.slice(0, 6) + '…' + value.slice(-4) : 'Dirección pendiente de verificar';
 
 export default function Exchange() {
   const [searchParams] = useSearchParams();
   const initialTab = searchParams.get('tab') === 'sell' ? 'sell' : 'buy';
 
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [queueStatus, setQueueStatus] = useState('loading');
+  const [exchangeLink, setExchangeLink] = useState(null);
   const [connectedWallet, setConnectedWallet] = useState(null);
   const [isConnecting, setIsConnecting] = useState(false);
   const [onChainState, setOnChainState] = useState(null);
@@ -44,24 +48,38 @@ export default function Exchange() {
 
   // Sincronización continua de datos On-Chain y de la Cola FIFO
   const syncData = async () => {
-    try {
-      const addr = await web3OnChainService.getConnectedAddress();
-      if (addr) {
-        setConnectedWallet(addr);
-        const [userState, snapshot] = await Promise.all([
-          web3OnChainService.fetchUserOnChainState(addr),
-          web3OnChainService.fetchExchangeSnapshot(addr)
-        ]);
-        if (userState) setOnChainState(userState);
-        if (snapshot) setExchangeSnapshot(snapshot);
-      }
-
-      // Consultar cola pública
-      const queue = await web3OnChainService.fetchPublicExchangeQueue();
-      if (queue && queue.success) {
-        setPublicQueue(queue);
-      }
-    } catch (_) { setOnChainState(null); setExchangeSnapshot(null); setConnectedWallet(null); }
+    // Public data must remain readable even if the user's account cannot load.
+    await Promise.allSettled([
+      (async () => {
+        try {
+          await web3OnChainService.ensureDeployment();
+          const address = CONTRACT_ADDRESSES.FifoExchange;
+          const explorer = CONTRACT_ADDRESSES.blockExplorerUrl;
+          setExchangeLink(validAddress(address) && typeof explorer === 'string' && explorer.startsWith('https://') ? {address, url: explorer + '/address/' + address} : null);
+        } catch { setExchangeLink(null); }
+      })(),
+      (async () => {
+        try {
+          const queue = await web3OnChainService.fetchPublicExchangeQueue();
+          if (!queue?.success || !Array.isArray(queue.sellOrders) || !Array.isArray(queue.buyOrders) || [...queue.sellOrders, ...queue.buyOrders].some(order => !order || typeof order !== 'object')) throw new Error('Cola incompleta');
+          setPublicQueue(queue);
+          setQueueStatus('ready');
+        } catch { setQueueStatus('error'); }
+      })(),
+      (async () => {
+        try {
+          const addr = await web3OnChainService.getConnectedAddress();
+          if (!validAddress(addr)) throw new Error('Billetera sin verificar');
+          const [userState, snapshot] = await Promise.all([
+            web3OnChainService.fetchUserOnChainState(addr),
+            web3OnChainService.fetchExchangeSnapshot(addr)
+          ]);
+          setConnectedWallet(addr);
+          setOnChainState(userState);
+          setExchangeSnapshot(snapshot);
+        } catch { setOnChainState(null); setExchangeSnapshot(null); setConnectedWallet(null); }
+      })()
+    ]);
   };
 
   useEffect(() => {
@@ -216,7 +234,7 @@ export default function Exchange() {
               display: 'inline-block'
             }}></span>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: connectedWallet ? '#10B981' : '#38BDF8' }}>
-              {connectedWallet ? '🟢 Optimism Sepolia (FifoExchange V4)' : '🟡 Conecta tu Billetera Web3'}
+              {connectedWallet ? '🟢 Optimism Sepolia (FifoExchange V4)' : 'Consultando tu billetera asociada'}
             </span>
             {connectedWallet && (
               <code style={{ fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#cbd5e1' }}>
@@ -337,7 +355,7 @@ export default function Exchange() {
             className={`${styles.tabBtn} ${activeTab === 'queue' ? styles.tabBtnActive : ''}`}
             onClick={() => handleTabChange('queue')}
           >
-            📋 Cola FIFO ({publicQueue.sellOrders.length + publicQueue.buyOrders.length})
+            📋 Cola FIFO ({queueStatus === 'ready' ? publicQueue.sellOrders.length + publicQueue.buyOrders.length : '…'})
           </button>
         </div>
 
@@ -539,6 +557,7 @@ export default function Exchange() {
         {/* ============================================================== */}
         {activeTab === 'queue' && (
           <div>
+            {queueStatus !== 'ready' && <p role="status">{queueStatus === 'loading' ? 'Consultando la cola FIFO…' : 'No pudimos actualizar la cola. Los datos anteriores, si aparecen, pueden haber cambiado. Reintentaremos automáticamente.'}</p>}
             {/* Mis Órdenes Activas On-Chain */}
             {connectedWallet && myUserOrders.length > 0 && (
               <div className={styles.queueCard} style={{ borderColor: 'rgba(56, 189, 248, 0.4)' }}>
@@ -595,11 +614,11 @@ export default function Exchange() {
               </div>
 
               {publicQueue.sellOrders.length === 0 ? (
-                <div className={styles.emptyQueue}>No hay órdenes de venta esperando en la cola.</div>
+                <div className={styles.emptyQueue}>{queueStatus === 'ready' ? 'No hay órdenes de venta esperando en la cola.' : 'Órdenes de venta pendientes de confirmar.'}</div>
               ) : (
                 <div className={styles.queueList}>
                   {publicQueue.sellOrders.map((ord, idx) => {
-                    const isMine = connectedWallet && ord.wallet_address.toLowerCase() === connectedWallet.toLowerCase();
+                    const isMine = queueStatus === 'ready' && connectedWallet && validAddress(ord.wallet_address) && ord.wallet_address.toLowerCase() === connectedWallet.toLowerCase();
                     return (
                       <div
                         key={ord.order_id}
@@ -611,7 +630,7 @@ export default function Exchange() {
                           </div>
                           <div className={styles.queueItemInfo}>
                             <span className={styles.queueItemName}>
-                              {isMine ? 'Tú (Tu Orden)' : `${ord.wallet_address.slice(0, 6)}...${ord.wallet_address.slice(-4)}`}
+                              {isMine ? 'Tú (Tu Orden)' : shortAddress(ord.wallet_address)}
                             </span>
                             <span className={styles.queueItemTime}>Orden #{ord.order_id} · Seq #{ord.sequence_id}</span>
                           </div>
@@ -648,11 +667,11 @@ export default function Exchange() {
               </div>
 
               {publicQueue.buyOrders.length === 0 ? (
-                <div className={styles.emptyQueue}>No hay órdenes de compra esperando en este momento.</div>
+                <div className={styles.emptyQueue}>{queueStatus === 'ready' ? 'No hay órdenes de compra esperando en este momento.' : 'Órdenes de compra pendientes de confirmar.'}</div>
               ) : (
                 <div className={styles.queueList}>
                   {publicQueue.buyOrders.map((ord, idx) => {
-                    const isMine = connectedWallet && ord.wallet_address.toLowerCase() === connectedWallet.toLowerCase();
+                    const isMine = queueStatus === 'ready' && connectedWallet && validAddress(ord.wallet_address) && ord.wallet_address.toLowerCase() === connectedWallet.toLowerCase();
                     return (
                       <div
                         key={ord.order_id}
@@ -664,7 +683,7 @@ export default function Exchange() {
                           </div>
                           <div className={styles.queueItemInfo}>
                             <span className={styles.queueItemName}>
-                              {isMine ? 'Tú (Tu Orden)' : `${ord.wallet_address.slice(0, 6)}...${ord.wallet_address.slice(-4)}`}
+                              {isMine ? 'Tú (Tu Orden)' : shortAddress(ord.wallet_address)}
                             </span>
                             <span className={styles.queueItemTime}>Orden #{ord.order_id} · Seq #{ord.sequence_id}</span>
                           </div>
@@ -692,14 +711,14 @@ export default function Exchange() {
             {/* ENLACE AL EXPLORADOR DE BLOQUES */}
             <div style={{ textAlign: 'center', marginTop: '1.5rem', fontSize: '0.82rem', color: '#94a3b8' }}>
               <span>Contrato FifoExchange: </span>
-              <a
-                href={`${CONTRACT_ADDRESSES.blockExplorerUrl}/address/${CONTRACT_ADDRESSES.FifoExchange}`}
+              {exchangeLink ? <a
+                href={exchangeLink.url}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: '#38bdf8', textDecoration: 'underline' }}
               >
-                {CONTRACT_ADDRESSES.FifoExchange.slice(0, 8)}...{CONTRACT_ADDRESSES.FifoExchange.slice(-6)} ↗
-              </a>
+                {shortAddress(exchangeLink.address)} ↗
+              </a> : <span>Dirección pendiente de verificar</span>}
             </div>
           </div>
         )}

@@ -23,8 +23,8 @@ async function inspect() {
         for(const [key,address] of Object.entries(signers))add('Gas disponible '+key,await rpc.getBalance(address)>0n);
     }catch{add('Despliegue y permisos verificables',false);}finally{rpc.destroy();}
     try {
-        const migrations=await pool.query("SELECT migration_name FROM schema_migrations WHERE migration_name IN ('114_wallet_pin_attempts.js','115_wallet_identity_credit_override.js','116_durable_chain_operations.js')");
-        add('Migraciones 114–116 aplicadas',migrations.rowCount===3);
+        const migrations=await pool.query("SELECT migration_name FROM schema_migrations WHERE migration_name IN ('114_wallet_pin_attempts.js','115_wallet_identity_credit_override.js','116_durable_chain_operations.js','117_payment_recovery_controls.js')");
+        add('Migraciones 114–117 aplicadas',migrations.rowCount===4);
         const duplicates=await pool.query('SELECT LOWER(web3_wallet_address) FROM users WHERE web3_wallet_address IS NOT NULL GROUP BY 1 HAVING COUNT(*)>1 LIMIT 1');
         add('Identidades sin billeteras duplicadas',duplicates.rowCount===0);
         const status=await pool.query("SELECT setting_key,setting_value FROM app_settings WHERE setting_key LIKE 'gas_sponsor_%'");

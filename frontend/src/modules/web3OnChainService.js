@@ -79,7 +79,7 @@ class Web3OnChainService {
   }
   async getAssociatedAccount() {
     const token = localStorage.getItem('token');
-    const response = await fetch(`${getApiUrl()}/api/me/balance`, {
+    const response = await fetch(`${getApiUrl()}/api/me/wallet-identity`, {
       credentials:'include', cache:'no-store', headers:token ? {Authorization:`Bearer ${token}`} : {}
     });
     if (!response.ok) { this.signer=null; this.connectedAddress=null; throw new Error('No se pudo verificar tu cuenta. Inicia sesión nuevamente.'); }
@@ -124,13 +124,15 @@ class Web3OnChainService {
       if (!json.success) return null;
 
       // Consultar también saldo líquido de USDT en billetera
-      if(json.usdtWalletBalance==null)throw new Error('Saldo USDT no disponible.');
+      if(json.blueAvailable==null||json.blueLocked==null||json.usdtWalletBalance==null)throw new Error('Los saldos no pudieron verificarse.');
       const usdtWalletBalance = Number(json.usdtWalletBalance);
 
       return {
         wallet: json.wallet,
         blockNumber: json.blockNumber,
-        blueUnlocked: parseFloat(json.blueBalance) || 0,
+        blueTotal: Number(json.blueBalance),
+        blueLocked: Number(json.blueLocked),
+        blueUnlocked: Number(json.blueAvailable),
         redCommitment: parseFloat(json.redCommitment) || 0,
         collateralLocked: parseFloat(json.collateralVault?.totalLocked) || 0,
         collateralFree: parseFloat(json.collateralVault?.freeForWithdrawal) || 0,

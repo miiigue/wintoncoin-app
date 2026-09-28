@@ -1,6 +1,7 @@
 'use strict';
 const {randomUUID}=require('crypto');
 const {keccak256,Transaction,Contract}=require('ethers');
+const {confirmedReceipt}=require('./chainConfirmation');
 const error=(message,status=409)=>Object.assign(new Error(message),{status});
 
 // Session advisory locks survive SQL commits but are released on connection loss.
@@ -22,7 +23,7 @@ function publicResult(row) {
         operationId:row.id,state:row.state,kind:row.kind,createdAt:row.created_at,requiresSignature:row.state==='prepared',
         txHash:row.steps?.at(-1)?.hash || null,
         steps:(row.steps || []).map(s=>({hash:s.hash,confirmed:Boolean(s.confirmed),label:s.label})),
-        message:row.state==='confirmed'?'Operación confirmada.':row.state==='failed'?'El contrato rechazó la operación. Revisa los pasos confirmados antes de intentarlo de nuevo.':row.state==='conflict'?'La operación requiere revisión; no se volverá a enviar automáticamente.':'Operación registrada; se está comprobando en blockchain.'};
+        message:row.state==='confirmed'?'Operación confirmada.':row.state==='failed'?'El contrato rechazó la operación. Revisa los pasos confirmados antes de intentarlo de nuevo.':row.state==='conflict'?'La operación requiere revisión; no se volverá a enviar automáticamente.':row.state==='abandoned'?'Pasos pendientes abandonados. Los pasos ya confirmados conservan su efecto.':'Operación registrada; se está comprobando en blockchain.'};
 }
 async function project(client,row) {
     const p=row.projection;
@@ -97,10 +98,12 @@ class ChainOperationStore {
                 try { await this.provider.broadcastTransaction(step.raw); } catch { /* Unknown transport outcome: keep exact bytes and reconcile. */ }
                 return publicResult(row);
             }
-            const block=await this.provider.getBlock(receipt.blockNumber);
-            if(!block || block.hash!==receipt.blockHash)return publicResult(row);
-            const head=await this.provider.getBlock(this.finality || 'latest');
-            if(!head || head.number<receipt.blockNumber+(this.finality?0:this.confirmations-1))return publicResult(row);
+            if(step.confirmed && step.blockHash!==receipt.blockHash) {
+                await client.query("UPDATE chain_operations SET state='conflict',error_code='REORG_AFTER_CONFIRMATION',updated_at=NOW() WHERE id=$1",[row.id]);
+                return publicResult({...row,state:'conflict'});
+            }
+            const verified=await confirmedReceipt(this.provider,step.hash,{finality:this.finality,confirmations:this.confirmations});
+            if(!verified||verified.blockHash!==receipt.blockHash||verified.status!==receipt.status)return publicResult(row);
             if(receipt.status!==1) {
                 await client.query("UPDATE chain_operations SET state='failed',error_code='CHAIN_REVERT',updated_at=NOW() WHERE id=$1",[row.id]);
                 return publicResult({...row,state:'failed'});
@@ -120,6 +123,23 @@ class ChainOperationStore {
             await client.query('COMMIT');
         } catch(e) {await client.query('ROLLBACK');throw e;}
         return publicResult({...row,state:'confirmed'});
+    }
+    async abandon(id,userId) {
+        const initial=await this.get(id,userId);
+        if(initial.kind==='marketplace'||initial.kind==='gas'||!userId)throw error('Esta operación no se puede abandonar.');
+        return locked(this.pool,'signer:'+initial.chain_id+':'+initial.sender,async client=>{
+            const row=await this.get(id,userId);
+            if(row.state==='abandoned')return publicResult(row);
+            if(row.state!=='prepared'||row.steps.some(s=>!s.confirmed)||row.steps.length>=(row.payload.planLength||1))throw error('No se puede abandonar una transacción firmada pendiente. Consulta su estado.');
+            for(const step of row.steps) {
+                const receipt=await confirmedReceipt(this.provider,step.hash,{finality:this.finality,confirmations:this.confirmations});
+                if(!receipt||receipt.status!==1||receipt.blockHash!==step.blockHash)throw error('No se pudo verificar el paso anterior.');
+            }
+            const funding=await client.query("SELECT id FROM chain_operations WHERE kind='gas' AND payload->>'parentId'=$1 AND state IN ('pending','conflict') LIMIT 1",[id]);
+            if(funding.rowCount)throw error('Espera la confirmación del patrocinio antes de abandonar.');
+            await client.query("UPDATE chain_operations SET state='abandoned',updated_at=NOW() WHERE id=$1",[id]);
+            return publicResult({...row,state:'abandoned'});
+        });
     }
     async reconcile(id) {
         const row=await this.get(id);

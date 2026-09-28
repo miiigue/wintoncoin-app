@@ -112,7 +112,7 @@ export default function Dashboard() {
         const redBal = data.red_balance ?? data.balance_red ?? 0;
         const limit = parseFloat(data.credit_limit || 0);
         const redDebt = parseFloat(redBal || 0);
-        const availRed = Math.max(0, limit - redDebt);
+        const availRed = data.available_capacity ?? Math.max(0, limit - redDebt);
 
         setLiquidBlue(displayAmount(blueLiq));
         setParkingBlue(displayAmount(blueEscrow));

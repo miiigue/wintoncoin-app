@@ -13,6 +13,6 @@ export async function operationRequest(path,body) {
         ...(body?{body:JSON.stringify(body)}:{})
     });
     const data=await response.json();
-    if(!response.ok)throw new Error(data.message||'No se pudo comprobar la operación.');
+    if(!response.ok)throw Object.assign(new Error(data.message||'No se pudo comprobar la operación.'),{status:response.status});
     return data;
 }

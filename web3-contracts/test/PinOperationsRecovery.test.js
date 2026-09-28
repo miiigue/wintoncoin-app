@@ -9,23 +9,24 @@ const deployment=require('../../backend/src/services/chainDeployment');
 
 (process.env.WINTON_MIGRATION_TEST_PORT?describe:describe.skip)('PIN + contratos reales + recuperación PostgreSQL',function(){
  this.timeout(120000);
- let pool,control,schema,f,user,service,cfg;
+ let pool,control,schema,f,user,service,cfg,paymentServices=[];
  beforeEach(async()=>{
   control=new Pool({host:'127.0.0.1',port:Number(process.env.WINTON_MIGRATION_TEST_PORT),user:'review070',database:'postgres',connectionTimeoutMillis:5000});
   expect((await control.query('SHOW data_directory')).rows[0].data_directory.replaceAll('\\','/')).to.match(/\/pg-review-070$/);
   schema='pin077_'+randomBytes(6).toString('hex');await control.query(`CREATE SCHEMA ${schema}`);
   pool=new Pool({...control.options,options:`-c search_path=${schema},public`,max:8});
-  await pool.query('CREATE TABLE users(id INTEGER PRIMARY KEY,web3_wallet_address TEXT,has_transaction_pin BOOLEAN,kyc_verified BOOLEAN,red_credit_limit_override NUMERIC); CREATE TABLE app_settings(setting_key TEXT PRIMARY KEY,setting_value TEXT,updated_at TIMESTAMPTZ)');
+  await pool.query("CREATE TABLE users(id INTEGER PRIMARY KEY,web3_wallet_address TEXT,has_transaction_pin BOOLEAN,kyc_verified BOOLEAN,red_credit_limit_override NUMERIC,account_status TEXT DEFAULT 'active'); CREATE TABLE app_settings(setting_key TEXT PRIMARY KEY,setting_value TEXT,updated_at TIMESTAMPTZ)");
   await require('../../backend/migrations/116_durable_chain_operations').up(pool);
+  await require('../../backend/migrations/117_payment_recovery_controls').up(pool);
   f=await fixture();user=ethers.Wallet.createRandom().connect(ethers.provider);
   await f.owner.sendTransaction({to:user.address,value:ethers.parseEther('5')});
   await f.core.setKYCStatus(user.address,true);await f.core.setCreditLimit(user.address,1000n*U);await f.usdt.mint(user.address,1000n*U);
-  await pool.query('INSERT INTO users VALUES(1,$1,true,true,NULL),(2,$2,true,true,NULL)',[user.address,f.alice.address]);
+  await pool.query('INSERT INTO users(id,web3_wallet_address,has_transaction_pin,kyc_verified,red_credit_limit_override) VALUES(1,$1,true,true,NULL),(2,$2,true,true,NULL)',[user.address,f.alice.address]);
   cfg={chainId:'1337',contracts:{CoreProtocol:f.core.target,CollateralVault:f.vault.target,FifoExchange:f.exchange.target,BlueToken:f.blue.target,RedToken:f.red.target,USDT:f.usdt.target,ProtocolTreasury:f.treasury.target},fingerprint:'synthetic-local-suite'};
   process.env.WALLET_MAX_STEP_FEE_WEI=ethers.parseEther('.1').toString();
   service=new WalletOperations(pool,ethers.provider,cfg,{decryptPrivateKeyWithPin:async(_c,id,pin)=>{if(id!==1||pin!=='729418')throw Object.assign(new Error('PIN incorrecto'),{status:401});return user.privateKey;}},{finality:null,confirmations:1});
  });
- afterEach(async()=>{delete process.env.GAS_SPONSOR_PRIVATE_KEY;if(pool)await pool.end();if(control){await control.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await control.end();}});
+ afterEach(async()=>{for(const x of paymentServices)await x.close();paymentServices=[];delete process.env.GAS_SPONSOR_PRIVATE_KEY;if(pool)await pool.end();if(control){await control.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await control.end();}});
  async function finish(quote){let r=await service.authorize(1,quote.operationId,'729418');for(let n=0;n<15&&!r.success;n++){r=await service.status(1,quote.operationId);if(r.requiresSignature)r=await service.authorize(1,quote.operationId,'729418');}expect(r.success,JSON.stringify(r)).eq(true);return r;}
  it('valida red, enlaces y seis decimales del despliegue',async()=>{expect(await deployment.validate(ethers.provider,cfg)).eq(cfg);await expect(deployment.validate(ethers.provider,{...cfg,chainId:'10'})).rejectedWith('red');});
  it('depósito con aprobación limitada, retiro libre y envío USDT con la misma identidad',async()=>{
@@ -123,5 +124,131 @@ const deployment=require('../../backend/src/services/chainDeployment');
   await tick(pool,scoring);await tick(pool,scoring);await tick(pool,scoring);
   expect(seen).deep.eq([1,2]);expect((await pool.query('SELECT state FROM credit_policy_jobs')).rows[0].state).eq('complete');
   await savePolicy(pool,'red_credit_base_limit','0',9);expect((await pool.query("SELECT setting_value FROM app_settings WHERE setting_key='red_credit_base_limit'")).rows[0].setting_value).eq('0');
+ });
+
+ it('cuenta suspendida no puede firmar aunque conserve una operación preparada',async()=>{
+  const q=await service.prepare(1,{action:'transfer',amount:'1',destination:f.bob.address});
+  await pool.query("UPDATE users SET account_status='suspended' WHERE id=1");
+  await expect(service.authorize(1,q.operationId,'729418')).rejectedWith('habilitada');
+  expect((await service.store.get(q.operationId)).steps).length(0);
+ });
+ it('abandona solo pasos sin firmar; conserva aprobación confirmada y desbloquea otra operación',async()=>{
+  const q=await service.prepare(1,{action:'deposit',amount:'10'});
+  await service.authorize(1,q.operationId,'729418');
+  await expect(service.abandon(1,q.operationId)).rejectedWith('firmada');
+  expect((await service.status(1,q.operationId)).state).eq('prepared');
+  expect((await service.abandon(1,q.operationId)).state).eq('abandoned');
+  expect((await service.authorize(1,q.operationId,'729418')).state).eq('abandoned');
+  expect(await f.usdt.allowance(user.address,f.vault.target)).eq(10n*U);
+  expect(await f.vault.userCollateral(user.address)).eq(0n);
+  await finish(await service.prepare(1,{action:'transfer',amount:'1',destination:f.bob.address}));
+ });
+ async function marketplace(){
+  await pool.query("ALTER TABLE users ADD COLUMN username TEXT,ADD COLUMN is_minor BOOLEAN DEFAULT FALSE; UPDATE users SET username=CASE id WHEN 1 THEN 'payer' ELSE 'payee' END");
+  await pool.query("CREATE TABLE publications(id INTEGER PRIMARY KEY,title TEXT,status TEXT,available_slots INTEGER,current_amount NUMERIC); INSERT INTO publications VALUES(1,'Trabajo de prueba','open',1,0); CREATE TABLE publication_acceptances(id SERIAL PRIMARY KEY,publication_id INTEGER,acceptor_username TEXT,status TEXT,blue_cost NUMERIC,form_responses JSONB,evidence_urls TEXT[],form_responses_submitted_at TIMESTAMPTZ); INSERT INTO publication_acceptances(publication_id,acceptor_username,status,blue_cost) VALUES(1,'payee','completed',10); CREATE TABLE transactions(id SERIAL PRIMARY KEY,user_id INTEGER,type TEXT,description TEXT,blue_change NUMERIC,red_change NUMERIC,related_publication_id INTEGER,platform_fee_blue NUMERIC,tx_hash TEXT); CREATE TABLE platform_commission_log(related_publication_id INTEGER,related_user_transaction_id INTEGER,commission_amount_blue NUMERIC); CREATE TABLE web3_escrow_holds(publication_id INTEGER,status TEXT,released_at TIMESTAMPTZ); CREATE TABLE notifications(recipient_username TEXT,message TEXT)");
+  const relayer=ethers.Wallet.createRandom();await f.owner.sendTransaction({to:relayer.address,value:ethers.parseEther('2')});await f.core.setRelayer(relayer.address);
+  await pool.query('ALTER TABLE publications ADD COLUMN blue_cost NUMERIC(20,2)');
+  await require('../../backend/migrations/117_payment_recovery_controls').up(pool);
+  const {MarketplacePayments}=require('../../backend/src/services/marketplacePayments');
+  for(const [key,value] of Object.entries({gas_sponsor_enabled:'true',gas_sponsor_daily_user_operations:'3',gas_sponsor_daily_budget_wei:ethers.parseEther('1').toString(),gas_sponsor_max_topup_wei:ethers.parseEther('.1').toString()}))await pool.query('UPDATE app_settings SET setting_value=$2 WHERE setting_key=$1',[key,value]);
+  const payments=new MarketplacePayments(pool,ethers.provider,cfg,{relayerKey:relayer.privateKey,walletService:service.walletService,finality:null,confirmations:1});
+  paymentServices.push(payments);return {payments,payload:{publicationId:'1',acceptanceId:'1',category:'request',payer:'payer',payee:'payee',amount:'10',expectedFeeBps:String(await f.core.commissionBps())}};
+ }
+ async function sendAndRollback(payments,payload,pin='729418'){
+  const client=await pool.connect();try{await client.query('BEGIN');await client.query('SELECT * FROM users FOR UPDATE');await payments.begin(client,payload,pin);throw Error('Unexpected success');}
+  catch(e){await client.query('ROLLBACK');if(e.code!=='PAYMENT_PENDING')throw e;return e.operationId;}finally{client.release();}
+ }
+ it('pago sobrevive rollback y reinicio: mismo hash, una emisión y un único registro',async()=>{
+  const {payments,payload}=await marketplace();const before=await f.blue.balanceOf(f.alice.address);
+  const id=await sendAndRollback(payments,payload);
+  expect((await pool.query('SELECT * FROM transactions')).rowCount).eq(0);
+  const first=(await payments.store.get(id)).steps[0].hash;
+  expect(await sendAndRollback(payments,payload)).eq(id);
+  expect((await payments.store.get(id)).steps[0].hash).eq(first);
+  await payments.store.reconcile(id);expect(await payments.settle(id)).eq(true);expect(await payments.settle(id)).eq(true);
+  expect(await f.blue.balanceOf(f.alice.address)).eq(before+10n*U);
+  expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+  expect((await pool.query('SELECT * FROM transactions')).rowCount).eq(2);
+  expect((await pool.query('SELECT * FROM marketplace_payment_settlements')).rowCount).eq(1);
+  expect((await payments.status(1,id)).settled).eq(true);
+  await expect(payments.status(2,id)).rejectedWith('no encontrado');
+ });
+ it('fallo SQL al registrar un pago confirmado se recupera sin duplicar importe ni comisión',async()=>{
+  const {payments,payload}=await marketplace();const id=await sendAndRollback(payments,payload);await payments.store.reconcile(id);
+  await pool.query('ALTER TABLE notifications RENAME TO notifications_unavailable');
+  await expect(payments.settle(id)).rejected;
+  expect((await pool.query('SELECT * FROM transactions')).rowCount).eq(0);
+  expect((await pool.query('SELECT status FROM publication_acceptances')).rows[0].status).eq('completed');
+  await pool.query('ALTER TABLE notifications_unavailable RENAME TO notifications');await payments.settle(id);
+  expect((await pool.query('SELECT * FROM transactions')).rowCount).eq(2);
+  expect((await pool.query('SELECT * FROM platform_commission_log')).rowCount).eq(1);
+ });
+ it('referencia de donación no puede reutilizarse con otro importe y publica una sola participación',async()=>{
+  const {payments,payload}=await marketplace();Object.assign(payload,{category:'donation',acceptanceId:null,requestId:randomUUID()});
+  const id=await sendAndRollback(payments,payload);
+  await expect(sendAndRollback(payments,{...payload,amount:'11'})).rejectedWith('otro pago');
+  await payments.store.reconcile(id);await payments.settle(id);await payments.settle(id);
+  expect(String((await pool.query('SELECT current_amount FROM publications')).rows[0].current_amount)).eq('10.000000');
+ });
+ it('no se puede cancelar una publicación mientras su pago está firmado y pendiente',async()=>{
+  const {payments,payload}=await marketplace();await sendAndRollback(payments,payload);
+  const client=await pool.connect();try{await client.query('BEGIN');await expect(require('../../backend/src/services/marketplacePayments').assertPublicationMutable(client,'1')).rejectedWith('en curso');await client.query('ROLLBACK');}finally{client.release();}
+ });
+ it('un usuario rechazado no paraliza la política global; reintento explícito conserva su incidencia',async()=>{
+  const jobs=require('../../backend/src/services/creditPolicyJobs');
+  const version=(await jobs.savePolicy(pool,'red_credit_base_limit','100',1)).policyVersion;
+  const op=await service.store.prepare({key:'failed-credit',chainId:'1337',sender:user.address,resource:'test-credit',kind:'setCreditLimit',payload:{}});
+  await pool.query("UPDATE chain_operations SET state='failed' WHERE id=$1",[op.id]);
+  await pool.query('UPDATE credit_policy_jobs SET operation_id=$2,pending_user_id=1 WHERE version_id=$1',[version,op.id]);
+  const visited=[];const scorer={syncCreditLimitOnChain:async id=>{visited.push(id);return {skipped:true};}};
+  await jobs.tick(pool,scorer);expect(visited).deep.eq([2]);await jobs.tick(pool,scorer);
+  expect((await pool.query('SELECT state FROM credit_policy_jobs')).rows[0].state).eq('complete_with_issues');
+  await jobs.retryIssue(pool,version,1);await jobs.tick(pool,scorer);
+  expect(visited).deep.eq([2,1]);expect((await pool.query('SELECT state FROM credit_policy_jobs')).rows[0].state).eq('complete');
+ });
+ it('un micropago conserva seis decimales en la blockchain y en el historial',async()=>{
+  const {payments,payload}=await marketplace();payload.amount='0.000001';const id=await sendAndRollback(payments,payload);await payments.store.reconcile(id);await payments.settle(id);
+  expect((await pool.query("SELECT blue_change FROM transactions WHERE type='payment_received'")).rows[0].blue_change).eq('0.000001');
+ });
+ it('un rechazo confirmado permite nuevo consentimiento sin repetir el intento anterior',async()=>{
+  const {payments,payload}=await marketplace();let inject=true;
+  payments.store.provider=new Proxy(ethers.provider,{get(target,key){if(key==='broadcastTransaction')return async raw=>{if(inject){inject=false;await f.core.setCommissionBps(600);}return target.broadcastTransaction(raw);};const value=target[key];return typeof value==='function'?value.bind(target):value;}});
+  const rejected=await sendAndRollback(payments,payload);expect((await payments.store.reconcile(rejected)).state).eq('failed');
+  const next=await sendAndRollback(payments,{...payload,expectedFeeBps:'600'});expect(next).not.eq(rejected);await payments.store.reconcile(next);await payments.settle(next);
+  expect((await pool.query('SELECT * FROM marketplace_payment_settlements')).rowCount).eq(1);
+  expect(await f.red.balanceOf(user.address)).eq(10600000n);
+ });
+ it('autoamortización al cobrar se registra desde el evento y no infla el saldo',async()=>{
+  const {payments,payload}=await marketplace();await f.pay(f.alice,f.bob,5n*U);
+  await ethers.provider.send('evm_increaseTime',[Number(await f.core.COMMITMENT_DURATION())+1]);await ethers.provider.send('evm_mine',[]);
+  const id=await sendAndRollback(payments,payload);await payments.store.reconcile(id);await payments.settle(id);
+  const received=(await pool.query('SELECT SUM(blue_change)::text AS blue,SUM(red_change)::text AS red FROM transactions WHERE user_id=2')).rows[0];
+  expect(received.blue).eq('4.750000');expect(received.red).eq('-5.250000');expect(await f.blue.balanceOf(f.alice.address)).eq(4750000n);
+ });
+ it('cuota de patrocinio incluye pagos marketplace y financiación de gas de billetera',async()=>{
+  const {payments,payload}=await marketplace();Object.assign(payload,{category:'donation',acceptanceId:null,requestId:randomUUID()});
+  await pool.query("UPDATE app_settings SET setting_value='1' WHERE setting_key='gas_sponsor_daily_user_operations'");
+  const id=await sendAndRollback(payments,payload);await payments.store.reconcile(id);await payments.settle(id);
+  await expect(sendAndRollback(payments,{...payload,requestId:randomUUID()})).rejectedWith('cuota');
+  const used=await require('../../backend/src/services/gasBudgetUsage').usage(pool,'1337',1);expect(used.user_count).eq(1);expect(BigInt(used.total)).eq(ethers.parseEther('.1'));
+  const sponsor=ethers.Wallet.createRandom();process.env.GAS_SPONSOR_PRIVATE_KEY=sponsor.privateKey;await f.owner.sendTransaction({to:sponsor.address,value:ethers.parseEther('1')});
+  await ethers.provider.send('hardhat_setBalance',[user.address,'0x0']);
+  const quote=await service.prepare(1,{action:'transfer',amount:'1',destination:f.bob.address});
+  await expect(service.authorize(1,quote.operationId,'729418')).rejectedWith('presupuesto');
+ });
+ it('comisión cero conserva paridad y se registra como cero',async()=>{
+  const {payments,payload}=await marketplace();await f.core.setCommissionBps(0);payload.expectedFeeBps='0';const id=await sendAndRollback(payments,payload);await payments.store.reconcile(id);await payments.settle(id);
+  expect((await pool.query('SELECT commission_amount_blue FROM platform_commission_log')).rows[0].commission_amount_blue).eq('0.000000');expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+ });
+ it('la consulta de billetera distingue BLUE total, en parking y disponible tras liberarse',async()=>{
+  const fs=require('fs'),vm=require('vm'),path=require('path');
+  const source=fs.readFileSync(path.resolve(__dirname,'../../backend/src/services/web3BridgeService.js'),'utf8');
+  const start=source.indexOf('    async getUserAuditDetailed('),end=source.indexOf('    async setExtensionParams(',start);
+  const method=vm.runInNewContext('({'+source.slice(start,end)+'})',{ethers,BLUE_ADDRESS:f.blue.target,RED_ADDRESS:f.red.target,USDT_ADDRESS:f.usdt.target,Date}).getUserAuditDetailed;
+  const receiver={provider:ethers.provider,_getProtocol:()=>f.core,_getVault:()=>f.vault,_getERC20:address=>new ethers.Contract(address,['function balanceOf(address) view returns(uint256)'],ethers.provider)};
+  await f.pay(f.alice,user,100n*U);
+  let state=await method.call(receiver,user.address);expect(state.success,state.error).eq(true);expect(state.blueBalance).eq('100.0');expect(state.blueAvailable).eq('0.0');expect(state.blueLocked).eq('100.0');
+  await ethers.provider.send('evm_increaseTime',[Number(await f.core.COMMITMENT_DURATION())+1]);await ethers.provider.send('evm_mine',[]);
+  state=await method.call(receiver,user.address);expect(state.blueAvailable).eq('100.0');expect(state.blueLocked).eq('0.0');
  });
 });

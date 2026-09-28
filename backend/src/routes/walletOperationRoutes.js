@@ -18,10 +18,19 @@ const run=fn=>async(req,res)=>{
     try {const result=await fn(req);res.status(result.success?200:202).json(result);}
     catch(e){res.status(e.status || 503).json({success:false,accepted:e.status===202,message:e.status?e.message:'No se pudo comprobar la operación. Consulta su estado antes de repetirla.',operationId:e.operationId,fundingOperationId:e.fundingOperationId});}
 };
+router.get('/marketplace/terms',run(async()=>({success:true,...await require('../services/marketplacePayments').service().terms()})));
+router.get('/marketplace/:id',run(req=>{
+ if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});
+ return require('../services/marketplacePayments').service().status(req.user.userId,req.params.id);
+}));
 router.post('/prepare',limit,run(req=>service().prepare(req.user.userId,req.body)));
 router.post('/:id/authorize',limit,run(req=>{
     if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});
     return service().authorize(req.user.userId,req.params.id,req.body.pin);
+}));
+router.post('/:id/abandon',limit,run(req=>{
+    if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});
+    return service().abandon(req.user.userId,req.params.id);
 }));
 router.get('/:id',run(req=>{
     if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});

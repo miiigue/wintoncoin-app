@@ -154,6 +154,22 @@ const UserController = {
 
             const username = userResult.rows[0].username;
 
+            const mode=await client.query("SELECT setting_value FROM app_settings WHERE setting_key='pre_launch_mode_enabled'");
+            if(mode.rows[0]?.setting_value!=='true' && userResult.rows[0].web3_wallet_address){
+                const chain=await require('../services/web3BridgeService').getUserAuditDetailed(userResult.rows[0].web3_wallet_address);
+                if(!chain.success)return res.status(503).json({message:'No se pudo comprobar el saldo en blockchain. No se muestran saldos antiguos como actuales.'});
+                return res.status(200).json({
+                    blue_balance:chain.blueAvailable,escrow_blue_balance:chain.blueLocked,red_balance:chain.redCommitment,
+                    web3_wallet_address:chain.wallet,has_transaction_pin:userResult.rows[0].has_transaction_pin===true,
+                    kyc_verified:chain.credit.isKYCVerified,credit_limit:chain.credit.baseLimit,
+                    available_capacity:chain.credit.availableCapacity,collateral_balance:chain.collateralVault.totalLocked,
+                    is_delinquent:chain.credit.isDelinquent,balance_source:'blockchain',block_number:chain.blockNumber,
+                    debt_lots:chain.debtLots,lot_pagination:chain.pagination,
+                    next_due_at:null,next_due_amount:null,next_unlock_at:null,next_unlock_amount:null,
+                    debt_30_days:null,debt_end_month:null,penalized_debt:null
+                });
+            }
+
             // 2) Tablas legacy por username
             const debtSql = `
                 SELECT due_at, amount FROM red_token_debts 
@@ -179,7 +195,7 @@ const UserController = {
             const [debtResult, escrowResult, penalizedDebtResult, debt30Result, debtEndMonthResult] = await Promise.all([
                 client.query(debtSql, [username]),
                 client.query(escrowSql, [username]),
-                client.query(penalizedDebtResult ? penalizedDebtSql : penalizedDebtSql, [username]),
+                client.query(penalizedDebtSql, [username]),
                 client.query(debt30DaysSql, [username]),
                 client.query(debtEndMonthSql, [username])
             ]);

@@ -494,56 +494,8 @@ function verifyAdminOrUserToken(req, res, next) {
  * Importante (fintech): NO confiar en req.body.username / req.query.user para autorizar.
  */
 function verifyUserToken(req, res, next) {
-    const authHeader = req.headers['authorization'] || '';
-    const token = authHeader.startsWith('Bearer ') ? authHeader.slice('Bearer '.length) : null;
-    if (!token) {
-        return res.status(401).json({ message: 'No autenticado. Token no proporcionado.' });
-    }
-
-    jwt.verify(token, jwtSecret, async (err, decoded) => {
-        if (err || !decoded) {
-            return res.status(401).json({ message: 'No autenticado. Token inválido o expirado.' });
-        }
-
-        try {
-            const userId = decoded.userId;
-            if (!userId) {
-                return res.status(401).json({ message: 'No autenticado. Token inválido.' });
-            }
-
-            // Endurecimiento de sesión: invalidar JWT emitidos antes de password reset.
-            // Estándar fintech: toda ruta autenticada debe respetar revocación por cambio de credenciales.
-            const userResult = await pool.query(
-                'SELECT password_invalidate_before FROM users WHERE id = $1',
-                [userId]
-            );
-
-            if (userResult.rowCount === 0) {
-                return res.status(401).json({ message: 'No autenticado. Usuario no encontrado.' });
-            }
-
-            const invalidateBefore = userResult.rows[0].password_invalidate_before;
-            if (invalidateBefore) {
-                const tokenIssuedAt = new Date((decoded.iat || 0) * 1000);
-                if (tokenIssuedAt < new Date(invalidateBefore)) {
-                    return res.status(401).json({
-                        message: 'No autenticado. Tu sesión fue invalidada por un cambio de contraseña.',
-                        code: 'SESSION_INVALIDATED'
-                    });
-                }
-            }
-
-            req.user = decoded; // { userId, username, iat, exp }
-            next();
-        } catch (dbErr) {
-            console.error('[AUTH] Error al validar estado de sesión:', dbErr);
-            return res.status(503).json({
-                message: 'Servicio temporalmente no disponible para validar autenticación.'
-            });
-        }
-    });
+    return require('./src/middleware/authMiddleware').authenticateToken(req,res,next);
 }
-
 
 // --- GOBERNANZA: Cron Jobs del sistema Winton-Consensus ---
 // Ejecuta time-locks vencidos, expira solicitudes viejas, y envía recordatorios
@@ -743,6 +695,7 @@ if (process.env.NODE_ENV !== 'test') {
     cron.schedule('*/20 * * * * *', async()=>{
         try {
             await require('./src/services/durableAdministration').reconcile();
+            await require('./src/services/marketplacePayments').service().sweep();
             await require('./src/services/creditPolicyJobs').tick(pool,require('./src/services/creditScoringService'));
         }
         catch { console.warn('[CHAIN RECOVERY] No se pudo completar el ciclo; se conserva el registro para reintentar.'); }

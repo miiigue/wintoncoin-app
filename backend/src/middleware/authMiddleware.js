@@ -44,10 +44,13 @@ const authenticateToken = (req, res, next) => {
         // 5. Verificar si el token fue emitido antes de un cambio de contraseña (password_invalidate_before)
         try {
             const result = await pool.query(
-                'SELECT password_invalidate_before FROM users WHERE id = $1',
+                'SELECT password_invalidate_before, account_status FROM users WHERE id = $1',
                 [user.userId]
             );
             if (!result.rows.length) return res.status(401).json({ message: 'Cuenta no encontrada.' });
+            // Pending tutor accounts still need access to the tutor request flow.
+            // Economic services separately require active status before signing.
+            if (!['active','pending_tutor','pending_tutor_approval'].includes(result.rows[0].account_status)) return res.status(403).json({message:'La cuenta no está habilitada para operar.',code:'ACCOUNT_INACTIVE'});
             if (result.rows[0].password_invalidate_before) {
                 const invalidateBefore = new Date(result.rows[0].password_invalidate_before);
                 const tokenIssuedAt = new Date((user.iat || 0) * 1000); // JWT iat está en segundos

@@ -18,11 +18,20 @@ import styles from './Wallet.module.css';
 import { displayAmount } from '../modules/financialUnits.js';
 import { getApiUrl } from '../modules/config.js';
 
-const fmt = value => value == null ? 'No disponible' : displayAmount(value);
+// A visual placeholder never becomes an available balance or enables actions.
+const fmt = value => {
+  const pending = value == null || !Number.isFinite(Number(value));
+  const text = pending ? '0.0000' : displayAmount(value);
+  const [whole, fraction] = text.split('.');
+  return <span className={styles.amount} aria-label={pending ? 'Saldo pendiente de confirmar' : text} title={pending ? 'Valor provisional; saldo pendiente de confirmar' : undefined}>
+    <span aria-hidden="true">{whole}</span><sup aria-hidden="true" className={styles.amountDecimals}>.{fraction}</sup>
+  </span>;
+};
 
 function Wallet() {
   const [username, setUsername] = useState(() => localStorage.getItem('username') || 'Usuario');
   const [onChainState, setOnChainState] = useState(null);
+  const [syncError, setSyncError] = useState(false);
   const [connectedWallet, setConnectedWallet] = useState(null);
   const [modalType, setModalType] = useState(null); // 'routeA', 'withdrawUsdt', 'depositUsdt', 'infoLots'
   const [amountInput, setAmountInput] = useState('');
@@ -46,8 +55,9 @@ function Wallet() {
         setConnectedWallet(addr);
         const state = await web3OnChainService.fetchUserOnChainState(addr);
         setOnChainState(state);
+        setSyncError(false);
       }
-    } catch (_) { setOnChainState(null); setConnectedWallet(null); }
+    } catch (_) { setOnChainState(null); setConnectedWallet(null); setSyncError(true); }
   };
 
   useEffect(() => {
@@ -175,8 +185,8 @@ function Wallet() {
     }
   };
 
-  // Balances on-chain reales (o 0 si aún no ha sincronizado)
-  const displayTotalBlue = onChainState ? onChainState.blueUnlocked : null;
+  // Keep missing balances as null; only the visual placeholder displays zero.
+  const displayTotalBlue = onChainState ? onChainState.blueTotal : null;
   const displayLiquidBlue = onChainState ? onChainState.blueUnlocked : null;
   const displayRedDebt = onChainState ? onChainState.redCommitment : null;
   const displayCreditLimit = onChainState ? onChainState.baseCreditLimit : null;
@@ -192,6 +202,10 @@ function Wallet() {
   return (
     <div className={styles.walletContainer}>
       <div className={styles.walletWrapper}>
+        <nav aria-label="Navegación de la billetera" className={styles.walletNav}>
+          <Link to="/dashboard" className={styles.backLink}><span aria-hidden="true">←</span> Volver al panel</Link>
+          <span className={styles.navTitle}>Mi billetera</span>
+        </nav>
         {/* BARRA DE ESTADO WEB3 EN VIVO */}
         <div style={{
           display: 'flex',
@@ -215,7 +229,7 @@ function Wallet() {
               display: 'inline-block'
             }}></span>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: onChainState ? '#10B981' : '#38BDF8' }}>
-              {onChainState ? `🟢 ${String(CONTRACT_ADDRESSES.chainId)==='10'?'Optimism':'Optimism Sepolia'} · Datos confirmados` : '🟡 Consultando tu billetera asociada'}
+              {onChainState ? `🟢 ${String(CONTRACT_ADDRESSES.chainId)==='10'?'Optimism':'Optimism Sepolia'} · Datos confirmados` : syncError ? 'No pudimos actualizar los saldos. Reintentaremos automáticamente.' : 'Consultando tus saldos…'}
             </span>
             {connectedWallet && (
               <code style={{ fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#cbd5e1' }}>
@@ -225,6 +239,8 @@ function Wallet() {
           </div>
 
         </div>
+
+        {!onChainState && <p className={styles.balanceNotice} role="status">Los importes 0.0000 son provisionales hasta confirmar tus saldos.</p>}
 
         {/* ALERTA DE KYC ON-CHAIN (SI NO ESTÁ VERIFICADO EN COREPROTOCOL) */}
         {connectedWallet && onChainState && !isKycOk && (
@@ -331,7 +347,7 @@ function Wallet() {
         {/* HERO CARD: SALDO TOTAL BLUE */}
         <div className={styles.heroCard}>
           <div className={styles.heroHeader}>
-            <span className={styles.heroLabel}>Saldo Líquido Disponible</span>
+            <span className={styles.heroLabel}>Saldo total BLUE</span>
             <span className={styles.gasQuotaBadge}>
               ⚡ Optimism Sepolia L2
             </span>
@@ -354,15 +370,15 @@ function Wallet() {
               </span>
             </div>
             <div>
-              <span className={styles.subItemLabel}>USDT en tu Billetera</span>
+              <span className={styles.subItemLabel}>BLUE en parking</span>
               <span className={`${styles.subItemValue} ${styles.parkingColor}`}>
-                {fmt(displayWalletUsdt)} USDT
-                <button className={styles.btnSuccess} disabled={!isKycOk||!hasPin||loading||!(displayWalletUsdt>0)} onClick={()=>{setAmountInput('');setWithdrawDestination('');setModalType('transferUsdt');}}>Enviar USDT</button>
+                {fmt(onChainState?.blueLocked)} BLUE
               </span>
             </div>
           </div>
         </div>
 
+        <p className={styles.balanceNotice}>El BLUE en parking puede amortizar compromisos; estará disponible para vender cuando termine su plazo.</p>
         {/* ACCESOS DIRECTOS AL EXCHANGE FIFO */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
           <Link
@@ -408,7 +424,7 @@ function Wallet() {
         </div>
 
         {/* ACCIÓN RÁPIDA: COMPENSAR COMPROMISO CON SALDO GANADO (EN 1 TOQUE) */}
-        {displayRedDebt > 0 && displayLiquidBlue > 0 && (
+        {displayRedDebt > 0 && displayTotalBlue > 0 && (
           <div className={styles.routeABanner}>
             <div className={styles.routeATitleRow}>
               <span className={styles.routeATitle}>
@@ -416,12 +432,12 @@ function Wallet() {
               </span>
             </div>
             <p className={styles.routeADesc}>
-              Tienes un compromiso de <strong>{fmt(displayRedDebt)} RED</strong>. Puedes amortizarlo quemando tus tokens BLUE líquidos 1:1 en CoreProtocol.sol.
+              Tienes un compromiso de <strong>{fmt(displayRedDebt)} RED</strong>. Puedes amortizarlo quemando tus tokens BLUE, incluidos los que están en parking, 1:1 en CoreProtocol.sol.
             </p>
             <button
               className={styles.btnRouteA}
               onClick={() => {
-                setAmountInput(Math.min(displayRedDebt, displayLiquidBlue).toString());
+                setAmountInput(Math.min(displayRedDebt, displayTotalBlue).toString());
                 setModalType('routeA');
               }}
             >
@@ -429,6 +445,14 @@ function Wallet() {
             </button>
           </div>
         )}
+
+        {/* USDT de billetera separado del BLUE y de la garantía del Vault. */}
+        <section className={styles.collateralCard} aria-label="USDT en tu billetera">
+          <h3 className={styles.sectionTitle}>USDT en tu billetera</h3>
+          <div className={`${styles.creditBoxValue} ${styles.unlockedColor}`}>{fmt(displayWalletUsdt)} USDT</div>
+          <p className={styles.routeADesc}>Puedes usarlos para comprar BLUE, aportar garantía o enviarlos a una dirección de la misma red. Este saldo no incluye los USDT reservados en garantía o en órdenes del Exchange.</p>
+          <div className={styles.collateralActions}><button className={styles.btnSuccess} disabled={!isKycOk||!hasPin||loading||!(displayWalletUsdt>0)} onClick={()=>{setAmountInput('');setWithdrawDestination('');setModalType('transferUsdt');}}>Enviar USDT</button><Link to="/exchange.html?tab=buy" className={styles.btnSecondary}>Comprar BLUE</Link></div>
+        </section>
 
         {/* SECCIÓN DE COMPROMISO Y LÍMITE RED */}
         <div className={styles.creditCard}>
@@ -460,7 +484,7 @@ function Wallet() {
             <div className={styles.creditBox}>
               <div className={styles.creditBoxTitle}>Estatus de Mora</div>
               <div className={styles.creditBoxValue} style={{ color: onChainState?.isDelinquent ? '#ef4444' : '#10b981', fontSize: '0.92rem' }}>
-                {!onChainState?'No disponible':onChainState.isDelinquent ? '⚠️ Vencido (Mora)' : 'Al Día (Sin Mora)'}
+                {!onChainState?'Pendiente de confirmar':onChainState.isDelinquent ? '⚠️ Vencido (Mora)' : 'Al Día (Sin Mora)'}
               </div>
             </div>
           </div>

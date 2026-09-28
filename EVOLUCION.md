@@ -13,6 +13,25 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-28 — Verificación y Sincronización de Seguridad: Persistencia Atómica de Pagos Marketplace, Separación de Saldos BLUE/USDT y Corrección FIFO Slice (CODEX-080 a 082)
+* **Diagnóstico y Evaluación Conjunta de Resiliencia (CODEX-080 a CODEX-082 / ANTIGRAVITY-056)**:
+  - Se identificó la vulnerabilidad donde un pago emitido y confirmado en blockchain podía perder su reflejo en base de datos si la transacción SQL de la publicación revertía por un error posterior, quedando huérfano.
+  - Se detectó que usuarios suspendidos podían intentar operar si conservaban un token de sesión activo.
+  - En la interfaz de usuario, el saldo total BLUE se prestaba a confusión con el saldo disponible y con el BLUE retenido en parking para amortizaciones de compromisos RED.
+  - En `Exchange.jsx`, presionar "Cola FIFO" arrojaba `TypeError: Cannot read properties of undefined (reading 'slice')` cuando faltaba la dirección del contrato en el manifiesto o una orden carecía de `wallet_address`.
+* **Implementación de Soluciones y Arquitectura Bancaria**:
+  - *Persistencia Atómica de Pagos (`marketplacePayments.js` & `chainOperationStore.js`)*: La transacción firmada se almacena en `chain_operations` previo a su difusión a la red. El trabajador asienta la publicación y su historial a partir del recibo confirmado en una sola transacción SQL atómica. Se previenen pagos duplicados o cobros dobles mediante identificadores estables de recuperación.
+  - *Blindaje de Sesiones Activas (`activeAccountSession.test.js` & `authMiddleware.js`)*: Unificación de middleware para validar el estado activo y KYC de la cuenta en base de datos al momento de firmar y autorizar, impidiendo que cuentas suspendidas ejecuten operaciones financieras.
+  - *Desglose de Saldos y UI de Precisión (`Wallet.jsx` & `Wallet.module.css`)*: Separación estricta entre Saldo Total BLUE, Saldo Disponible para Exchange y Saldo en Parking (destinado a amortizar compromisos RED). Visualización de 4 decimales pequeños elevados con valor provisional `0.0000` mientras se consulta el contrato on-chain y enlace directo de retorno a `/dashboard`.
+  - *Corrección Robusta de Cola FIFO (`Exchange.jsx`)*: Validación previa de direcciones antes de invocar `slice()`, y desacople de la consulta de la cola pública respecto a la sesión privada del usuario.
+  - *Migración 117 (`117_payment_recovery_controls.js`)*: Ampliación de campos numéricos a 6 decimales para máxima precisión contable y registro inmutable de eventos de pago y amortización.
+* **Verificación Técnica Ejecutada**:
+  - Pruebas unitarias de backend: 5 suites pasadas con éxito (`walletBalanceSource`, `chainConfirmation`, `activeAccountSession`, `transactionPinSelfCustody`, `chainSigning`).
+  - Compilación frontend con Vite (`npm run build:demo`): código de salida 0, empaquetado completado en 13.51s con Service Worker PWA actualizado.
+  - Publicación y sincronización en el puente mediante `ANTIGRAVITY-056` en `puente-agentes/PARA_CODEX.md` y `ESTADO_ANTIGRAVITY.md`.
+
+---
+
 ### 2026-09-27 — Restauración Integral de la Landing Page Vanilla Original (`index.html`): Retorno a la Versión Canónica Probada y Desacople de React
 * **Directiva de Negocio y Experiencia de Usuario (Instrucción Expresa del Usuario)**:
   - Ante las inconsistencias visuales y de rendimiento ocasionadas por la migración modular a React en la página de aterrizaje corporativa, el usuario ordenó restituir de forma inmediata la Landing Page original en su código nativo HTML/CSS/JS previo a la migración, garantizando que funcione exactamente como siempre funcionó.

@@ -29,12 +29,10 @@ async function sponsor(service,row,requiredWei) {
         const amount=BigInt(requiredWei)-(await service.rpc.getBalance(row.sender));
         if(amount<=0n)return {success:true};
         if(amount>max || !Number.isInteger(count) || count<1)throw error('El coste supera el límite de patrocinio.');
-        const usage=await client.query(`SELECT COALESCE(SUM((payload->>'reservedWei')::numeric),0)::text AS total,
-            COUNT(DISTINCT payload->>'parentId') FILTER (WHERE user_id=$1)::integer AS user_count
-            FROM chain_operations WHERE kind='gas' AND chain_id=$2 AND created_at >= date_trunc('day',NOW() AT TIME ZONE 'UTC') AT TIME ZONE 'UTC'`,[row.user_id,row.chain_id]);
+        const usage=await require('./gasBudgetUsage').usage(client,row.chain_id,row.user_id);
         const already=(await client.query("SELECT id FROM chain_operations WHERE kind='gas' AND user_id=$1 AND payload->>'parentId'=$2 LIMIT 1",[row.user_id,row.id])).rowCount>0;
         const reserved=amount+BigInt(row.payload.maxFeeWei);
-        if((!already&&usage.rows[0].user_count>=count)||BigInt(usage.rows[0].total)+reserved>cap)throw error('Se agotó el presupuesto de patrocinio. Tu saldo no fue debitado.');
+        if((!already&&usage.user_count>=count)||BigInt(usage.total)+reserved>cap)throw error('Se agotó el presupuesto de patrocinio. Tu saldo no fue debitado.');
         const funding=await service.store.prepare({userId:row.user_id,key,chainId:row.chain_id,sender:signer.address,resource:'sponsor:'+signer.address.toLowerCase(),kind:'gas',
             payload:{parentId:row.id,reservedWei:reserved.toString(),destination:row.sender,amount:amount.toString()}});
         return service.store.authorize(funding.id,row.user_id,async()=>[await signStep(service.rpc,signer,{to:row.sender,value:amount,data:'0x',label:'Patrocinio de gas'},row.chain_id,row.payload.maxFeeWei)]);

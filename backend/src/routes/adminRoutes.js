@@ -130,9 +130,15 @@ router.get('/web3/recovery-status', async(req,res)=>{
     try {
         const pool=require('../config/db');
         const jobs=await pool.query('SELECT * FROM credit_policy_jobs ORDER BY version_id DESC LIMIT 5');
-        const operations=await pool.query("SELECT id,kind,state,error_code,created_at FROM chain_operations WHERE state IN ('pending','conflict') ORDER BY created_at LIMIT 25");
-        res.json({success:true,jobs:jobs.rows,operations:operations.rows});
+        const operations=await pool.query("SELECT o.id,o.kind,o.state,o.error_code,o.created_at FROM chain_operations o LEFT JOIN marketplace_payment_settlements s ON s.operation_id=o.id WHERE o.state IN ('pending','conflict','failed') OR (o.kind='marketplace' AND o.state='confirmed' AND s.operation_id IS NULL) ORDER BY o.created_at DESC LIMIT 25");
+        const issues=await pool.query("SELECT i.*,u.username FROM credit_policy_issues i LEFT JOIN users u ON u.id=i.user_id WHERE i.status<>'resolved' ORDER BY i.version_id DESC,i.updated_at LIMIT 50");
+        res.json({success:true,jobs:jobs.rows,operations:operations.rows,issues:issues.rows});
     } catch{res.status(503).json({success:false,message:'No se pudo consultar la recuperación.'});}
+});
+router.post('/web3/credit-policy/retry',contractAdmin.resolveUser,async(req,res)=>{
+    if(!/^[1-9]\d*$/.test(String(req.body.versionId)))return res.status(400).json({message:'Versión inválida.'});
+    try{res.json(await require('../services/creditPolicyJobs').retryIssue(require('../config/db'),req.body.versionId,req.targetUser.id));}
+    catch(e){res.status(e.status||503).json({message:e.status?e.message:'No se pudo programar la revisión.'});}
 });
 router.get('/web3/operations/:id', async(req,res)=>{
     if(!/^[a-f0-9-]{36}$/i.test(req.params.id))return res.status(400).json({message:'Referencia inválida.'});
