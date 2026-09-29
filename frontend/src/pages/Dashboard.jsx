@@ -1,14 +1,12 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DashboardHeader from '../components/dashboard/DashboardHeader';
-import EmergencyBanner from '../components/dashboard/EmergencyBanner';
 import WalletTabs from '../components/dashboard/WalletTabs';
 import ReferralPromoCard from '../components/dashboard/ReferralPromoCard';
 import QuickActions from '../components/dashboard/QuickActions';
 import PublicationsFeed from '../components/dashboard/PublicationsFeed';
 // BottomNav eliminado: no existía en contract_interaction.html original
 import SettingsModal from '../components/dashboard/SettingsModal';
-import BurnModal from '../components/dashboard/BurnModal';
 import PublicationTypeModal from '../components/dashboard/PublicationTypeModal';
 import QuickSaleModal from '../components/dashboard/QuickSaleModal';
 import SolidarioHistoryModal from '../components/dashboard/SolidarioHistoryModal';
@@ -65,7 +63,6 @@ export default function Dashboard() {
 
   // Estados de Modales
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [burnModalOpen, setBurnModalOpen] = useState(false);
   const [publicationTypeModalOpen, setPublicationTypeModalOpen] = useState(false);
   const [quickSaleModalOpen, setQuickSaleModalOpen] = useState(false);
   const [solidarioHistoryOpen, setSolidarioHistoryOpen] = useState(false);
@@ -496,7 +493,7 @@ export default function Dashboard() {
               onClick={(e) => e.stopPropagation()}
             >
               <p>
-                Estás en fase de pre-lanzamiento. Las recompensas en BLUE iou se registran en el Perfil de Impulsor y los
+                Estás en fase de pre-lanzamiento. Las recompensas en BLUE IOU se registran en el Perfil de Impulsor y los
                 saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.
               </p>
             </div>
@@ -513,15 +510,7 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* 2. Banner de Campaña Humanitaria SOS Venezuela */}
-        <EmergencyBanner
-          onSelectSolidarioFilter={() => {
-            const feedElem = document.getElementById('publications-feed-section');
-            if (feedElem) feedElem.scrollIntoView({ behavior: 'smooth' });
-          }}
-        />
-
-        {/* 3. Tarjeta de Saldos y Compromisos (Impulsor vs Billetera) con Cuentas Regresivas */}
+        {/* 2. Tarjeta de Saldos y Compromisos (Impulsor vs Billetera) con Cuentas Regresivas */}
         <WalletTabs
           activeTab={activeTab}
           onTabChange={setActiveTab}
@@ -536,23 +525,24 @@ export default function Dashboard() {
           nextUnlockAmount={nextUnlockAmount}
           nextDueAt={nextDueAt}
           nextDueAmount={nextDueAmount}
-          onOpenBurnModal={() => setBurnModalOpen(true)}
         />
 
-        {/* 4. Tarjeta Promocional de Referidos con Web Share API y Campañas Dinámicas */}
+        {/* 3. Tarjeta Promocional de Referidos con Web Share API y Campañas Dinámicas */}
         <ReferralPromoCard username={username} />
 
-        {/* 5. Botones de Acción Rápida */}
+        {/* 4. Botones de Acción Rápida */}
         <QuickActions
           onOpenCreatePublication={() => setPublicationTypeModalOpen(true)}
           onOpenQuickSale={() => setQuickSaleModalOpen(true)}
         />
 
-        {/* 6. Feed de Publicaciones del Marketplace (publications-section legacy) */}
+        {/* 5. Feed de Publicaciones del Marketplace (publications-section legacy) */}
         <div id="publications-feed-section" className="publications-section">
           <PublicationsFeed
             publications={publications}
             isLoading={isLoadingPublications}
+            currentUsername={username}
+            isPreLaunch={isPreLaunch}
             onFilterChange={(filter) => fetchPublications(filter)}
             onHidePublication={handleHidePublication}
             onUnhidePublication={handleUnhidePublication}
@@ -567,23 +557,14 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* 8. Modal de Configuración y Descarga PWA */}
+      {/* 6. Modal de Configuración y Descarga PWA */}
       <SettingsModal
         isOpen={settingsOpen}
         onClose={() => setSettingsOpen(false)}
         onLogout={handleLogout}
       />
 
-      {/* 9. Modal de Amortización Voluntaria de Compromisos */}
-      <BurnModal
-        isOpen={burnModalOpen}
-        onClose={() => setBurnModalOpen(false)}
-        liquidBlue={liquidBlue}
-        redCommitment={redCommitment}
-        onBurnSuccess={fetchUserBalances}
-      />
-
-      {/* 10. Modal Selector de Tipo de Publicación */}
+      {/* 7. Modal Selector de Tipo de Publicación */}
       <PublicationTypeModal
         isOpen={publicationTypeModalOpen}
         onClose={() => setPublicationTypeModalOpen(false)}

@@ -13,6 +13,52 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-29 — Restauración del Algoritmo Canónico de Ordenamiento y Priorización de Publicaciones en el Dashboard SPA (Paridad 100% con Vanilla)
+* **Diagnóstico y Requerimiento de Negocio (Instrucción Directa del Usuario)**:
+  - En la versión original/vanilla (`contract-interaction.js`), el marketplace de publicaciones aplicaba un algoritmo determinista de múltiples niveles que priorizaba de forma estricta las tareas con acciones requeridas por el usuario y las causas humanitarias al tope de la lista.
+  - En la migración inicial a React (`PublicationsFeed.jsx`), se había simplificado el ordenamiento a un criterio puramente cronológico o de recompensa sin jerarquía de estados, perdiendo la visibilidad inmediata de tareas en curso, aprobaciones pendientes y causas solidarias.
+  - El chip de filtro "En proceso" solo consultaba un flag plano `status === 'in_progress'`, en lugar de evaluar de forma contextual si el usuario era participante activo (`approved`, `pending_approval`, `completed`) o autor con postulantes en espera (`pending_approval`, `completed`).
+* **Implementación de Soluciones y Paridad Algorítmica (`PublicationsFeed.jsx` & `Dashboard.jsx`)**:
+  - *Jerarquía de Prioridad Canónica (`getPendingPriority`)*:
+    1. **Prioridad -1 (Causas Humanitarias)**: Flotan al inicio absoluto del marketplace para máxima visibilidad comunitaria.
+    2. **Prioridad 0 (Autor con postulantes por aprobar)**: El creador tiene usuarios esperando su decisión (`pending_approval`).
+    3. **Prioridad 1 (Autor con tareas por pagar)**: El participante completó la tarea y el autor debe liberar los fondos (`completed`).
+    4. **Prioridad 2 (Participante aprobado)**: El participante fue seleccionado y está habilitado para realizar la tarea (`approved`).
+    5. **Prioridad 3 (Participante en espera de aprobación)**: El participante se postuló y aguarda confirmación (`pending_approval`).
+    6. **Prioridad 4 (Participante que completó)**: Tarea entregada, esperando liberación del pago por el autor (`completed`).
+    7. **Prioridad 5 (Publicaciones regulares)**: Elementos generales del catálogo sin interacción pendiente.
+  - *Ordenamiento Secundario Estable*: Se preserva la selección del usuario (`recent`, `oldest`, `reward_desc`, `reward_asc`) aplicando ordenamiento estable (ES2019+), de modo que dentro de cada nivel de prioridad se mantiene el criterio seleccionado.
+  - *Filtro Reactivo "En proceso" (`isPendingForUser`)*: Evaluación bidireccional tanto para el rol de participante como de autor.
+  - *Componentes Visuales Restituidos*:
+    - Banner interactivo en la cabecera de la tarjeta (`.publication-status-banner` con clases `.status-author-action`, `.status-approved`, `.status-completed`, `.status-pending`).
+    - Insignia de expiración dinámica (`.expiration-info` / `.expiration-info.expired`) con cálculo en vivo de días, horas y minutos restantes.
+    - Estrellas de reputación del creador (`renderStarRating`).
+    - Propagación de modo pre-lanzamiento (`isPreLaunch`) desde `Dashboard.jsx` para garantizar la denominación "BLUE IOU" en mayúsculas en tareas aplicables.
+* **Verificación y Pruebas**:
+  - Compilación frontend Vite (`npm run build:demo`) ejecutada limpiamente sin errores sintácticos ni advertencias de módulos.
+
+---
+
+### 2026-09-28 — Optimización Visual, UX y Limpieza de Protocolo en Dashboard SPA: Formateo Superíndice de Decimales, Estandarización BLUE IOU, Layout Horizontal de Acciones y Retiro de Componentes Obsoletos
+* **Diagnóstico y Requerimientos de Experiencia de Usuario (Instrucciones Directas)**:
+  - En la pestaña de Billetera bajo "TU COMPROMISO", se mostraba la etiqueta "DISPONIBLE: 0.0000" aun cuando el usuario no poseía capacidad crediticia adicional, saturando innecesariamente la vista.
+  - El botón "🔥 Amortizar con BLUE" y su modal emergente asociado resultaban redundantes y confusos respecto al mecanismo protocolar estándar donde la aniquilación de compromisos RED ocurre automáticamente vía la Regla Materia-Antimateria on-chain al ingresar tokens BLUE líquidos.
+  - Los saldos de la pantalla principal se renderizaban como texto plano con punto decimal estándar, perdiendo la identidad visual de alta jerarquía establecida en el Perfil de Impulsor (donde los 4 decimales se presentan en superíndice elevados con coma y menor escala tipográfica).
+  - La unidad "BLUE iou" presentaba inconsistencias tipográficas entre minúsculas y mayúsculas en diversas pantallas y tooltips, y en la tarjeta principal del dashboard tenía una escala tipográfica excesiva.
+  - Los botones de acción rápida ("Crear Nueva Publicación" y "⚡ Venta Rápida") se apilaban verticalmente a ancho completo, consumiendo un espacio vertical excesivo en pantallas móviles.
+  - El banner rojo superior de emergencia terremoto Venezuela permanecía activo en el panel principal a pesar de que la campaña primaria concluyó y ahora cuenta con su módulo específico.
+* **Soluciones de Ingeniería y Diseño Implementadas**:
+  - *Ocultación Condicional de Capacidad (`WalletTabs.jsx`)*: Se condicionó la visualización de la línea `DISPONIBLE:` a `parseFloat(availableRedCapacity) > 0`, omitiéndola limpiamente cuando el valor es cero.
+  - *Eliminación de Botón y Código de Amortización Manual (`WalletTabs.jsx` & `Dashboard.jsx`)*: Retiro integral del contenedor `.burn-item`, el botón `Amortizar con BLUE`, la importación de `BurnModal`, su estado `burnModalOpen` y handlers en `Dashboard.jsx`.
+  - *Formateo de Decimales Elevados en Superíndice (`WalletTabs.jsx`, `booster-style.css`, `style.css`)*: Creación del helper React `renderBalanceWithDecimals(value)` que formatea la parte entera con separador de miles en coma y envuelve los 4 decimales en `<span className="decimal-part">`, elevándolos visualmente en superíndice (`vertical-align: super; font-size: 0.7em !important;`), unificando la estética bancaria en saldo de impulsor, liquidez BLUE, compromiso RED y montos en parking.
+  - *Estandarización Canónica y Posición Original de "BLUE IOU" (`WalletTabs.jsx`, `booster-profile.js`, `Dashboard.jsx`, `banner.js`, `onboarding.js`, `referrals.js`)*: Unificación estricta de la frase "BLUE IOU" en mayúsculas en todos los títulos, tarjetas, modales y tooltips. En la tarjeta principal de Impulsor (`WalletTabs.jsx`), se restauró la diagramación idéntica a la captura original: el valor numérico centrado como bloque con decimales superíndice (`.booster-total-value`), y la frase `BLUE IOU` en color verde esmeralda (`#10b981`) alineada a la derecha en la parte inferior (`.booster-total-unit` a `0.9rem`, `font-weight: 600`, `text-align: right; margin-top: 0.2rem;`).
+  - *Layout Horizontal y Centrado de Acciones Rápidas (`QuickActions.jsx` & `style.css`)*: Transformación de `.main-actions-container` a `flex-direction: row` con `justify-content: center; gap: 0.75rem; align-items: stretch;`, asignando `flex: 1` a cada botón para que queden lado a lado, perfectamente centrados y consumiendo la mitad del espacio vertical en teléfonos móviles.
+  - *Desactivación Definitiva de Banner de Emergencia Venezuela (`Dashboard.jsx`)*: Retiro del componente `EmergencyBanner` y su importación del dashboard principal.
+* **Verificación Técnica**:
+  - Compilación frontend con Vite (`npm run build:demo`): código de salida 0, 167 módulos procesados en 21.06s, Service Worker PWA actualizado en `dist-demo/`.
+
+---
+
 ### 2026-09-28 — Verificación y Sincronización de Seguridad: Persistencia Atómica de Pagos Marketplace, Separación de Saldos BLUE/USDT y Corrección FIFO Slice (CODEX-080 a 082)
 * **Diagnóstico y Evaluación Conjunta de Resiliencia (CODEX-080 a CODEX-082 / ANTIGRAVITY-056)**:
   - Se identificó la vulnerabilidad donde un pago emitido y confirmado en blockchain podía perder su reflejo en base de datos si la transacción SQL de la publicación revertía por un error posterior, quedando huérfano.

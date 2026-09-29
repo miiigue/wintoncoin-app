@@ -83,7 +83,7 @@ function initializeBoosterProfilePage() {
     }
 
     function getHeaderHTML(levelInfo) {
-        const levelDescription = levelInfo?.description || 'Acumula más BLUE iou para subir de nivel.';
+        const levelDescription = levelInfo?.description || 'Acumula más BLUE IOU para subir de nivel.';
         const capitalizedUsername = profileUsername 
             ? profileUsername.charAt(0).toUpperCase() + profileUsername.slice(1)
             : 'Impulsor';
@@ -93,7 +93,7 @@ function initializeBoosterProfilePage() {
                     ${escapeHtml(capitalizedUsername)}, eres nivel ${levelInfo ? levelInfo.level : '?'} <i class="info-icon" style="font-size: 1.1rem; font-style: normal; opacity: 0.8; margin-left: 5px; vertical-align: middle;">ⓘ</i>
                 </h1>
                 <div class="booster-value-display" style="margin-top: 6px; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.5px;">
-                    <span class="shimmer-text">1 BLUE iou = 1 BLUE = 1 USD</span>
+                    <span class="shimmer-text">1 BLUE IOU = 1 BLUE = 1 USD</span>
                 </div>
                 <div id="tooltip-booster-level" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>${levelDescription}</p>
@@ -125,10 +125,10 @@ function initializeBoosterProfilePage() {
         return `
             <div class="booster-stat-block booster-summary-card">
                 <div class="ranking-title">
-                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-total-blue">Total BLUE iou Acumulado <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px;">ⓘ</i></span>
+                    <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-total-blue">Total BLUE IOU Acumulado <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-total-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>BLUE iou acumulados totales en tu perfil de impulsor.</p>
+                    <p>BLUE IOU acumulados totales en tu perfil de impulsor.</p>
                 </div>
                 <div class="ranking-position booster-total-highlight">${formatBalance(totalBlue)} ${currencyUnitSpan}</div>
             </div>
@@ -142,7 +142,7 @@ function initializeBoosterProfilePage() {
                     <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-available-blue" style="color: #10B981; font-weight: bold;">Habilitado para Canje (KYC) <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px; color: #10B981;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-available-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>BLUE iou habilitados para canjear por tokens BLUE a partir del lanzamiento oficial. Requiere KYC aprobado tuyo y de tus referidos.</p>
+                    <p>BLUE IOU habilitados para canjear por tokens BLUE a partir del lanzamiento oficial. Requiere KYC aprobado tuyo y de tus referidos.</p>
                 </div>
                 <div class="ranking-position booster-total-highlight" style="color: #10B981;">${formatBalance(eligibleBlue)} ${currencyUnitSpan}</div>
             </div>
@@ -156,7 +156,7 @@ function initializeBoosterProfilePage() {
                     <span class="info-text-clickable" role="button" tabindex="0" data-tooltip-id="tooltip-pending-blue" style="color: #F59E0B; font-weight: bold;">BLUE IOU de referidos sin KYC <i class="info-icon" style="font-size: 0.85rem; font-style: normal; opacity: 0.7; margin-left: 4px; color: #F59E0B;">ⓘ</i></span>
                 </div>
                 <div id="tooltip-pending-blue" class="info-tooltip" role="tooltip" aria-hidden="true">
-                    <p>BLUE iou generados por tus referidos que se encuentran retenidos temporalmente hasta que ellos aprueben su verificación KYC.</p>
+                    <p>BLUE IOU generados por tus referidos que se encuentran retenidos temporalmente hasta que ellos aprueben su verificación KYC.</p>
                 </div>
                 <div class="ranking-position" style="color: #F59E0B; font-weight: bold;">${formatBalance(pendingBlue)} ${currencyUnitSpan}</div>
                 <div style="text-align: right; margin-top: 6px;">
@@ -264,7 +264,7 @@ function initializeBoosterProfilePage() {
                     <div class="bonus-main-info">
                         <span class="chest-icon">🎁</span>
                         <div class="bonus-text">
-                            <span class="amount">+50.000<span class="decimal-part">0000</span> <span class="unit">BLUE iou</span></span>
+                            <span class="amount">+50.000<span class="decimal-part">0000</span> <span class="unit">BLUE IOU</span></span>
                         </div>
                     </div>
                     <p class="bonus-desc">Activable por tareas completadas o verificación de identidad de tus referidos.</p>
@@ -281,7 +281,7 @@ function initializeBoosterProfilePage() {
             let statusClass = isCompleted ? 'completed' : (isActive ? 'active' : 'locked');
 
             const minBlue = parseFloat(lvl.min_blue_required);
-            const reqText = minBlue === 0 ? 'START' : `${formatBalance(minBlue)} <span class="unit">BLUE iou</span>`;
+            const reqText = minBlue === 0 ? 'START' : `${formatBalance(minBlue)} <span class="unit">BLUE IOU</span>`;
             const compactName = lvl.name.replace(/IMPULSOR/gi, '').trim();
 
             return `
@@ -313,13 +313,13 @@ function initializeBoosterProfilePage() {
 
                 <div class="progress-footer-premium">
                     <div class="footer-stat-group">
-                        <span class="stat-label">TOTAL BLUE iou ACUMULADO</span>
-                        <span class="stat-value highlight">${formatBalance(totalBlue)} <span class="unit">BLUE iou</span></span>
+                        <span class="stat-label">TOTAL BLUE IOU ACUMULADO</span>
+                        <span class="stat-value highlight">${formatBalance(totalBlue)} <span class="unit">BLUE IOU</span></span>
                     </div>
                     ${nextLevel
                 ? `<div class="footer-stat-group align-right">
                                 <span class="stat-label">SIGUIENTE NIVEL IMPULSOR: ${nextLevel.name}</span>
-                                <span class="stat-value progress">FALTAN ${formatBalance(neededBlue)} <span class="unit">BLUE iou</span></span>
+                                <span class="stat-value progress">FALTAN ${formatBalance(neededBlue)} <span class="unit">BLUE IOU</span></span>
                            </div>`
                 : `<div class="footer-stat-group align-right">
                                 <span class="stat-label">RANGO ALCANZADO</span>

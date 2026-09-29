@@ -2837,7 +2837,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!response.ok || !result?.is_booster) {
                 // Not a booster, show placeholder text
                 if (elements.boosterTotalBlue) {
-                    elements.boosterTotalBlue.innerHTML = `<span class="booster-total-value">0</span> <span class="booster-total-unit">BLUE iou</span>`;
+                    elements.boosterTotalBlue.innerHTML = `<span class="booster-total-value">0</span> <span class="booster-total-unit">BLUE IOU</span>`;
                 }
                 return;
             }
@@ -2847,14 +2847,14 @@ document.addEventListener('DOMContentLoaded', async () => {
             const nextMin = nextLevel ? Number(nextLevel.min_blue_required || 0) : 0;
 
             if (elements.boosterTotalBlue) {
-                elements.boosterTotalBlue.innerHTML = `<span class="booster-total-value">${formatBalance(totalBoosterBlue)}</span> <span class="booster-total-unit">BLUE iou</span>`;
+                elements.boosterTotalBlue.innerHTML = `<span class="booster-total-value">${formatBalance(totalBoosterBlue)}</span> <span class="booster-total-unit">BLUE IOU</span>`;
             }
 
             let progressPercent = 100;
             let progressText = 'Nivel máximo alcanzado';
             if (nextMin > 0) {
                 progressPercent = Math.min(100, (totalBoosterBlue / nextMin) * 100);
-                progressText = `${totalBoosterBlue.toFixed(4)} / ${nextMin.toFixed(4)} BLUE iou`;
+                progressText = `${totalBoosterBlue.toFixed(4)} / ${nextMin.toFixed(4)} BLUE IOU`;
             }
 
             if (elements.boosterProgressText) elements.boosterProgressText.textContent = progressText;

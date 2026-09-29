@@ -406,7 +406,7 @@ function startTour() {
                 element: '#boosterSummary',
                 popover: {
                     title: '⭐ Tu Progreso',
-                    description: 'Toca este banner para ver tu <b>desempeño y BLUE iou acumulado</b> en la etapa pre-lanzamiento.',
+                    description: 'Toca este banner para ver tu <b>desempeño y BLUE IOU acumulado</b> en la etapa pre-lanzamiento.',
                     side: "bottom",
                     align: 'center'
                 }

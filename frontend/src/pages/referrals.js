@@ -147,7 +147,7 @@ function initializeReferralsPage() {
                         <th style="width: 80px; text-align: center;">KYC</th>
                         <th>Usuario</th>
                         <th>Fecha de Registro</th>
-                        <th>BLUE iou acumulado</th>
+                        <th>BLUE IOU acumulado</th>
                     </tr>
                 </thead>
                 <tbody>

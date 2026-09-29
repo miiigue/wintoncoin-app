@@ -5454,22 +5454,31 @@ input:checked+.slider:before {
 /* --- Contenedor de Acciones Principales (NUEVO) --- */
 .main-actions-container {
     display: flex;
-    gap: 1rem;
+    flex-direction: row;
+    gap: 0.75rem;
     margin: 0.5rem 0;
     justify-content: center;
+    align-items: stretch;
+    width: 100%;
 }
 
 .main-actions-container .button-link {
     margin: 0;
     /* Reseteamos el margen que tenían individualmente */
     flex: 1;
-    /* Ocupan el espacio disponible */
+    min-width: 0;
+    /* Ocupan el espacio disponible equitativamente */
     display: flex;
     /* Usar flexbox para centrado perfecto */
     justify-content: center;
     /* Centrado horizontal */
     align-items: center;
     /* Centrado vertical */
+    text-align: center;
+    padding: 0.85rem 0.5rem;
+    font-size: 0.95rem;
+    line-height: 1.25;
+    border-radius: 12px;
     gap: 0.5em;
     /* Espacio entre el icono y el texto */
 }
@@ -7315,10 +7324,13 @@ body.wallet-tour-active #prelaunchWalletModal {
 }
 
 .main-actions-container {
-    margin-bottom: 2.5rem;
+    margin-bottom: 1.5rem;
     display: flex;
-    flex-direction: column;
-    gap: 1rem;
+    flex-direction: row;
+    justify-content: center;
+    align-items: stretch;
+    gap: 0.75rem;
+    width: 100%;
 }
 
 /* Título de Lista -> Lista */
@@ -7346,9 +7358,14 @@ body.wallet-tour-active #prelaunchWalletModal {
     }
 
     /* Separación coherente también en móviles */
-    .pre-launch-ribbon,
-    .main-actions-container {
+    .pre-launch-ribbon {
         margin-bottom: 2.5rem;
+    }
+
+    .main-actions-container {
+        margin-bottom: 1.5rem;
+        flex-direction: row;
+        gap: 0.6rem;
     }
 
     .wallet-tabs-container,

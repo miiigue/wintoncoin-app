@@ -16,11 +16,34 @@ export default function QuickActions({
   onOpenQuickSale,
 }) {
   return (
-    <div className="main-actions-container">
+    <div
+      className="main-actions-container"
+      style={{
+        display: 'flex',
+        flexDirection: 'row',
+        gap: '10px',
+        justifyContent: 'center',
+        alignItems: 'stretch',
+        width: '100%',
+        margin: '0 auto 1.5rem auto'
+      }}
+    >
       <a
         href="#"
         id="openPublicationModalBtn"
         className="button-link primary-action"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+          padding: '12px 6px',
+          fontSize: '0.92rem',
+          lineHeight: '1.25',
+          borderRadius: '12px'
+        }}
         onClick={(e) => {
           e.preventDefault();
           if (onOpenCreatePublication) onOpenCreatePublication();
@@ -32,6 +55,18 @@ export default function QuickActions({
         href="#"
         id="openQuickSaleModalBtn"
         className="button-link secondary-action"
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          textAlign: 'center',
+          padding: '12px 6px',
+          fontSize: '0.92rem',
+          lineHeight: '1.25',
+          borderRadius: '12px'
+        }}
         onClick={(e) => {
           e.preventDefault();
           if (onOpenQuickSale) onOpenQuickSale();

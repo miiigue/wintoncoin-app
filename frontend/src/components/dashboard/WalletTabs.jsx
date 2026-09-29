@@ -17,6 +17,24 @@ import React, { useState, useEffect } from 'react';
  * - Cumplimiento FinTech: Regla terminológica absoluta ("Compromiso RED").
  * ============================================================================
  */
+// Helper de formateo numérico con paridad visual bancaria y decimales reducidos en superíndice
+function renderBalanceWithDecimals(value) {
+  const num = Number(value) || 0;
+  const formattedString = num.toLocaleString('es-ES', {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4,
+  });
+  const parts = formattedString.split(',');
+  if (parts.length === 2) {
+    return (
+      <>
+        {parts[0]},<span className="decimal-part">{parts[1]}</span>
+      </>
+    );
+  }
+  return formattedString;
+}
+
 export default function WalletTabs({
   activeTab = 'impulsor',
   onTabChange,
@@ -31,7 +49,6 @@ export default function WalletTabs({
   nextUnlockAmount = null,
   nextDueAt = null,
   nextDueAmount = null,
-  onOpenBurnModal,
 }) {
   const [copied, setCopied] = useState(false);
   const [now, setNow] = useState(Date.now());
@@ -131,7 +148,25 @@ export default function WalletTabs({
             </div>
             <div className="booster-banner-body">
               <div id="boosterTotalBlue" className="booster-amount">
-                {boosterBalance} BLUE iou
+                <span className="booster-total-value" style={{ display: 'block', textAlign: 'center' }}>
+                  {renderBalanceWithDecimals(boosterBalance)}
+                </span>
+                <span
+                  className="booster-total-unit"
+                  style={{
+                    display: 'block',
+                    fontSize: '0.9rem',
+                    fontWeight: 600,
+                    fontStyle: 'normal',
+                    color: '#10b981',
+                    letterSpacing: '0.5px',
+                    textTransform: 'uppercase',
+                    textAlign: 'right',
+                    marginTop: '0.2rem'
+                  }}
+                >
+                  BLUE IOU
+                </span>
               </div>
             </div>
           </a>
@@ -241,7 +276,9 @@ export default function WalletTabs({
                   </div>
 
                   <div className="balance-item">
-                    <span id="saldoBlue" className="balance-amount blue-amount">{liquidBlue}</span>
+                    <span id="saldoBlue" className="balance-amount blue-amount">
+                      {renderBalanceWithDecimals(liquidBlue)}
+                    </span>
                   </div>
 
                   {parseFloat(parkingBlue) > 0 && (
@@ -255,7 +292,7 @@ export default function WalletTabs({
                         data-tooltip-id="tooltip-proxima-liberacion"
                         onClick={(e) => toggleTooltip('tooltip-proxima-liberacion', e)}
                       >
-                        ⏳ En parking: {parkingBlue} BLUE {unlockCountdownStr ? `(${unlockCountdownStr})` : ''}
+                        ⏳ En parking: {renderBalanceWithDecimals(parkingBlue)} BLUE {unlockCountdownStr ? `(${unlockCountdownStr})` : ''}
                       </p>
 
                       {/* Tooltip Explicativo Parking BLUE */}
@@ -312,10 +349,15 @@ export default function WalletTabs({
                   </div>
 
                   <div className="balance-item">
-                    <span id="saldoRed" className="balance-amount red-amount">{redCommitment}</span>
-                    <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, letterSpacing: '0.5px' }}>
-                      DISPONIBLE: <span id="saldoRedDisponible">{availableRedCapacity}</span>
-                    </div>
+                    <span id="saldoRed" className="balance-amount red-amount">
+                      {renderBalanceWithDecimals(redCommitment)}
+                    </span>
+                    {/* Solo mostrar DISPONIBLE si el monto es estrictamente mayor a cero */}
+                    {parseFloat(availableRedCapacity) > 0 && (
+                      <div style={{ marginTop: '5px', fontSize: '0.85rem', color: '#ef4444', fontWeight: 600, letterSpacing: '0.5px' }}>
+                        DISPONIBLE: <span id="saldoRedDisponible">{renderBalanceWithDecimals(availableRedCapacity)}</span>
+                      </div>
+                    )}
                   </div>
 
                   {nextDueAt && parseFloat(redCommitment) > 0 && dueCountdownStr && (
@@ -349,18 +391,6 @@ export default function WalletTabs({
                 </div>
               </div>
             </div>
-          </div>
-
-          {/* Botón Quemar / Amortizar Voluntariamente (.burn-item legacy de style.css) */}
-          <div className="burn-item" style={{ textAlign: 'center' }}>
-            <button
-              className="burn-trigger"
-              type="button"
-              onClick={onOpenBurnModal}
-              title="Amortizar compromiso con tokens BLUE"
-            >
-              <span className="fire-icon">🔥</span> Amortizar con BLUE
-            </button>
           </div>
         </div>
       )}
