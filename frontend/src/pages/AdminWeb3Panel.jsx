@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getApiUrl } from '../modules/config.js';
 import ContractConfiguration from '../components/ContractConfiguration.jsx';
+import Web3Readiness from '../components/Web3Readiness.jsx';
 import styles from './AdminWeb3Panel.module.css';
 
 export default function AdminWeb3Panel() {
@@ -304,11 +305,13 @@ export default function AdminWeb3Panel() {
         </div>
       </div>
 
+      <Web3Readiness />
+
       {/* Barra de Estado del Relayer */}
       {statusData?.relayer && (
         <div className={styles.relayerCard}>
           <div className={styles.relayerInfo}>
-            <span className={styles.relayerLabel}>Patrocinador de Gas (Relayer):</span>
+            <span className={styles.relayerLabel}>Procesador de pagos:</span>
             <span className={styles.relayerAddress}>{statusData.relayer.address}</span>
             <button
               onClick={() => copyToClipboard(statusData.relayer.address, 'Dirección del Relayer')}

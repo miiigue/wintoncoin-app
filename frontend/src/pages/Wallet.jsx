@@ -24,7 +24,7 @@ const fmt = value => {
   const text = pending ? '0.0000' : displayAmount(value);
   const [whole, fraction] = text.split('.');
   return <span className={styles.amount} aria-label={pending ? 'Saldo pendiente de confirmar' : text} title={pending ? 'Valor provisional; saldo pendiente de confirmar' : undefined}>
-    <span aria-hidden="true">{whole}</span><sup aria-hidden="true" className={styles.amountDecimals}>.{fraction}</sup>
+    <span aria-hidden="true">{whole}.</span><sup aria-hidden="true" className={styles.amountDecimals}>{fraction}</sup>
   </span>;
 };
 
@@ -206,39 +206,20 @@ function Wallet() {
           <Link to="/dashboard" className={styles.backLink}><span aria-hidden="true">←</span> Volver al panel</Link>
           <span className={styles.navTitle}>Mi billetera</span>
         </nav>
-        {/* BARRA DE ESTADO WEB3 EN VIVO */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          background: onChainState ? 'rgba(16, 185, 129, 0.12)' : 'rgba(56, 189, 248, 0.12)',
-          border: onChainState ? '1px solid rgba(16, 185, 129, 0.3)' : '1px solid rgba(56, 189, 248, 0.3)',
-          borderRadius: '12px',
-          padding: '10px 16px',
-          marginBottom: '1.2rem',
-          flexWrap: 'wrap',
-          gap: '8px'
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{
-              width: '10px',
-              height: '10px',
-              borderRadius: '50%',
-              background: onChainState ? '#10B981' : '#F59E0B',
-              boxShadow: onChainState ? '0 0 8px #10B981' : 'none',
-              display: 'inline-block'
-            }}></span>
-            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: onChainState ? '#10B981' : '#38BDF8' }}>
-              {onChainState ? `🟢 ${String(CONTRACT_ADDRESSES.chainId)==='10'?'Optimism':'Optimism Sepolia'} · Datos confirmados` : syncError ? 'No pudimos actualizar los saldos. Reintentaremos automáticamente.' : 'Consultando tus saldos…'}
-            </span>
-            {connectedWallet && (
-              <code style={{ fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#cbd5e1' }}>
-                {connectedWallet.slice(0, 6)}...{connectedWallet.slice(-4)}
-              </code>
-            )}
+        {/* Identidad y estado de sincronización en una única tarjeta. */}
+        <header className={styles.userHeader}>
+          <div className={styles.userInfo}>
+            <h2 className={styles.userName}>@{username}</h2>
+            <div className={styles.userStatus} role="status" style={{color: onChainState ? '#34d399' : '#fbbf24'}}>
+              <span className={styles.statusDot} aria-hidden="true" />
+              <span>{onChainState ? `${String(CONTRACT_ADDRESSES.chainId)==='10'?'Optimism':'Optimism Sepolia'} · Datos confirmados` : syncError ? 'No pudimos actualizar los saldos. Reintentaremos automáticamente.' : 'Consultando tus saldos…'}</span>
+            </div>
+            <div className={styles.smartAccountTag}>
+              <span>Dirección de tu billetera:</span>
+              <code>{displayAddress}</code>
+            </div>
           </div>
-
-        </div>
+        </header>
 
         {!onChainState && <p className={styles.balanceNotice} role="status">Los importes 0.0000 son provisionales hasta confirmar tus saldos.</p>}
 
@@ -325,32 +306,10 @@ function Wallet() {
           </div>
         )}
 
-        {/* ENCABEZADO DE USUARIO */}
-        <div className={styles.userHeader}>
-          <div className={styles.userInfo}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.5rem', width: '100%', flexWrap: 'wrap' }}>
-              <h2 className={styles.userName}>@{username}</h2>
-              <div style={{ display: 'flex', gap: '8px' }}>
-
-              </div>
-            </div>
-            <div className={styles.smartAccountTag}>
-              <span>Dirección On-Chain:</span>
-              <code>{displayAddress}</code>
-            </div>
-          </div>
-          <div className={styles.clubBadge}>
-            <span>{isKycOk ? '🛡️ KYC Aprobado' : '⏳ Sin KYC'}</span>
-          </div>
-        </div>
-
         {/* HERO CARD: SALDO TOTAL BLUE */}
         <div className={styles.heroCard}>
           <div className={styles.heroHeader}>
             <span className={styles.heroLabel}>Saldo total BLUE</span>
-            <span className={styles.gasQuotaBadge}>
-              ⚡ Optimism Sepolia L2
-            </span>
           </div>
           <div className={styles.mainBalance}>
             <img
@@ -364,7 +323,7 @@ function Wallet() {
           </div>
           <div className={styles.balanceSubrow}>
             <div>
-              <span className={styles.subItemLabel}>Disponible para vender en el Exchange</span>
+              <span className={styles.subItemLabel}>Disponible para vender</span>
               <span className={`${styles.subItemValue} ${styles.unlockedColor}`}>
                 {fmt(displayLiquidBlue)} BLUE
               </span>
@@ -493,7 +452,7 @@ function Wallet() {
         {/* SECCIÓN DE GARANTÍAS USDT (BÓVEDA DE COLATERAL) */}
         <div className={styles.collateralCard}>
           <div className={styles.sectionTitle}>
-            <span>Bóveda de Garantías CollateralVault (USDT)</span>
+            <span>Colateral de garantía (USDT)</span>
             <span style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Total: {fmt(displayTotalCollateral)} USDT</span>
           </div>
           <div className={styles.creditGrid}>

@@ -43,7 +43,8 @@ function configFromEnv(env = process.env) {
     return { ...identity, startBlock, finality,
         batchBlocks: readInt('EXCHANGE_INDEXER_BATCH_BLOCKS', 100, 1, 2000),
         maxLogs: readInt('EXCHANGE_INDEXER_MAX_LOGS', 2000, 1, 10000),
-        pollMs: readInt('EXCHANGE_INDEXER_POLL_MS', 5000, 1000, 60000) };
+        pollMs: readInt('EXCHANGE_INDEXER_POLL_MS', 5000, 1000, 60000),
+        maxHeadAgeSeconds: readInt('EXCHANGE_INDEXER_MAX_HEAD_AGE_SECONDS', 300, 30, 3600) };
 }
 
 // No signer, wallet, private key, or write RPC method exists in this adapter.
@@ -56,7 +57,10 @@ class ExchangeChainReader {
         if (!block) fail('BLOCK_UNAVAILABLE');
         const number = Number(BigInt(block.number));
         if (!Number.isSafeInteger(number) || !/^0x[0-9a-f]{64}$/.test(block.hash)) fail('INVALID_BLOCK');
-        return { number, hash: block.hash };
+        if (typeof tag === 'number' && number !== tag) fail('BLOCK_NUMBER_MISMATCH');
+        const timestamp = Number(BigInt(block.timestamp ?? -1));
+        if (!Number.isSafeInteger(timestamp) || timestamp < 0) fail('INVALID_BLOCK_TIMESTAMP');
+        return { number, hash: block.hash, timestamp };
     }
     async code(block) {
         return this.provider.send('eth_getCode', [this.exchange, toQuantity(block)]);
@@ -93,6 +97,7 @@ function createReader(url, exchange) {
     if (!url || !/^https?:\/\//i.test(url)) fail('INVALID_RPC_CONFIG');
     const request = new FetchRequest(url);
     request.timeout = 20000;
+    request.setHeader('Cache-Control', 'no-cache');
     const provider = new JsonRpcProvider(request, undefined, { cacheTimeout: -1, batchMaxCount: 1 });
     return new ExchangeChainReader(provider, exchange);
 }

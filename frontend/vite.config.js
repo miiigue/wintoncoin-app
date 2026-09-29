@@ -202,7 +202,15 @@ export default defineConfig(({ mode }) => ({
     react(), // Soporte para React SPA
     spaFallbackPlugin(), // Enruta /register, /login, /forgot-password hacia index.html (SPA)
     demoModePlugin(mode), // Inyecta listones visuales si mode === 'demo'
+    {
+      name: 'versioned-worker-registration',
+      apply: 'build',
+      transformIndexHtml: { order: 'pre', handler() {
+        return [{ tag: 'script', attrs: { type: 'module', src: '/src/modules/swRegistration.js' }, injectTo: 'head' }];
+      } }
+    },
     VitePWA({
+      injectRegister: false,
       // Modo de registro del Service Worker
       registerType: 'autoUpdate',
 

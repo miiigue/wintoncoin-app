@@ -13,8 +13,15 @@ class ExchangeIndexer {
         this.key = [config.chainId, config.exchange];
     }
     async target() {
-        if (this.config.finality === 'finalized') return this.chain.block('finalized');
         const latest = await this.chain.block('latest');
+        const age = Math.floor(Date.now() / 1000) - latest.timestamp;
+        if (!Number.isSafeInteger(latest.timestamp) || age < -60 || age > (this.config.maxHeadAgeSeconds ?? 300)) fail('RPC_HEAD_STALE');
+        if (this.config.finality === 'finalized') {
+            const target = await this.chain.block('finalized');
+            if (target.number > latest.number || (target.number === latest.number && target.hash !== latest.hash)) fail('RPC_HEAD_INCONSISTENT');
+            await this.canonical(target);
+            return target;
+        }
         return this.chain.block(Math.max(0, latest.number - Number(this.config.finality.split(':')[1])));
     }
     async transaction(client, action) {
@@ -177,7 +184,14 @@ class ExchangeIndexer {
             if (!cursor) return { status: 'waiting_deployment' };
             if (cursor.cursor_hash) {
                 // A lower head may be an out-of-date RPC, not a reorg. Fail closed.
-                if (target.number < Number(cursor.cursor_block)) fail('RPC_BEHIND_CURSOR');
+                if (target.number < Number(cursor.cursor_block)) {
+                    const error = new Error('RPC_BEHIND_CURSOR');
+                    error.indexerCode = 'RPC_BEHIND_CURSOR';
+                    error.indexerDetails = { cursorBlock: Number(cursor.cursor_block), targetBlock: target.number, lagBlocks: Number(cursor.cursor_block) - target.number };
+                    // Record the observed target, never rewind the cursor or erase projections.
+                    await client.query(`UPDATE web3_exchange_sync SET target_block=$3,status='error',error_code='RPC_BEHIND_CURSOR',last_checked_at=clock_timestamp() WHERE ${scope}`, [...this.key, target.number]);
+                    throw error;
+                }
                 const current = await this.chain.block(Number(cursor.cursor_block));
                 if (current.hash !== cursor.cursor_hash) return await this.rebuild(client, target);
             }
@@ -230,14 +244,15 @@ function startEmbeddedExchangeIndexer(pool, { customConfig, customChain } = {}) 
         return null;
     }
     const rpcUrl = process.env.EXCHANGE_INDEXER_RPC_URL || process.env.OPTIMISM_RPC_URL;
-    if (!rpcUrl) {
+    if (!rpcUrl && !customChain) {
         console.warn('[EXCHANGE_INDEXER] Sin RPC URL configurada para el indexador.');
         return null;
     }
     const chain = customChain || createReader(rpcUrl, config.exchange);
     const worker = new ExchangeIndexer(pool, chain, config);
     let stopped = false;
-    let running = false;
+    let running = false, timer;
+    const retry = require('./exchangeRetryPolicy').createRetryPolicy(config.pollMs);
 
     const tickLoop = async () => {
         if (stopped || running) return;
@@ -245,25 +260,29 @@ function startEmbeddedExchangeIndexer(pool, { customConfig, customChain } = {}) 
         let delay = config.pollMs || 5000;
         try {
             const result = await worker.tick();
-            if (['syncing', 'rebuilding'].includes(result.status)) {
-                delay = 100;
-            }
+            const next = retry.succeeded(result);
+            delay = next.delay;
+            if (next.recovered) console.log('[EXCHANGE_INDEXER] Recuperación:', result.status, result.block ?? '');
         } catch (error) {
-            console.error('[EXCHANGE_INDEXER] Tick error:', error.indexerCode || 'SYNC_FAILED');
-            delay = config.pollMs || 5000;
+            const next = retry.failed(error);
+            if (next.shouldLog) console.error('[EXCHANGE_INDEXER]', JSON.stringify(next.report));
+            delay = next.delay;
         } finally {
             running = false;
             if (!stopped) {
-                setTimeout(tickLoop, delay);
+                timer = setTimeout(tickLoop, delay);
             }
         }
     };
 
     console.log(`[EXCHANGE_INDEXER] 🚀 Iniciando indexador en segundo plano para Exchange ${config.exchange} desde bloque ${config.startBlock}...`);
-    setTimeout(tickLoop, 1500);
+    timer = setTimeout(tickLoop, 1500);
 
     const stop = () => {
         stopped = true;
+        clearTimeout(timer);
+        process.removeListener('SIGINT', stop);
+        process.removeListener('SIGTERM', stop);
         try { chain.provider?.destroy?.(); } catch (_) {}
     };
     process.on('SIGINT', stop);

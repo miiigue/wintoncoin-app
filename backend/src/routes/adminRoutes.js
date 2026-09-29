@@ -157,6 +157,11 @@ router.get('/web3/identity', (req,res,next) => {
     return contractAdmin.resolveUser(req,res,()=>res.json({success:true,username:req.targetUser.username,walletAddress:req.targetUser.web3_wallet_address}));
 });
 router.post('/web3/configuration', contractAdmin.updateConfiguration, adminController.updateSetting);
+router.get('/web3/readiness', web3RpcLimiter, async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    try{res.json(await require('../services/web3Readiness').inspect({pool:require('../config/db')}));}
+    catch{res.status(503).json({message:'No se pudo comprobar la preparación del servicio.'});}
+});
 router.get('/web3/status', adminWeb3Controller.getWeb3Status);
 router.post('/web3/credit-limit', contractAdmin.resolveUser, adminWeb3Controller.setCreditLimit);
 router.post('/web3/kyc', contractAdmin.resolveUser, adminWeb3Controller.setKYCStatus);

@@ -37,6 +37,13 @@
         Header set Cache-Control "no-cache, no-store, must-revalidate"
     </FilesMatch>
 
+    # Prevent independent server/page-cache rules from retaining admin shells.
+    <FilesMatch "^(admin.*\.html|governance-panel\.html|momentum-admin\.html|registerSW\.js|sw-source\.js|sw\.js)$">
+        Header unset Cache-Control
+        Header always set Cache-Control "no-cache, no-store, must-revalidate"
+        Header always set X-LiteSpeed-Cache-Control "no-cache"
+    </FilesMatch>
+
     # 3. Multimedia y Tipografías: Caché de 30 días
     <FilesMatch "\.(png|jpg|jpeg|gif|webp|svg|ico|woff|woff2|ttf|eot)$">
         Header set Cache-Control "public, max-age=2592000"

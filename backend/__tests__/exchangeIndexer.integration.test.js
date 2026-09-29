@@ -12,7 +12,7 @@ function chainFixture() {
     const c = {
         head: 2, finalized: 2, generation: 0, events: [], states: new Map(), amounts: new Map(),
         async chainId() { return '1337'; },
-        async block(n) { n = n === 'latest' ? this.head : n === 'finalized' ? this.finalized : n; return { number: n, hash: hash(this.generation * 1000 + n) }; },
+        async block(n) { n = n === 'latest' ? this.head : n === 'finalized' ? this.finalized : n; return { number: n, hash: hash(this.generation * 1000 + n), timestamp: this.timestamp ?? Math.floor(Date.now()/1000) }; },
         async code(n) { return n === 0 ? '0x' : '0x60006000'; },
         async logs(from, to) { return this.events.filter(e => e.blockNumber >= from && e.blockNumber <= to); },
         async order(id, h) { return this.states.get(`${h}:${id}`) || this.states.get(id); },
@@ -142,6 +142,33 @@ suite('Exchange indexer: PostgreSQL real aislado', () => {
         const changed = new ExchangeIndexer(db.pool, c, { ...config, finality: 'confirmations:3' });
         await expect(changed.tick()).rejects.toMatchObject({ indexerCode: 'STREAM_CONFIG_CHANGED' });
         c.finalized = 1; await expect(worker.tick()).rejects.toMatchObject({ indexerCode: 'RPC_BEHIND_CURSOR' });
+    });
+    test('RPC congelado no renueva la frescura de los saldos y recupera sin perderlos', async () => {
+        c.create(); await worker.tick(); const saved=await cursor();
+        c.timestamp=Math.floor(Date.now()/1000)-301;
+        await expect(worker.tick()).rejects.toMatchObject({indexerCode:'RPC_HEAD_STALE'});
+        expect(await snapshot()).toMatchObject({usable:false,data:null});
+        expect(await cursor()).toMatchObject({cursor_block:saved.cursor_block,cursor_hash:saved.cursor_hash});
+        c.timestamp=Math.floor(Date.now()/1000);await worker.tick();expect((await snapshot()).usable).toBe(true);
+    });
+    test('Finalizado contradictorio no se registra como confirmado',async()=>{
+        await worker.tick();c.finalized=3;
+        await expect(worker.tick()).rejects.toMatchObject({indexerCode:'RPC_HEAD_INCONSISTENT'});
+        expect((await snapshot()).usable).toBe(false);
+    });
+    test('Proveedor atrasado conserva historial, oculta saldos y recupera sin reiniciar', async () => {
+        c.create(); c.emit('RefundHeld', [wallet, 3000000, 0]);
+        c.amounts.set(hash(2)+':'+wallet, {blue:3000000n,usdt:0n});
+        await worker.tick(); const saved = await cursor();
+        c.finalized=1;
+        await expect(worker.tick()).rejects.toMatchObject({indexerCode:'RPC_BEHIND_CURSOR',indexerDetails:{cursorBlock:2,targetBlock:1,lagBlocks:1}});
+        expect(await cursor()).toMatchObject({cursor_block:saved.cursor_block,cursor_hash:saved.cursor_hash,target_block:'1',status:'error'});
+        expect((await snapshot()).usable).toBe(false);
+        expect((await db.pool.query('SELECT count(*)::int AS n FROM web3_exchange_logs')).rows[0].n).toBe(2);
+        expect((await balance()).rows.find(r=>r.token_type==='BLUE').amount).toBe('3.0');
+        c.finalized=2;await worker.tick();
+        expect((await snapshot()).data.pendingRefunds.BLUE).toBe('3.0');
+        expect((await snapshot()).usable).toBe(true);
     });
     test('Límite de trabajo no omite eventos y cambio de código falla visiblemente', async () => {
         c.create(); const limited = new ExchangeIndexer(db.pool, c, { ...config, maxLogs: 0 });
