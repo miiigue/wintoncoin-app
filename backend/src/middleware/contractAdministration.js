@@ -27,7 +27,7 @@ async function resolveUser(req,res,next) {
         return next();
     } catch { return res.status(503).json({success:false,message:'No se pudo verificar al usuario.'}); }
 }
-const settingsKeys=['platform_commission_percentage','debt_cycle_days','red_credit_base_limit','red_credit_referral','red_credit_culture_quiz','red_credit_monthly_activity','red_credit_early_payment','gas_sponsor_enabled','gas_sponsor_daily_user_operations','gas_sponsor_daily_budget_wei','gas_sponsor_max_topup_wei'];
+const settingsKeys=['platform_commission_percentage','debt_cycle_days','red_credit_base_limit','red_credit_referral','red_credit_culture_quiz','red_credit_monthly_activity','red_credit_early_payment','gas_sponsor_enabled','gas_sponsor_daily_user_operations','gas_sponsor_daily_budget_wei','gas_sponsor_max_topup_wei','gas_sponsor_maintenance_daily_budget_wei','gas_sponsor_maintenance_max_step_wei'];
 async function resolvePaymentUsers(req,res,next) {
     const payerRequest={body:{username:req.body?.payerUsername,walletAddress:req.body?.payerWallet}};
     await resolveUser(payerRequest,res,async()=>{

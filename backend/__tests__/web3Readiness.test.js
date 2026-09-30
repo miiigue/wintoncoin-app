@@ -4,11 +4,11 @@ const deployment=require('../src/services/chainDeployment');
 
 function fixture(){
  const admin=Wallet.createRandom(),relayer=Wallet.createRandom(),sponsor=Wallet.createRandom();
- const env={ADMIN_SECRET_KEY:'only-test-admin-secret',JWT_SECRET:'only-test-user-secret',ENCRYPTION_SECRET:'test-only-'.repeat(5),ADMIN_CHAIN_PRIVATE_KEY:admin.privateKey,RELAYER_PRIVATE_KEY:relayer.privateKey,GAS_SPONSOR_PRIVATE_KEY:sponsor.privateKey};
- const settings={gas_sponsor_enabled:'true',gas_sponsor_daily_budget_wei:'100',gas_sponsor_max_topup_wei:'10'};
+ const env={MAINTENANCE_MAX_STEP_FEE_WEI:'10',MAINTENANCE_DAILY_BUDGET_WEI:'100',ADMIN_SECRET_KEY:'only-test-admin-secret',JWT_SECRET:'only-test-user-secret',ENCRYPTION_SECRET:'test-only-'.repeat(5),ADMIN_CHAIN_PRIVATE_KEY:admin.privateKey,RELAYER_PRIVATE_KEY:relayer.privateKey,GAS_SPONSOR_PRIVATE_KEY:sponsor.privateKey};
+ const settings={gas_sponsor_maintenance_max_step_wei:'10',gas_sponsor_maintenance_daily_budget_wei:'100',gas_sponsor_enabled:'true',gas_sponsor_daily_budget_wei:'100',gas_sponsor_max_topup_wei:'10'};
  const state={fresh:true};
  const pool={query:jest.fn(async sql=>{
-  if(sql.includes('schema_migrations'))return {rowCount:4,rows:[]};
+  if(sql.includes('schema_migrations'))return {rowCount:5,rows:[]};
   if(sql.includes('GROUP BY'))return {rowCount:0,rows:[]};
   if(sql.includes('app_settings'))return {rows:Object.entries(settings).map(([setting_key,setting_value])=>({setting_key,setting_value}))};
   if(sql.includes('web3_exchange_sync'))return {rows:[{status:'ready',fresh:state.fresh}]};

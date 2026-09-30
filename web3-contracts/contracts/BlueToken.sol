@@ -3,6 +3,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
+import "./libraries/ParkingLedger.sol";
 
 /**
  * @title BlueToken (BLUE) - Suite V4
@@ -20,9 +21,8 @@ interface IBlueKYC { function isKYCVerified(address user) external view returns 
 interface IBlueExchange { function blueToken() external view returns (address); }
 
 contract BlueToken is ERC20, Ownable2Step {
-    struct ParkingLot { uint256 remaining; uint256 releaseAt; }
-    mapping(address => ParkingLot[]) public parkingLots;
-    mapping(address => uint256) public parkingHead;
+    using ParkingLedger for ParkingLedger.Tree;
+    mapping(address => ParkingLedger.Tree) private _parking;
     address public exchange;
     event ParkingCreated(address indexed user, uint256 indexed index, uint256 amount, uint256 releaseAt);
     event ExchangeSet(address indexed exchange);
@@ -42,33 +42,28 @@ contract BlueToken is ERC20, Ownable2Step {
     function _mintParked(address to, uint256 amount, uint256 releaseAt) private {
         require(to != address(0), "BLUE: Cannot mint to zero address");
         _mint(to, amount);
-        parkingLots[to].push(ParkingLot(amount, releaseAt));
-        emit ParkingCreated(to, parkingLots[to].length - 1, amount, releaseAt);
+        uint256 index = _parking[to].count();
+        _parking[to].append(index,amount,releaseAt);
+        emit ParkingCreated(to,index,amount,releaseAt);
     }
 
-    function parkingLotsCount(address user) external view returns (uint256) { return parkingLots[user].length; }
-
-    function lockedBalanceOf(address user) public view returns (uint256 locked) {
-        ParkingLot[] storage lots = parkingLots[user];
-        for (uint256 i = parkingHead[user]; i < lots.length; i++) {
-            if (lots[i].releaseAt > block.timestamp) locked += lots[i].remaining;
-        }
+    function parkingLotsCount(address user) external view returns (uint256) { return _parking[user].count(); }
+    function parkingHead(address user) public view returns (uint256) { return _parking[user].first(_parking[user].count()); }
+    function parkingLots(address user, uint256 index) external view returns (uint256 remaining, uint256 releaseAt) {
+        releaseAt = _parking[user].releaseAt(index);
+        if(index < parkingHead(user)) return (0,0);
+        return (_parking[user].balance(index),releaseAt);
     }
-
-    function availableBalanceOf(address user) external view returns (uint256) {
-        return balanceOf(user) - lockedBalanceOf(user);
-    }
-
-    // Permissionless bounded housekeeping. Never deletes a user's token balance.
+    function lockedBalanceOf(address user) public view returns (uint256) { return _parking[user].locked(block.timestamp); }
+    function availableBalanceOf(address user) external view returns (uint256) { return balanceOf(user)-lockedBalanceOf(user); }
+    // Bounded, permissionless cleanup. The released value stays in ERC20 balance.
     function cleanParking(address user, uint256 maxLots) external {
-        uint256 head = parkingHead[user];
-        ParkingLot[] storage lots = parkingLots[user];
-        for (uint256 scanned; head < lots.length && scanned < maxLots; scanned++) {
-            if (lots[head].remaining > 0 && lots[head].releaseAt > block.timestamp) break;
-            delete lots[head];
-            head++;
+        uint256 count = _parking[user].count();
+        for(uint256 n; n<maxLots; n++) {
+            uint256 index = _parking[user].first(count);
+            if(index==count || _parking[user].releaseAt(index)>block.timestamp) break;
+            _parking[user].erase(index);
         }
-        parkingHead[user] = head;
     }
 
     function _update(address from, address to, uint256 value) internal override {
@@ -78,15 +73,12 @@ contract BlueToken is ERC20, Ownable2Step {
             address user = from == exchange ? to : from;
             require(IBlueKYC(coreProtocol).isKYCVerified(user), "BLUE: KYC not verified");
             if (from != exchange) {
-                require(value <= balanceOf(from) - lockedBalanceOf(from), "BLUE: Parking not released");
-                uint256 remaining = value;
-                ParkingLot[] storage lots = parkingLots[from];
-                for (uint256 i = parkingHead[from]; i < lots.length && remaining > 0; i++) {
-                    if (lots[i].releaseAt > block.timestamp) continue;
-                    uint256 spent = remaining < lots[i].remaining ? remaining : lots[i].remaining;
-                    lots[i].remaining -= spent;
-                    remaining -= spent;
-                }
+                uint256 free = balanceOf(from)-_parking[from].total();
+                uint256 released = _parking[from].consume(value,true,block.timestamp);
+                // Consume only matured positions. Validate the exact covered
+                // amount after that traversal instead of scanning dates twice.
+                // A failure rolls back both the ledger and the ERC20 transfer.
+                require(value <= free+released, "BLUE: Parking not released");
             }
         }
         super._update(from, to, value);
@@ -197,17 +189,8 @@ contract BlueToken is ERC20, Ownable2Step {
      */
     function burn(address from, uint256 amount) external onlyProtocol {
         require(from != address(0), "BLUE: Cannot burn from zero address");
-        // Consume parked BLUE by reception order; unlocked remainder needs no lot.
-        uint256 remaining = amount;
-        ParkingLot[] storage lots = parkingLots[from];
-        for (uint256 i = parkingHead[from]; i < lots.length && remaining > 0; i++) {
-            uint256 used = remaining < lots[i].remaining ? remaining : lots[i].remaining;
-            lots[i].remaining -= used;
-            remaining -= used;
-        }
-        _burn(from, amount);
-        uint256 head = parkingHead[from];
-        while (head < lots.length && lots[head].remaining == 0) head++;
-        parkingHead[from] = head;
+        // Same reception order, including parking, with bulk range consumption.
+        _parking[from].consume(amount,false,block.timestamp);
+        _burn(from,amount);
     }
 }

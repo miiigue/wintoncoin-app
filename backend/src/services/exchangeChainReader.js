@@ -10,6 +10,7 @@ const ABI = [
     'event OrderResumed(uint64 indexed orderId,uint64 oldSequence,uint64 newSequence)',
     'event RefundHeld(address indexed user,uint128 blue,uint128 usdt)',
     'event PendingRefundClaimed(address indexed user,uint128 blue,uint128 usdt)',
+    ...['nextOrderId','matchId','totalReservedBlue','totalReservedUsdt','totalPendingRefundBlue','totalPendingRefundUsdt'].map(name => `function ${name}() view returns(${['nextOrderId','matchId'].includes(name)?'uint64':'uint128'})`),
     'function orders(uint64) view returns(uint64 id,uint64 sequenceId,uint128 remainingAmount,address user,uint8 status,uint8 side,uint48 createdAt,uint128 originalAmount,uint128 refundedAmount)',
     'function pendingRefundBlue(address) view returns(uint128)',
     'function pendingRefundUsdt(address) view returns(uint128)',
@@ -84,6 +85,10 @@ class ExchangeChainReader {
             { blockHash: hash, requireCanonical: true }
         ]);
         return iface.decodeFunctionResult(name, value);
+    }
+    async accounting(hash) {
+        const names = ['nextOrderId','matchId','totalReservedBlue','totalReservedUsdt','totalPendingRefundBlue','totalPendingRefundUsdt'];
+        return Object.fromEntries(await Promise.all(names.map(async name => [name, (await this.call(name, [], hash))[0]])));
     }
     async order(id, hash) { return this.call('orders', [id], hash); }
     async isAmortization(id, hash) { return (await this.call('isAmortizationOrder', [id], hash))[0]; }

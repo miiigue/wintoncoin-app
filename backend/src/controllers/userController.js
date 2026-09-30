@@ -155,7 +155,8 @@ const UserController = {
             const username = userResult.rows[0].username;
 
             const mode=await client.query("SELECT setting_value FROM app_settings WHERE setting_key='pre_launch_mode_enabled'");
-            if(mode.rows[0]?.setting_value!=='true' && userResult.rows[0].web3_wallet_address){
+            if(mode.rows[0]?.setting_value!=='true'){
+                if(!userResult.rows[0].web3_wallet_address)return res.status(503).json({message:'La billetera de la cuenta todavía no está asociada. No se muestran saldos antiguos.'});
                 const chain=await require('../services/web3BridgeService').getUserAuditDetailed(userResult.rows[0].web3_wallet_address);
                 if(!chain.success)return res.status(503).json({message:'No se pudo comprobar el saldo en blockchain. No se muestran saldos antiguos como actuales.'});
                 return res.status(200).json({
@@ -287,108 +288,9 @@ const UserController = {
     // Auditoría: Cada registro es inmutable (trigger SOC 2 en PostgreSQL).
     // ------------------------------------------------------------------------
     syncCollateral: async (req, res) => {
-        const userId = req.user?.userId;
-        if (!userId) {
-            return res.status(401).json({ message: "No autenticado." });
-        }
-
-        const client = await pool.connect();
-        try {
-            // Extraer y validar los campos del cuerpo de la petición
-            const { operation_type, amount, token_symbol, token_contract_address, tx_hash, balance_after } = req.body;
-
-            // Validación Zero-Trust: Todos los campos son obligatorios
-            if (!operation_type || !amount || !token_symbol || !token_contract_address || !tx_hash) {
-                return res.status(400).json({ message: "Faltan campos obligatorios (operation_type, amount, token_symbol, token_contract_address, tx_hash)." });
-            }
-
-            // Validar tipo de operación permitido (whitelist estricta)
-            const allowedOps = ['deposit', 'withdraw'];
-            if (!allowedOps.includes(operation_type)) {
-                return res.status(400).json({ message: "Tipo de operación no permitido. Solo: deposit, withdraw." });
-            }
-
-            // Validar que el monto sea un número positivo
-            const numAmount = parseFloat(amount);
-            if (isNaN(numAmount) || numAmount <= 0) {
-                return res.status(400).json({ message: "El monto debe ser un número mayor a 0." });
-            }
-
-            // Validar tokens permitidos (whitelist de Stablecoins aprobadas)
-            const allowedTokens = ['USDT', 'USDC', 'DAI'];
-            if (!allowedTokens.includes(token_symbol.toUpperCase())) {
-                return res.status(400).json({ message: "Token no permitido. Solo: USDT, USDC, DAI." });
-            }
-
-            // Validar formato de dirección de contrato (debe ser una dirección Ethereum válida)
-            const addressRegex = /^0x[a-fA-F0-9]{40}$/;
-            if (!addressRegex.test(token_contract_address)) {
-                return res.status(400).json({ message: "Dirección de contrato del token inválida." });
-            }
-
-            // Validar formato de hash de transacción (debe ser un hash Ethereum válido)
-            const txHashRegex = /^0x[a-fA-F0-9]{64}$/;
-            if (!txHashRegex.test(tx_hash)) {
-                return res.status(400).json({ message: "Hash de transacción inválido." });
-            }
-
-            // Prevenir duplicados: verificar que el tx_hash no exista ya en la tabla
-            const duplicateCheck = await client.query(
-                'SELECT id FROM collateral_deposits WHERE tx_hash = $1',
-                [tx_hash]
-            );
-            if (duplicateCheck.rows.length > 0) {
-                return res.status(409).json({ message: "Esta transacción ya fue registrada previamente." });
-            }
-
-            // Obtener la billetera del usuario para el registro auditable
-            const userRes = await client.query(
-                'SELECT web3_wallet_address FROM users WHERE id = $1',
-                [userId]
-            );
-            const walletAddress = userRes.rows[0]?.web3_wallet_address || '';
-
-            // Calcular el monto con signo correcto para el registro en la tabla
-            // Depósitos son positivos (+), Retiros son negativos (-)
-            const signedAmount = operation_type === 'deposit' ? numAmount : -numAmount;
-
-            // Insertar el registro inmutable en la tabla collateral_deposits
-            // (El trigger SOC 2 prohíbe UPDATE y DELETE sobre esta tabla)
-            await client.query(
-                `INSERT INTO collateral_deposits 
-                 (user_id, wallet_address, operation_type, token_symbol, token_contract_address, amount, balance_after, tx_hash, audit_metadata)
-                 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-                [
-                    userId,
-                    walletAddress,
-                    operation_type,
-                    token_symbol.toUpperCase(),
-                    token_contract_address,
-                    signedAmount,
-                    balance_after || 0,
-                    tx_hash,
-                    JSON.stringify({ source: 'frontend_sync', timestamp: new Date().toISOString() })
-                ]
-            );
-
-            // Recalcular el Límite RED del usuario con el nuevo colateral
-            const creditScoringService = require('../services/creditScoringService');
-            const newCreditLimit = await creditScoringService.calculateUserScore(userId);
-
-            console.log(`[COLLATERAL] ✅ ${operation_type.toUpperCase()} de ${numAmount} ${token_symbol} registrado para usuario #${userId}. Nuevo Límite RED: ${newCreditLimit}`);
-
-            res.status(200).json({
-                message: `${operation_type === 'deposit' ? 'Depósito' : 'Retiro'} registrado exitosamente.`,
-                new_credit_limit: newCreditLimit
-            });
-
-        } catch (err) {
-            console.error('[COLLATERAL] Error al sincronizar colateral:', err.message);
-            return res.status(500).json({ message: "Error interno al registrar la operación de garantía." });
-        } finally {
-            client.release();
-        }
+        return res.status(410).json({message: "El colateral se confirma desde blockchain. Utiliza las operaciones de Billetera con PIN."});
     },
+
 
     // ------------------------------------------------------------------------
     // Obtener balance público o legacy de otro usuario (requiere auth)
@@ -399,42 +301,7 @@ const UserController = {
             return res.status(403).json({ message: 'No autorizado para consultar balance de otro usuario.' });
         }
 
-        const client = await pool.connect();
-        try {
-            const userSql = `SELECT liquid_blue_balance, escrow_blue_balance, red_balance FROM users WHERE username = $1`;
-            const debtSql = `SELECT due_at, amount FROM red_token_debts WHERE username = $1 AND is_settled = FALSE ORDER BY due_at ASC LIMIT 1`;
-            const escrowSql = `SELECT unlock_at, amount FROM blue_token_escrows WHERE username = $1 AND is_released = FALSE ORDER BY unlock_at ASC LIMIT 1`;
-            const penalizedDebtSql = `SELECT SUM(amount) as total_penalized_debt FROM red_token_debts WHERE username = $1 AND is_penalized = TRUE AND is_settled = FALSE`;
-
-            const [userResult, debtResult, escrowResult, penalizedDebtResult] = await Promise.all([
-                client.query(userSql, [username]),
-                client.query(debtSql, [username]),
-                client.query(escrowSql, [username]),
-                client.query(penalizedDebtSql, [username])
-            ]);
-
-            if (userResult.rows.length === 0) {
-                return res.status(404).json({ message: "Usuario no encontrado." });
-            }
-
-            const responseData = {
-                blue_balance: userResult.rows[0].liquid_blue_balance,
-                escrow_blue_balance: userResult.rows[0].escrow_blue_balance,
-                red_balance: userResult.rows[0].red_balance,
-                next_due_at: debtResult.rows[0]?.due_at || null,
-                next_due_amount: debtResult.rows[0]?.amount || null,
-                next_unlock_at: escrowResult.rows[0]?.unlock_at || null,
-                next_unlock_amount: escrowResult.rows[0]?.amount || null,
-                penalized_debt: penalizedDebtResult.rows[0]?.total_penalized_debt || '0'
-            };
-
-            res.status(200).json(responseData);
-        } catch (err) {
-            console.error("Error al obtener balance legacy:", err);
-            return res.status(500).json({ message: "Error interno del servidor." });
-        } finally {
-            client.release();
-        }
+        return UserController.getMyBalance(req,res);
     },
 
     // ------------------------------------------------------------------------
@@ -840,36 +707,9 @@ const UserController = {
     // Quema de Tokens (Transacción Financiera)
     // ------------------------------------------------------------------------
     burnTokens: async (req, res) => {
-        const { username, amount } = req.body;
-        const amountToBurnString = (amount || "0").toString().replace(',', '.');
-        const amountToBurn = parseFloat(amountToBurnString);
-
-        if (!username || !amountToBurn || amountToBurn <= 0) {
-            return res.status(400).json({ message: "La cantidad a quemar debe ser un número positivo." });
-        }
-
-        const client = await pool.connect();
-        const FinancialCoreService = require('../services/financialCoreService');
-
-        try {
-            await client.query('BEGIN');
-            const burnResult = await FinancialCoreService.executeBurn(client, username, amountToBurn);
-
-            if (burnResult.success) {
-                await client.query('COMMIT');
-                res.json({ message: burnResult.message });
-            } else {
-                await client.query('ROLLBACK');
-                res.status(400).json({ message: burnResult.message });
-            }
-        } catch (error) {
-            await client.query('ROLLBACK');
-            console.error("Error en la ruta /users/burn:", error);
-            res.status(500).json({ message: error.message || "Error del servidor." });
-        } finally {
-            client.release();
-        }
+        return res.status(410).json({message: "La amortización requiere una operación confirmada en blockchain. Utiliza Billetera con tu PIN."});
     },
+
 
     // ------------------------------------------------------------------------
     // Crear una calificación para otro usuario (Mapeado de /rate)

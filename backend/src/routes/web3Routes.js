@@ -52,31 +52,11 @@ router.get('/exchange/:wallet', async (req, res) => {
 router.get('/exchange-queue', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
-        const db = require('../config/db');
-        const activeOrders = await db.pool.query(`
-            SELECT order_id, sequence_id, wallet_address, side, status, 
-                   original_amount, remaining_amount, created_at_chain
-            FROM web3_exchange_order_snapshots
-            WHERE status IN ('OPEN', 'PARTIALLY_FILLED')
-            ORDER BY sequence_id ASC
-            LIMIT 50
-        `);
-
-        const sellOrders = activeOrders.rows.filter(o => o.side === 'SELL_BLUE' || o.side === 'BLUE_FOR_USDT');
-        const buyOrders = activeOrders.rows.filter(o => o.side === 'BUY_BLUE' || o.side === 'USDT_FOR_BLUE');
-
-        const totalBlueForSale = sellOrders.reduce((acc, o) => acc + (parseFloat(o.remaining_amount) || 0), 0);
-        const totalUsdtWaiting = buyOrders.reduce((acc, o) => acc + (parseFloat(o.remaining_amount) || 0), 0);
-
-        return res.json({
-            success: true,
-            totalBlueForSale,
-            totalUsdtWaiting,
-            sellOrders,
-            buyOrders
-        });
-    } catch (err) {
-        return res.status(500).json({ success: false, message: 'Error al consultar cola del exchange: ' + err.message });
+        const identity = identityFromEnv();
+        const snapshot = await require('../services/exchangeSnapshotService').readExchangeQueue(require('../config/db'), identity);
+        return res.status(snapshot.usable ? 200 : 503).json({ success: snapshot.usable, ...snapshot });
+    } catch (_) {
+        return res.status(503).json({ success: false, usable: false, status: 'unavailable', data: null });
     }
 });
 

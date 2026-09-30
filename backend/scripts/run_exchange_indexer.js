@@ -8,9 +8,9 @@ const { ExchangeIndexer } = require('../src/services/exchangeIndexer');
 async function main() {
     const config = configFromEnv();
     if (!process.env.DATABASE_URL) throw new Error('INVALID_DATABASE_CONFIG');
-    const chain = createReader(process.env.EXCHANGE_INDEXER_RPC_URL, config.exchange);
+
     const pool = require('../src/config/db');
-    const worker = new ExchangeIndexer(pool, chain, config);
+    const worker = require('../src/services/exchangeFailover').createExchangeWorker(pool, config);
     const retry = require('../src/services/exchangeRetryPolicy').createRetryPolicy(config.pollMs);
     let stopped = false, wake;
     const stop = () => { stopped = true; wake?.(); };
@@ -40,7 +40,7 @@ async function main() {
         } while (!stopped);
     } finally {
         process.removeListener('SIGINT', stop); process.removeListener('SIGTERM', stop);
-        chain.provider.destroy(); await pool.end();
+        worker.destroy(); await pool.end();
     }
 }
 if (require.main === module) main().catch(() => { console.error('exchange-indexer: STARTUP_FAILED (check configuration/schema)'); process.exitCode = 1; });

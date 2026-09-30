@@ -73,7 +73,7 @@ class Web3BridgeService {
             "function vault() view returns (address)",
             "function treasury() view returns (address)",
             "function getUserDebtLotsCount(address user) view returns (uint256)",
-            "function userDebtLots(address, uint256) view returns (uint256 id, uint256 amount, uint256 remainingAmount, uint256 dueAt, bool repaid)",
+            "function userDebtLots(address user, uint256 index) view returns (uint256 id, uint256 amount, uint256 remainingAmount, uint256 dueAt, bool repaid)",
             "function setExtensionOption(uint256 durationDays, uint16 feeBps, bool enabled)",
             "function setUserBenefits(address user, uint8 level, uint256 margin)",
             "function extensionOptions(uint256) view returns (uint16 feeBps, bool enabled)",
@@ -316,27 +316,38 @@ class Web3BridgeService {
     // OPERACIONES DE USUARIO Y AUDITORÍA 360°
     // ========================================================================
 
-    async getUserAuditDetailed(walletAddress, offset = 0, limit = 50) {
+    async getUserAuditDetailed(walletAddress, offset = 0, limit = 50, finality = 'latest') {
         if (!ethers.isAddress(walletAddress)) return { success: false, error: 'Dirección inválida' };
         if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
             return { success: false, error: 'Paginación inválida' };
         try {
-            const core = this._getProtocol(), vault = this._getVault();
-            const block = await this.provider.getBlock('latest');
-            const options = { blockTag: block.number };
+            if (!['latest','safe','finalized'].includes(finality)) throw Error('Finalidad inválida');
+            const config = require('./chainDeployment').configuration();
+            if (String((await this.provider.getNetwork()).chainId) !== config.chainId) throw Error('Red incorrecta');
+            const head = await this.provider.getBlock('latest');
+            const age = Math.floor(Date.now()/1000) - head?.timestamp;
+            if (!Number.isSafeInteger(head?.timestamp) || age < -60 || age > 300) throw Error('Proveedor desactualizado');
+            const block = finality === 'latest' ? head : await this.provider.getBlock(finality);
+            if (!block || block.number > head.number || head.timestamp - block.timestamp > 3600) throw Error('Bloque incoherente o confirmación atrasada');
+            const runner = {provider:this.provider, call:tx=>this.provider.send('eth_call',[
+                {to:tx.to,data:tx.data},{blockHash:block.hash,requireCanonical:true}])};
+            const core = this._getProtocol().connect(runner), vault = this._getVault().connect(runner);
+            const options = {};
+            const token = address => this._getERC20(address).connect(runner);
             const [blue, red, collateral, free, capacity, required, delinquent, kyc, base, count, level, margin, used, reserved, pending, usdt, blueLocked] = await Promise.all([
-                this._getERC20(BLUE_ADDRESS).balanceOf(walletAddress, options), this._getERC20(RED_ADDRESS).balanceOf(walletAddress, options),
+                token(BLUE_ADDRESS).balanceOf(walletAddress, options), token(RED_ADDRESS).balanceOf(walletAddress, options),
                 vault.userCollateral(walletAddress, options), vault.getFreeCollateral(walletAddress, options),
                 core.getAvailableCreditCapacity(walletAddress, options), core.getRequiredCollateral(walletAddress, options),
                 core.isDelinquent(walletAddress, options), core.isKYCVerified(walletAddress, options), core.creditLimits(walletAddress, options),
                 core.getUserDebtLotsCount(walletAddress, options), core.userLevels(walletAddress, options),
                 core.extensionMarginLimits(walletAddress, options), core.extensionMarginUsed(walletAddress, options),
-                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options), this._getERC20(USDT_ADDRESS).balanceOf(walletAddress, options),
-                new ethers.Contract(BLUE_ADDRESS,["function lockedBalanceOf(address) view returns(uint256)"],this.provider).lockedBalanceOf(walletAddress,options)
+                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options), token(USDT_ADDRESS).balanceOf(walletAddress, options),
+                new ethers.Contract(BLUE_ADDRESS,["function lockedBalanceOf(address) view returns(uint256)"],runner).lockedBalanceOf(walletAddress,options)
             ]);
             const length = Number(count), stop = Math.min(offset + limit, length);
             const lots = await Promise.all(Array.from({ length: Math.max(0, stop - offset) }, (_, i) => core.userDebtLots(walletAddress, offset + i, options)));
-            return { success: true, wallet: walletAddress, blockNumber: block.number,
+            if ((await this.provider.getBlock(block.number))?.hash !== block.hash) throw Error('El bloque cambió durante la consulta');
+            return { success: true, wallet: walletAddress, blockNumber: block.number, blockHash:block.hash, chainId:config.chainId, finality,
                 usdtWalletBalance: ethers.formatUnits(usdt,6), blueBalance: ethers.formatUnits(blue,6), blueLocked: ethers.formatUnits(blueLocked,6), blueAvailable: ethers.formatUnits(blue-blueLocked,6), redCommitment: ethers.formatUnits(red,6),
                 collateralVault: { totalLocked: ethers.formatUnits(collateral,6), freeForWithdrawal: ethers.formatUnits(free,6),
                     reservedInExchange: ethers.formatUnits(reserved,6), pendingReserve: ethers.formatUnits(pending,6) },
@@ -498,16 +509,9 @@ class Web3BridgeService {
     async resyncUserWallet(walletAddress, userId) {
         if (!PROTOCOL_ADDRESS || !walletAddress) return null;
         try {
-            const blueContract = this._getERC20(BLUE_ADDRESS);
-            const redContract = this._getERC20(RED_ADDRESS);
-
-            const [blueRaw, redRaw] = await Promise.all([
-                blueContract.balanceOf(walletAddress),
-                redContract.balanceOf(walletAddress)
-            ]);
-
-            const blueBalance = ethers.formatUnits(blueRaw, 6);
-            const redDebt = ethers.formatUnits(redRaw, 6);
+            const snapshot = await this.getUserAuditDetailed(walletAddress,0,1,'safe');
+            if (!snapshot.success) throw Error('No se pudo confirmar el saldo');
+            const blueBalance = snapshot.blueBalance, redDebt = snapshot.redCommitment;
 
             await pool.query(`
                 INSERT INTO web3_wallets_sync (user_id, onchain_blue_balance, onchain_red_debt, last_synced_at, sync_status)
@@ -517,7 +521,7 @@ class Web3BridgeService {
                     onchain_red_debt = $3,
                     last_synced_at = NOW(),
                     sync_status = 'synced'
-            `, [userId, parseFloat(blueBalance), parseFloat(redDebt)]);
+            `, [userId, blueBalance, redDebt]);
 
             return { blueBalance, redDebt };
         } catch (error) {

@@ -45,4 +45,34 @@ async function readExchangeSnapshot(pool, identity, wallet, { after = '0', limit
     } catch (error) { await client.query('ROLLBACK'); throw error; }
     finally { client.release(); }
 }
-module.exports = { readExchangeSnapshot };
+async function readExchangeQueue(pool, identity, { limit = 50, maxAgeSeconds = 120 } = {}) {
+    if (!Number.isInteger(limit) || limit < 1 || limit > 100) throw new Error('INVALID_PAGE');
+    const client = await pool.connect();
+    try {
+        await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
+        const key = [identity.chainId, identity.exchange];
+        const row = (await client.query(`SELECT *, (status='ready' AND last_checked_at > clock_timestamp()-($3*interval '1 second')) AS fresh
+            FROM web3_exchange_sync WHERE chain_id=$1 AND exchange_address=$2`, [...key, maxAgeSeconds])).rows[0];
+        const result = { ...identity, usable: !!row?.fresh, status: !row ? 'not_started' : row.status === 'ready' && !row.fresh ? 'stale' : row.status,
+            verifiedThroughBlock: row?.cursor_hash ? row.cursor_block : null, verifiedBlockHash: row?.cursor_hash ?? null, data: null };
+        if (result.usable) {
+            const orders = [];
+            for (const side of ['SELL_BLUE', 'BUY_BLUE']) {
+                orders.push(...(await client.query(`SELECT order_id,sequence_id,wallet_address,side,status,original_amount,remaining_amount,created_at_chain
+                    FROM web3_exchange_order_snapshots WHERE chain_id=$1 AND exchange_address=$2 AND side=$3
+                    AND status IN ('OPEN','PARTIALLY_FILLED') ORDER BY sequence_id LIMIT $4`, [...key, side, limit])).rows);
+            }
+            const totals = (await client.query(`SELECT
+                COALESCE(SUM(remaining_amount) FILTER (WHERE side='SELL_BLUE'),0)::text AS blue,
+                COALESCE(SUM(remaining_amount) FILTER (WHERE side='BUY_BLUE'),0)::text AS usdt
+                FROM web3_exchange_order_snapshots WHERE chain_id=$1 AND exchange_address=$2 AND status IN ('OPEN','PARTIALLY_FILLED')`, key)).rows[0];
+            Object.assign(result, { sellOrders: orders.filter(o => o.side === 'SELL_BLUE'), buyOrders: orders.filter(o => o.side === 'BUY_BLUE'),
+                totalBlueForSale: totals.blue, totalUsdtWaiting: totals.usdt, limitPerSide: limit });
+            result.data = { sellOrders: result.sellOrders, buyOrders: result.buyOrders };
+        }
+        await client.query('COMMIT');
+        return result;
+    } catch (error) { await client.query('ROLLBACK'); throw error; }
+    finally { client.release(); }
+}
+module.exports = { readExchangeSnapshot, readExchangeQueue };

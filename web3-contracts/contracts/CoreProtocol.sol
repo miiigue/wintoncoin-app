@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/utils/Pausable.sol";
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
+import "./libraries/CommitmentTree.sol";
 
 // ============================================================================
 // INTERFACES MÍNIMAS
@@ -44,10 +45,14 @@ interface ICollateralVault {
  * 4. Capacidad Canónica de Crédito:
  *    Capacidad Total = Límite Base + Colateral USDT (contado una sola vez)
  *    Capacidad Disponible = max(0, Límite Base + Colateral - Compromiso RED Total)
- * 5. Orden por vencimiento real mediante heap; el coste depende de posiciones consumidas.
+ * 5. Orden por vencimiento real con un árbol equilibrado y sumas por grupo.
  * 6. Gobernanza en Dos Pasos (Ownable2Step) y prohibición de renuncia a la administración.
  */
 contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
+    using CommitmentTree for CommitmentTree.Tree;
+    mapping(address => CommitmentTree.Tree) private _commitments;
+    mapping(uint256 => address) private _lotOwner;
+    mapping(uint256 => uint256) private _lotIndex;
 
     // ========================================================================
     // ESTRUCTURAS DE DATOS
@@ -116,10 +121,9 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     mapping(address => uint256) public creditLimits;
 
     /// @notice Historial completo de lotes de compromisos registrados por usuario.
-    mapping(address => DebtLot[]) public userDebtLots;
+    mapping(address => DebtLot[]) private _userDebtLots;
 
-    /// @notice Puntero al primer lote pendiente de amortización (optimización FIFO O(1)).
-    mapping(address => uint256) public userActiveLotHead;
+
 
     // ========================================================================
     // EVENTOS AUDITABLES (SOC 2 COMPLIANCE)
@@ -179,7 +183,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         uint256 marginUsed;
     }
     mapping(uint256 => ExtensionOption) public extensionOptions;
-    mapping(uint256 => ExtensionRecord) public lotExtensions;
+    mapping(uint256 => ExtensionRecord) private _lotExtensions;
     address public extensionFeeRecipient;
     uint256[] private _extensionDurations;
     mapping(uint256 => bool) private _knownExtensionDuration;
@@ -242,12 +246,13 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     function quoteExtension(address user, uint256 lotIndex, uint256 durationDays)
         public view returns (uint256 fee, uint256 dueAt, uint256 marginNeeded)
     {
-        require(lotIndex < userDebtLots[user].length, "Protocol: Unknown commitment");
+        require(lotIndex < _userDebtLots[user].length, "Protocol: Unknown commitment");
         ExtensionOption memory option = extensionOptions[durationDays];
         require(option.enabled, "Protocol: Extension option disabled");
-        DebtLot storage lot = userDebtLots[user][lotIndex];
+        DebtLot storage lot = _userDebtLots[user][lotIndex];
         // No interest on previous extension fees. Repayments settle fees first.
-        fee = (lot.remainingAmount - lotExtensions[lot.id].outstandingFee) * option.feeBps / BPS_DENOMINATOR;
+        (uint256 remaining, uint256 outstandingFee,) = _commitments[user].balances(lot.id);
+        fee = (remaining - outstandingFee) * option.feeBps / BPS_DENOMINATOR;
         dueAt = lot.dueAt + durationDays * 1 days;
         uint256 available = getAvailableCreditCapacity(user);
         marginNeeded = fee > available ? fee - available : 0;
@@ -266,11 +271,13 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
             "Protocol: Extension recipient changed or missing");
         require(!isDelinquent(msg.sender), "Protocol: Overdue commitments");
         (uint256 fee, uint256 newDueAt, uint256 margin) = quoteExtension(msg.sender, lotIndex, durationDays);
-        DebtLot storage lot = userDebtLots[msg.sender][lotIndex];
-        require(lot.remainingAmount > 0 && !lot.repaid, "Protocol: Commitment already repaid");
+        DebtLot storage lot = _userDebtLots[msg.sender][lotIndex];
+        (lot.remainingAmount,,) = _commitments[msg.sender].balances(lot.id);
+        require(lot.remainingAmount > 0, "Protocol: Commitment already repaid");
         require(lot.dueAt > block.timestamp, "Protocol: Commitment already due");
         require(fee == expectedFee && lot.dueAt == expectedDueAt, "Protocol: Extension quote changed");
-        ExtensionRecord storage record = lotExtensions[lot.id];
+        ExtensionRecord storage record = _lotExtensions[lot.id];
+        (,record.outstandingFee,record.marginUsed) = _commitments[msg.sender].balances(lot.id);
         require(record.count < MAX_EXTENSIONS, "Protocol: Extension limit reached");
         require(record.count == 0 || block.timestamp >= record.firstExtendedAt + EXTENSION_COOLDOWN,
             "Protocol: Extension cooldown active");
@@ -291,22 +298,14 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         lot.amount += fee;
         lot.remainingAmount += fee;
         lot.dueAt = newDueAt;
-        _siftDown(msg.sender, _debtPositions[lot.id]);
+        _commitments[msg.sender].remove(lot.id);
+        _commitments[msg.sender].insert(lot.id,newDueAt,lot.remainingAmount,record.outstandingFee,record.marginUsed);
         if (fee > 0) {
             require(isKYCVerified[extensionFeeRecipient], "Protocol: Extension recipient KYC not verified");
             redToken.mintCommitment(msg.sender, fee);
             blueToken.mintWithParking(extensionFeeRecipient, fee, block.timestamp + COMMITMENT_DURATION);
         }
         emit CommitmentExtended(msg.sender, lot.id, oldDueAt, newDueAt, fee, margin, record.count);
-    }
-
-    function _repayExtensionFees(address user, uint256 lotId, uint256 amount) internal {
-        ExtensionRecord storage record = lotExtensions[lotId];
-        uint256 paidFee = amount < record.outstandingFee ? amount : record.outstandingFee;
-        uint256 paidMargin = paidFee < record.marginUsed ? paidFee : record.marginUsed;
-        record.outstandingFee -= paidFee;
-        record.marginUsed -= paidMargin;
-        extensionMarginUsed[user] -= paidMargin;
     }
 
     // ========================================================================
@@ -460,7 +459,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
      * @return true si existe al menos un lote con fecha vencida mayor al período de gracia.
      */
     function isDelinquent(address user) public view returns (bool) {
-        return _debtHeap[user].length > 0 && userDebtLots[user][_debtHeap[user][0]].dueAt <= block.timestamp;
+        return _commitments[user].matured(block.timestamp) > 0;
     }
 
     // ========================================================================
@@ -547,7 +546,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         uint256 currentLotId = nextLotId++;
         uint256 dueAt = block.timestamp + COMMITMENT_DURATION;
 
-        userDebtLots[payer].push(DebtLot({
+        _userDebtLots[payer].push(DebtLot({
             id: currentLotId,
             amount: totalCommitment,
             remainingAmount: totalCommitment,
@@ -555,7 +554,9 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
             repaid: false
         }));
 
-        _insertDebt(payer, userDebtLots[payer].length - 1);
+        _lotOwner[currentLotId] = payer;
+        _lotIndex[currentLotId] = _userDebtLots[payer].length - 1;
+        _insertCommitment(payer,currentLotId);
 
         // Emisión Dual (Materia-Antimateria)
         redToken.mintCommitment(payer, totalCommitment);
@@ -629,126 +630,43 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         emit DebtAmortized(user, amount, redToken.balanceOf(user));
     }
 
-    /**
-     * @dev Descuenta el monto amortizado de los lotes activos del usuario en estricto orden de prelación FIFO.
-     *      Avanza el puntero userActiveLotHead para mantener complejidad temporal O(1) amortizada.
-     */
-    function _amortizeLotsFifo(address user, uint256 amountToDeduct) internal {
-        uint256 remaining = amountToDeduct;
-        uint256[] storage heap = _debtHeap[user];
-        while (remaining > 0) {
-            require(heap.length > 0, "Protocol: Commitment accounting mismatch");
-            DebtLot storage lot = userDebtLots[user][heap[0]];
-            uint256 applied = remaining < lot.remainingAmount ? remaining : lot.remainingAmount;
-            _repayExtensionFees(user, lot.id, applied);
-            lot.remainingAmount -= applied;
-            remaining -= applied;
-            if (lot.remainingAmount == 0) {
-                lot.repaid = true;
-                delete _debtPositions[lot.id];
-                uint256 last = heap[heap.length - 1];
-                heap.pop();
-                if (heap.length > 0) {
-                    heap[0] = last;
-                    _debtPositions[userDebtLots[user][last].id] = 0;
-                    _siftDown(user, 0);
-                }
-            }
-        }
-        uint256 head = userActiveLotHead[user];
-        while (head < userDebtLots[user].length && userDebtLots[user][head].repaid) head++;
-        userActiveLotHead[user] = head;
+    function _insertCommitment(address user, uint256 id) private {
+        DebtLot storage lot = _userDebtLots[user][_lotIndex[id]];
+        _commitments[user].insert(id,lot.dueAt,lot.remainingAmount,0,0);
+    }
+    /// @dev Paid ranges are detached atomically; public history resolves their
+    /// remaining balance through the active ledger instead of stale storage.
+    function _amortizeLotsFifo(address user, uint256 amount) internal {
+        extensionMarginUsed[user] -= _commitments[user].consume(amount);
     }
 
-    // Active positions only, ordered by actual due date then immutable lot id.
-    // Extensions move an existing entry; no stale duplicate entries accumulate.
-    mapping(address => uint256[]) private _debtHeap;
-    mapping(uint256 => uint256) private _debtPositions;
-
-    function getMaturedDebtUpTo(address user, uint256 maxNeeded) public view returns (uint256 matured) {
-        if (maxNeeded == 0) return 0;
-        uint256[] storage heap = _debtHeap[user];
-        uint256 len = heap.length;
-        if (len == 0) return 0;
-
-        DebtLot[] storage lots = userDebtLots[user];
-        if (lots[heap[0]].dueAt > block.timestamp) return 0;
-
-        uint256 totalDebt = redToken.balanceOf(user);
-        if (totalDebt == 0) return 0;
-
-        uint256 target = maxNeeded < totalDebt ? maxNeeded : totalDebt;
-
-        // DFS retains at most one sibling per level; uint256 indices have at most 256 levels.
-        uint256[] memory stack = new uint256[](256);
-        uint256 top = 0;
-        stack[top++] = 0;
-
-        while (top > 0) {
-            uint256 pos = stack[--top];
-            DebtLot storage lot = lots[heap[pos]];
-            if (lot.dueAt <= block.timestamp) {
-                matured += lot.remainingAmount;
-                if (matured >= target) {
-                    return target;
-                }
-                uint256 left = pos * 2 + 1;
-                if (left < len) {
-                    stack[top++] = left;
-                }
-                uint256 right = left + 1;
-                if (right < len) {
-                    stack[top++] = right;
-                }
-            }
-        }
+    function getMaturedDebtUpTo(address user, uint256 maxNeeded) public view returns (uint256) {
+        uint256 matured = _commitments[user].matured(block.timestamp);
+        return matured < maxNeeded ? matured : maxNeeded;
     }
-
-    function getMaturedDebt(address user) public view returns (uint256 matured) {
-        return getMaturedDebtUpTo(user, type(uint256).max);
+    function getMaturedDebt(address user) public view returns (uint256) {
+        return _commitments[user].matured(block.timestamp);
     }
-
-    function _earlier(address user, uint256 a, uint256 b) private view returns (bool) {
-        DebtLot storage x = userDebtLots[user][a];
-        DebtLot storage y = userDebtLots[user][b];
-        return x.dueAt < y.dueAt || (x.dueAt == y.dueAt && x.id < y.id);
+    // Keep the exact flat ABI of the previous autogenerated public getters.
+    function userDebtLots(address user, uint256 index) external view
+        returns (uint256 id, uint256 amount, uint256 remainingAmount, uint256 dueAt, bool repaid)
+    {
+        DebtLot storage lot = _userDebtLots[user][index];
+        (remainingAmount,,) = _commitments[user].balances(lot.id);
+        return (lot.id,lot.amount,remainingAmount,lot.dueAt,remainingAmount == 0);
     }
-
-    function _swapDebt(address user, uint256 a, uint256 b) private {
-        uint256[] storage heap = _debtHeap[user];
-        (heap[a], heap[b]) = (heap[b], heap[a]);
-        _debtPositions[userDebtLots[user][heap[a]].id] = a;
-        _debtPositions[userDebtLots[user][heap[b]].id] = b;
+    function lotExtensions(uint256 id) external view
+        returns (uint8 count, uint256 firstExtendedAt, uint256 outstandingFee, uint256 marginUsed)
+    {
+        ExtensionRecord storage record = _lotExtensions[id];
+        (,outstandingFee,marginUsed) = _commitments[_lotOwner[id]].balances(id);
+        return (record.count,record.firstExtendedAt,outstandingFee,marginUsed);
     }
-
-    function _insertDebt(address user, uint256 index) private {
-        uint256[] storage heap = _debtHeap[user];
-        heap.push(index);
-        uint256 pos = heap.length - 1;
-        _debtPositions[userDebtLots[user][index].id] = pos;
-        while (pos > 0) {
-            uint256 parent = (pos - 1) / 2;
-            if (!_earlier(user, heap[pos], heap[parent])) break;
-            _swapDebt(user, pos, parent);
-            pos = parent;
-        }
+    function userActiveLotHead(address user) external view returns (uint256) {
+        uint256 id = _commitments[user].firstId();
+        return id == 0 ? _userDebtLots[user].length : _lotIndex[id];
     }
-
-    function _siftDown(address user, uint256 pos) private {
-        uint256[] storage heap = _debtHeap[user];
-        while (pos * 2 + 1 < heap.length) {
-            uint256 child = pos * 2 + 1;
-            if (child + 1 < heap.length && _earlier(user, heap[child + 1], heap[child])) child++;
-            if (!_earlier(user, heap[child], heap[pos])) break;
-            _swapDebt(user, child, pos);
-            pos = child;
-        }
-    }
-
-    /**
-     * @notice Devuelve el total de lotes registrados para un usuario.
-     */
     function getUserDebtLotsCount(address user) external view returns (uint256) {
-        return userDebtLots[user].length;
+        return _userDebtLots[user].length;
     }
 }

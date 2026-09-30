@@ -1,13 +1,11 @@
-const debtCollectorJob = require('./debtCollectorJob');
-const tokenReleaserJob = require('./tokenReleaserJob');
+const onchainMaintenanceJob = require('./onchainMaintenanceJob');
 const donationRefundJob = require('./donationRefundJob');
 const stagingCleanupJob = require('./stagingCleanupJob');
 const { executeBoosterPayments } = require('../services/boosterService');
 const { processPendingBroadcasts } = require('../services/emailService');
 
 // Intervalos
-const DEBT_COLLECTOR_INTERVAL_MS = 3 * 60 * 1000; // 3 minutos
-const TOKEN_RELEASER_INTERVAL_MS = 1 * 60 * 1000; // 1 minuto
+const CHAIN_MAINTENANCE_INTERVAL_MS = 60 * 1000;
 const BOOSTER_PAYMENT_INTERVAL_MS = 60 * 1000;    // 1 minuto
 const MAIL_WORKER_INTERVAL_MS = 30 * 1000;        // 30 segundos
 const DONATION_REFUND_INTERVAL_MS = 5 * 60 * 1000; // 5 minutos — Reembolso de donaciones vencidas (Winton Solidario)
@@ -20,15 +18,12 @@ const STAGING_CLEANUP_INTERVAL_MS = 48 * 60 * 60 * 1000; // 48 horas — Purga d
 function startBackgroundJobs(pool) {
     console.log('[CRON MANAGER] Inicializando procesos en segundo plano...');
 
-    // 1. Debt Collector
-    setInterval(() => {
-        debtCollectorJob(pool);
-    }, DEBT_COLLECTOR_INTERVAL_MS);
-
-    // 2. Token Releaser
-    setInterval(() => {
-        tokenReleaserJob(pool);
-    }, TOKEN_RELEASER_INTERVAL_MS);
+    // No SQL clock is allowed to release BLUE or settle RED.
+    const maintenance = async () => {
+        await onchainMaintenanceJob(pool);
+        setTimeout(maintenance, CHAIN_MAINTENANCE_INTERVAL_MS);
+    };
+    setTimeout(maintenance, CHAIN_MAINTENANCE_INTERVAL_MS);
 
     // 3. Booster Payments
     setInterval(async () => {

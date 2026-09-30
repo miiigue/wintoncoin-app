@@ -26,7 +26,9 @@ describe('ABI Exchange indexer', function () {
         chain = new ExchangeChainReader(ethers.provider, f.exchange.target);
         cfg = { chainId: (await ethers.provider.getNetwork()).chainId.toString(), exchange: f.exchange.target.toLowerCase(),
             startBlock: (await f.exchange.deploymentTransaction().wait()).blockNumber, finality: 'confirmations:1', batchBlocks: 2000, maxLogs: 2000 };
-        worker = new ExchangeIndexer(db.pool, chain, cfg);
+        let simulatedNow=Date.now();const readBlock=chain.block.bind(chain);
+        chain.block=async tag=>{const block=await readBlock(tag);if(tag==='latest')simulatedNow=block.timestamp*1000;return block;};
+        worker = new ExchangeIndexer(db.pool, chain, cfg, {now:()=>simulatedNow});
     });
     afterEach(async () => { await db?.close(); });
     async function sync(wallet) {

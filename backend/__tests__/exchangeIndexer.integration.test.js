@@ -11,6 +11,17 @@ const config = { chainId: '1337', exchange, startBlock: 1, finality: 'finalized'
 function chainFixture() {
     const c = {
         head: 2, finalized: 2, generation: 0, events: [], states: new Map(), amounts: new Map(),
+        async accounting(h) {
+            const n=Number(BigInt(h)%1000n);
+            const events=this.events.filter(e=>e.blockNumber<=n).map(e=>iface.parseLog(e));
+            const ids=[...new Set(events.filter(e=>e.name==='OrderCreated').map(e=>e.args.orderId.toString()))];
+            const states=ids.map(id=>this.states.get(h+':'+id)||this.states.get(id));
+            const refunds=await this.refunds(wallet,h);
+            return {nextOrderId:BigInt(ids.length)+1n,matchId:BigInt(events.filter(e=>e.name==='OrderMatched').length)+1n,
+                totalReservedBlue:states.filter(o=>o.side===0n&&[1n,2n,5n].includes(o.status)).reduce((a,o)=>a+o.remainingAmount,0n),
+                totalReservedUsdt:states.filter(o=>o.side===1n&&[1n,2n,5n].includes(o.status)).reduce((a,o)=>a+o.remainingAmount,0n),
+                totalPendingRefundBlue:refunds.blue,totalPendingRefundUsdt:refunds.usdt};
+        },
         async chainId() { return '1337'; },
         async block(n) { n = n === 'latest' ? this.head : n === 'finalized' ? this.finalized : n; return { number: n, hash: hash(this.generation * 1000 + n), timestamp: this.timestamp ?? Math.floor(Date.now()/1000) }; },
         async code(n) { return n === 0 ? '0x' : '0x60006000'; },
@@ -183,6 +194,33 @@ suite('Exchange indexer: PostgreSQL real aislado', () => {
         const first = await snapshot({ limit: 1 }); expect(first.data.nextAfter).toBe('1');
         expect(first.data.pendingRefunds.BLUE).toBe('340282366920938463463374607431768.211455');
         expect((await snapshot({ after: first.data.nextAfter, limit: 1 })).data.orders[0].order_id).toBe('2');
+    });
+    test('Logs omitidos no convierten una devolución real en saldo cero',async()=>{
+        c.emit('RefundHeld',[wallet,5000000,0]);c.amounts.set(hash(2)+':'+wallet,{blue:5000000n,usdt:0n});
+        c.logs=async()=>[];
+        await expect(worker.tick()).rejects.toMatchObject({indexerCode:'ACCOUNTING_MISMATCH'});
+        expect((await cursor()).cursor_block).toBe('0');expect((await snapshot()).usable).toBe(false);
+    });
+    test('Omisión de orden y alteración de una proyección se detectan',async()=>{
+        c.create();const logs=c.logs;c.logs=async()=>[];
+        await expect(worker.tick()).rejects.toMatchObject({indexerCode:'ACCOUNTING_MISMATCH'});
+        c.logs=logs;await worker.tick();await db.pool.query('UPDATE web3_exchange_order_snapshots SET remaining_amount=1');
+        await expect(worker.tick()).rejects.toMatchObject({indexerCode:'ACCOUNTING_MISMATCH'});
+        expect((await snapshot()).usable).toBe(false);
+    });
+    test('Cola pública separa red, comprueba frescura y conserva precisión',async()=>{
+        c.create();await worker.tick();const read=require('../src/services/exchangeSnapshotService').readExchangeQueue;
+        const q=await read(db.pool,config);expect(q.buyOrders).toHaveLength(1);expect(q.totalUsdtWaiting).toBe('10.0');
+        expect(await read(db.pool,{...config,chainId:'10'})).toMatchObject({usable:false,data:null});
+        await db.pool.query("UPDATE web3_exchange_sync SET last_checked_at=NOW()-interval '10 minutes'");
+        expect(await read(db.pool,config)).toMatchObject({usable:false,status:'stale',data:null});
+    });
+    test('Proveedor alternativo válido recupera un tick completo sin borrar cursor',async()=>{
+        c.create();await worker.tick();const {FailoverExchangeIndexer}=require('../src/services/exchangeFailover');
+        const bad=chainFixture();bad.finalized=1;
+        const failover=new FailoverExchangeIndexer(db.pool,config,[bad,c]);
+        expect(await failover.tick()).toMatchObject({status:'ready'});expect(failover.preferred).toBe(1);
+        expect((await snapshot()).data.orders).toHaveLength(1);
     });
     test('Migración repetida preserva estado y no acepta ejecutarse sin transacción', async () => {
         c.create(); await worker.tick(); const client = await db.pool.connect();

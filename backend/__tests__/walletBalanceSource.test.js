@@ -17,3 +17,13 @@ test('dashboard usa saldos actuales del contrato y no los contadores antiguos de
 test('fallo RPC no vuelve a presentar los saldos antiguos como actuales',async()=>{
  bridge.getUserAuditDetailed.mockResolvedValue({success:false});const res=response();await controller.getMyBalance({user:{userId:1}},res);expect(res.status).toHaveBeenCalledWith(503);expect(res.json.mock.calls[0][0].blue_balance).toBeUndefined();
 });
+test('sin billetera en modo económico real no usa el saldo antiguo',async()=>{
+ client.query.mockImplementation(async sql=>sql.includes('FROM users')?{rows:[{username:'Prueba',web3_wallet_address:null,liquid_blue_balance:'999'}]}:{rows:[{setting_value:'false'}]});
+ const res=response();await controller.getMyBalance({user:{userId:1}},res);expect(res.status).toHaveBeenCalledWith(503);expect(res.json.mock.calls[0][0].blue_balance).toBeUndefined();
+});
+test('rutas antiguas no queman saldos ni aceptan depósitos declarados por el navegador',async()=>{
+ for(const name of ['burnTokens','syncCollateral']){
+  const res=response();await controller[name]({body:{username:'victima',amount:100}},res);expect(res.status).toHaveBeenCalledWith(410);
+ }
+ expect(client.query).not.toHaveBeenCalled();
+});

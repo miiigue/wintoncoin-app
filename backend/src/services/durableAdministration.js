@@ -1,5 +1,5 @@
 'use strict';
-const {Wallet,parseUnits}=require('ethers');
+const {Wallet,parseUnits,Contract}=require('ethers');
 const {randomUUID}=require('crypto');
 const pool=require('../config/db');
 const deployment=require('./chainDeployment');
@@ -13,6 +13,8 @@ async function execute(bridge,contract,method,args,projection={},resource) {
     const signer=new Wallet(process.env.ADMIN_CHAIN_PRIVATE_KEY);
     const store=new ChainOperationStore(pool,bridge.provider);
     const target=await contract.getAddress();
+    const owner=await new Contract(target,['function owner() view returns(address)'],bridge.provider).owner();
+    if(owner.toLowerCase()!==signer.address.toLowerCase())throw Object.assign(new Error('El firmante configurado no tiene permiso de administración sobre este contrato.'),{status:503});
     const resourceKey=resource||'admin:'+target.toLowerCase()+':'+method;
     const active=await pool.query("SELECT * FROM chain_operations WHERE chain_id=$1 AND resource_key=$2 AND state IN ('pending','conflict') ORDER BY created_at LIMIT 1",[config.chainId,resourceKey]);
     if(active.rowCount)return {...publicResult(active.rows[0]),success:true,pending:true};

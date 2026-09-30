@@ -9,7 +9,7 @@ suite('Migración110: PostgreSQL aislado real (no usar DB del proyecto)',()=>{
   client=new Client({host:'127.0.0.1',port:Number(enabled),user:'review070',database:'postgres'});await client.connect();
   const info=await client.query('SHOW data_directory');if(!info.rows[0].data_directory.replaceAll('\\','/').endsWith('/pg-review-070'))throw Error('Se exige instancia aislada pg-review-070');
  });
- beforeEach(async()=>{await client.query('BEGIN');await client.query('CREATE SCHEMA test110');await client.query('SET LOCAL search_path TO test110,public');});
+ beforeEach(async()=>{await client.query('BEGIN');await client.query('CREATE SCHEMA test110');await client.query('SET LOCAL search_path TO test110');});
  afterEach(async()=>{await client.query('ROLLBACK');});afterAll(async()=>{await client?.end();});
  async function base(){await client.query('CREATE TABLE users(id SERIAL PRIMARY KEY); CREATE TABLE web3_wallets_sync(onchain_blue_balance NUMERIC,onchain_red_debt NUMERIC)');await migration109.up(client);}
  const addr='0x'+'1'.repeat(40), wallet='0x'+'2'.repeat(40),tx='0x'+'a'.repeat(64),block='0x'+'b'.repeat(64);

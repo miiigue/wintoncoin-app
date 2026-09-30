@@ -1,5 +1,6 @@
 'use strict';
 
+const { reconcileExchange } = require('./exchangeReconciliation');
 const { formatUnits } = require('ethers');
 const { iface, address, fail, keccak256 } = require('./exchangeChainReader');
 const STATUSES = [null, 'OPEN', 'PARTIALLY_FILLED', 'FILLED', 'CANCELLED', 'SUSPENDED'];
@@ -8,13 +9,14 @@ const tokens = value => formatUnits(value, 6);
 const scope = 'chain_id=$1 AND exchange_address=$2';
 
 class ExchangeIndexer {
-    constructor(pool, chain, config) {
+    constructor(pool, chain, config, { now = Date.now } = {}) {
         this.pool = pool; this.chain = chain; this.config = config;
+        this.now = now;
         this.key = [config.chainId, config.exchange];
     }
     async target() {
         const latest = await this.chain.block('latest');
-        const age = Math.floor(Date.now() / 1000) - latest.timestamp;
+        const age = Math.floor(this.now() / 1000) - latest.timestamp;
         if (!Number.isSafeInteger(latest.timestamp) || age < -60 || age > (this.config.maxHeadAgeSeconds ?? 300)) fail('RPC_HEAD_STALE');
         if (this.config.finality === 'finalized') {
             const target = await this.chain.block('finalized');
@@ -163,6 +165,7 @@ class ExchangeIndexer {
                     [...this.key, b.wallet, token, tokens(amount), end.number, end.hash]);
                 }
             }
+            await reconcileExchange(client, this.chain, this.key, end.hash);
             // Recheck after SQL writes too: a slow database must not conceal a
             // branch change that occurred while the transaction was open.
             await this.canonical(end);
@@ -196,6 +199,8 @@ class ExchangeIndexer {
                 if (current.hash !== cursor.cursor_hash) return await this.rebuild(client, target);
             }
             if (Number(cursor.cursor_block) === target.number) {
+                await reconcileExchange(client, this.chain, this.key, target.hash);
+                await this.canonical(target);
                 await client.query(`UPDATE web3_exchange_sync SET status='ready',last_checked_at=clock_timestamp(),
                     target_block=$3,error_code=NULL WHERE ${scope}`, [...this.key, target.number]);
                 return { status: 'ready', block: target.number };
@@ -248,8 +253,9 @@ function startEmbeddedExchangeIndexer(pool, { customConfig, customChain } = {}) 
         console.warn('[EXCHANGE_INDEXER] Sin RPC URL configurada para el indexador.');
         return null;
     }
-    const chain = customChain || createReader(rpcUrl, config.exchange);
-    const worker = new ExchangeIndexer(pool, chain, config);
+    let worker;
+    try { worker = customChain ? new ExchangeIndexer(pool, customChain, config) : require('./exchangeFailover').createExchangeWorker(pool, config); }
+    catch { console.warn('[EXCHANGE_INDEXER] Configuración de proveedores inválida; sincronización inactiva.'); return null; }
     let stopped = false;
     let running = false, timer;
     const retry = require('./exchangeRetryPolicy').createRetryPolicy(config.pollMs);
@@ -283,7 +289,7 @@ function startEmbeddedExchangeIndexer(pool, { customConfig, customChain } = {}) 
         clearTimeout(timer);
         process.removeListener('SIGINT', stop);
         process.removeListener('SIGTERM', stop);
-        try { chain.provider?.destroy?.(); } catch (_) {}
+        try { worker.destroy?.(); customChain?.provider?.destroy?.(); } catch (_) {}
     };
     process.on('SIGINT', stop);
     process.on('SIGTERM', stop);

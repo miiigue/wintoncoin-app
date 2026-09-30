@@ -14,7 +14,7 @@ const deployment=require('../../backend/src/services/chainDeployment');
   control=new Pool({host:'127.0.0.1',port:Number(process.env.WINTON_MIGRATION_TEST_PORT),user:'review070',database:'postgres',connectionTimeoutMillis:5000});
   expect((await control.query('SHOW data_directory')).rows[0].data_directory.replaceAll('\\','/')).to.match(/\/pg-review-070$/);
   schema='pin077_'+randomBytes(6).toString('hex');await control.query(`CREATE SCHEMA ${schema}`);
-  pool=new Pool({...control.options,options:`-c search_path=${schema},public`,max:8});
+  pool=new Pool({...control.options,options:`-c search_path=${schema}`,max:8});
   await pool.query("CREATE TABLE users(id INTEGER PRIMARY KEY,web3_wallet_address TEXT,has_transaction_pin BOOLEAN,kyc_verified BOOLEAN,red_credit_limit_override NUMERIC,account_status TEXT DEFAULT 'active'); CREATE TABLE app_settings(setting_key TEXT PRIMARY KEY,setting_value TEXT,updated_at TIMESTAMPTZ)");
   await require('../../backend/migrations/116_durable_chain_operations').up(pool);
   await require('../../backend/migrations/117_payment_recovery_controls').up(pool);
@@ -82,7 +82,12 @@ const deployment=require('../../backend/src/services/chainDeployment');
  it('operación repetida no firma de nuevo; concurrencia usa un único bloqueo',async()=>{
   const q=await service.prepare(1,{action:'transfer',amount:'1',destination:f.bob.address});
   const outcomes=await Promise.allSettled([service.authorize(1,q.operationId,'729418'),service.authorize(1,q.operationId,'729418')]);
-  expect(outcomes.filter(x=>x.status==='fulfilled')).length(1);const old=(await service.store.get(q.operationId,1)).steps[0].hash;
+  // Depending on DB scheduling the second request either meets the lock or
+  // observes the first request's persisted result. Both must have one effect.
+  expect(outcomes.some(x=>x.status==='fulfilled')).eq(true);
+  for(const result of outcomes.filter(x=>x.status==='rejected'))expect(result.reason.message).match(/en curso/);
+  const stored=await service.store.get(q.operationId,1);expect(stored.steps).length(1);
+  const old=stored.steps[0].hash;
   await service.authorize(1,q.operationId,'729418');expect((await service.store.get(q.operationId,1)).steps[0].hash).eq(old);
  });
  it('proyección de excepción se completa antes de liberar el bloqueo de nuevas escrituras',async()=>{
@@ -236,19 +241,57 @@ const deployment=require('../../backend/src/services/chainDeployment');
   const quote=await service.prepare(1,{action:'transfer',amount:'1',destination:f.bob.address});
   await expect(service.authorize(1,quote.operationId,'729418')).rejectedWith('presupuesto');
  });
+ it('reservas firmadas de ayer siguen contando; preparaciones vencidas sin firma no',async()=>{
+  const store=new ChainOperationStore(pool,ethers.provider,{finality:null,confirmations:1});
+  const row=await store.prepare({userId:1,key:'old-gas',chainId:'1337',sender:user.address,resource:'test-budget',kind:'gas',payload:{reservedWei:'15',parentId:'old-parent'}});
+  await pool.query("UPDATE chain_operations SET created_at=NOW()-interval '2 days',state='pending' WHERE id=$1",[row.id]);
+  const usage=require('../../backend/src/services/gasBudgetUsage').usage;
+  expect((await usage(pool,'1337',1)).total).eq('15');
+  await pool.query("UPDATE chain_operations SET state='prepared' WHERE id=$1",[row.id]);expect((await usage(pool,'1337',1)).total).eq('0');
+ });
  it('comisión cero conserva paridad y se registra como cero',async()=>{
   const {payments,payload}=await marketplace();await f.core.setCommissionBps(0);payload.expectedFeeBps='0';const id=await sendAndRollback(payments,payload);await payments.store.reconcile(id);await payments.settle(id);
   expect((await pool.query('SELECT commission_amount_blue FROM platform_commission_log')).rows[0].commission_amount_blue).eq('0.000000');expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+ });
+ it('mantenimiento amortiza en contratos reales una sola vez y refleja un bloque confirmado',async()=>{
+  await require('../../backend/migrations/118_chain_wallet_snapshots').up(pool);
+  const runner=ethers.Wallet.createRandom();await f.owner.sendTransaction({to:runner.address,value:ethers.parseEther('1')});
+  for(const [key,value] of Object.entries({gas_sponsor_enabled:'true',gas_sponsor_daily_budget_wei:ethers.parseEther('1').toString(),gas_sponsor_maintenance_daily_budget_wei:ethers.parseEther('.5').toString(),gas_sponsor_maintenance_max_step_wei:ethers.parseEther('.1').toString()}))await pool.query('INSERT INTO app_settings(setting_key,setting_value) VALUES($1,$2) ON CONFLICT(setting_key) DO UPDATE SET setting_value=EXCLUDED.setting_value',[key,value]);
+  await f.core.connect(user).processPayment(user.address,f.bob.address,5n*U);await f.pay(f.alice,user,10n*U);
+  await ethers.provider.send('evm_increaseTime',[Number(await f.core.COMMITMENT_DURATION())+1]);await ethers.provider.send('evm_mine',[]);
+  const {settle,createMaintenanceWorker}=require('../../backend/src/services/chainMaintenance');
+  const params={pool,rpc:ethers.provider,config:cfg,wallet:user.address,env:{RELAYER_PRIVATE_KEY:runner.privateKey},store:service.store};
+  const sent=await settle(params);expect(sent.pending).eq(true);
+  expect((await settle(params)).success).eq(true);expect((await settle(params)).status).eq('not_needed');
+  expect(await f.red.balanceOf(user.address)).eq(0);expect(await f.blue.balanceOf(user.address)).eq(4750000n);expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+  expect((await pool.query("SELECT * FROM chain_operations WHERE kind='settleMatured'")).rowCount).eq(1);
+  const bridge={getUserAuditDetailed:async wallet=>{const block=await ethers.provider.getBlock('latest');return {success:true,blockNumber:block.number,blockHash:block.hash,blueBalance:ethers.formatUnits(await f.blue.balanceOf(wallet),6),credit:{isKYCVerified:await f.core.isKYCVerified(wallet),isDelinquent:await f.core.isDelinquent(wallet)}};}};
+  const result=await createMaintenanceWorker(pool,{bridge,rpc:ethers.provider,config:cfg,execute:()=>{throw Error('should not spend');}}).tick();
+  expect(result.failed).eq(0);expect(result.checked).eq(2);
+  const row=(await pool.query('SELECT snapshot FROM web3_wallet_snapshots WHERE wallet_address=$1',[user.address.toLowerCase()])).rows[0];expect(row.snapshot.blueBalance).eq('4.75');expect(row.snapshot.credit.isDelinquent).eq(false);
+ });
+ it('una preparación antigua de mantenimiento no elude un límite de gas reducido',async()=>{
+  const runner=ethers.Wallet.createRandom();await f.owner.sendTransaction({to:runner.address,value:ethers.parseEther('1')});
+  for(const [key,value] of Object.entries({gas_sponsor_enabled:'true',gas_sponsor_daily_budget_wei:ethers.parseEther('1').toString(),gas_sponsor_maintenance_daily_budget_wei:ethers.parseEther('.5').toString(),gas_sponsor_maintenance_max_step_wei:ethers.parseEther('.05').toString()}))await pool.query('INSERT INTO app_settings(setting_key,setting_value) VALUES($1,$2) ON CONFLICT(setting_key) DO UPDATE SET setting_value=EXCLUDED.setting_value',[key,value]);
+  await f.core.connect(user).processPayment(user.address,f.bob.address,5n*U);await f.pay(f.alice,user,10n*U);
+  await ethers.provider.send('evm_increaseTime',[Number(await f.core.COMMITMENT_DURATION())+1]);await ethers.provider.send('evm_mine',[]);
+  const resource=`maintenance:1337:${f.core.target.toLowerCase()}:${user.address.toLowerCase()}`;
+  const old=await service.store.prepare({key:'old-maintenance',chainId:'1337',sender:runner.address,resource,kind:'settleMatured',payload:{to:f.core.target,data:f.core.interface.encodeFunctionData('settleMatured',[user.address]),value:'0',maxFeeWei:ethers.parseEther('.1').toString(),reservedWei:ethers.parseEther('.1').toString(),fingerprint:cfg.fingerprint}});
+  await expect(require('../../backend/src/services/chainMaintenance').settle({pool,rpc:ethers.provider,config:cfg,wallet:user.address,env:{RELAYER_PRIVATE_KEY:runner.privateKey},store:service.store})).rejectedWith('MAINTENANCE_POLICY_REDUCED');
+  expect((await service.store.get(old.id)).steps).length(0);expect(await f.red.balanceOf(user.address)).eq(5250000n);
  });
  it('la consulta de billetera distingue BLUE total, en parking y disponible tras liberarse',async()=>{
   const fs=require('fs'),vm=require('vm'),path=require('path');
   const source=fs.readFileSync(path.resolve(__dirname,'../../backend/src/services/web3BridgeService.js'),'utf8');
   const start=source.indexOf('    async getUserAuditDetailed('),end=source.indexOf('    async setExtensionParams(',start);
-  const method=vm.runInNewContext('({'+source.slice(start,end)+'})',{ethers,BLUE_ADDRESS:f.blue.target,RED_ADDRESS:f.red.target,USDT_ADDRESS:f.usdt.target,Date}).getUserAuditDetailed;
+  let simulatedNow=Date.now();class TestDate extends Date {static now(){return simulatedNow;}}
+  const method=vm.runInNewContext('({'+source.slice(start,end)+'})',{ethers,BLUE_ADDRESS:f.blue.target,RED_ADDRESS:f.red.target,USDT_ADDRESS:f.usdt.target,Date:TestDate,require:()=>({configuration:()=>cfg})}).getUserAuditDetailed;
   const receiver={provider:ethers.provider,_getProtocol:()=>f.core,_getVault:()=>f.vault,_getERC20:address=>new ethers.Contract(address,['function balanceOf(address) view returns(uint256)'],ethers.provider)};
   await f.pay(f.alice,user,100n*U);
+  simulatedNow=(await ethers.provider.getBlock('latest')).timestamp*1000;
   let state=await method.call(receiver,user.address);expect(state.success,state.error).eq(true);expect(state.blueBalance).eq('100.0');expect(state.blueAvailable).eq('0.0');expect(state.blueLocked).eq('100.0');
   await ethers.provider.send('evm_increaseTime',[Number(await f.core.COMMITMENT_DURATION())+1]);await ethers.provider.send('evm_mine',[]);
+  simulatedNow=(await ethers.provider.getBlock('latest')).timestamp*1000;
   state=await method.call(receiver,user.address);expect(state.blueAvailable).eq('100.0');expect(state.blueLocked).eq('0.0');
  });
 });
