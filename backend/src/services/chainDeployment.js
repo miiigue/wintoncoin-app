@@ -7,9 +7,16 @@ function configuration(env=process.env) {
     const manifest=JSON.parse(readFileSync(path.resolve(__dirname,'../../../web3-contracts/deployment-manifest-v4.json'),'utf8'));
     const chainId=String(env.WINTON_CHAIN_ID || manifest.chainId);
     if(!/^[1-9]\d*$/.test(chainId)) throw new Error('Red no configurada.');
+    const demo=chainId==='11155420' && manifest.chainId==='11155420';
+    const legacy=demo?JSON.parse(readFileSync(path.resolve(__dirname,'../../../web3-contracts/deployments/optimism-sepolia-legacy-2026-09-25.json'),'utf8')):null;
     const contracts={};
     for(const [key,variable] of Object.entries(keys)) {
-        contracts[key]=getAddress(env[variable] || (key==='CoreProtocol'?env.WINTON_PROTOCOL_ADDRESS:key==='ProtocolTreasury'?env.WINTON_TREASURY_ADDRESS:undefined) || manifest.contracts[key]);
+        const configured=env[variable] || (key==='CoreProtocol'?env.WINTON_PROTOCOL_ADDRESS:key==='ProtocolTreasury'?env.WINTON_TREASURY_ADDRESS:undefined);
+        if(demo && configured && ![manifest.contracts[key],legacy.contracts[key]].some(x=>x.toLowerCase()===getAddress(configured).toLowerCase()))
+            throw new Error('La dirección '+key+' no pertenece a un despliegue registrado.');
+        // The versioned Demo manifest is one indivisible suite. Older variables
+        // may still exist on the host, but cannot create a mixed deployment.
+        contracts[key]=getAddress(demo?manifest.contracts[key]:(configured || manifest.contracts[key]));
         if(/^0x0{40}$/i.test(contracts[key]))throw new Error('Contrato no configurado: '+key);
     }
     const fingerprint=keccak256(toUtf8Bytes(JSON.stringify({chainId,contracts})));

@@ -24,6 +24,9 @@ class FailoverExchangeIndexer {
             const index = (this.preferred + offset) % this.workers.length;
             try {
                 const result = await this.workers[index].tick();
+                // A lagging primary can appear to predate a newly deployed
+                // exchange before a cursor exists. Ask the next provider.
+                if(result.status==='waiting_deployment' && offset<this.workers.length-1)continue;
                 if (result.status !== 'busy') this.preferred = index;
                 return result;
             } catch (e) {

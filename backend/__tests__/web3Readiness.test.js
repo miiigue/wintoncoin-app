@@ -22,7 +22,8 @@ test('comprueba roles, gas, enlace y SQL sin firmar ni escribir ni revelar clave
  const f=fixture(),result=await inspect(f);expect(result.ready).toBe(true);
  expect(f.rpc.destroy).toHaveBeenCalledTimes(1);
  expect(f.pool.query.mock.calls.every(([sql])=>sql.startsWith('SELECT'))).toBe(true);
- for(const key of Object.values(f.env))expect(JSON.stringify(result)).not.toContain(key);
+ for(const name of ['ADMIN_SECRET_KEY','JWT_SECRET','ENCRYPTION_SECRET','ADMIN_CHAIN_PRIVATE_KEY','RELAYER_PRIVATE_KEY','GAS_SPONSOR_PRIVATE_KEY'])
+  expect(JSON.stringify(result)).not.toContain(f.env[name]);
 });
 test('presupuesto cero bloquea patrocinio aunque la opción esté activada',async()=>{
  const f=fixture();f.settings.gas_sponsor_daily_budget_wei='0';
@@ -41,4 +42,12 @@ test('fallo remoto no filtra endpoint ni claves y aún comprueba presupuesto',as
  const f=fixture();f.validate=async()=>{throw Error('https://secret-provider/key')};
  const r=await inspect(f);expect(r.ready).toBe(false);expect(JSON.stringify(r)).not.toContain('secret-provider');
  expect(r.checks.find(x=>x.id==='gas_budget').ready).toBe(true);
+});
+test('reconoce firma externa si ambos contratos tienen el mismo propietario y gas',async()=>{
+ const f=fixture(),owner=new Wallet(f.env.ADMIN_CHAIN_PRIVATE_KEY).address;
+ delete f.env.ADMIN_CHAIN_PRIVATE_KEY;
+ f.contract=()=>({owner:async()=>owner,relayer:async()=>new Wallet(f.env.RELAYER_PRIVATE_KEY).address,paused:async()=>false});
+ const result=await inspect(f);
+ expect(result.checks.find(x=>x.id==='external_owner').ready).toBe(true);
+ expect(result.checks.find(x=>x.id==='owner_CollateralVault').ready).toBe(true);
 });

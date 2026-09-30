@@ -15,6 +15,7 @@ import { Link } from 'react-router-dom';
 import { getApiUrl } from '../modules/config.js';
 import ContractConfiguration from '../components/ContractConfiguration.jsx';
 import Web3Readiness from '../components/Web3Readiness.jsx';
+import { administerContract } from '../modules/ownerWalletAdministration.js';
 import styles from './AdminWeb3Panel.module.css';
 
 export default function AdminWeb3Panel() {
@@ -23,6 +24,9 @@ export default function AdminWeb3Panel() {
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [toastMessage, setToastMessage] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
+  const [recoveryId,setRecoveryId]=useState('');
+  const [recoveryHash,setRecoveryHash]=useState('');
+  const [lastOwnerOperation,setLastOwnerOperation]=useState(null);
 
   // Form states - Gobernanza
   const [creditLimitWallet, setCreditLimitWallet] = useState('');
@@ -102,6 +106,22 @@ export default function AdminWeb3Panel() {
     fetchStatus();
   }, []);
 
+  const verifyOwnerTransaction=async(event)=>{
+    event.preventDefault();setActionLoading(true);
+    try{
+      const response=await fetch(`${getApiUrl()}/api/admin/web3/owner/confirm`,{
+        method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({operationId:recoveryId.trim(),txHash:recoveryHash.trim()})
+      });
+      const result=await response.json();
+      if(!response.ok&&response.status!==202)throw new Error(result.message||'No se pudo verificar.');
+      setLastOwnerOperation(result);
+      showToast(result.success?'✅ Cambio confirmado en blockchain.':`⏳ ${result.message||'La operación sigue pendiente.'}`);
+      if(result.success)fetchStatus();
+    }catch(error){showToast(`❌ ${error.message}`);}
+    finally{setActionLoading(false);}
+  };
+
   // Helper genérico para peticiones administrativas
   const executeAdminPost = async (endpoint, body, successMsg) => {
     if (!statusData || loadingStatus) { showToast('Espera una lectura confirmada del contrato.'); return; }
@@ -116,6 +136,24 @@ export default function AdminWeb3Panel() {
         if (!identityResponse.ok || !identity.success) throw new Error(identity.message || 'No se pudo verificar al usuario.');
         if (!window.confirm(`Confirmar cambio para @${identity.username}\nBilletera asociada: ${identity.walletAddress}`)) return;
         body = {...body, walletAddress:identity.walletAddress};
+      }
+      const ownerActions={
+        '/api/admin/web3/credit-limit':['credit_limit',body],
+        '/api/admin/web3/kyc':['kyc',body],
+        '/api/admin/web3/max-tx':['max_transaction',{amount:body.maxAmount}],
+        '/api/admin/web3/commission-rate':['commission',{value:String(Number(body.commissionBps)/100)}],
+        '/api/admin/web3/extension-params':['extension_option',body],
+        '/api/admin/web3/user-benefits':['user_benefits',body],
+        '/api/admin/web3/pause':[`${body.action}_${body.target}`,body]
+      };
+      if (ownerActions[endpoint]) {
+        const [action,input]=ownerActions[endpoint];
+        const result=await administerContract(action,input);
+        setLastOwnerOperation(result);
+        if(result.success){showToast(`✅ ${successMsg} · ${result.txHash||''}`);fetchStatus();}
+        else if(result.pending){showToast(`⏳ ${result.message} Referencia: ${result.operationId||''} · ${result.txHash||''}`);}
+        else throw new Error(result.message||'El contrato no confirmó el cambio.');
+        return result;
       }
       const res = await fetch(`${API_URL}${endpoint}`, {
         method: 'POST',
@@ -306,6 +344,20 @@ export default function AdminWeb3Panel() {
       </div>
 
       <Web3Readiness />
+      {lastOwnerOperation?.operationId&&<p role="status">
+        Última operación: <strong>{lastOwnerOperation.state|| (lastOwnerOperation.pending?'Pendiente':'Confirmada')}</strong>.
+        Referencia: <code>{lastOwnerOperation.operationId}</code>
+        {lastOwnerOperation.txHash&&<> · Transacción: <code>{lastOwnerOperation.txHash}</code></>}
+      </p>}
+      <details>
+        <summary>Verificar una firma administrativa ya enviada</summary>
+        <p>Si la billetera envió una transacción y se perdió la respuesta, introduce la referencia y el identificador de la transacción. No vuelvas a firmar.</p>
+        <form onSubmit={verifyOwnerTransaction}>
+          <label>Referencia de operación<input value={recoveryId} onChange={event=>setRecoveryId(event.target.value)} required /></label>
+          <label>Identificador de transacción<input value={recoveryHash} onChange={event=>setRecoveryHash(event.target.value)} required /></label>
+          <button type="submit" disabled={actionLoading}>Comprobar en blockchain</button>
+        </form>
+      </details>
 
       {/* Barra de Estado del Relayer */}
       {statusData?.relayer && (

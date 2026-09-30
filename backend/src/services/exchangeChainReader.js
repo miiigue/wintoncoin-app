@@ -27,13 +27,25 @@ function uint(value, max = BigInt(Number.MAX_SAFE_INTEGER)) {
 function identityFromEnv(env = process.env) {
     const chainId = uint(env.EXCHANGE_INDEXER_CHAIN_ID, (1n << 256n) - 1n).toString();
     if (chainId === '0') fail('INVALID_CONFIG');
+    if (chainId === '11155420') {
+        const selected=require('./chainDeployment').configuration(env);
+        const old=require('../../../web3-contracts/deployments/optimism-sepolia-legacy-2026-09-25.json');
+        if(env.EXCHANGE_INDEXER_ADDRESS && ![old.contracts.FifoExchange,selected.contracts.FifoExchange].some(x=>x.toLowerCase()===address(env.EXCHANGE_INDEXER_ADDRESS)))fail('INVALID_CONFIG');
+        return {chainId,exchange:selected.contracts.FifoExchange.toLowerCase()};
+    }
     const exchange = address(env.EXCHANGE_INDEXER_ADDRESS);
     if (/^0x0{40}$/.test(exchange)) fail('INVALID_CONFIG');
     return { chainId, exchange };
 }
 function configFromEnv(env = process.env) {
     const identity = identityFromEnv(env);
-    const startBlock = Number(uint(env.EXCHANGE_INDEXER_START_BLOCK));
+    let startBlock = Number(uint(env.EXCHANGE_INDEXER_START_BLOCK));
+    if(identity.chainId==='11155420') {
+        const current=require('../../../web3-contracts/deployment-manifest-v4.json');
+        const old=require('../../../web3-contracts/deployments/optimism-sepolia-legacy-2026-09-25.json');
+        if(![old.startBlocks.FifoExchange,current.startBlocks.FifoExchange].includes(startBlock))fail('INVALID_CONFIG');
+        startBlock=current.startBlocks.FifoExchange;
+    }
     const finality = env.EXCHANGE_INDEXER_FINALITY || 'finalized';
     if (startBlock < 1 || !/^(finalized|confirmations:[1-9][0-9]{0,5})$/.test(finality)) fail('INVALID_CONFIG');
     const readInt = (key, fallback, min, max) => {

@@ -33,13 +33,14 @@ try {
 const RPC_URL = process.env.OPTIMISM_RPC_URL || 'http://127.0.0.1:8545';
 const RELAYER_PK = process.env.RELAYER_PRIVATE_KEY;
 
-const PROTOCOL_ADDRESS = process.env.CORE_PROTOCOL_ADDRESS || process.env.WINTON_PROTOCOL_ADDRESS || manifest?.contracts?.CoreProtocol;
-const TREASURY_ADDRESS = process.env.PROTOCOL_TREASURY_ADDRESS || process.env.WINTON_TREASURY_ADDRESS || manifest?.contracts?.ProtocolTreasury;
-const VAULT_ADDRESS = process.env.COLLATERAL_VAULT_ADDRESS || manifest?.contracts?.CollateralVault;
-const EXCHANGE_ADDRESS = process.env.FIFO_EXCHANGE_ADDRESS || manifest?.contracts?.FifoExchange;
-const BLUE_ADDRESS = process.env.BLUE_TOKEN_ADDRESS || manifest?.contracts?.BlueToken;
-const RED_ADDRESS = process.env.RED_TOKEN_ADDRESS || manifest?.contracts?.RedToken;
-const USDT_ADDRESS = process.env.USDT_TOKEN_ADDRESS || manifest?.contracts?.USDT;
+const verifiedAddresses = require('./chainDeployment').configuration().contracts;
+const PROTOCOL_ADDRESS = verifiedAddresses.CoreProtocol;
+const TREASURY_ADDRESS = verifiedAddresses.ProtocolTreasury;
+const VAULT_ADDRESS = verifiedAddresses.CollateralVault;
+const EXCHANGE_ADDRESS = verifiedAddresses.FifoExchange;
+const BLUE_ADDRESS = verifiedAddresses.BlueToken;
+const RED_ADDRESS = verifiedAddresses.RedToken;
+const USDT_ADDRESS = verifiedAddresses.USDT;
 
 class Web3BridgeService {
     constructor() {

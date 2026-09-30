@@ -4,7 +4,7 @@ jest.mock('../src/services/exchangeChainReader',()=>({
  fail:code=>{throw Object.assign(new Error(code),{indexerCode:code});}
 }));
 const {createReader}=require('../src/services/exchangeChainReader');
-const {createExchangeWorker}=require('../src/services/exchangeFailover');
+const {createExchangeWorker,FailoverExchangeIndexer}=require('../src/services/exchangeFailover');
 const config={chainId:'11155420',exchange:'0x1111111111111111111111111111111111111111'};
 const env={OPTIMISM_RPC_URL:'https://primary.example'};
 beforeEach(()=>jest.clearAllMocks());
@@ -26,4 +26,10 @@ test('Configuración inválida falla sin conectarse a un proveedor por defecto',
  for(const value of ['', '{}','["file:///secret"]','[1]','["https://a","https://b","https://c","https://d"]'])
   expect(()=>createExchangeWorker({},config,{...env,EXCHANGE_INDEXER_FALLBACK_RPC_URLS:value})).toThrow('INVALID_RPC_CONFIG');
  expect(createReader).not.toHaveBeenCalled();
+});
+test('Si el proveedor principal aún no ve el despliegue nuevo, consulta la alternativa',async()=>{
+ const worker=new FailoverExchangeIndexer({},config,[{},{}]);
+ worker.workers=[{tick:jest.fn().mockResolvedValue({status:'waiting_deployment'})},{tick:jest.fn().mockResolvedValue({status:'ready',block:123})}];
+ expect(await worker.tick()).toEqual({status:'ready',block:123});
+ expect(worker.preferred).toBe(1);
 });

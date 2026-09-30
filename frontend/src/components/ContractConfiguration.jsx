@@ -5,6 +5,7 @@ import feedbackStyles from './ContractConfiguration.module.css';
 import {formatEther,parseEther} from 'ethers';
 import {configurationFeedback,safeDiagnostic} from '../modules/configurationFeedback.js';
 import RecoveryStatus from './RecoveryStatus.jsx';
+import {administerContract} from '../modules/ownerWalletAdministration.js';
 const labels={platform_commission_percentage:'Comisión de plataforma (%)',debt_cycle_days:'Plazo del compromiso (días)',red_credit_base_limit:'Límite base de la política RED',red_credit_referral:'Incremento por referido verificado',red_credit_culture_quiz:'Incremento por cuestionario',red_credit_monthly_activity:'Incremento por actividad mensual',red_credit_early_payment:'Incremento por pago anticipado',gas_sponsor_enabled:'Patrocinio de gas habilitado',gas_sponsor_daily_user_operations:'Operaciones patrocinadas por usuario y día',gas_sponsor_daily_budget_wei:'Presupuesto diario total de gas (ETH)',gas_sponsor_max_topup_wei:'Máximo patrocinado por paso (ETH)',gas_sponsor_maintenance_daily_budget_wei:'Máximo diario para amortizaciones automáticas (ETH)',gas_sponsor_maintenance_max_step_wei:'Máximo por amortización automática (ETH)'};
 export default function ContractConfiguration({onUpdated}) {
   const [settings,setSettings]=useState({}),[loadError,setLoadError]=useState('');
@@ -33,6 +34,12 @@ export default function ContractConfiguration({onUpdated}) {
       try{value=key.endsWith('_wei')?parseEther(draft).toString():draft;}
       catch{result=configurationFeedback({...context,invalidInput:true});}
       if(!result){
+        if(key==='platform_commission_percentage'||key==='debt_cycle_days'){
+          try{
+            const response=await administerContract(key==='platform_commission_percentage'?'commission':'commitment_duration',{value});
+            result=configurationFeedback({...context,status:response.success?200:response.pending?202:409,data:response});
+          }catch(error){result=configurationFeedback({...context,status:400,data:{message:error.message}});}
+        }else{
         const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),30000);
         try{
           const response=await fetch(`${getApiUrl()}/api/admin/web3/configuration`,{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({key,value}),signal:controller.signal});
@@ -40,6 +47,7 @@ export default function ContractConfiguration({onUpdated}) {
           result=configurationFeedback({...context,status:response.status,data});
         }catch{result=configurationFeedback({...context,networkError:true});}
         finally{clearTimeout(timeout);}
+        }
       }
       setResults(previous=>({...previous,[key]:result}));setDialogResult(result);
       if(result.kind==='success'){

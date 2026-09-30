@@ -11,9 +11,9 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
     add('wallet_encryption','Protección de las billeteras', (env.ENCRYPTION_SECRET||'').length>=32);
     for(const [key,label] of [['ADMIN_CHAIN_PRIVATE_KEY','Firma administrativa'],['RELAYER_PRIVATE_KEY','Firma del procesador de pagos'],['GAS_SPONSOR_PRIVATE_KEY','Firma del patrocinador de gas']]){
         try{signers[key]=new Wallet(env[key]).address;}catch{}
-        add(key,label,signers[key]);
+        if(key!=='ADMIN_CHAIN_PRIVATE_KEY'||signers[key])add(key,label,signers[key]);
     }
-    add('separate_signers','Firmas administrativas, pagos y patrocinio separadas',Object.keys(signers).length===3&&new Set(Object.values(signers)).size===3);
+    add('separate_signers','Firmas de pagos y patrocinio separadas',Boolean(signers.RELAYER_PRIVATE_KEY&&signers.GAS_SPONSOR_PRIVATE_KEY)&&new Set(Object.values(signers)).size===Object.keys(signers).length);
     let config;
     try{
         config=await validate(rpc,deployment.configuration(env));
@@ -21,9 +21,14 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
         const head=await rpc.getBlock('latest');
         const age=Math.floor(Date.now()/1000)-head?.timestamp;
         add('rpc_fresh','Proveedor de blockchain actualizado',Number.isSafeInteger(head?.timestamp)&&age>=-60&&age<=300);
+        let externalOwner;
         for(const key of ['CoreProtocol','CollateralVault']){
             const owner=await contract(config.contracts[key],['function owner() view returns(address)']).owner();
-            add('owner_'+key,'Permiso para administrar '+(key==='CoreProtocol'?'el protocolo':'el colateral'),owner.toLowerCase()===signers.ADMIN_CHAIN_PRIVATE_KEY?.toLowerCase());
+            if(!signers.ADMIN_CHAIN_PRIVATE_KEY)externalOwner ??= owner;
+            add('owner_'+key,'Permiso para administrar '+(key==='CoreProtocol'?'el protocolo':'el colateral'),owner.toLowerCase()===(signers.ADMIN_CHAIN_PRIVATE_KEY||externalOwner)?.toLowerCase());
+        }
+        if(!signers.ADMIN_CHAIN_PRIVATE_KEY){
+            add('external_owner','Firma administrativa desde billetera propietaria; se conecta al ejecutar cada cambio',Boolean(externalOwner)&&![signers.RELAYER_PRIVATE_KEY,signers.GAS_SPONSOR_PRIVATE_KEY].some(address=>address?.toLowerCase()===externalOwner.toLowerCase()));
         }
         const relayer=await contract(config.contracts.CoreProtocol,['function relayer() view returns(address)']).relayer();
         add('relayer_permission','Procesador de pagos autorizado por el contrato',relayer.toLowerCase()===signers.RELAYER_PRIVATE_KEY?.toLowerCase());
@@ -31,7 +36,8 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
             add('active_'+key,label+' sin pausa de emergencia',!await contract(config.contracts[key],['function paused() view returns(bool)']).paused());
         }
         for(const [key,label] of [['ADMIN_CHAIN_PRIVATE_KEY','administración'],['RELAYER_PRIVATE_KEY','procesamiento de pagos'],['GAS_SPONSOR_PRIVATE_KEY','patrocinio']]){
-            add('gas_'+key,'Saldo de gas para '+label,signers[key] && await rpc.getBalance(signers[key])>0n);
+            const address=key==='ADMIN_CHAIN_PRIVATE_KEY'?(signers[key]||externalOwner):signers[key];
+            add('gas_'+key,'Saldo de gas para '+label,address && await rpc.getBalance(address)>0n);
         }
     }catch{add('chain_unavailable','Lectura completa de contratos y permisos',false);}
     finally{rpc.destroy();}

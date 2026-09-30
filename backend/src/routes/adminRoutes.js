@@ -156,6 +156,30 @@ router.get('/web3/identity', (req,res,next) => {
     req.body = {username:req.query.username};
     return contractAdmin.resolveUser(req,res,()=>res.json({success:true,username:req.targetUser.username,walletAddress:req.targetUser.web3_wallet_address}));
 });
+// The contract owner signs in their own wallet. The administrative session
+// authorizes the request; only a matching, confirmed chain transaction applies it.
+router.post('/web3/owner/prepare', web3RpcLimiter, (req,res,next)=>{
+    if(['credit_limit','kyc','user_benefits'].includes(req.body?.action))return contractAdmin.resolveUser(req,res,next);
+    return next();
+}, async(req,res)=>{
+    const deployment=require('../services/chainDeployment');
+    const rpc=deployment.provider();
+    try{
+        const result=await require('../services/externalOwnerAdministration').prepare({pool:require('../config/db'),provider:rpc,action:req.body?.action,input:req.body||{}});
+        res.json({success:true,...result});
+    }catch(e){res.status(e.status||503).json({success:false,message:e.status?e.message:'No se pudo preparar la operación en blockchain.'});}
+    finally{rpc.destroy();}
+});
+router.post('/web3/owner/confirm', web3RpcLimiter, async(req,res)=>{
+    if(!/^[a-f0-9-]{36}$/i.test(String(req.body?.operationId)))return res.status(400).json({success:false,message:'Referencia inválida.'});
+    const deployment=require('../services/chainDeployment');
+    const rpc=deployment.provider();
+    try{
+        const result=await require('../services/externalOwnerAdministration').confirm({pool:require('../config/db'),provider:rpc,id:req.body.operationId,hash:req.body.txHash});
+        res.status(result.success?200:202).json(result);
+    }catch(e){res.status(e.status||503).json({success:false,message:e.status?e.message:'No se pudo verificar la transacción; conserva su identificador y consulta nuevamente.'});}
+    finally{rpc.destroy();}
+});
 router.post('/web3/configuration', contractAdmin.updateConfiguration, adminController.updateSetting);
 router.get('/web3/readiness', web3RpcLimiter, async(req,res)=>{
     res.set('Cache-Control','no-store');

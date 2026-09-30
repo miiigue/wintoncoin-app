@@ -4,8 +4,11 @@ const {isAddress}=require('ethers');
 async function guard(req,res,next) {
     if(['GET','HEAD','OPTIONS'].includes(req.method)) return next();
     if(!['admin','superadmin'].includes(req.user?.role)) return res.status(403).json({success:false,message:'No tienes permiso para modificar contratos.'});
+    // Confirmation only reconciles an already owner-signed on-chain action.
+    if(req.path==='/owner/confirm')return next();
     // Pausing contains an incident; resuming/changing economic rules follows governance.
-    if(req.path==='/pause' && req.body?.action==='pause') return next();
+    if((req.path==='/pause' && req.body?.action==='pause') ||
+       (req.path==='/owner/prepare' && ['pause_protocol','pause_vault'].includes(req.body?.action))) return next();
     try {
         const result=await pool.query("SELECT COUNT(*) AS count FROM governance_guardians WHERE status='active'");
         if(Number(result.rows[0].count)>0) return res.status(403).json({success:false,governance_required:true,message:'Se requiere aprobación de gobernanza; este panel no puede omitirla.'});
