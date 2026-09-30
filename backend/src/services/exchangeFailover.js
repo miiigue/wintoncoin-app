@@ -2,11 +2,15 @@
 const { createReader, fail } = require('./exchangeChainReader');
 const { ExchangeIndexer } = require('./exchangeIndexer');
 
-// Retry an entire verified tick with an explicitly configured provider. Never
+// Retry an entire verified tick with a configured provider. Never
 // mix a page's logs and state across providers or weaken its finality policy.
 function createExchangeWorker(pool, config, env = process.env) {
     let extras;
-    try { extras = JSON.parse(env.EXCHANGE_INDEXER_FALLBACK_RPC_URLS || '[]'); } catch { fail('INVALID_RPC_CONFIG'); }
+    // Verified public fallback for the Demo network only. An explicit [] opts
+    // out, and configured alternatives replace this default. Never mainnet.
+    const defaults = String(config.chainId) === '11155420' ? ['https://optimism-sepolia-rpc.publicnode.com'] : [];
+    try { extras = env.EXCHANGE_INDEXER_FALLBACK_RPC_URLS === undefined
+        ? defaults : JSON.parse(env.EXCHANGE_INDEXER_FALLBACK_RPC_URLS); } catch { fail('INVALID_RPC_CONFIG'); }
     if (!Array.isArray(extras) || extras.length > 3 || extras.some(x => typeof x !== 'string' || !/^https?:\/\//.test(x))) fail('INVALID_RPC_CONFIG');
     const urls = [...new Set([env.EXCHANGE_INDEXER_RPC_URL || env.OPTIMISM_RPC_URL, ...extras])];
     const chains = urls.map(url => createReader(url, config.exchange));
