@@ -5,7 +5,8 @@ const {JsonRpcProvider, Contract, getAddress, keccak256, toUtf8Bytes}=require('e
 const keys={CoreProtocol:'CORE_PROTOCOL_ADDRESS',CollateralVault:'COLLATERAL_VAULT_ADDRESS',FifoExchange:'FIFO_EXCHANGE_ADDRESS',BlueToken:'BLUE_TOKEN_ADDRESS',RedToken:'RED_TOKEN_ADDRESS',USDT:'USDT_TOKEN_ADDRESS',ProtocolTreasury:'PROTOCOL_TREASURY_ADDRESS'};
 function configuration(env=process.env) {
     const manifest=JSON.parse(readFileSync(path.resolve(__dirname,'../../../web3-contracts/deployment-manifest-v4.json'),'utf8'));
-    const chainId=String(env.WINTON_CHAIN_ID || manifest.chainId);
+    const isDev = env.NODE_ENV === 'development' || env.NODE_ENV === 'test' || /127\.0\.0\.1|localhost/.test(env.OPTIMISM_RPC_URL || '');
+    const chainId=String(env.WINTON_CHAIN_ID || (isDev ? '31337' : manifest.chainId));
     if(!/^[1-9]\d*$/.test(chainId)) throw new Error('Red no configurada.');
     const demo=chainId==='11155420' && manifest.chainId==='11155420';
     const legacy=demo?JSON.parse(readFileSync(path.resolve(__dirname,'../../../web3-contracts/deployments/optimism-sepolia-legacy-2026-09-25.json'),'utf8')):null;

@@ -13,6 +13,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-09-30 — Verificación On-Chain de la Suite V4, Corrección de Entornos en chainDeployment y Gobernanza por Billetera Propietaria (CODEX-087, CODEX-088 / ANTIGRAVITY-058)
+* **Auditoría del Relevo Operativo y Defectos Detectados**:
+  - Se auditó el commit `b72c83b` que introduce el nuevo manifiesto de Optimism Sepolia (`deployment-manifest-v4.json`) y el esquema de administración por billetera propietaria en el navegador (`ownerWalletAdministration.js`).
+  - Al ejecutar la auditoría de carga en tiempo de ejecución (`verify_all_backend_imports.js`), se detectó un fallo crítico en `chainDeployment.js`: asumía `demo = true` siempre que `manifest.chainId === '11155420'` sin verificar si el proceso corría en local (`NODE_ENV === 'development'`). Esto provocaba que 6 módulos de backend (`adminWeb3Controller.js`, `adminRoutes.js`, `web3Routes.js`, `web3BridgeService.js`, `server.js`) arrojaran error de carga.
+* **Implementación de Soluciones y Blindaje Bancario**:
+  - *Saneamiento de Entornos (`chainDeployment.js`)*: Se implementó detección estricta de entorno local (`isDev = env.NODE_ENV === 'development' || env.NODE_ENV === 'test' || /127\.0\.0\.1|localhost/.test(...)`), resolviendo a `chainId: 31337` en local y aplicando las restricciones de la suite indivisible únicamente cuando se ejecuta en el entorno Demo de Optimism Sepolia. El escaneo de imports ahora pasa al 100% (116/116 módulos sin fallos).
+  - *Validación Criptográfica On-Chain en Optimism Sepolia (`11155420`)*: Ejecución de `validate()` contra `https://sepolia.optimism.io`, certificando la existencia de los 7 contratos (`CoreProtocol`, `CollateralVault`, `FifoExchange`, `BlueToken`, `RedToken`, `USDT`, `ProtocolTreasury`), sus enlaces bidireccionales y la configuración de 6 decimales para BLUE, RED y USDT.
+  - *Pruebas Unitarias Dirigidas (15/15 pasando)*: `ownerWalletAdministration.test.js`, `web3Readiness.test.js` y `exchangeFallbackConfig.test.js` aprobadas al 100% con Jest.
+  - *Compilación Limpia Vite PWA*: `npm run build:demo` ejecutado con éxito en 9.84s (104 módulos empaquetados y 167 recursos precacheados en `dist-demo/`).
+
 ### 2026-09-29 — Restauración del Algoritmo Canónico de Ordenamiento y Priorización de Publicaciones en el Dashboard SPA (Paridad 100% con Vanilla)
 * **Diagnóstico y Requerimiento de Negocio (Instrucción Directa del Usuario)**:
   - En la versión original/vanilla (`contract-interaction.js`), el marketplace de publicaciones aplicaba un algoritmo determinista de múltiples niveles que priorizaba de forma estricta las tareas con acciones requeridas por el usuario y las causas humanitarias al tope de la lista.
