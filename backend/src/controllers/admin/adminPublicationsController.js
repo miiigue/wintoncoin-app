@@ -286,19 +286,20 @@ async function createPlatformPublication(req, res) {
         const urlsToSave = (Array.isArray(image_urls) ? image_urls : []).slice(0, maxAllowedImages);
         const demandsEvidence = !!requires_evidence;
 
-        // AUDITORÍA FINTECH: Obtención del multiplicador de etapa activa de la plataforma para calcular el snapshot inmutable.
+        // AUDITORÍA FINTECH & TRUTH-IN-PRICING:
+        // Se almacena el costo base tanto en blue_cost como en base_blue_cost para que
+        // la publicación se calcule dinámicamente según la etapa activa vigente en cada momento.
         const boosterService = require('../../services/boosterService');
         const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
         const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
-        const totalBlueCost = cost * activeMultiplier; // Cálculo del monto total congelado (Base * Multiplicador)
 
         const sql = `
             INSERT INTO publications (title, description, blue_cost, base_blue_cost, is_sell_post, author_id, available_slots, auto_approve, is_booster_task, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, target_username, form_fields, show_preflight_modal, image_urls, requires_evidence) 
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) 
             RETURNING id
         `;
-        // Inserción congelando el monto total ($3 = totalBlueCost) y el monto base ingresado ($4 = cost)
-        const result = await pool.query(sql, [title, description, totalBlueCost, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields, !!req.body.showPreflightModal, urlsToSave, demandsEvidence]);
+        // Inserción guardando el costo base ingresado ($3 = cost, $4 = cost) para sincronización en tiempo real
+        const result = await pool.query(sql, [title, description, cost, cost, !!isSellPost, authorId, slots, !!autoApprove, !!isBoosterTask, allowRepeat, maxRepeat, repeatCooldown, sanitizedTargetUsername, sanitizedFormFields, !!req.body.showPreflightModal, urlsToSave, demandsEvidence]);
 
         const newPubId = result.rows[0].id;
 
@@ -308,7 +309,7 @@ async function createPlatformPublication(req, res) {
             targetUsername: sanitizedTargetUsername,
             publicationId: newPubId,
             category: 'platform',
-            metadata: { title, base_cost: cost, total_cost: totalBlueCost, multiplier: activeMultiplier, is_targeted: !!sanitizedTargetUsername }
+            metadata: { title, base_cost: cost, total_cost: cost * activeMultiplier, multiplier: activeMultiplier, is_targeted: !!sanitizedTargetUsername }
         });
 
         const message = sanitizedTargetUsername
@@ -427,11 +428,12 @@ async function updatePlatformPublication(req, res) {
         const urlsToSave = (Array.isArray(image_urls) ? image_urls : []).slice(0, maxAllowedImages);
         const demandsEvidence = !!requires_evidence;
 
-        // AUDITORÍA FINTECH: Obtención del multiplicador de etapa activa para recalcular y congelar el snapshot al editar la publicación.
+        // AUDITORÍA FINTECH & TRUTH-IN-PRICING:
+        // Se almacena el costo base tanto en blue_cost como en base_blue_cost para que
+        // la publicación se calcule dinámicamente según la etapa activa vigente en cada momento.
         const boosterService = require('../../services/boosterService');
         const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
         const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
-        const totalBlueCost = cost * activeMultiplier; // Recálculo del monto total recompensado (Base * Multiplicador)
 
         const updateSql = `
             UPDATE publications
@@ -458,7 +460,7 @@ async function updatePlatformPublication(req, res) {
         await pool.query(updateSql, [
             title,
             description,
-            totalBlueCost,
+            cost,
             cost,
             !!isSellPost,
             slots,

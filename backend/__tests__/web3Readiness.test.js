@@ -8,7 +8,7 @@ function fixture(){
  const settings={gas_sponsor_maintenance_max_step_wei:'10',gas_sponsor_maintenance_daily_budget_wei:'100',gas_sponsor_enabled:'true',gas_sponsor_daily_budget_wei:'100',gas_sponsor_max_topup_wei:'10'};
  const state={fresh:true};
  const pool={query:jest.fn(async sql=>{
-  if(sql.includes('schema_migrations'))return {rowCount:5,rows:[]};
+  if(sql.includes('schema_migrations'))return {rowCount:6,rows:[]};
   if(sql.includes('GROUP BY'))return {rowCount:0,rows:[]};
   if(sql.includes('app_settings'))return {rows:Object.entries(settings).map(([setting_key,setting_value])=>({setting_key,setting_value}))};
   if(sql.includes('web3_exchange_sync'))return {rows:[{status:'ready',fresh:state.fresh}]};

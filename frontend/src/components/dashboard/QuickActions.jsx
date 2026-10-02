@@ -14,6 +14,7 @@ import { Link } from 'react-router-dom';
 export default function QuickActions({
   onOpenCreatePublication,
   onOpenQuickSale,
+  isPreLaunch = false,
 }) {
   return (
     <div
@@ -51,29 +52,31 @@ export default function QuickActions({
       >
         Crear Nueva Publicación
       </a>
-      <a
-        href="#"
-        id="openQuickSaleModalBtn"
-        className="button-link secondary-action"
-        style={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          textAlign: 'center',
-          padding: '12px 6px',
-          fontSize: '0.92rem',
-          lineHeight: '1.25',
-          borderRadius: '12px'
-        }}
-        onClick={(e) => {
-          e.preventDefault();
-          if (onOpenQuickSale) onOpenQuickSale();
-        }}
-      >
-        ⚡ Venta Rápida
-      </a>
+      {!isPreLaunch && (
+        <a
+          href="#"
+          id="openQuickSaleModalBtn"
+          className="button-link secondary-action"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            textAlign: 'center',
+            padding: '12px 6px',
+            fontSize: '0.92rem',
+            lineHeight: '1.25',
+            borderRadius: '12px'
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            if (onOpenQuickSale) onOpenQuickSale();
+          }}
+        >
+          ⚡ Venta Rápida
+        </a>
+      )}
     </div>
   );
 }

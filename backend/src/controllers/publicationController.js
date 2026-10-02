@@ -57,8 +57,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         // (el usuario ve y paga el precio base directo en BLUE real)
         const effectiveMultiplier = isBoosterTx ? activeMultiplier : 1.0;
 
-        // Costo final = base × multiplicador efectivo
-        const finalBlueCost = baseCost * effectiveMultiplier;
+        // Costo final = base × multiplicador efectivo (redondeo bancario a 4 decimales)
+        const finalBlueCost = parseFloat((baseCost * effectiveMultiplier).toFixed(4));
 
         return {
             baseCost,                    // Precio base sin multiplicar
@@ -116,6 +116,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 'allow_donation_publications',
                 'platform_commission_percentage',
                 'pre_launch_mode_enabled',
+                'platform_username',
                 'max_images_request',
                 'max_images_sell',
                 'max_images_donation'
@@ -141,12 +142,13 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const demandsEvidence = !!requires_evidence;
 
             // === SEGURIDAD Y CONTROL DE PRE-LANZAMIENTO ===
-            // En modo de pre-lanzamiento, únicamente la cuenta oficial de la plataforma 
-            // está autorizada a crear publicaciones de tipo 'request' o 'sell'.
-            if (settings.pre_launch_mode_enabled === 'true' && publicationType !== 'donation') {
-                const platformUser = (settings.platform_username || 'wintoncoin').toLowerCase();
+            // En modo de pre-lanzamiento, absolutamente nadie excepto la cuenta oficial de la plataforma
+            // está autorizada a crear publicaciones de cualquier tipo (request, sell o donation).
+            if (settings.pre_launch_mode_enabled === 'true') {
+                const envPlatformUser = (process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin').toLowerCase();
+                const platformUser = (settings.platform_username || envPlatformUser).toLowerCase();
                 const currentActor = authorUsername.toLowerCase();
-                if (currentActor !== platformUser && currentActor !== 'plataforma') {
+                if (currentActor !== platformUser && currentActor !== envPlatformUser && currentActor !== 'plataforma' && currentActor !== 'wintoncoin') {
                     throw { status: 403, message: "La creación de publicaciones generales está restringida durante la fase de pre-lanzamiento." };
                 }
             }
@@ -260,10 +262,10 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             }
 
             // --- Freno de Solvencia (Pre-autorización) ---
-            // Solo aplica a publicaciones tipo 'request' (solicitud de trabajo).
-            // Calcula el riesgo total que asume el autor al crear la publicación
-            // y verifica que tenga suficiente crédito disponible.
-            if (publicationType === 'request') {
+            // Solo aplica a publicaciones tipo 'request' (solicitud de trabajo) en modo normal Web3.
+            // En modo pre-lanzamiento, no se generan compromisos RED circulantes ni transferencias Web3 inmediatas.
+            const isPreLaunch = settings.pre_launch_mode_enabled === 'true';
+            if (publicationType === 'request' && !isPreLaunch) {
                 const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
                 const costPerTask = cost * (1 + commissionPercentage / 100);
                 const totalRisk = costPerTask * slots * maxRepeat;
@@ -309,9 +311,9 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             const sql = `
                         INSERT INTO publications
-                            (title, description, blue_cost, base_blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount, beneficiary_referral_code, image_urls, requires_evidence)
+                            (title, description, blue_cost, base_blue_cost, is_sell_post, author_id, available_slots, auto_approve, category, expires_at, allow_repeat_participation, max_repeat_per_user, repeat_cooldown_hours, show_preflight_modal, goal_amount, beneficiary_referral_code, image_urls, requires_evidence, is_booster_task)
                         VALUES
-                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)
+                            ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
                         RETURNING id
                     `;
             const result = await client.query(sql, [
@@ -332,7 +334,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 goal,
                 beneficiaryUser ? beneficiaryUser.referral_code : null,
                 urlsToSave,
-                demandsEvidence
+                demandsEvidence,
+                isPreLaunch
             ]);
 
             await logAuditEvent(client, req, {
@@ -360,7 +363,6 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // insertada en esta misma transacción (aún no commiteada).
             // Solo aplica en modo Web3 real (NO en pre-lanzamiento).
             // ═══════════════════════════════════════════════════════════════
-            const isPreLaunch = settings.pre_launch_mode_enabled === 'true';
             if (publicationType === 'request' && !isPreLaunch && cost > 0) {
                 const commissionPct = parseFloat(settings.platform_commission_percentage || '0');
                 const costPerTask = cost * (1 + commissionPct / 100);
@@ -429,6 +431,12 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             ? `p.id IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)`
             : `p.id NOT IN (SELECT hp.publication_id FROM hidden_publications hp WHERE hp.hider_username = $1)`;
 
+        // Cargar configuración de pre-lanzamiento y usuario institucional de la plataforma
+        const settingsRes = await pool.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('pre_launch_mode_enabled', 'platform_username')`);
+        const settingsMap = settingsRes.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+        const preLaunchMode = settingsMap.pre_launch_mode_enabled === 'true';
+        const platformUser = (settingsMap.platform_username || process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin').toLowerCase();
+
         // Parámetros seguros para la consulta SQL parametrizada.
         const queryParams = [requestingUser];
         let searchCondition = "";
@@ -438,6 +446,18 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // Se utiliza el placeholder correspondiente al índice de parámetro sanitizado.
             searchCondition = ` AND (p.title ILIKE $${queryParams.length + 1} OR p.description ILIKE $${queryParams.length + 1})`;
             queryParams.push(`%${search}%`);
+        }
+
+        // REGLA PROTOCOLAR FINTECH:
+        // Si el modo pre-lanzamiento está DESACTIVADO (modo normal Web3 / Blockchain):
+        // Todas las publicaciones de la plataforma que se crearon para liquidar BLUE IOU virtual
+        // deben ocultarse del marketplace y quedar en pausa temporalmente.
+        // EXCEPCIÓN: Las tareas con is_booster_task = TRUE permanecen vigentes y activas.
+        let preLaunchFilterCondition = "";
+        if (!preLaunchMode) {
+            const platformParamIdx = queryParams.length + 1;
+            preLaunchFilterCondition = ` AND NOT (LOWER(u.username) IN ($${platformParamIdx}, 'plataforma', 'wintoncoin', 'plataforma wintoncoin') AND p.is_booster_task = FALSE)`;
+            queryParams.push(platformUser);
         }
 
         // Estructura de consulta SQL optimizada con índices y subqueries.
@@ -575,25 +595,36 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 AND p.expires_at IS NOT NULL AND p.expires_at > NOW()
             )
         )
-            ${searchCondition}
-                ORDER BY
-                    p.created_at DESC
-            `;
+                    ${searchCondition}
+                    ${preLaunchFilterCondition}
+                        ORDER BY
+                            p.created_at DESC
+                    `;
 
         try {
             const result = await pool.query(sql, queryParams);
-            const settingsRes = await pool.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'pre_launch_mode_enabled'`);
-            const preLaunchMode = settingsRes.rows[0]?.setting_value === 'true';
 
             const boosterService = require('../services/boosterService');
             const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
             const activeMultiplier = currentMultiplierInfo.multiplier || 1.0;
             const activeStageName = currentMultiplierInfo.stageName || 'Sin etapa activa';
 
+            // REGLA PROTOCOLAR (DEFENSE IN DEPTH):
+            // Si el modo pre-lanzamiento está desactivado, excluimos cualquier publicación
+            // institucional de la plataforma que no sea explícitamente is_booster_task = TRUE.
+            const visibleRows = result.rows.filter(p => {
+                if (!preLaunchMode) {
+                    const authorLower = (p.author_username || '').toLowerCase();
+                    const isPlatformPub = authorLower === platformUser || authorLower === 'plataforma' || authorLower === 'wintoncoin' || authorLower === 'plataforma wintoncoin';
+                    if (isPlatformPub && !p.is_booster_task) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+
             // AUDITORÍA FINTECH: Garantizar coherencia inmutable entre la consulta del feed y el pago final.
-            // Se propaga isBoosterTx al frontend para que la UI refleje correctamente
-            // si el multiplicador aplica (desglose visible) o no (precio base directo).
-            const publications = result.rows.map(p => {
+            const publications = visibleRows.map(p => {
                 const { baseCost, multiplierUsed, finalBlueCost, isBoosterTx } = calculatePublicationEffectiveCost(p, preLaunchMode, activeMultiplier);
 
                 return {
@@ -619,17 +650,24 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
         const client = await pool.connect();
         try {
-            // 0. VERIFICAR PERMISO GLOBAL
-            const settingsResult = await client.query("SELECT setting_value FROM app_settings WHERE setting_key = 'allow_quick_sale_publications'");
-            const allowQuickSale = settingsResult.rows.length > 0 && settingsResult.rows[0].setting_value === 'true';
+            await client.query('BEGIN');
 
+            // 0. VERIFICAR PERMISO GLOBAL Y MODO PRE-LANZAMIENTO
+            const settingsResult = await client.query("SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('allow_quick_sale_publications', 'pre_launch_mode_enabled')");
+            const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+
+            if (settings.pre_launch_mode_enabled === 'true') {
+                throw { status: 403, message: "La creación de Ventas Rápidas está desactivada durante la fase de pre-lanzamiento." };
+            }
+
+            const allowQuickSale = settings.allow_quick_sale_publications === 'true';
             if (!allowQuickSale) {
-                return res.status(403).json({ message: "La creación de Ventas Rápidas está desactivada temporalmente." });
+                throw { status: 403, message: "La creación de Ventas Rápidas está desactivada temporalmente." };
             }
 
             // 1. Validaciones de entrada básicas
             if (!amount || !authorUsername) {
-                return res.status(400).json({ message: "Faltan datos requeridos: el monto y el autor son obligatorios." });
+                throw { status: 400, message: "Faltan datos requeridos: el monto y el autor son obligatorios." };
             }
 
             // Si el título viene vacío, se le asigna un valor por defecto.
@@ -639,15 +677,11 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
 
             const cost = parseFloat(String(amount).replace(',', '.'));
             if (isNaN(cost) || cost <= 0) {
-                return res.status(400).json({ message: "El monto debe ser un número positivo." });
+                throw { status: 400, message: "El monto debe ser un número positivo." };
             }
 
             // Sanitización simple del título para prevenir XSS básico.
             const sanitizedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
-
-            // const client = await pool.connect(); // ELIMINADO
-            // try { // ELIMINADO
-            await client.query('BEGIN');
 
             // 2. Verificar que el autor existe y obtener su ID
             const authorResult = await client.query('SELECT id FROM users WHERE username = $1', [authorUsername]);
@@ -713,7 +747,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             });
 
         } catch (error) {
-            await client.query('ROLLBACK');
+            await client.query('ROLLBACK').catch(() => {});
             console.error('Error al crear la Venta Rápida:', error);
             res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || 'Error interno del servidor.' });
         } finally {
@@ -922,10 +956,21 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const settingsResult = await client.query(`
                 SELECT setting_key, setting_value 
                 FROM app_settings 
-                WHERE setting_key IN ('pre_launch_mode_enabled', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
+                WHERE setting_key IN ('pre_launch_mode_enabled', 'platform_username', 'debt_cycle_days', 'debt_cycle_hours', 'debt_cycle_minutes', 'blue_escrow_days', 'blue_escrow_hours', 'blue_escrow_minutes', 'platform_commission_percentage')
             `);
             const settings = settingsResult.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
             const preLaunchMode = settings.pre_launch_mode_enabled === 'true';
+
+            // REGLA PROTOCOLAR FINTECH:
+            // Si el modo pre-lanzamiento está DESACTIVADO (modo normal Web3 / Blockchain):
+            // Las publicaciones de la plataforma que no sean tareas de impulsor (is_booster_task = false)
+            // quedan en pausa y no pueden aceptarse para proteger la paridad en la blockchain.
+            const platformUser = (settings.platform_username || process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin').toLowerCase();
+            const authorLower = (pub.author_username || '').toLowerCase();
+            const isPlatformPub = authorLower === platformUser || authorLower === 'plataforma' || authorLower === 'wintoncoin' || authorLower === 'plataforma wintoncoin';
+            if (!preLaunchMode && isPlatformPub && !pub.is_booster_task) {
+                throw { status: 400, message: "Esta publicación de pre-lanzamiento se encuentra en pausa temporalmente mientras la plataforma opera en modo blockchain." };
+            }
 
             // === FRENO KYC FINTECH PARA EL TRABAJADOR (Web3 Single Source of Truth) ===
             // El Smart Contract exige que el beneficiario (Payee) tenga KYC verificado on-chain.
@@ -1788,7 +1833,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // Esto es más eficiente que hacer múltiples consultas a la base de datos.
             const query = `
             SELECT
-                p.id, p.title, p.description, p.blue_cost, p.base_blue_cost, p.status, p.created_at, p.is_paused,
+                p.id, p.title, p.description, p.blue_cost, p.base_blue_cost, p.status, p.created_at, p.is_paused, p.is_booster_task,
                 p.is_sell_post, p.available_slots, p.category, p.expires_at,
                 p.is_quick_sale, p.target_username, p.form_fields, p.show_preflight_modal,
                 p.goal_amount, p.current_amount, p.beneficiary_referral_code,
@@ -1840,8 +1885,22 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const publication = result.rows[0];
             publication.participants = publication.participants || []; // Asegurarse de que sea un array
 
-            const settingsRes = await client.query(`SELECT setting_value FROM app_settings WHERE setting_key = 'pre_launch_mode_enabled'`);
-            const preLaunchMode = settingsRes.rows[0]?.setting_value === 'true';
+            const settingsRes = await client.query(`SELECT setting_key, setting_value FROM app_settings WHERE setting_key IN ('pre_launch_mode_enabled', 'platform_username')`);
+            const settingsMap = settingsRes.rows.reduce((acc, row) => ({ ...acc, [row.setting_key]: row.setting_value }), {});
+            const preLaunchMode = settingsMap.pre_launch_mode_enabled === 'true';
+            const platformUser = (settingsMap.platform_username || process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin').toLowerCase();
+
+            // REGLA PROTOCOLAR FINTECH:
+            // Si el modo pre-lanzamiento está DESACTIVADO (modo normal Web3 / Blockchain):
+            // Las publicaciones de la plataforma que no sean tareas de impulsor (is_booster_task = false)
+            // se consideran pausadas dinámicamente.
+            const authorLower = (publication.author_username || '').toLowerCase();
+            const isPlatformPub = authorLower === platformUser || authorLower === 'plataforma' || authorLower === 'wintoncoin' || authorLower === 'plataforma wintoncoin';
+            if (!preLaunchMode && isPlatformPub && !publication.is_booster_task) {
+                publication.is_paused = true;
+                publication.status = 'paused';
+                publication.pause_reason = 'prelaunch_disabled';
+            }
 
             // --- Multiplicador dinámico vigente ---
             const boosterService = require('../services/boosterService');

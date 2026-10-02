@@ -534,6 +534,7 @@ export default function Dashboard() {
         <QuickActions
           onOpenCreatePublication={() => setPublicationTypeModalOpen(true)}
           onOpenQuickSale={() => setQuickSaleModalOpen(true)}
+          isPreLaunch={isPreLaunch}
         />
 
         {/* 5. Feed de Publicaciones del Marketplace (publications-section legacy) */}
@@ -576,6 +577,7 @@ export default function Dashboard() {
         isOpen={quickSaleModalOpen}
         onClose={() => setQuickSaleModalOpen(false)}
         username={username}
+        isPreLaunch={isPreLaunch}
       />
 
       {/* 12. Modal Historial de Causas Solidarias Propias */}

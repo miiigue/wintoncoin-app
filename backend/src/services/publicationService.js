@@ -219,17 +219,18 @@ async function processRequestPayment(client, acceptance, pubId, preLaunchMode, s
     // procesamos de forma virtual off-chain mediante el Libro de Impulsores (booster_blue_ledger).
     const isBoosterTx = preLaunchMode || !!acceptance.is_booster_task;
 
-    // AUDITORÍA FINTECH: Resguardo de seguridad para publicaciones sin snapshot congelado en BD (donde blue_cost == base_blue_cost).
-    // El multiplicador de etapa solo se aplica si la transacción califica como Tarea de Impulsor / Pre-lanzamiento (isBoosterTx = true).
-    if (cost > 0 && baseCost > 0 && cost === baseCost) {
-        if (isBoosterTx) {
-            const boosterService = require('./boosterService');
-            const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
-            const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
-            cost = baseCost * activeMultiplier;
-        } else {
-            cost = baseCost;
-        }
+    // AUDITORÍA FINTECH & ZERO-TRUST:
+    // Las tareas de impulsor o en pre-lanzamiento (isBoosterTx = true) liquidan dinámicamente según la etapa activa vigente.
+    // Si el multiplicador cambia, la liquidación se actualiza de inmediato sin mantener valores congelados anteriores.
+    if (isBoosterTx) {
+        const effectiveBase = (baseCost > 0) ? baseCost : cost;
+        const boosterService = require('./boosterService');
+        const currentMultiplierInfo = await boosterService.calculateMultipliedAmount(1);
+        const activeMultiplier = parseFloat(currentMultiplierInfo.multiplier || 1.0);
+        // Redondeo bancario estricto a 4 decimales para eliminar artefactos de coma flotante binaria
+        cost = parseFloat((effectiveBase * activeMultiplier).toFixed(4));
+    } else {
+        cost = parseFloat(((baseCost > 0) ? baseCost : cost).toFixed(4));
     }
 
     if (isBoosterTx) {

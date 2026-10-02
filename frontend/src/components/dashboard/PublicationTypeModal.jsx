@@ -52,7 +52,7 @@ export default function PublicationTypeModal({
           // mostrar primero el modal de aviso de pre-lanzamiento como en el legacy
           const currentNormalized = (username || localStorage.getItem('username') || '').toLowerCase();
           const platformNormalized = (data.platform_username || 'wintoncoin').toLowerCase();
-          const isPlatform = currentNormalized === platformNormalized || currentNormalized === 'plataforma';
+          const isPlatform = currentNormalized === platformNormalized || currentNormalized === 'plataforma' || currentNormalized === 'plataforma wintoncoin';
 
           if (data.pre_launch_mode_enabled && !isPlatform) {
             setShowPrelaunchNotice(true);
@@ -73,20 +73,19 @@ export default function PublicationTypeModal({
   // Lógica de permisos de publicación según rol y fase
   const currentNormalized = (username || localStorage.getItem('username') || '').toLowerCase();
   const platformNormalized = (platformSettings.platform_username || 'wintoncoin').toLowerCase();
-  const isPlatformUser = currentNormalized === platformNormalized || currentNormalized === 'plataforma';
+  const isPlatformUser = currentNormalized === platformNormalized || currentNormalized === 'plataforma' || currentNormalized === 'plataforma wintoncoin';
   const isPreLaunch = platformSettings.pre_launch_mode_enabled === true;
 
   const allowRequest = isPreLaunch ? isPlatformUser : platformSettings.allow_request_publications !== false;
   const allowSell = isPreLaunch ? isPlatformUser : platformSettings.allow_sell_publications !== false;
-  const allowDonation = platformSettings.allow_donation_publications !== false;
+  const allowDonation = isPreLaunch ? isPlatformUser : platformSettings.allow_donation_publications !== false;
 
   const handleSelectType = (type) => {
-    onClose();
-    if (type === 'donation' && isPreLaunch) {
-      window.location.href = 'solicitud-solidaria.html';
-    } else {
-      window.location.href = `publish.html?type=${type}`;
+    if (isPreLaunch && !isPlatformUser) {
+      return;
     }
+    onClose();
+    window.location.href = `publish.html?type=${type}`;
   };
 
   return (
@@ -106,18 +105,21 @@ export default function PublicationTypeModal({
             <h3 className="prelaunch-modal-title">Fase de Desarrollo</h3>
             <div className="prelaunch-modal-text">
               <p>
-                Durante la <strong>fase de pre-lanzamiento</strong>, las publicaciones de usuarios están
-                deshabilitadas.
+                Durante la <strong>fase de pre-lanzamiento</strong>, la creación de publicaciones por parte de los usuarios está
+                completamente deshabilitada.
               </p>
               <p>
-                Solo tareas de la plataforma con fines educativos, promocion, desarrollo y pruebas.
+                Solo la cuenta oficial de la plataforma puede publicar tareas con fines educativos, de promoción y pruebas del protocolo.
               </p>
             </div>
             <button
               type="button"
               className="prelaunch-modal-btn"
               id="createPostPrelaunchAccept"
-              onClick={() => setShowPrelaunchNotice(false)}
+              onClick={() => {
+                setShowPrelaunchNotice(false);
+                onClose();
+              }}
             >
               Entendido
             </button>

@@ -270,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Asumir 'wintoncoin' o el que venga en settings, si no hay settings.platform_username, usar un valor seguro.
                 const platformUser = (settings.platform_username || 'wintoncoin').toLowerCase();
 
-                const isPlatform = currentUser && (currentUser.toLowerCase() === platformUser || currentUser.toLowerCase() === 'plataforma');
+                const isPlatform = currentUser && (currentUser.toLowerCase() === platformUser || currentUser.toLowerCase() === 'plataforma' || currentUser.toLowerCase() === 'plataforma wintoncoin');
 
                 if (!isPlatform && submitButton) {
                     submitButton.disabled = true;

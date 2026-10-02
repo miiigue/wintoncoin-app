@@ -13,6 +13,34 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-01 — Blindaje Integral de Publicaciones en Modo Pre-Lanzamiento, Dinamismo de Multiplicador y Pausa Dinámica en Transición a Blockchain (Hallazgos 2, 4, 5 y 6 + Regla Protocolar de Transición)
+* **Diagnóstico y Reglas de Negocio en Pre-Lanzamiento**:
+  - *Hallazgo 2 (Venta Rápida Prohibida)*: Se identificó que el endpoint de backend `POST /api/quick-sale` no validaba la bandera de configuración `pre_launch_mode_enabled`. Asimismo, en la interfaz React (`Dashboard.jsx`), los usuarios tenían visible el botón de acción rápida y el modal de creación de venta rápida. Durante el pre-lanzamiento la venta rápida debe estar completamente inhabilitada.
+  - *Hallazgo 4 (Multiplicador Dinámico sin Congelamiento)*: En pre-lanzamiento, todas las publicaciones activas son misiones de la plataforma. Previamente, `adminPublicationsController.js` calculaba y guardaba el costo multiplicado de forma estática en `blue_cost` al momento de la creación. Al avanzar o descender de etapa en el multiplicador (por ejemplo, de 10x a 9x u 8x), la publicación conservaba el snapshot viejo, generando inconsistencias contables respecto al multiplicador en vivo.
+  - *Hallazgos 5 y 6 (Restricción Universal y Solvencia en /publish)*: En pre-lanzamiento nadie más que la plataforma oficial puede publicar tareas, causas o ventas. Anteriormente, la verificación de pre-lanzamiento en `/publish` permitía publicaciones de tipo donación/causa a cualquier usuario. Además, el cálculo de scoring crediticio y capacidad de amortización de compromiso RED evaluaba a la plataforma como si fuera un usuario comercial estándar, pudiendo bloquear operaciones legítimas de la plataforma.
+  - *Regla Protocolar de Transición a Blockchain*: En pre-lanzamiento se entregan tokens BLUE IOU virtuales multiplicados; al desactivar el pre-lanzamiento, la plataforma opera en la Blockchain Web3 con tokens BLUE reales. Por consiguiente, las publicaciones de la plataforma sin `is_booster_task = TRUE` deben ocultarse del catálogo y quedar en pausa temporalmente, reactivándose solo si se vuelve a encender el pre-lanzamiento. Aquellas con `is_booster_task = TRUE` permanecen vigentes y activas.
+* **Implementación de Soluciones y Arquitectura FinTech**:
+  - *Bloqueo Estricto de Venta Rápida (`publicationController.js`, `QuickActions.jsx`, `QuickSaleModal.jsx`, `Dashboard.jsx`)*:
+    - En backend, `POST /api/quick-sale` consulta de forma transaccional `pre_launch_mode_enabled` en `app_settings` antes de procesar la solicitud; si está activo, devuelve inmediatamente `403 Forbidden` (`La creación de Ventas Rápidas está desactivada durante la fase de pre-lanzamiento.`).
+    - En React, `Dashboard.jsx` propaga la propiedad `isPreLaunch` a `QuickActions.jsx` (ocultando el botón "⚡ Venta Rápida") y a `QuickSaleModal.jsx` (abortando el submit con alerta explicativa si se intenta forzar la apertura).
+  - *Actualización Inmediata y Dinamismo de Multiplicador (`adminPublicationsController.js` & `publicationService.js`)*:
+    - En el controlador administrativo, tanto `createPlatformPublication` como `updatePlatformPublication` almacenan el costo base nominal sin multiplicar en `blue_cost` y `base_blue_cost`.
+    - En `publicationService.js` (`processRequestPayment`), para publicaciones de impulsor o en pre-lanzamiento, el monto acreditado al colaborador se computa en tiempo real consultando la etapa activa en `boosterService.calculateMultipliedAmount()` sobre el costo base (`effectiveBase * activeMultiplier`), garantizando el principio de transparencia de precios (*Truth-in-Pricing*) sin retener snapshots obsoletos.
+  - *Restricción Universal y Bypass de Scoring para Plataforma (`publicationController.js`, `PublicationTypeModal.jsx`, `publish.js`)*:
+    - En `POST /publish`, se extrae `platform_username` de `app_settings` y de las variables de entorno. Si `isPreLaunch === true` y el autor no es la cuenta oficial de la plataforma, se rechaza de forma universal (incluyendo donaciones) con `403 Forbidden`.
+    - Cuando `isPreLaunch === true`, se omite la validación de scoring crediticio de usuario (`calculateUserScore`), asegurando que las misiones de la plataforma se creen sin restricciones indebidas de compromiso RED.
+    - En React, `PublicationTypeModal.jsx` bloquea la selección de causas/donaciones para usuarios no autorizados durante el pre-lanzamiento y el modal informativo permite cerrar la notificación limpiamente.
+  - *Ocultamiento y Pausa Dinámica en Transición a Blockchain (`publicationController.js`)*:
+    - En `GET /publications/active`, si `pre_launch_mode_enabled === 'false'`, se inyecta en SQL la cláusula parametrizada `AND NOT (LOWER(u.username) IN ($X, 'plataforma', 'wintoncoin', 'plataforma wintoncoin') AND p.is_booster_task = FALSE)` y se refuerza con filtro en memoria defensivo, ocultando de la vista activa las tareas de plataforma sin `is_booster_task`.
+    - En `GET /api/publications/:id`, se seleccionó `p.is_booster_task` y, al consultar una publicación de plataforma sin `is_booster_task` con pre-lanzamiento apagado, se serializa como `is_paused = true, status = 'paused', pause_reason = 'prelaunch_disabled'`.
+    - En `POST /publications/:id/accept`, se rechaza con HTTP 400 cualquier intento de aceptación de dichas tareas mientras la plataforma opere en modo blockchain.
+* **Verificación y Pruebas Unitarias**:
+  - Creación y ejecución de la suite automatizada `backend/__tests__/prelaunchPublicationRules.test.js` (5/5 pruebas aprobadas): validación del recálculo dinámico en `processRequestPayment`, rechazo `403` en `POST /api/quick-sale`, rechazo `403` a usuarios regulares en `POST /publish`, exclusión del feed activo para tareas de plataforma sin booster en modo normal y rechazo HTTP 400 en aceptación de tareas pausadas por fase.
+  - Re-verificación de la suite de liquidación de pagos `backend/__tests__/publicationPayment.test.js` (2/2 pruebas aprobadas).
+  - Blindaje transaccional en `POST /api/quick-sale`: prevención de fugas de conexión en PostgreSQL (`pool leak`) garantizando liberación en `finally` y manejo defensivo de `ROLLBACK`.
+  - Precisión bancaria FinTech a 4 decimales (`parseFloat(...toFixed(4))`) aplicada tanto en `calculatePublicationEffectiveCost` como en `processRequestPayment`, erradicando imprecisiones de punto flotante en la masa de tokens BLUE IOU.
+  - Cero dependencias rotas, compilación limpia en Vite PWA (`npm run build:demo`), estricta adhesión al estándar Zero-Trust y preservación del término canónico "compromiso RED".
+
 ### 2026-09-30 — Verificación On-Chain de la Suite V4, Corrección de Entornos en chainDeployment y Gobernanza por Billetera Propietaria (CODEX-087, CODEX-088 / ANTIGRAVITY-058)
 * **Auditoría del Relevo Operativo y Defectos Detectados**:
   - Se auditó el commit `b72c83b` que introduce el nuevo manifiesto de Optimism Sepolia (`deployment-manifest-v4.json`) y el esquema de administración por billetera propietaria en el navegador (`ownerWalletAdministration.js`).
@@ -7587,3 +7615,29 @@ pm run build:demo) exitosamente.
   - **Garantía de Calidad y Pruebas Automatizadas**:
     - Actualizadas las suites volunteerSystem.test.js y sosRegistrationFlow.test.js.
     - 11 de 11 suites de pruebas automatizadas pasando al 100% (73/73 tests unitarios y de integración aprobados).
+
+### 2026-10-01 - Ciberseguridad & SOC 2: Segregación de Billetera de Gas Sponsor y Navegación React en Panel Web3
+- **Segregación Criptográfica de Funciones (SOC 2 / Zero-Trust)**:
+  - Se creó el script auditado web3-contracts/scripts/setup-gas-sponsor.js para generar y fondear de forma autónoma una billetera dedicada exclusivamente al patrocinio de transacciones (GAS_SPONSOR_PRIVATE_KEY).
+  - Se transfirieron 0.005 ETH desde la billetera del Relayer hacia la nueva dirección del patrocinador (0x0DDB22A7D580be1964Ec464c331E75711ffa3084) en Optimism Sepolia (Tx Hash: 0xee89ddf425389ae8082796d2106bfb2d8c6fa62a187cfc81cc377011c53ef57d).
+  - Separación física e inmutable entre la clave del procesador de pagos comerciales y la clave que dispensa gas a los usuarios, garantizando que el compromiso de una clave no vulnere los fondos ni las operaciones de la otra.
+- **UX/UI & Navegación Administrativa (React SPA)**:
+  - Se incorporó en frontend/src/pages/AdminWeb3Panel.jsx el enlace superior interactivo '⬅ Volver al Panel General' apuntando a /admin-panel.html con soporte responsivo y alineación con la barra de navegación.
+  - Verificación de compilación de producción con Vite (npm run build:demo generó 167 assets en frontend/dist-demo/).
+- **Análisis de Cumplimiento Normativo FinTech (No Retroactividad y Derechos Adquiridos)**:
+  - Evaluación de impacto sobre políticas de límite de compromiso RED: las reducciones globales aplican a nuevos cohortes de usuarios (Scoring — Límite Base RED (Nuevos Usuarios)).
+  - Usuarios existentes con límites consolidados o autorizados quedan protegidos mediante la bandera de excepción individual red_credit_limit_override, previniendo suspensiones indebidas de capacidad conforme a normativas de protección al consumidor financiero.
+
+### 2026-10-01 - FinTech Compliance & Escalabilidad a 1M Usuarios: Regla Trinquete y Reintentos Exponenciales
+- **Principio de Derechos Adquiridos / Piso Trinquete (High-Water Mark) en Scoring RED**:
+  - Modificado `creditScoringService.js` para implementar la regla bancaria de no-regresión: el límite de compromiso RED alcanzado por mérito, tareas o bonos de KYC opera como un piso inmutable (`targetScore = Math.max(currentOnChain, calculatedScore)`).
+  - Las reducciones de la variable administrativa `red_credit_base_limit` aplican única y exclusivamente como piso inicial para nuevos usuarios registrados post-cambio.
+  - Los usuarios existentes nunca ven degradado su límite ganado, previniendo bloqueos injustos de capacidad operativa conforme a regulaciones de protección al consumidor financiero (CFPB / Directiva de Crédito al Consumo).
+- **Escalabilidad a 1 Millón de Usuarios (Motor Autónomo de Reintentos con Exponential Backoff)**:
+  - Creada la **Migración 119 (`119_credit_policy_exponential_backoff.js`)** para dotar a `credit_policy_issues` de campos de tolerancia a fallos (`retry_count`, `next_retry_at`, `max_retries`, `last_error`) e índices optimizados.
+  - Reestructurado `creditPolicyJobs.js` para ejecutar reintentos automáticos continuos en segundo plano con intervalos exponenciales con jitter (15s, 30s, 60s, 120s, 300s).
+  - Eliminada la dependencia de intervención humana o clics manuales del administrador ante fluctuaciones ordinarias de la red blockchain (Optimism Sepolia).
+  - Implementado el estándar de **Dead Letter Queue (DLQ)**: las incidencias solo se marcan como "requiere revisión" si se agotan 5 intentos consecutivos sin éxito.
+- **UX/UI & Transparencia en Panel de Control**:
+  - Actualizado `RecoveryStatus.jsx` para informar visualmente al administrador sobre reintentos autónomos en curso (`Reintento autónomo X/5 programado`), distinguiéndolos de excepciones críticas agotadas.
+  - Validación completa con suite automatizada (`web3Readiness.test.js` pasando 6/6 tests) y compilación Vite verificada (`npm run build:demo` exitosa).

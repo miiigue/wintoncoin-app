@@ -125,10 +125,25 @@ class CreditScoringService {
             if(outstanding.rowCount)return {pending:true,operationId:outstanding.rows[0].id};
             const override=(await client.query('SELECT red_credit_limit_override FROM users WHERE id=$1',[userId])).rows[0];
             if(override?.red_credit_limit_override!=null)return {skipped:true,reason:'individual_exception'};
-            const score=await this.calculateUserScore(userId,client);
-            const bridge=require('./web3BridgeService');
-            if(await bridge._getProtocol().creditLimits(wallet)===ethers.parseUnits(String(score),6))return {skipped:true,reason:'already_current'};
-            return bridge.setCreditLimit(wallet,score,{manual:false,alreadyLocked:true});
+            // 1. Calcular el score dinámico del usuario según las políticas y actividad
+            const score = await this.calculateUserScore(userId, client);
+            const bridge = require('./web3BridgeService');
+
+            // 2. Consultar el límite actual de compromiso RED registrado on-chain en el protocolo (BigInt 6 decimales)
+            const onChainUnits = await bridge._getProtocol().creditLimits(wallet);
+            const calculatedUnits = ethers.parseUnits(String(score), 6);
+
+            // 3. PRINCIPIO FINTECH DE TRINQUETE / DERECHOS ADQUIRIDOS (HIGH-WATER MARK):
+            // Siguiendo los estándares bancarios y de protección al consumidor financiero (CFPB / Directiva de Crédito),
+            // el límite de compromiso RED alcanzado por mérito, tareas o bonos de KYC nunca disminuye ante
+            // modificaciones de políticas globales administrativas (las cuales aplican exclusivamente como base
+            // para nuevos usuarios). Comparamos directamente en BigInt para eliminar cualquier riesgo de coma flotante.
+            if (calculatedUnits <= onChainUnits) {
+                return { skipped: true, reason: 'already_current' };
+            }
+
+            // 4. Si el score por mérito/actividad supera el actual on-chain, sincronizar el nuevo límite en el Smart Contract
+            return bridge.setCreditLimit(wallet, score, { manual: false, alreadyLocked: true });
         });
     }
 

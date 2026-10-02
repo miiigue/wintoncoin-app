@@ -17,6 +17,7 @@ export default function QuickSaleModal({
   isOpen,
   onClose,
   username = '',
+  isPreLaunch = false,
 }) {
   const [step, setStep] = useState('form'); // 'form' | 'qr'
   const [amount, setAmount] = useState('');
@@ -41,6 +42,12 @@ export default function QuickSaleModal({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (isPreLaunch) {
+      showCustomAlert('La creación de Ventas Rápidas está desactivada durante la fase de pre-lanzamiento.');
+      return;
+    }
+
     const cleanAmount = amount.replace(',', '.').trim();
     if (!cleanAmount || isNaN(cleanAmount) || parseFloat(cleanAmount) <= 0) {
       showCustomAlert('Por favor introduce un monto válido en tokens BLUE.');

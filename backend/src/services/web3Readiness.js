@@ -42,8 +42,8 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
     }catch{add('chain_unavailable','Lectura completa de contratos y permisos',false);}
     finally{rpc.destroy();}
     try{
-        const migrations=await pool.query("SELECT migration_name FROM schema_migrations WHERE migration_name IN ('114_wallet_pin_attempts.js','115_wallet_identity_credit_override.js','116_durable_chain_operations.js','117_payment_recovery_controls.js','118_chain_wallet_snapshots.js')");
-        add('migrations','Base de datos actualizada',migrations.rowCount===5);
+        const migrations=await pool.query("SELECT migration_name FROM schema_migrations WHERE migration_name IN ('114_wallet_pin_attempts.js','115_wallet_identity_credit_override.js','116_durable_chain_operations.js','117_payment_recovery_controls.js','118_chain_wallet_snapshots.js','119_credit_policy_exponential_backoff.js')");
+        add('migrations','Base de datos actualizada',migrations.rowCount===6);
         const duplicates=await pool.query('SELECT 1 FROM users WHERE web3_wallet_address IS NOT NULL GROUP BY LOWER(web3_wallet_address) HAVING COUNT(*)>1 LIMIT 1');
         add('identity','Una billetera por cuenta, sin duplicaciones',duplicates.rowCount===0);
         const settings=await pool.query("SELECT setting_key,setting_value FROM app_settings WHERE setting_key LIKE 'gas_sponsor_%'");

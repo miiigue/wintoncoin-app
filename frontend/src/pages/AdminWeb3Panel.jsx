@@ -333,6 +333,14 @@ export default function AdminWeb3Panel() {
         </div>
 
         <div className={styles.networkBadgeContainer}>
+          <a
+            href="/admin-panel.html"
+            className={styles.copyBtn}
+            style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '6px', color: '#38bdf8' }}
+            title="Volver al Panel Administrativo General"
+          >
+            ⬅ Volver al Panel General
+          </a>
           <div className={styles.networkBadge}>
             <span className={statusData?.parameters?.paused ? styles.pulseDotPaused : styles.pulseDot}></span>
             <span>{statusData?.network || 'Conectando red...'}</span>
