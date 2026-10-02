@@ -242,7 +242,7 @@ export default function Exchange() {
               </code>
             )}
           </div>
-          <span>Autorización mediante PIN</span>
+          <span>Autocustodia protegida</span>
         </div>
 
         {/* ALERTA DE KYC ON-CHAIN (SI NO ESTÁ VERIFICADO EN COREPROTOCOL) */}
@@ -453,7 +453,7 @@ export default function Exchange() {
               onClick={handleBuy}
             >
               {isSubmitting
-                ? 'Autorizando con PIN...'
+                ? 'Autorizando operación...'
                 : !connectedWallet
                 ? 'Verificando cuenta…'
                 : autoBurnRed
@@ -542,7 +542,7 @@ export default function Exchange() {
               onClick={handleSell}
             >
               {isSubmitting
-                ? 'Autorizando con PIN...'
+                ? 'Autorizando operación...'
                 : !connectedWallet
                 ? 'Verificando cuenta…'
                 : parsedAmount > userBlueAvailable

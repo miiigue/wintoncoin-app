@@ -13,6 +13,29 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-02 — Armonización Completa de Frase de Seguridad (4–6 Palabras), Desacoplamiento del Trinquete Crediticio para Mora RED y Robustecimiento Transaccional (CODEX-089, CODEX-090 / ANTIGRAVITY-060)
+* **Diagnóstico de Vulnerabilidades e Inconsistencias**:
+  - *Frase de Seguridad vs PIN Numérico Legado*: Se detectó una inconsistencia entre el backend (que adoptó el modelo de alta entropía con frase de seguridad de 4 a 6 palabras mediante PBKDF2 de 100,000 iteraciones + AES-256-GCM + Pepper de servidor) y los componentes frontend legados (`publish.js`, `publication-detail.js`, `OperationAuthorization.jsx`, `Wallet.jsx`, `Exchange.jsx`) que continuaban validando campos numéricos de 6 dígitos o mostrando etiquetas de "PIN". Dado que en el entorno Demo ningún usuario real tenía aún un PIN numérico configurado (confirmado por Miguel), se procedió a unificar toda la interfaz de usuario para trabajar exclusivamente con frases de seguridad mnemónicas en español.
+  - *Trinquete Financiero y Penalización por Mora RED*: En `creditScoringService.js`, una condición de guarda tipo *High-Water Mark* (`if (calculatedUnits <= onChainUnits) return { skipped: true }`) impedía que el protocolo redujera on-chain el límite de crédito RED ante incumplimientos o vencimientos de compromisos (halving por mora). Se clarificó la regla económica: el trinquete protege los límites adquiridos frente a recortes de políticas administrativas generales, pero **jamás debe bloquear las reducciones por riesgo crediticio o mora de compromisos RED**.
+* **Implementación de Soluciones y Arquitectura FinTech**:
+  - *Armonización Integral de Formularios e Interfaces Frontend (React SPA & Vanilla)*:
+    - En `Wallet.jsx`: Se actualizó el banner de alerta y el modal de configuración de credenciales de transacción para solicitar y validar frases mnemónicas de 4 a 6 palabras, despachando el payload unificado `{ pin: normalized, passphrase: normalized }`. Se purgaron todas las referencias visuales a "PIN" sustituyéndolas por "Frase Secreta de Autocustodia".
+    - En `Exchange.jsx`: Se reemplazaron los textos de botones y badges de "Autorizando con PIN..." por "Autorizando operación..." y "Autocustodia protegida".
+    - En `OperationAuthorization.jsx`: Se reemplazó el campo numérico con el input de frase mnemónica y su contador dinámico de palabras, validando que el botón de confirmación solo se habilite al cumplir entre 4 y 6 palabras filtradas (`filter(Boolean)`).
+    - En `publish.js` y `publication-detail.js`: Se adaptaron los modales de autorización de pagos del marketplace y formularios de publicación a la validación de 4–6 palabras.
+  - *Desacoplamiento del Trinquete y Detección de Mora On-Chain (`creditScoringService.js`)*:
+    - Se diseñó el método modular `computeEffectiveCreditLimit` implementando las 4 capas de gobernanza crediticia (Límite base por mérito, Límite histórico adquirido protegido por trinquete, Halving estricto del 50% acumulativo por mora protocolar y Piso mínimo de seguridad).
+    - En `syncCreditLimitOnChain()`, se integró la verificación de estado de mora on-chain (`protocol.isDelinquent(walletAddress)`) y cómputo de ciclos de mora (`userActiveLotHead`). Si el deudor está en mora, el trinquete permite la reducción del límite RED en el contrato inteligente sin abortar con `already_current`.
+  - *Manejo Dual en Backend (`walletService.js` & `userController.js`)*:
+    - Se mantuvo la aceptación retrocompatible tanto de `pin` como de `passphrase`, garantizando cero fricción de integración API y blindaje transaccional contra ataques de fuerza bruta (`pinAttemptsPool.js`).
+* **Verificación y Pruebas Unitarias**:
+  - `backend/__tests__/creditScoringRatchetHalving.test.js`: 6/6 pruebas aprobadas (trinquete ante recorte base 100->80, halving inmediato 100->50, halvings sucesivos 50->25, recorte administrativo durante mora y alzas orgánicas por mérito).
+  - `backend/__tests__/transactionPinSelfCustody.test.js`: 8/8 pruebas aprobadas (creación con frase, verificación, rotación, bloqueo preventivo tras 5 fallos y rechazo de frases inválidas).
+  - `verify_all_backend_imports.js`: 116/116 módulos cargados con 0 errores en tiempo de ejecución.
+  - `frontend/src/modules/tableSort.test.js`: 18/18 pruebas aprobadas.
+  - Compilación Vite PWA (`npm run build:demo`): 0 errores, 104 módulos empaquetados y 167 recursos precacheados en `dist-demo/`.
+  - Preservación del estándar Zero Hardcoded Secrets, principio Zero-Trust y uso estricto del término "compromiso RED".
+
 ### 2026-10-01 — Blindaje Integral de Publicaciones en Modo Pre-Lanzamiento, Dinamismo de Multiplicador y Pausa Dinámica en Transición a Blockchain (Hallazgos 2, 4, 5 y 6 + Regla Protocolar de Transición)
 * **Diagnóstico y Reglas de Negocio en Pre-Lanzamiento**:
   - *Hallazgo 2 (Venta Rápida Prohibida)*: Se identificó que el endpoint de backend `POST /api/quick-sale` no validaba la bandera de configuración `pre_launch_mode_enabled`. Asimismo, en la interfaz React (`Dashboard.jsx`), los usuarios tenían visible el botón de acción rápida y el modal de creación de venta rápida. Durante el pre-lanzamiento la venta rápida debe estar completamente inhabilitada.
@@ -7641,3 +7664,19 @@ pm run build:demo) exitosamente.
 - **UX/UI & Transparencia en Panel de Control**:
   - Actualizado `RecoveryStatus.jsx` para informar visualmente al administrador sobre reintentos autónomos en curso (`Reintento autónomo X/5 programado`), distinguiéndolos de excepciones críticas agotadas.
   - Validación completa con suite automatizada (`web3Readiness.test.js` pasando 6/6 tests) y compilación Vite verificada (`npm run build:demo` exitosa).
+
+### 2026-10-02 - FinTech & Ciberseguridad Bancaria: Fail-Closed en Scoring, Curación Gradual Post-Mora (Migración 120) y Aislamiento de Red V4
+- **Auditoría Bancaria y Fail-Closed (Zero-Trust) en Scoring Crediticio RED**:
+  - Erradicado el manejo laxo `catch(() => false)` en `creditScoringService.js`: ante cualquier timeout o fallo de lectura en `protocol.isDelinquent()`, el sistema aborta de inmediato con excepción `CHAIN_READ_FAILED` (HTTP 503) sin mutar límites on-chain ni en base de datos.
+  - Implementado el motor de cálculo de 5 capas `computeEffectiveCreditLimit`: mérito ganado, trinquete de derechos adquiridos ante bajas administrativas de base, halving del 50% por mora protocolar, recuperación gradual post-mora y piso mínimo legal.
+- **Implementación de la Migración 120 (`120_credit_recovery_post_mora.js`)**:
+  - Creación de la tabla inmutable de auditoría `user_credit_cure_logs` para registrar los eventos de curación total de compromisos RED vencidos.
+  - Incorporación en la tabla `users` de los campos $O(1)$ de seguimiento: `last_mora_cured_at`, `mora_penalty_base_limit` y `mora_target_limit`.
+  - Mecánica de Curación Gradual (Punto A / Whitepaper Canónico): Al saldar la mora, el límite no salta de golpe a 100; inicia en el límite castigado (Mes 0 = 50 RED) y recupera un 10% mensual (+10 RED cada 30 días continuos al día) hasta culminar en el límite objetivo pre-mora (Mes 5 = 100 RED). Si recae en mora durante la recuperación (ej. Mes 2 con 70 RED), sufre un nuevo halving inmediato (70 -> 35 RED).
+- **Armonización Ecosistémica de Frase Secreta de Autocustodia (4 a 6 Palabras)**:
+  - Armonizado el contrato de datos en frontend React (`Wallet.jsx`, `OperationAuthorization.jsx`) y Vanilla (`publish.js`, `publication-detail.js`) sustituyendo el PIN numérico de 6 dígitos por una frase mnemónica de 4 a 6 palabras con validación en tiempo real.
+  - Backend endurecido con PBKDF2 (100.000 iteraciones) + AES-256-GCM + server pepper y aislamiento de intentos fallidos en `pinAttemptsPool.js`.
+- **Suites de Pruebas Unitarias y de Integración**:
+  - `creditScoringRatchetHalving.test.js`: 15 pruebas cubriendo trinquete, halving por mora, fail-closed on-chain y los 5 escenarios de curación gradual post-mora.
+  - `creditPolicyJobs.test.js`: 5 pruebas certificando el motor de reintentos con retroceso exponencial, jitter, transición a DLQ (`dead_letter`) y rollback safety.
+  - `chainDeployment.test.js`: 5 pruebas certificando el aislamiento de red (rechazo de RPC localhost con chainId Demo 11155420) y verificación de enlaces cruzados y decimales de la suite V4.

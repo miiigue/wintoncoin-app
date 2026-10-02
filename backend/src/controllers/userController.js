@@ -980,9 +980,9 @@ const UserController = {
     },
 
     /**
-     * Configura o actualiza el PIN de seguridad de 6 dígitos para autocustodia de la billetera.
-     * Cifra la clave privada con AES-256-GCM y deriva la clave con PBKDF2 (100.000 iteraciones).
-     * Si ya existía un PIN previo, exige validación estricta de currentPin para prevenir secuestro de cuenta.
+     * Configura o actualiza la Frase Secreta de Autocustodia (4 a 6 palabras).
+     * Deriva la clave AES-256-GCM mediante PBKDF2 y HMAC Server Pepper.
+     * Si ya existía una frase previa, exige validación estricta de currentPassphrase para prevenir secuestro de cuenta.
      */
     setMyPin: async (req, res) => {
         const userId = req.user?.userId;
@@ -990,17 +990,24 @@ const UserController = {
             return res.status(401).json({ message: "No autenticado." });
         }
 
-        const { pin, currentPin } = req.body;
+        const passphrase = (req.body.passphrase || req.body.pin || '').trim();
+        const currentPassphrase = (req.body.currentPassphrase || req.body.currentPin || '').trim();
 
-        // Validación estricta de formato: exactamente 6 dígitos numéricos
-        if (!pin || typeof pin !== 'string' || !/^\d{6}$/.test(pin)) {
-            return res.status(400).json({ message: "El PIN debe tener exactamente 6 dígitos numéricos (0-9)." });
+        // Validación estricta de 4 a 6 palabras
+        const normalized = passphrase.normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+        const words = normalized.split(' ').filter(Boolean);
+        if (words.length < 4 || words.length > 6) {
+            return res.status(400).json({
+                message: "La frase de seguridad debe contener entre 4 y 6 palabras (ej: escucho musica cuando tengo mucha hambre)."
+            });
         }
-
-        // Prevención de PINs triviales inseguros (000000, 123456, etc.)
-        const insecurePins = ['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '123456', '654321'];
-        if (insecurePins.includes(pin)) {
-            return res.status(400).json({ message: "Por seguridad, no utilices secuencias obvias o dígitos repetidos como PIN." });
+        for (const w of words) {
+            if (w.length < 2) {
+                return res.status(400).json({ message: "Cada palabra de la frase debe tener al menos 2 letras." });
+            }
+        }
+        if (new Set(words).size < 3) {
+            return res.status(400).json({ message: "Por seguridad, no repitas la misma palabra en tu frase." });
         }
 
         const client = await pool.connect();
@@ -1008,33 +1015,34 @@ const UserController = {
             await client.query('BEGIN');
             const walletService = require('../services/walletService');
 
-            // 1. Verificar si el usuario ya cuenta con un PIN configurado
+            // 1. Verificar si el usuario ya cuenta con una frase configurada
             const status = await walletService.getPinStatus(client, userId);
             const isUpdate = status.hasPin;
 
             if (isUpdate) {
-                if (!currentPin) {
+                if (!currentPassphrase) {
                     await client.query('ROLLBACK');
-                    return res.status(400).json({ message: "Debes ingresar tu PIN actual para poder cambiarlo." });
+                    return res.status(400).json({ message: "Debes ingresar tu frase de seguridad actual para poder cambiarla." });
                 }
-                const verification = await walletService.verifyTransactionPin(client, userId, currentPin);
+                const verification = await walletService.verifyTransactionPin(client, userId, currentPassphrase);
                 if (!verification.valid) {
                     await client.query('COMMIT'); // Persistir incremento de intentos fallidos
                     return res.status(401).json({ message: verification.error });
                 }
             }
 
-            // 2. Ejecutar configuración de PIN y cifrado AES-256-GCM con salt aleatorio
-            await walletService.setupTransactionPin(client, userId, pin, currentPin);
+            // 2. Ejecutar configuración de Frase y cifrado AES-256-GCM con salt aleatorio
+            await walletService.setupTransactionPin(client, userId, normalized, currentPassphrase || null);
 
             // 3. Auditoría Bancaria
             await logAuditEvent(client, req, {
-                eventType: isUpdate ? 'security.pin.updated' : 'security.pin.configured',
+                eventType: isUpdate ? 'security.passphrase.updated' : 'security.passphrase.configured',
                 actorUsername: req.user?.username || `user_${userId}`,
                 targetUsername: req.user?.username || `user_${userId}`,
                 metadata: {
                     isUpdate,
-                    securityStandard: 'PBKDF2_AES_256_GCM',
+                    securityStandard: 'PBKDF2_AES_256_GCM_PASSPHRASE',
+                    wordCount: words.length,
                     timestamp: new Date().toISOString()
                 }
             });
@@ -1044,21 +1052,21 @@ const UserController = {
             return res.status(200).json({
                 success: true,
                 message: isUpdate 
-                    ? "Tu PIN de seguridad ha sido actualizado con éxito."
-                    : "PIN de seguridad configurado exitosamente. Tu billetera está protegida con PIN."
+                    ? "Tu Frase de Seguridad ha sido actualizada con éxito."
+                    : "Frase de Seguridad configurada exitosamente. Tu billetera está en autocustodia protegida."
             });
         } catch (err) {
             await client.query('ROLLBACK');
-            console.error("Error al configurar PIN de seguridad:", err);
-            return res.status(err.status || 500).json({ message: err.status ? err.message : "No se pudo configurar el PIN." });
+            console.error("Error al configurar Frase de Seguridad:", err);
+            return res.status(err.status || 500).json({ message: err.status ? err.message : "No se pudo configurar la frase de seguridad." });
         } finally {
             client.release();
         }
     },
 
     /**
-     * Valida de forma segura el PIN de 6 dígitos antes de una operación crítica.
-     * Implementa protección contra fuerza bruta con bloqueo exponencial.
+     * Valida de forma segura la Frase Secreta de Autocustodia antes de una operación crítica.
+     * Implementa protección contra fuerza bruta con bloqueo exponencial tras 5 intentos.
      */
     verifyMyPin: async (req, res) => {
         const userId = req.user?.userId;
@@ -1066,27 +1074,29 @@ const UserController = {
             return res.status(401).json({ message: "No autenticado." });
         }
 
-        const { pin } = req.body;
-        if (!pin || typeof pin !== 'string' || !/^\d{6}$/.test(pin)) {
-            return res.status(400).json({ message: "El PIN debe tener exactamente 6 dígitos numéricos." });
+        const passphrase = (req.body.passphrase || req.body.pin || '').trim();
+        const normalized = passphrase.normalize('NFC').toLowerCase().replace(/\s+/g, ' ');
+        const words = normalized.split(' ').filter(Boolean);
+        if (words.length < 4 || words.length > 6) {
+            return res.status(400).json({ message: "La frase de seguridad debe contener entre 4 y 6 palabras." });
         }
 
         const client = await pool.connect();
         try {
             await client.query('BEGIN');
             const walletService = require('../services/walletService');
-            const verification = await walletService.verifyTransactionPin(client, userId, pin);
+            const verification = await walletService.verifyTransactionPin(client, userId, normalized);
             await client.query('COMMIT');
 
             if (!verification.valid) {
                 return res.status(401).json({ valid: false, message: verification.error });
             }
 
-            return res.status(200).json({ valid: true, message: "PIN validado correctamente." });
+            return res.status(200).json({ valid: true, message: "Frase de seguridad validada correctamente." });
         } catch (err) {
             await client.query('ROLLBACK');
-            console.error("Error al validar PIN:", err);
-            return res.status(err.status || 500).json({ message: err.status ? err.message : "No se pudo verificar el PIN." });
+            console.error("Error al validar Frase de Seguridad:", err);
+            return res.status(err.status || 500).json({ message: err.status ? err.message : "No se pudo verificar la frase de seguridad." });
         } finally {
             client.release();
         }

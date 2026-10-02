@@ -140,23 +140,35 @@ function Wallet() {
     }
   };
 
-  // Manejo de la configuración del PIN de Billetera protegida (6 dígitos)
+  // Manejo de la configuración de la Frase Secreta de Seguridad (4 a 6 palabras)
   const handleSetupPin = async (e) => {
     e.preventDefault();
     setPinError(null);
-    if (!newPin || !/^\d{6}$/.test(newPin)) {
-      setPinError('El PIN debe tener exactamente 6 dígitos numéricos.');
+    const phrase = (newPin || '').normalize('NFC').trim();
+    const confirmPhrase = (confirmPin || '').normalize('NFC').trim();
+    const normalized = phrase.toLowerCase().replace(/\s+/g, ' ');
+    const normalizedConfirm = confirmPhrase.toLowerCase().replace(/\s+/g, ' ');
+    const words = normalized.split(' ').filter(Boolean);
+
+    if (words.length < 4 || words.length > 6) {
+      setPinError('La frase de seguridad debe contener entre 4 y 6 palabras.');
       return;
     }
-    if (newPin !== confirmPin) {
-      setPinError('Las claves no coinciden.');
+    for (const w of words) {
+      if (w.length < 2) {
+        setPinError('Cada palabra de la frase debe tener al menos 2 letras.');
+        return;
+      }
+    }
+    if (new Set(words).size < 3) {
+      setPinError('Por tu seguridad, no repitas la misma palabra en tu frase.');
       return;
     }
-    const insecure = ['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '123456', '654321'];
-    if (insecure.includes(newPin)) {
-      setPinError('Por seguridad, no uses secuencias obvias o dígitos repetidos.');
+    if (normalized !== normalizedConfirm) {
+      setPinError('Las dos frases ingresadas no coinciden.');
       return;
     }
+
     try {
       setLoading(true);
       const token = localStorage.getItem('token');
@@ -167,19 +179,19 @@ function Wallet() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ pin: newPin })
+        body: JSON.stringify({ pin: normalized, passphrase: normalized })
       });
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.message || 'Error al configurar el PIN');
+        throw new Error(data.message || 'Error al configurar la frase de seguridad');
       }
       setHasPin(true);
       setModalType(null);
       setNewPin('');
       setConfirmPin('');
-      showToast('🛡️ PIN configurado. Tu dirección de billetera se mantiene.');
+      showToast('🛡️ Frase de seguridad configurada. Tu billetera está protegida.');
     } catch (err) {
-      setPinError(err.message || 'Error al guardar la Clave de Seguridad.');
+      setPinError(err.message || 'Error al guardar la Frase de Seguridad.');
     } finally {
       setLoading(false);
     }
@@ -246,7 +258,7 @@ function Wallet() {
           </div>
         )}
 
-        {/* ALERTA DE AUTOCUSTODIA (PIN DE 6 DÍGITOS NO CONFIGURADO) */}
+        {/* ALERTA DE AUTOCUSTODIA (FRASE SECRETA NO CONFIGURADA) */}
         {!hasPin && (
           <div style={{
             background: 'linear-gradient(90deg, rgba(2, 132, 199, 0.15), rgba(37, 99, 235, 0.15))',
@@ -263,8 +275,8 @@ function Wallet() {
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <span style={{ fontSize: '1.4rem' }}>🛡️</span>
               <div>
-                <strong style={{ color: '#38bdf8', fontSize: '0.95rem' }}>Protege tus pagos con un PIN:</strong>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Configura tu Clave de Seguridad de 6 dígitos para autorizar pagos y operaciones.</p>
+                <strong style={{ color: '#38bdf8', fontSize: '0.95rem' }}>Protege tus pagos con tu Frase Secreta:</strong>
+                <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>Configura tu Frase Secreta de 4 a 6 palabras para autorizar pagos y operaciones de autocustodia.</p>
               </div>
             </div>
             <button
@@ -282,7 +294,7 @@ function Wallet() {
                 boxShadow: '0 4px 12px rgba(2, 132, 199, 0.3)'
               }}
             >
-              Configurar Clave 🔐
+              Configurar Frase 🔐
             </button>
           </div>
         )}
@@ -562,7 +574,7 @@ function Wallet() {
                 Cancelar
               </button>
               <button className={styles.btnRouteA} onClick={handleRepayRouteA} disabled={loading}>
-                {loading ? 'Autorizando con PIN...' : 'Confirmar en 1 Toque On-Chain'}
+                {loading ? 'Autorizando operación...' : 'Confirmar en 1 Toque On-Chain'}
               </button>
             </div>
           </div>
@@ -594,7 +606,7 @@ function Wallet() {
                 Cancelar
               </button>
               <button className={styles.btnSuccess} onClick={handleWithdrawUsdt} disabled={loading}>
-                {loading ? 'Autorizando con PIN...' : 'Retirar USDT On-Chain'}
+                {loading ? 'Autorizando operación...' : 'Retirar USDT On-Chain'}
               </button>
             </div>
           </div>
@@ -633,48 +645,53 @@ function Wallet() {
         </div>
       )}
 
-      {/* MODAL DE CONFIGURACIÓN DE PIN DE AUTOCUSTODIA (REACT) */}
+      {/* MODAL DE CONFIGURACIÓN DE FRASE DE SEGURIDAD DE AUTOCUSTODIA (REACT) */}
       {modalType === 'setupPin' && (
         <div className={styles.modalOverlay}>
-          <div className={styles.modalContent} style={{ maxWidth: '440px' }}>
+          <div className={styles.modalContent} style={{ maxWidth: '480px' }}>
             <h3 className={styles.modalTitle} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>🛡️</span> Configurar Clave de Seguridad
+              <span>🛡️</span> Frase Secreta de Autocustodia
             </h3>
             <p className={styles.modalDesc}>
-              Esta clave de 6 dígitos protegerá tu billetera en modo billetera protegida. Solo tú podrás autorizar pagos y movimientos.
+              Elige una frase de <strong>4 a 6 palabras</strong> fáciles de recordar para ti. Esta frase protegerá tu billetera en modo autocustodia para autorizar pagos y movimientos.
             </p>
             <div style={{ background: 'rgba(239, 68, 68, 0.1)', borderLeft: '3px solid #ef4444', padding: '10px 12px', borderRadius: '6px', marginBottom: '16px', fontSize: '0.85rem', color: '#fca5a5' }}>
-              ⚠️ <strong>Es muy importante que la recuerdes:</strong> WintonCoin no almacena tu clave en texto plano.
+              ⚠️ <strong>Es muy importante que la recuerdes:</strong> WintonCoin no almacena tu frase en texto plano.
             </div>
             <form onSubmit={handleSetupPin}>
               <div className={styles.inputGroup}>
-                <label className={styles.inputLabel}>Crea tu PIN (6 dígitos):</label>
+                <label className={styles.inputLabel}>Crea tu Frase Secreta (4 a 6 palabras):</label>
                 <input
-                  type="password"
-                  maxLength={6}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
+                  type="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
                   className={styles.textInput}
                   value={newPin}
                   onChange={(e) => setNewPin(e.target.value)}
-                  placeholder="••••••"
-                  style={{ textAlign: 'center', fontSize: '1.4rem', letterSpacing: '8px' }}
+                  placeholder="ej: escucho musica cuando tengo mucha hambre"
+                  style={{ fontSize: '0.98rem' }}
                   autoFocus
                   required
                 />
+                <small style={{ display: 'block', color: '#94a3b8', fontSize: '0.78rem', marginTop: '4px' }}>
+                  Usa palabras cotidianas sencillas separadas por espacios.
+                </small>
               </div>
               <div className={styles.inputGroup}>
-                <label className={styles.inputLabel}>Confirma tu PIN (6 dígitos):</label>
+                <label className={styles.inputLabel}>Confirma tu Frase Secreta:</label>
                 <input
-                  type="password"
-                  maxLength={6}
-                  inputMode="numeric"
-                  pattern="[0-9]*"
+                  type="text"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
                   className={styles.textInput}
                   value={confirmPin}
                   onChange={(e) => setConfirmPin(e.target.value)}
-                  placeholder="••••••"
-                  style={{ textAlign: 'center', fontSize: '1.4rem', letterSpacing: '8px' }}
+                  placeholder="ej: escucho musica cuando tengo mucha hambre"
+                  style={{ fontSize: '0.98rem' }}
                   required
                 />
               </div>
@@ -688,7 +705,7 @@ function Wallet() {
                   Cancelar
                 </button>
                 <button type="submit" className={styles.btnSuccess} disabled={loading}>
-                  {loading ? 'Configurando...' : 'Guardar Clave'}
+                  {loading ? 'Configurando...' : 'Guardar Frase Secreta'}
                 </button>
               </div>
             </form>

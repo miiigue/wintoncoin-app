@@ -277,4 +277,4 @@ async function tick(pool, scoreService) {
     });
 }
 
-module.exports = { savePolicy, tick, retryIssue };
+module.exports = { savePolicy, tick, retryIssue, recordIssue };

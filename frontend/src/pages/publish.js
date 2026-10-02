@@ -566,9 +566,175 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Form submission ---
+    // --- Pre-Flight Autocustodia: Verificación y Modal de PIN ---
+    let pendingPublishCallback = null;
+    let currentUserHasPin = undefined;
+    const setupPinModal = document.getElementById('setupPinModal');
+    const closeSetupPinModalBtn = document.getElementById('closeSetupPinModalBtn');
+    const setupPinCancelBtn = document.getElementById('setupPinCancelBtn');
+    const setupPinForm = document.getElementById('setupPinForm');
+    const newPinInput = document.getElementById('newPinInput');
+    const confirmPinInput = document.getElementById('confirmPinInput');
+    const setupPinStatusNotice = document.getElementById('setupPinStatusNotice');
+    const setupPinSubmitBtn = document.getElementById('setupPinSubmitBtn');
+
+    function openSetupPinModal(onSuccess) {
+        pendingPublishCallback = onSuccess;
+        if (setupPinModal) {
+            if (newPinInput) newPinInput.value = '';
+            if (confirmPinInput) confirmPinInput.value = '';
+            if (setupPinStatusNotice) setupPinStatusNotice.style.display = 'none';
+            if (setupPinSubmitBtn) {
+                setupPinSubmitBtn.disabled = false;
+                setupPinSubmitBtn.textContent = 'Guardar Clave de Seguridad';
+            }
+            setupPinModal.style.display = 'flex';
+            if (newPinInput) setTimeout(() => newPinInput.focus(), 150);
+        }
+    }
+
+    function closeSetupPinModal() {
+        if (setupPinModal) setupPinModal.style.display = 'none';
+        pendingPublishCallback = null;
+    }
+
+    if (closeSetupPinModalBtn) closeSetupPinModalBtn.addEventListener('click', closeSetupPinModal);
+    if (setupPinCancelBtn) setupPinCancelBtn.addEventListener('click', closeSetupPinModal);
+    if (setupPinModal) {
+        window.addEventListener('click', (e) => {
+            if (e.target === setupPinModal) closeSetupPinModal();
+        });
+    }
+
+    function showSetupPinNotice(msg, isError) {
+        if (!setupPinStatusNotice) return;
+        setupPinStatusNotice.style.display = 'block';
+        setupPinStatusNotice.style.background = isError ? 'rgba(239, 68, 68, 0.15)' : 'rgba(34, 197, 94, 0.15)';
+        setupPinStatusNotice.style.color = isError ? '#ef4444' : '#22c55e';
+        setupPinStatusNotice.style.border = isError ? '1px solid rgba(239, 68, 68, 0.3)' : '1px solid rgba(34, 197, 94, 0.3)';
+        setupPinStatusNotice.textContent = msg;
+    }
+
+    if (setupPinForm) {
+        setupPinForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const phrase = newPinInput ? newPinInput.value.normalize('NFC').trim() : '';
+            const confirmPhrase = confirmPinInput ? confirmPinInput.value.normalize('NFC').trim() : '';
+            const normalizedPhrase = phrase.toLowerCase().replace(/\s+/g, ' ');
+            const normalizedConfirm = confirmPhrase.toLowerCase().replace(/\s+/g, ' ');
+            const words = normalizedPhrase.split(' ').filter(Boolean);
+
+            if (words.length < 4 || words.length > 6) {
+                showSetupPinNotice('La frase debe tener entre 4 y 6 palabras (ej: escucho musica cuando tengo mucha hambre).', true);
+                if (newPinInput) newPinInput.focus();
+                return;
+            }
+            for (const w of words) {
+                if (w.length < 2) {
+                    showSetupPinNotice('Cada palabra de la frase debe tener al menos 2 letras.', true);
+                    if (newPinInput) newPinInput.focus();
+                    return;
+                }
+            }
+            if (new Set(words).size < 3) {
+                showSetupPinNotice('Por tu seguridad, no repitas la misma palabra en tu frase secreta.', true);
+                return;
+            }
+            if (normalizedPhrase !== normalizedConfirm) {
+                showSetupPinNotice('Las dos frases ingresadas no coinciden. Intenta de nuevo.', true);
+                if (confirmPinInput) confirmPinInput.focus();
+                return;
+            }
+
+            try {
+                if (setupPinSubmitBtn) {
+                    setupPinSubmitBtn.disabled = true;
+                    setupPinSubmitBtn.textContent = 'Configurando seguridad...';
+                }
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 15000);
+                const token = localStorage.getItem('token');
+                const res = await fetch(`${API_URL}/api/me/set-pin`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                    },
+                    body: JSON.stringify({ pin: normalizedPhrase, passphrase: normalizedPhrase }),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+
+                const data = await res.json().catch(() => ({}));
+                if (!res.ok) {
+                    throw new Error(data.message || `Error del servidor (${res.status}). No se pudo configurar la clave.`);
+                }
+
+                showSetupPinNotice(data.message || 'Clave de Seguridad configurada con éxito.', false);
+                currentUserHasPin = true;
+                setTimeout(() => {
+                    closeSetupPinModal();
+                    if (typeof pendingPublishCallback === 'function') {
+                        const cb = pendingPublishCallback;
+                        pendingPublishCallback = null;
+                        cb();
+                    }
+                }, 1000);
+            } catch (err) {
+                const errorMsg = err.name === 'AbortError'
+                    ? 'El servidor tardó demasiado en responder. Intenta de nuevo.'
+                    : (err.message || 'Error al configurar tu Clave de Seguridad.');
+                showSetupPinNotice(errorMsg, true);
+            } finally {
+                // [FINTECH RELIABILITY] Garantizar que el botón siempre se re-habilite
+                if (setupPinSubmitBtn) {
+                    setupPinSubmitBtn.disabled = false;
+                    setupPinSubmitBtn.textContent = 'Guardar Clave de Seguridad';
+                }
+            }
+        });
+    }
+
+    async function checkUserHasPin() {
+        if (currentUserHasPin !== undefined) return currentUserHasPin;
+        try {
+            const token = localStorage.getItem('token');
+            if (!token) return false;
+            const res = await fetch(`${API_URL}/api/me/pin-status`, {
+                headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (res.ok) {
+                const data = await res.json();
+                currentUserHasPin = data.hasPin === true;
+                return currentUserHasPin;
+            }
+            return false;
+        } catch {
+            return false;
+        }
+    }
+
+    // Prefetch anticipado al cargar
+    setTimeout(() => { checkUserHasPin().catch(() => {}); }, 300);
+
+    // --- Form submission con Guardián Pre-Vuelo ---
     publishForm.addEventListener('submit', async (event) => {
         event.preventDefault();
+
+        // [PRE-FLIGHT GUARD] El usuario debe tener su Clave de Seguridad configurada antes de publicar
+        const hasPin = await checkUserHasPin();
+        if (!hasPin) {
+            openSetupPinModal(() => {
+                if (publicationType === 'donation') {
+                    showDonationWarningModal('confirm');
+                } else {
+                    submitPublicationForm();
+                }
+            });
+            showSetupPinNotice('Por seguridad y autocustodia, debes configurar tu Clave de Seguridad antes de publicar.', false);
+            return;
+        }
 
         if (publicationType === 'donation') {
             showDonationWarningModal('confirm');

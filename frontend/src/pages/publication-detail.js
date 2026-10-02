@@ -145,6 +145,18 @@ document.addEventListener('DOMContentLoaded', () => {
             renderPublication(publication, platformSettings);
             setupEventListeners();
 
+            // [AUTOCUSTODIA PRE-FLIGHT] Consultar de forma anticipada el estado del PIN del usuario
+            if (activeToken) {
+                fetch(`${API_URL}/api/me/pin-status`, {
+                    headers: { 'Authorization': `Bearer ${activeToken}` }
+                })
+                .then(r => r.ok ? r.json() : null)
+                .then(d => {
+                    if (d) window.currentUserHasPin = d.hasPin === true;
+                })
+                .catch(err => console.warn('[PRE-FLIGHT] Pre-fetch pin-status ignorado:', err));
+            }
+
         } catch (error) {
             console.error('Error al inicializar la página de detalle:', error);
             elements.content.innerHTML = `<p class="error-message">No se pudo cargar la publicación. ${error.message}</p>`;
@@ -887,6 +899,24 @@ document.addEventListener('DOMContentLoaded', () => {
             elements.setupPinForm.addEventListener('submit', handleSetupPinSubmit);
         }
 
+        // [CONTADOR EN VIVO] Indicador visual de palabras para la Frase Secreta de Autocustodia
+        if (elements.newPinInput) {
+            elements.newPinInput.addEventListener('input', () => {
+                const counter = document.getElementById('passphraseWordCount');
+                if (!counter) return;
+                const words = elements.newPinInput.value.trim().split(/\s+/).filter(Boolean);
+                const count = words.length;
+                counter.textContent = `${count} / 4-6 palabras`;
+                if (count >= 4 && count <= 6) {
+                    counter.style.color = '#22c55e';
+                } else if (count > 6) {
+                    counter.style.color = '#ef4444';
+                } else {
+                    counter.style.color = '#94a3b8';
+                }
+            });
+        }
+
         const closeCompleteBtns = elements.completeTaskModal?.querySelectorAll('.complete-close-button, .complete-cancel-button');
         if (closeCompleteBtns) {
             closeCompleteBtns.forEach(btn => btn.addEventListener('click', () => elements.completeTaskModal.style.display = 'none'));
@@ -963,10 +993,35 @@ document.addEventListener('DOMContentLoaded', () => {
                     await payWithConsent(endpoint,body,window.currentPublication?.blue_cost,window.currentPublication?.author_username);
                 });
                 return;
-            case 'accept':
+            case 'accept': {
+                // [PRE-FLIGHT GUARD] El usuario debe tener su Clave de Seguridad antes de postularse/aceptar una tarea
+                if (window.currentUserHasPin === undefined) {
+                    try {
+                        const token = localStorage.getItem('token') || storedToken;
+                        const res = await fetch(`${API_URL}/api/me/pin-status`, {
+                            headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                        });
+                        if (res.ok) {
+                            const status = await res.json();
+                            window.currentUserHasPin = status.hasPin === true;
+                        }
+                    } catch (e) {
+                        console.warn('[PRE-FLIGHT] Error verificando estado de PIN:', e);
+                    }
+                }
+
+                if (window.currentUserHasPin === false) {
+                    openSetupPinModal(async () => {
+                        await fetchFromServer(`/publications/${publicationId}/accept`, 'POST', { acceptorUsername: storedUsername });
+                    });
+                    showSetupPinNotice('Configura tu Clave de Seguridad antes de postularte para proteger tu billetera y recibir tus tokens BLUE.', false);
+                    return;
+                }
+
                 endpoint = `/publications/${publicationId}/accept`;
                 body = { acceptorUsername: storedUsername };
                 break;
+            }
             case 'direct-donation': {
                 const amountInput = document.getElementById('detail-don-input');
                 const amount = parseFloat(amountInput?.value);
@@ -1118,10 +1173,15 @@ Puedes ver los detalles aquí:`;
         if (elements.setupPinModal) {
             if (elements.newPinInput) elements.newPinInput.value = '';
             if (elements.confirmPinInput) elements.confirmPinInput.value = '';
+            const counter = document.getElementById('passphraseWordCount');
+            if (counter) {
+                counter.textContent = '0 / 4-6 palabras';
+                counter.style.color = '#94a3b8';
+            }
             if (elements.setupPinStatusNotice) elements.setupPinStatusNotice.style.display = 'none';
             if (elements.setupPinSubmitBtn) {
                 elements.setupPinSubmitBtn.disabled = false;
-                elements.setupPinSubmitBtn.textContent = 'Guardar Clave de Seguridad';
+                elements.setupPinSubmitBtn.textContent = 'Guardar Frase Secreta';
             }
             elements.setupPinModal.style.display = 'flex';
             if (elements.newPinInput) setTimeout(() => elements.newPinInput.focus(), 150);
@@ -1144,52 +1204,84 @@ Puedes ver los detalles aquí:`;
      */
     async function handleSetupPinSubmit(event) {
         event.preventDefault();
-        const pin = elements.newPinInput ? elements.newPinInput.value.trim() : '';
-        const confirmPin = elements.confirmPinInput ? elements.confirmPinInput.value.trim() : '';
+        const phrase = elements.newPinInput ? elements.newPinInput.value.normalize('NFC').trim() : '';
+        const confirmPhrase = elements.confirmPinInput ? elements.confirmPinInput.value.normalize('NFC').trim() : '';
+        const normalizedPhrase = phrase.toLowerCase().replace(/\s+/g, ' ');
+        const normalizedConfirm = confirmPhrase.toLowerCase().replace(/\s+/g, ' ');
+        const words = normalizedPhrase.split(' ').filter(Boolean);
 
-        if (!pin || !/^\d{6}$/.test(pin)) {
-            showSetupPinNotice('El PIN debe tener exactamente 6 dígitos numéricos.', true);
+        if (words.length < 4 || words.length > 6) {
+            showSetupPinNotice('La frase debe tener entre 4 y 6 palabras (ej: escucho musica cuando tengo mucha hambre).', true);
             if (elements.newPinInput) elements.newPinInput.focus();
             return;
         }
 
-        if (pin !== confirmPin) {
-            showSetupPinNotice('Las dos claves ingresadas no coinciden. Intenta de nuevo.', true);
-            if (elements.confirmPinInput) elements.confirmPinInput.focus();
+        for (const w of words) {
+            if (w.length < 2) {
+                showSetupPinNotice('Cada palabra de la frase debe tener al menos 2 letras.', true);
+                if (elements.newPinInput) elements.newPinInput.focus();
+                return;
+            }
+        }
+
+        if (new Set(words).size < 3) {
+            showSetupPinNotice('Por tu seguridad, no repitas la misma palabra en tu frase secreta.', true);
             return;
         }
 
-        const insecurePins = ['000000', '111111', '222222', '333333', '444444', '555555', '666666', '777777', '888888', '999999', '123456', '654321'];
-        if (insecurePins.includes(pin)) {
-            showSetupPinNotice('Por tu seguridad, no uses combinaciones obvias o dígitos idénticos.', true);
+        if (normalizedPhrase !== normalizedConfirm) {
+            showSetupPinNotice('Las dos frases ingresadas no coinciden. Intenta de nuevo.', true);
+            if (elements.confirmPinInput) elements.confirmPinInput.focus();
             return;
         }
 
         try {
             if (elements.setupPinSubmitBtn) {
                 elements.setupPinSubmitBtn.disabled = true;
-                elements.setupPinSubmitBtn.textContent = 'Configurando seguridad...';
+                elements.setupPinSubmitBtn.textContent = 'Guardando frase secreta...';
             }
 
-            const response = await fetchFromServer('/api/me/set-pin', 'POST', { pin });
-            if (response && response.success) {
-                showSetupPinNotice('PIN configurado. Tu billetera asociada está protegida para autorizar pagos.', false);
-                window.currentUserHasPin = true;
-                setTimeout(() => {
-                    closeSetupPinModal();
-                    if (typeof pendingPinCallback === 'function') {
-                        const cb = pendingPinCallback;
-                        pendingPinCallback = null;
-                        cb();
-                    }
-                }, 1000);
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+            const token = localStorage.getItem('token') || storedToken;
+            const res = await fetch(`${API_URL}/api/me/set-pin`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+                },
+                body: JSON.stringify({ pin: normalizedPhrase, passphrase: normalizedPhrase }),
+                signal: controller.signal
+            });
+            clearTimeout(timeoutId);
+
+            const data = await res.json().catch(() => ({}));
+            if (!res.ok) {
+                throw new Error(data.message || `Error del servidor (${res.status}). No se pudo configurar la frase.`);
             }
+
+            showSetupPinNotice(data.message || 'Frase Secreta configurada. Tu billetera está en autocustodia protegida.', false);
+            window.currentUserHasPin = true;
+            setTimeout(() => {
+                closeSetupPinModal();
+                if (typeof pendingPinCallback === 'function') {
+                    const cb = pendingPinCallback;
+                    pendingPinCallback = null;
+                    cb();
+                }
+            }, 1000);
         } catch (err) {
+            const errorMsg = err.name === 'AbortError'
+                ? 'El servidor tardó demasiado en responder. Por favor verifica tu conexión e intenta de nuevo.'
+                : (err.message || 'Error al configurar tu Frase Secreta.');
+            showSetupPinNotice(errorMsg, true);
+        } finally {
+            // [FINTECH RELIABILITY] Garantizar siempre la restauración del botón para evitar congelamientos en UI
             if (elements.setupPinSubmitBtn) {
                 elements.setupPinSubmitBtn.disabled = false;
-                elements.setupPinSubmitBtn.textContent = 'Guardar Clave de Seguridad';
+                elements.setupPinSubmitBtn.textContent = 'Guardar Frase Secreta';
             }
-            showSetupPinNotice(err.message || 'Error al configurar tu Clave de Seguridad.', true);
         }
     }
 
@@ -1232,8 +1324,14 @@ Puedes ver los detalles aquí:`;
         // 1. Verificación de Autocustodia: Consultar si el usuario ya tiene su PIN configurado
         if (window.currentUserHasPin === undefined) {
             try {
-                const pinStatus = await fetchFromServer('/api/me/pin-status', 'GET');
-                window.currentUserHasPin = pinStatus?.hasPin === true;
+                const token = localStorage.getItem('token') || storedToken;
+                const res = await fetch(`${API_URL}/api/me/pin-status`, {
+                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
+                });
+                if (res.ok) {
+                    const pinStatus = await res.json();
+                    window.currentUserHasPin = pinStatus?.hasPin === true;
+                }
             } catch (pinErr) {
                 console.warn('[AUTH PIN] No se pudo verificar estado de PIN:', pinErr.message);
             }
@@ -1300,14 +1398,16 @@ Puedes ver los detalles aquí:`;
     async function executeAuthorizedPayment(pubId, workerUsername) {
         const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText || storedUsername;
 
-        const enteredPin = elements.authModalPinInput ? elements.authModalPinInput.value.trim() : '';
-        if (!enteredPin || !/^\d{6}$/.test(enteredPin)) {
+        const enteredPin = elements.authModalPinInput ? elements.authModalPinInput.value.normalize('NFC').trim() : '';
+        const normalizedEntered = enteredPin.toLowerCase().replace(/\s+/g, ' ');
+        const words = normalizedEntered.split(' ').filter(Boolean);
+        if (words.length < 4 || words.length > 6) {
             if (elements.authModalStatusNotice) {
                 elements.authModalStatusNotice.style.display = 'block';
                 elements.authModalStatusNotice.style.background = 'rgba(239, 68, 68, 0.15)';
                 elements.authModalStatusNotice.style.color = '#ef4444';
                 elements.authModalStatusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-                elements.authModalStatusNotice.textContent = 'Por favor ingresa tu Clave de Seguridad de 6 dígitos para autorizar el pago.';
+                elements.authModalStatusNotice.textContent = 'Por favor ingresa tu Frase Secreta de 4 a 6 palabras (ej: escucho musica cuando tengo mucha hambre).';
             }
             if (elements.authModalPinInput) elements.authModalPinInput.focus();
             return;
