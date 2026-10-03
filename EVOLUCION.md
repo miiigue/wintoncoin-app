@@ -7680,3 +7680,9 @@ pm run build:demo) exitosamente.
   - `creditScoringRatchetHalving.test.js`: 15 pruebas cubriendo trinquete, halving por mora, fail-closed on-chain y los 5 escenarios de curación gradual post-mora.
   - `creditPolicyJobs.test.js`: 5 pruebas certificando el motor de reintentos con retroceso exponencial, jitter, transición a DLQ (`dead_letter`) y rollback safety.
   - `chainDeployment.test.js`: 5 pruebas certificando el aislamiento de red (rechazo de RPC localhost con chainId Demo 11155420) y verificación de enlaces cruzados y decimales de la suite V4.
+  - `transactionPinSelfCustody.test.js`: 8 pruebas certificando el hashing, verificación, bloqueo tras 5 intentos fallidos y ciclo de vida de la frase de seguridad.
+  - Total de 33/33 pruebas críticas aprobadas al 100%, 116 módulos backend cargados con 0 errores y compilación Vite exitosa.
+- **Publicación Remota y Catálogo de Pruebas Manuales (QA-51 a QA-55)**:
+  - Commit consolidado `f1098b01ea653aa2edff32ec308439107e0f3b50` publicado exitosamente a `origin/demo`.
+  - Verificación en vivo de conectividad en Demo (`GET /api/web3/deployment` HTTP 200 OK con contratos V4 activos y `demo.wintoncoin.com` HTTP 200 OK).
+  - Incorporadas al catálogo oficial `QA_TEST_CATALOG.md` las misiones correlativas QA-51 a QA-55 en formato estricto: configuración de frase de seguridad de 4 a 6 palabras (QA-51), autorización de pago de tareas (QA-52), recuperación gradual post-mora (QA-53), diagnóstico administrativo Web3 (QA-54) y bloqueo temporal por intentos fallidos (QA-55).

@@ -683,5 +683,68 @@ PASOS:
 6. Presiona el botón de actualizar y confirma que el estado se refresque de inmediato mostrando la confirmación final de la operación.
 ```
 
+---
 
+```text
+TITULO: QA-51 - Configuración de Frase de Seguridad de 4 a 6 Palabras
+DESCRIPCION: Esta misión tiene como objetivo comprobar que los usuarios puedan proteger su dinero y su billetera creando una frase de seguridad fácil de recordar compuesta por cuatro a seis palabras en español, sustituyendo los números por un método moderno y seguro de autocustodia.
+PASOS:
+2. Inicia sesión en la aplicación desde tu teléfono móvil e ingresa a la sección Billetera.
+3. Observa el aviso que te invita a proteger tu cuenta y presiona el botón Configurar Frase de Seguridad.
+4. Escribe una frase de entre cuatro y seis palabras separadas por espacios en la primera casilla y anótala en un lugar seguro.
+5. Escribe exactamente la misma frase en la casilla de confirmación para asegurar que no cometiste errores.
+6. Presiona el botón Guardar Frase y verifica que la pantalla te muestre un mensaje verde de felicitaciones confirmando que tu billetera quedó protegida.
+```
 
+---
+
+```text
+TITULO: QA-52 - Autorización de Pago de Tarea con Frase de Seguridad
+DESCRIPCION: El objetivo de esta prueba es asegurar que al momento de pagar una tarea completada por otro usuario, la aplicación te solicite escribir tu frase de seguridad para autorizar la entrega de tokens y el registro de tu compromiso RED, evitando pagos accidentales o no autorizados.
+PASOS:
+2. Abre la publicación o tarea realizada por otro usuario donde debas autorizar el pago como cliente o contratante.
+3. Presiona el botón para Confirmar y Pagar el servicio recibido.
+4. Verifica que aparezca la ventana de confirmación detallando los tokens a pagar y el compromiso RED que asumirás.
+5. Escribe tu frase de seguridad de cuatro a seis palabras en la casilla correspondiente.
+6. Presiona el botón Autorizar Operación y confirma que el pago se procese correctamente mostrando la pantalla de éxito.
+```
+
+---
+
+```text
+TITULO: QA-53 - Recuperación Gradual del Límite de Compromiso RED Post-Mora
+DESCRIPCION: Esta misión garantiza que un usuario que haya tenido compromisos RED vencidos y los haya pagado por completo empiece a recuperar su límite de confianza poco a poco mes a mes, asegurando que el sistema premie la constancia y no otorgue aumentos repentinos de golpe.
+PASOS:
+2. Ingresa con una cuenta que haya tenido compromisos vencidos y que acabe de saldar la totalidad de lo pendiente.
+3. Dirígete a tu Billetera y revisa tu Límite de Compromiso RED actual.
+4. Verifica que el límite se mantenga en el valor penalizado inicial sin saltar inmediatamente al monto original más alto.
+5. Comprueba que el estado de tu cuenta indique que estás al día y en período de recuperación gradual.
+6. Solicita al administrador o revisa en tu siguiente ciclo mensual que tu límite aumente de manera escalonada respetando la recuperación del diez por ciento.
+```
+
+---
+
+```text
+TITULO: QA-54 - Diagnóstico de Preparación Web3 en Panel Administrativo
+DESCRIPCION: Esta prueba permite al administrador inspeccionar desde su navegador que todos los contratos inteligentes de la red y los servicios de base de datos se encuentren en línea, comunicándose perfectamente y listos para atender a los usuarios sin interrupciones.
+PASOS:
+2. Inicia sesión con credenciales de administrador en la plataforma WintonCoin Demo.
+3. Dirígete a la sección de Diagnóstico Web3 o Panel de Control del Sistema en el menú principal.
+4. Observa el estado general de preparación y confirma que aparezca la insignia indicando que el sistema está preparado y operativo.
+5. Revisa que se listen los contratos de la red de pruebas con sus direcciones activas y sin alertas de desconexión.
+6. Presiona el botón de comprobación para refrescar el diagnóstico y valida que la respuesta sea inmediata y satisfactoria.
+```
+
+---
+
+```text
+TITULO: QA-55 - Bloqueo de Billetera por Intentos Fallidos de Frase
+DESCRIPCION: Esta misión tiene como finalidad comprobar que la aplicación proteja tu cuenta ante posibles intentos de adivinanza de tu frase de seguridad, bloqueando temporalmente cualquier autorización de pago durante quince minutos si se ingresa una frase incorrecta cinco veces seguidas.
+PASOS:
+2. Dirígete a cualquier pantalla donde se requiera autorizar una operación con tu frase de seguridad.
+3. Escribe palabras incorrectas a propósito en el campo de la frase y presiona el botón para autorizar.
+4. Observa que el sistema rechace el intento y te informe con un mensaje claro cuántos intentos te quedan disponibles.
+5. Repite el ingreso de la frase equivocada hasta completar los cinco intentos fallidos consecutivos.
+6. Verifica que al quinto fallo la aplicación muestre una alerta de seguridad informando que la billetera ha sido bloqueada temporalmente por quince minutos.
+7. Intenta ingresar nuevamente antes de que pasen los quince minutos y comprueba que el bloqueo continúe activo protegiendo tu cuenta.
+```
