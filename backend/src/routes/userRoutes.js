@@ -65,9 +65,9 @@ router.get('/api/users/:username/booster-profile', UserController.getUserBooster
 router.get('/api/me/pin-status', authenticateToken, UserController.getMyPinStatus);
 
 // 14. Configurar o actualizar PIN de seguridad de 6 dígitos (Autocustodia)
-router.post('/api/me/set-pin', authenticateToken, pinLimiter, UserController.setMyPin);
+router.post('/api/me/set-pin', authenticateToken, pinLimiter, (_req,res)=>res.status(410).json({message:"Configura tu acceso en Billetera. No envíes frases al servidor."}));
 
 // 15. Validar PIN de seguridad de 6 dígitos antes de una operación sensible
-router.post('/api/me/verify-pin', authenticateToken, pinLimiter, UserController.verifyMyPin);
+router.post('/api/me/verify-pin', authenticateToken, pinLimiter, (_req,res)=>res.status(410).json({message:"Autoriza la operación en tu dispositivo."}));
 
 module.exports = router;

@@ -1,0 +1,586 @@
+/* ============================================================================
+ * [WINTONCOIN] - ARCHITECTURE FLOWS (Módulo CSS React)
+ * ============================================================================ */
+
+.pageContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  background-color: #060911;
+  color: #e2e8f0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Canvas de Malla de Partículas */
+.bgCanvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0.3;
+}
+
+/* Header Ejecutivo */
+.headerNavbar {
+  height: 64px;
+  background-color: rgba(12, 18, 32, 0.95);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid #1e293b;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 20;
+  flex-shrink: 0;
+}
+
+.brandGroup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.brandLogo {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #06b6d4 100%);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 19px;
+  color: #ffffff;
+  box-shadow: 0 0 20px rgba(6, 182, 212, 0.5);
+}
+
+.brandMeta h1 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: -0.01em;
+}
+
+.brandMeta p {
+  font-size: 11px;
+  color: #06b6d4;
+  font-family: 'JetBrains Mono', monospace;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.headerMetrics {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.metricBadge {
+  background: rgba(30, 41, 59, 0.6);
+  border: 1px solid #1e293b;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #94a3b8;
+}
+
+.metricBadge strong {
+  color: #ffffff;
+}
+
+.metricBadge.activeStream {
+  border-color: rgba(6, 182, 212, 0.4);
+  background: rgba(6, 182, 212, 0.1);
+  color: #06b6d4;
+}
+
+.liveIndicator {
+  width: 8px;
+  height: 8px;
+  background-color: #06b6d4;
+  border-radius: 50%;
+  display: inline-block;
+  box-shadow: 0 0 8px #06b6d4;
+  animation: blink 1.5s infinite;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+.backBtn {
+  background: rgba(37, 99, 235, 0.2);
+  border: 1px solid rgba(59, 130, 246, 0.4);
+  color: #93c5fd;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.backBtn:hover {
+  background: #2563eb;
+  color: #ffffff;
+}
+
+/* Layout Principal */
+.mainLayout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  z-index: 10;
+}
+
+/* Sidebar */
+.sidebar {
+  width: 300px;
+  background-color: rgba(12, 18, 32, 0.95);
+  backdrop-filter: blur(12px);
+  border-right: 1px solid #1e293b;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  flex-shrink: 0;
+  padding: 16px 12px;
+}
+
+.categoryGroup {
+  margin-bottom: 18px;
+}
+
+.categoryHeader {
+  font-size: 11px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebarItem {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 12px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: #94a3b8;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 2px;
+}
+
+.sidebarItem:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+
+.sidebarItem.active {
+  background: linear-gradient(90deg, rgba(37, 99, 235, 0.25) 0%, rgba(6, 182, 212, 0.1) 100%);
+  border-color: rgba(59, 130, 246, 0.4);
+  color: #60a5fa;
+  font-weight: 600;
+  box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15);
+}
+
+/* Área Central */
+.contentArea {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+  gap: 14px;
+}
+
+/* Tarjeta de Ficha Técnica Compacta */
+.processCard {
+  background: rgba(18, 27, 47, 0.85);
+  backdrop-filter: blur(14px);
+  border: 1px solid #1e293b;
+  border-radius: 10px;
+  padding: 10px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+.processTitleRow h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.processDesc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.35;
+}
+
+.metadataGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.metadataBox {
+  background: rgba(11, 17, 32, 0.6);
+  border: 1px solid #1e293b;
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.metadataLabel {
+  font-size: 9.5px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+}
+
+.metadataValue {
+  font-size: 11.5px;
+  color: #ffffff;
+  font-family: 'JetBrains Mono', monospace;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Viewport del Diagrama (Toma todo el alto disponible sin doble scroll) */
+.diagramViewport {
+  flex: 1;
+  background-color: rgba(18, 27, 47, 0.9);
+  backdrop-filter: blur(14px);
+  border: 1px solid #1e293b;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.45);
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #1e293b;
+  flex-shrink: 0;
+}
+
+.simControls {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btnSimPlay {
+  background: linear-gradient(135deg, #2563eb, #06b6d4);
+  border: none;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  padding: 7px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35);
+  transition: all 0.2s ease;
+}
+
+.btnSimPlay:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+}
+
+.speedSelector {
+  background: #0b1220;
+  border: 1px solid #1e293b;
+  border-radius: 20px;
+  padding: 2px;
+  display: flex;
+  gap: 2px;
+}
+
+.speedBtn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.speedBtn.active {
+  background-color: #2563eb;
+  color: white;
+  font-weight: 600;
+}
+
+.zoomControls {
+  display: flex;
+  gap: 6px;
+}
+
+.controlBtn {
+  background: #0e1626;
+  border: 1px solid #1e293b;
+  color: #e2e8f0;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+.controlBtn:hover {
+  background: #2563eb;
+  color: white;
+  border-color: #2563eb;
+}
+
+/* Telemetría */
+.telemetryBox {
+  background: rgba(11, 18, 32, 0.95);
+  border: 1px solid #3b82f6;
+  border-radius: 8px;
+  padding: 10px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 10px;
+  flex-shrink: 0;
+  box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+}
+
+.telemetryLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.telemetryPulse {
+  width: 9px;
+  height: 9px;
+  background-color: #06b6d4;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #06b6d4;
+  animation: pulseGlow 1s infinite alternate;
+}
+
+@keyframes pulseGlow {
+  from { transform: scale(0.9); opacity: 0.7; }
+  to { transform: scale(1.3); opacity: 1; }
+}
+
+.telemetryText {
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+  color: #93c5fd;
+}
+
+.telemetryTrack {
+  width: 160px;
+  height: 6px;
+  background: #1e293b;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.telemetryBar {
+  height: 100%;
+  background: linear-gradient(90deg, #2563eb, #06b6d4);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+/* Área de Renderizado SVG Panorámica con Auto-Fit Total */
+.renderArea {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  padding: 10px;
+  position: relative;
+  cursor: grab;
+  user-select: none;
+  width: 100%;
+  height: 100%;
+}
+
+.renderArea:active {
+  cursor: grabbing;
+}
+
+.mermaidWrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: transform 0.15s ease-out;
+  transform-origin: center center;
+  user-select: none;
+  width: 100%;
+  height: 100%;
+}
+
+/* REGLAS GLOBALES MERMAID: TEXTOS COMPLETOS Y NUNCA TRUNCADOS */
+:global(.mermaid svg) {
+  display: block !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  overflow: visible !important;
+  user-select: none;
+}
+
+:global(.mermaid svg .node) {
+  cursor: pointer;
+}
+
+:global(.mermaid svg .node .label),
+:global(.mermaid svg .node foreignObject div),
+:global(.mermaid svg .node text) {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  line-height: 1.3 !important;
+  overflow: visible !important;
+  word-wrap: normal !important;
+  text-align: center !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+:global(.mermaid svg .node foreignObject) {
+  overflow: visible !important;
+}
+
+/* Estilo para Subgrafos (Fases del Flujo) */
+:global(.mermaid svg .cluster rect) {
+  fill: rgba(12, 18, 32, 0.75) !important;
+  stroke: #1e3a5f !important;
+  stroke-width: 1.5px !important;
+  stroke-dasharray: 4 4 !important;
+  rx: 12px !important;
+  ry: 12px !important;
+}
+
+:global(.mermaid svg .cluster text) {
+  fill: #7dd3fc !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-weight: 600 !important;
+  font-size: 11px !important;
+  letter-spacing: 0.04em !important;
+  text-transform: uppercase !important;
+}
+
+/* Tuberías de datos láser continuas */
+:global(.mermaid svg .edgePath path),
+:global(.mermaid svg .flowchart-link) {
+  stroke: #38bdf8 !important;
+  stroke-width: 2.2px !important;
+  stroke-dasharray: 8 6 !important;
+  animation: streamPulse 1.2s linear infinite !important;
+  filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.7)) !important;
+}
+
+@keyframes streamPulse {
+  to { stroke-dashoffset: -28; }
+}
+
+:global(.mermaid svg .marker) {
+  fill: #38bdf8 !important;
+  stroke: #38bdf8 !important;
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.9));
+}
+
+/* Hover estable en figuras sin salto geométrico */
+:global(.mermaid svg .node rect),
+:global(.mermaid svg .node polygon),
+:global(.mermaid svg .node circle) {
+  transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease !important;
+}
+
+:global(.mermaid svg .node:hover rect),
+:global(.mermaid svg .node:hover polygon),
+:global(.mermaid svg .node:hover circle) {
+  stroke: #38bdf8 !important;
+  stroke-width: 2.8px !important;
+  filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8)) !important;
+}
+
+/* Respiración en nodos de decisión */
+:global(.mermaid svg .node.decision polygon),
+:global(.mermaid svg .node.decision rect) {
+  animation: decisionBreath 3s ease-in-out infinite alternate !important;
+}
+
+@keyframes decisionBreath {
+  0% { filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.4)); }
+  100% { filter: drop-shadow(0 0 12px rgba(192, 132, 252, 0.8)); }
+}
+
+/* Resonancia esmeralda */
+:global(.mermaid svg .node.success polygon),
+:global(.mermaid svg .node.success rect) {
+  animation: successGlow 2.5s ease-in-out infinite alternate !important;
+}
+
+@keyframes successGlow {
+  0% { filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.4)); }
+  100% { filter: drop-shadow(0 0 14px rgba(52, 211, 153, 0.8)); }
+}
+
+/* Resplandor dorado estable en simulación */
+:global(.node-active-step rect),
+:global(.node-active-step polygon),
+:global(.node-active-step circle) {
+  stroke: #fbbf24 !important;
+  stroke-width: 3.5px !important;
+  animation: activePulseGlow 0.8s ease-in-out infinite alternate !important;
+}
+
+@keyframes activePulseGlow {
+  0% { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6)); }
+  100% { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 1)); }
+}

@@ -53,7 +53,7 @@ const spaFallbackPlugin = () => {
       server.middlewares.use((req, res, next) => {
         const pathname = req.url ? req.url.split('?')[0] : '';
         // Rutas Web3 React SPA 2026: servir dashboard.html para montar React SPA
-        if (['/wallet', '/exchange', '/dashboard', '/admin/web3', '/admin-web3'].includes(pathname)) {
+        if (['/wallet', '/exchange', '/dashboard', '/admin/web3', '/admin-web3', '/flows', '/architecture', '/admin/flows'].includes(pathname)) {
           const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
           req.url = '/dashboard.html' + query;
         }
@@ -76,6 +76,7 @@ export default defineConfig(({ mode }) => ({
   // Configuración de resolución de módulos
   resolve: {
     alias: {
+      buffer: 'buffer/',
       '@': resolve(__dirname, 'src'),
       '@modules': resolve(__dirname, 'src/modules'),
       '@styles': resolve(__dirname, 'src/styles'),
@@ -172,6 +173,7 @@ export default defineConfig(({ mode }) => ({
         // Governance (Winton-Consensus)
         governancePanel: resolve(__dirname, 'governance-panel.html'),
       },
+
 
 
       // Optimización de chunks

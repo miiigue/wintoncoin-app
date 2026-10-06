@@ -88,7 +88,7 @@ class ChainOperationStore {
                     return publicResult({...row,state:'conflict'});
                 }
                 const tx=Transaction.from(step.raw);
-                if(row.payload.kycContract && !await new Contract(row.payload.kycContract,['function isKYCVerified(address) view returns(bool)'],this.provider).isKYCVerified(row.sender))
+                if(row.payload.kycContract && !await new Contract(row.payload.kycContract,['function isKYCVerified(address) view returns(bool)'],this.provider).isKYCVerified(row.payload.kycAccount||row.sender))
                     return publicResult(row); // Suspend delivery while KYC is suspended; don't discard signed evidence.
                 const used=await this.provider.getTransactionCount(row.sender,'latest');
                 if(used>tx.nonce) {

@@ -266,9 +266,9 @@ exports.registerVerify = async (req, res) => {
             isMinor = age >= 13 && age < 18;
         }
 
-        // --- 2.0 GENERAR BÓVEDA WEB3 INVISIBLE (Arquitectura Cero Fricción) ---
-        const WalletService = require('../services/walletService');
-        const web3Wallet = WalletService.generateEncryptedWallet();
+        // El acceso se configura posteriormente, con confirmación del usuario.
+        // Wallet activation requires a user-created credential and backup proof.
+        const web3Wallet = {address:null,encryptedPrivateKey:null};
 
         // La lógica de referidos se aplicará a continuación
         const newUserSql = `INSERT INTO users (username, password_hash, email, phone_number, referral_code, date_of_birth, is_minor, account_status, web3_wallet_address, web3_private_key_encrypted) 
@@ -439,18 +439,8 @@ exports.login = async (req, res) => {
         const match = await bcrypt.compare(password, user.password_hash);
 
         if (match) {
-            // --- ACTUALIZACIÓN WEB3 (Retrocompatibilidad Silenciosa) ---
-            // Si el usuario es antiguo y no tiene billetera Web3, se la forjamos en su primer inicio de sesión.
-            if (!user.web3_wallet_address) {
-                const WalletService = require('../services/walletService');
-                const web3Wallet = WalletService.generateEncryptedWallet();
-                
-                await pool.query(
-                    'UPDATE users SET web3_wallet_address = $1, web3_private_key_encrypted = $2 WHERE id = $3',
-                    [web3Wallet.address, web3Wallet.encryptedPrivateKey, user.id]
-                );
-                console.log(`[WEB3 SECRETO] Bóveda generada silenciosamente para usuario legacy: ${user.username} -> ${web3Wallet.address}`);
-            }
+            // No se generan claves ni se reasignan direcciones al iniciar sesión.
+            // Login does not create keys or replace a wallet address.
 
             const legalStatus = await getUserLegalStatusByUserId(pool, user.id);
 

@@ -256,7 +256,7 @@ async function verifyAndCommitEntity({ client, email, otpCode, password, expecte
         }
 
         const ownReferralCode = await generateUniqueReferralCode(client, username);
-        const web3Wallet = WalletService.generateEncryptedWallet();
+        const web3Wallet = {address:null,encryptedPrivateKey:null};
 
         let insertUserRes;
         try {

@@ -388,66 +388,9 @@ class Web3BridgeService {
     // PAGOS & SIMULACIONES (MARKETPLACE & TESTS)
     // ========================================================================
 
-    /**
-     * Genera la autorización y firma criptográfica EIP-712 en memoria para una billetera invisible.
-     * Cero Hardcoded Secrets: utiliza walletService.decrypt para descifrar la llave privada.
-     * Cumplimiento SOC 2: la llave efímera se destruye de inmediato tras generar la firma.
-     */
-    async generateSignedPaymentAuthorization({ payerWalletAddress, payerPrivateKey, payerEncryptedKey, payeeWalletAddress, amountBlue, pubId }) {
-        if (!this._isReady()) throw new Error('Servicio Web3 no inicializado o sin conexión');
-        let privateKey = payerPrivateKey;
-        if (!privateKey && payerEncryptedKey) {
-            const walletService = require('./walletService');
-            privateKey = walletService.decrypt(payerEncryptedKey);
-        }
-        if (!privateKey) throw new Error('No se pudo obtener la clave para firmar la autorización');
-
-        const protocol = this._getProtocol();
-        const grossUnits = ethers.parseUnits(amountBlue.toString(), 6);
-
-        // Consultar nonce y comisión actual on-chain en paralelo
-        const [nonce, commissionBps, network] = await Promise.all([
-            protocol.paymentNonces(payerWalletAddress),
-            protocol.commissionBps(),
-            this.provider.getNetwork()
-        ]);
-
-        const deadline = Math.floor(Date.now() / 1000) + 900; // 15 minutos de validez
-        const agreementHash = ethers.id(`winton-payment-${pubId || 'direct'}-${payerWalletAddress}-${nonce}-${Date.now()}`);
-
-        const auth = {
-            payer: ethers.getAddress(payerWalletAddress),
-            payee: ethers.getAddress(payeeWalletAddress),
-            amount: grossUnits,
-            feeBps: commissionBps,
-            nonce: nonce,
-            deadline: deadline,
-            agreementHash: agreementHash
-        };
-
-        const domain = {
-            name: 'WintonCore',
-            version: '4',
-            chainId: network.chainId,
-            verifyingContract: PROTOCOL_ADDRESS
-        };
-
-        const types = {
-            Payment: [
-                { name: 'payer', type: 'address' },
-                { name: 'payee', type: 'address' },
-                { name: 'amount', type: 'uint256' },
-                { name: 'feeBps', type: 'uint256' },
-                { name: 'nonce', type: 'uint256' },
-                { name: 'deadline', type: 'uint256' },
-                { name: 'agreementHash', type: 'bytes32' }
-            ]
-        };
-
-        const ephemeralSigner = new ethers.Wallet(privateKey);
-        const signature = await ephemeralSigner.signTypedData(domain, types, auth);
-
-        return { authorization: auth, signature };
+    // User authorizations must come from the device, never a server-held key.
+    async generateSignedPaymentAuthorization() {
+        throw Object.assign(new Error('Autoriza el pago desde tu dispositivo; no envíes claves al servidor.'), {status:410});
     }
 
     async syncPaymentToBlockchain({ payerWalletAddress, payeeWalletAddress, amountBlue, dbTransactionId, payerUsername, payeeUsername, authorization, signature }) {

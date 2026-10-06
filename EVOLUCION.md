@@ -13,6 +13,30 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-06 — Estandarización Bancaria Visual de Diagramas de Arquitectura: Visibilidad 100% sin Recortes, Auto-Fit Matemático a Pantalla y Paneo Interactivo
+* **Diagnóstico de Defectos Visuales y Geométricos**:
+  - *Imágenes y Diagramas Incompletos ("useMaxWidth: false" & Desborde de Contenedor)*: Al configurar Mermaid con `useMaxWidth: false`, el renderizador inyectaba estilos con anchos absolutos en píxeles fijos (ej. `width: 1845px`). En monitores y ventanas estándar, esto provocaba que los extremos derecho e inferior del diagrama quedaran por fuera del marco visible (`overflow: hidden`), dando la apariencia de "imágenes o diagramas cortados".
+  - *Truncado de Texto ("Font Race Condition" & ForeignObject Clipping)*: En resoluciones panorámicas, Mermaid medía las dimensiones de los nodos antes de que Google Fonts finalizara la carga del glifo de 'Inter'. La inyección de padding adicional en CSS (`padding: 4px 6px !important`) forzaba al `<div>` interno a sobrepasar el ancho fijo del `<foreignObject>` SVG, provocando el recorte de caracteres en textos como `"1. Solicitud de Pag"`, `"Saldo Insuficie"` y `"Inserción er"`.
+  - *Colapso Vertical por Cabecera Voluminosa*: La tarjeta de metadatos del proceso consumía ~180px de alto, reduciendo drásticamente el espacio vertical útil disponible para el visor de diagramas.
+  - *Temblores en el Cursor*: La aplicación de `transform: scale(1.04)` sobre grupos SVG `<g class="node">` entraba en conflicto con los atributos nativos `transform="translate(x, y)"` de Mermaid, generando vibraciones involuntarias en el cursor al pasar sobre los nodos.
+* **Soluciones Implementadas bajo Estándares FinTech & Enterprise**:
+  - *Motor Matemático de Auto-Fit Dinámico al 100% de la Pantalla*:
+    - Se activó `useMaxWidth: true` en Mermaid para habilitar la reactividad vectorial nativa basada en `viewBox`.
+    - Se programó el algoritmo de encuadre automático `fitDiagramToViewport()` / `fitToViewport()`: calcula las proporciones entre el contenedor visible (`viewportWidth`, `viewportHeight`) y la caja delimitadora del SVG (`svgWidth`, `svgHeight`), calculando `scale = Math.min(vWidth / svgWidth, vHeight / svgHeight) * 0.94` y centrando automáticamente las coordenadas `(translateX, translateY)`. De esta forma, el 100% del diagrama (todos sus nodos, enlaces y subgrafos) se ve completo inmediatamente sin cortes.
+    - Se agregó el botón de control `🎯` ("Ajustar a Pantalla (100% Visible)") y se vinculó el auto-fit al evento global `window.resize`.
+  - *Cabecera Compacta de Tres Columnas*: Se rediseñó la tarjeta superior de metadatos en un formato horizontal compacto (~78px), liberando más de 100px de espacio vertical directo para la visualización del diagrama.
+  - *Arquitectura Modular con Subgrafos BPMN/Enterprise*: Se organizaron los 11 diagramas del catálogo (`PROCESS_CATALOG`) por fases secuenciales en subgrafos (`subgraph S1`, `subgraph S2`, etc.) en orientación panorámica horizontal (`flowchart LR`).
+  - *Soporte de Paneo y Zoom Interactivo (Drag & Wheel)*: Se integró navegación interactiva con arrastre de ratón (`mousedown`, `mousemove`, `mouseup`), zoom centrado con rueda (`wheel`) y botones de control (`＋`, `－`, `↺`, `🎯`).
+  - *Estabilización Tipográfica y CSS SVG*: Se eliminó el padding parásito de `<foreignObject div>`, se habilitó `overflow: visible`, se aplicaron saltos de línea estratégicos `<br/>` en los textos de los nodos y se vinculó la ejecución a `document.fonts.ready`.
+  - *Cumplimiento Protocolar Estricto*: Se respetó de forma irrevocable el término **COMPROMISO RED** (cero mención de la palabra deuda), la invariante de paridad `TotalSupply(BLUE) == TotalSupply(RED)` y las garantías de auditoría bancaria SOC 2.
+* **Archivos Actualizados**:
+  - [`frontend/src/pages/ArchitectureFlows.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/ArchitectureFlows.jsx): Componente React SPA con motor de simulación, telemetría, auto-fit a viewport y botón `🎯`.
+  - [`frontend/src/pages/ArchitectureFlows.module.css`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/ArchitectureFlows.module.css): Estilos de cabecera compacta, render-area optimizada y visualización sin recortes.
+  - [`docs/DIAGRAMAS_VISUALES_PROYECTO.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/DIAGRAMAS_VISUALES_PROYECTO.html): Visor autónomo HTML sincronizado con idéntico motor de auto-fit dinámico y controles interactivos.
+* **Verificación y Pruebas Unitarias**:
+  - `npm run build:demo` ejecutado con éxito (código de salida 0, 104 módulos transformados, 171 recursos precacheados).
+  - Verificación de imports de backend aprobada al 100% (123/123 módulos).
+
 ### 2026-10-02 — Armonización Completa de Frase de Seguridad (4–6 Palabras), Desacoplamiento del Trinquete Crediticio para Mora RED y Robustecimiento Transaccional (CODEX-089, CODEX-090 / ANTIGRAVITY-060)
 * **Diagnóstico de Vulnerabilidades e Inconsistencias**:
   - *Frase de Seguridad vs PIN Numérico Legado*: Se detectó una inconsistencia entre el backend (que adoptó el modelo de alta entropía con frase de seguridad de 4 a 6 palabras mediante PBKDF2 de 100,000 iteraciones + AES-256-GCM + Pepper de servidor) y los componentes frontend legados (`publish.js`, `publication-detail.js`, `OperationAuthorization.jsx`, `Wallet.jsx`, `Exchange.jsx`) que continuaban validando campos numéricos de 6 dígitos o mostrando etiquetas de "PIN". Dado que en el entorno Demo ningún usuario real tenía aún un PIN numérico configurado (confirmado por Miguel), se procedió a unificar toda la interfaz de usuario para trabajar exclusivamente con frases de seguridad mnemónicas en español.
@@ -7686,3 +7710,25 @@ pm run build:demo) exitosamente.
   - Commit consolidado `f1098b01ea653aa2edff32ec308439107e0f3b50` publicado exitosamente a `origin/demo`.
   - Verificación en vivo de conectividad en Demo (`GET /api/web3/deployment` HTTP 200 OK con contratos V4 activos y `demo.wintoncoin.com` HTTP 200 OK).
   - Incorporadas al catálogo oficial `QA_TEST_CATALOG.md` las misiones correlativas QA-51 a QA-55 en formato estricto: configuración de frase de seguridad de 4 a 6 palabras (QA-51), autorización de pago de tareas (QA-52), recuperación gradual post-mora (QA-53), diagnóstico administrativo Web3 (QA-54) y bloqueo temporal por intentos fallidos (QA-55).
+
+
+## 2026-10-05 — Candidato de cuentas recuperables (sin despliegue)
+
+Se reemplazan las firmas de usuario en servidor por autorizaciones P-256 del dispositivo y cuentas Safe permanentes. Respaldo BIP39 comprobado localmente y recuperación personal con espera/cancelación. Identidades y documentos revisados se relacionan sin escribir datos personales en blockchain. Se retiran formularios antiguos que pedían frases de pago. Las reglas económicas Solidity se conservan.
+
+Validación: 34 pruebas dirigidas backend, 3 PostgreSQL aislado, suite Solidity 170 aprobadas/34 pendientes y suite dirigida final Safe/P-256 8 aprobadas. Interfaz Demo compilada. No certifica el sistema completo: configuración pública, migración heredada, teléfono real, avisos independientes, recuperación asistida y suite integral requieren cierre. Ver `docs/AUTOCUSTODIA_RECUPERABLE_IMPLEMENTACION.md`. No desplegar automáticamente esta modificación.
+
+### 2026-10-06 - Auditoría Bancaria & FinTech: Migración Segura de Cuentas Heredadas, Certificación de Integración Safe y Actualización de Términos
+- **Migración Auditable de Direcciones Huérfanas (`recoverableAccounts.js`)**:
+  - Implementado el método `assertOrMigrateLegacyAddress` que audita on-chain y en base de datos la ausencia de balances BLUE, compromisos RED pendientes, colaterales USDT y operaciones de marketplace en curso antes de permitir la sustitución de direcciones heredadas.
+  - Habilitada la transición sin fricción ni bloqueos 409 para cuentas de prueba y cuentas de prelanzamiento vacías, registrando la trazabilidad histórica del reemplazo en `account_security_events`.
+- **Certificación de la Suite de Contratos Safe (`RecoverableSafeIntegration.test.js`)**:
+  - Ajustado el timeout a 120 segundos para la suite de integración en Hardhat (Windows).
+  - 8 de 8 pruebas de integración aprobadas al 100% (EIP-1271, paridad 1:1, estacionamiento/parking, reversiones sin alteración de nonce, timelock de SocialRecoveryModule, cancelación de solicitudes de recuperación externas y firma local P-256 con passkeys WebAuthn).
+- **Actualización de Marco Legal y Cumplimiento (`frontend/terms.html`)**:
+  - Incorporada la **Sección 3.6 (Autocustodia de Cuentas, Credenciales de Dispositivo y Persistencia de Compromisos RED)**.
+  - Fijada jurídicamente la regla de no-extinción: los compromisos de reciprocidad RED pertenecen a la identidad de la persona física verificada y no se extinguen ni condonan por la pérdida o extravío de dispositivos o credenciales locales.
+  - Definida la función de WintonCoin como proveedor de software no custodial y relayer institucional de gas.
+- **Validación de Compilación Frontend (Vite Demo)**:
+  - `npm run build:demo` ejecutado exitosamente con código 0 (104 módulos transformados, 175 entradas de precache PWA en `dist-demo/`).
+

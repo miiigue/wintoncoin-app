@@ -41,14 +41,6 @@ async function updateUserBoosterLevel(client, userId) {
 }
 
 /**
- * Helper FinTech para resolver billeteras y autorizar la emisión dual on-chain.
- * Arquitectura de Billetera Invisible y Autocustodia:
- * - Si el pagador tiene PIN configurado (has_transaction_pin = true), se valida y se descifra
- *   la clave privada exclusivamente en memoria RAM efímera con AES-256-GCM y PBKDF2.
- * - Firma criptográficamente EIP-712 sin exigir MetaMask ni custodiar fondos por la plataforma.
- * - Si el usuario no tiene billetera generada, la auto-provisiona de forma segura.
- */
-/**
  * Helper para determinar el usuario responsable de la deuda RED por username.
  * Valida controles parentales FinTech si el usuario es menor de edad.
  */

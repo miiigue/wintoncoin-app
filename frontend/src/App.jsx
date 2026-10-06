@@ -10,6 +10,7 @@ import Wallet from './pages/Wallet.jsx';
 import Exchange from './pages/Exchange.jsx';
 import AdminGate from './components/AdminGate.jsx';
 import AdminWeb3Panel from './pages/AdminWeb3Panel.jsx';
+import ArchitectureFlows from './pages/ArchitectureFlows.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 
 /**
@@ -23,6 +24,7 @@ import Dashboard from './pages/Dashboard.jsx';
  * - "/dashboard" & "/contract_interaction.html" -> Dashboard (Panel central React 2026)
  * - "/wallet" & "/wallet.html" -> Wallet (Billetera FinTech React 2026)
  * - "/exchange" & "/exchange.html" -> Exchange (Exchange Oficial FIFO 2026)
+ * - "/flows" & "/admin/flows" -> ArchitectureFlows (Simulador Dinámico de Arquitectura)
  * - "/login" & "/login.html" -> Login (Vista de autenticación independiente)
  * - "/register" & "/register.html" -> Register (Wizard de registro independiente)
  * - "/forgot-password" & "/forgot-password.html" -> ForgotPassword (Recuperación)
@@ -48,6 +50,11 @@ function App() {
       <Route path="/wallet.html" element={<Wallet />} />
       <Route path="/exchange" element={<Exchange />} />
       <Route path="/exchange.html" element={<Exchange />} />
+
+      {/* Simulador Dinámico de Arquitectura y Flujos de Procesos React */}
+      <Route path="/flows" element={<ArchitectureFlows />} />
+      <Route path="/architecture" element={<ArchitectureFlows />} />
+      <Route path="/admin/flows" element={<AdminGate><ArchitectureFlows /></AdminGate>} />
 
       {/* Panel Administrativo Web3 y Gobernanza de Smart Contracts V4 */}
       <Route path="/admin/web3" element={<AdminGate><AdminWeb3Panel /></AdminGate>} />

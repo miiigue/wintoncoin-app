@@ -1,0 +1,1595 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WintonCoin Protocol - Arquitectura Dinámica y Simulador de Flujos</title>
+    <!-- Fuentes Tipográficas Premium -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <!-- Mermaid.js para renderizado vectorial -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg-dark: #060911;
+            --bg-surface: #0c1220;
+            --bg-card: #121b2f;
+            --bg-card-hover: #18243e;
+            --border-subtle: #1e293b;
+            --border-glow: #3b82f6;
+            --text-title: #ffffff;
+            --text-body: #e2e8f0;
+            --text-muted: #94a3b8;
+            --primary-blue: #2563eb;
+            --accent-cyan: #06b6d4;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-body);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Canvas de Malla de Partículas de Fondo */
+        #bg-canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 0;
+            opacity: 0.3;
+        }
+
+        /* Barra Superior */
+        header.top-navbar {
+            background-color: rgba(12, 18, 32, 0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-subtle);
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 24px;
+            z-index: 50;
+            flex-shrink: 0;
+        }
+
+        .brand-container {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-badge {
+            width: 38px;
+            height: 38px;
+            background: linear-gradient(135deg, #1d4ed8 0%, #06b6d4 100%);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 19px;
+            color: #ffffff;
+            box-shadow: 0 0 24px rgba(6, 182, 212, 0.5);
+        }
+
+        .brand-text h1 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-title);
+            letter-spacing: -0.01em;
+        }
+
+        .brand-text p {
+            font-size: 11px;
+            color: var(--accent-cyan);
+            font-family: 'JetBrains Mono', monospace;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .header-metrics {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .metric-pill {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid var(--border-subtle);
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--text-muted);
+        }
+
+        .metric-pill strong {
+            color: var(--text-title);
+        }
+
+        .metric-pill.live-stream {
+            border-color: rgba(6, 182, 212, 0.4);
+            background: rgba(6, 182, 212, 0.1);
+            color: var(--accent-cyan);
+        }
+
+        .live-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--accent-cyan);
+            border-radius: 50%;
+            display: inline-block;
+            box-shadow: 0 0 8px var(--accent-cyan);
+            animation: blink 1.5s infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.8); }
+        }
+
+        /* Layout */
+        .main-layout {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+            position: relative;
+            z-index: 10;
+        }
+
+        /* Barra Lateral */
+        aside.sidebar {
+            width: 300px;
+            background-color: rgba(12, 18, 32, 0.95);
+            backdrop-filter: blur(12px);
+            border-right: 1px solid var(--border-subtle);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            flex-shrink: 0;
+            padding: 16px 12px;
+        }
+
+        .category-group {
+            margin-bottom: 18px;
+        }
+
+        .category-header {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            padding: 6px 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .sidebar-item {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 9px 12px;
+            border-radius: 8px;
+            background: transparent;
+            border: 1px solid transparent;
+            color: var(--text-muted);
+            text-align: left;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            margin-bottom: 2px;
+        }
+
+        .sidebar-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            color: var(--text-title);
+        }
+
+        .sidebar-item.active {
+            background: linear-gradient(90deg, rgba(37, 99, 235, 0.25) 0%, rgba(6, 182, 212, 0.1) 100%);
+            border-color: rgba(59, 130, 246, 0.4);
+            color: #60a5fa;
+            font-weight: 600;
+            box-shadow: 0 4px 15px rgba(37, 99, 235, 0.15);
+        }
+
+        /* Contenido Central (Sin doble scroll) */
+        main.content-area {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            padding: 20px 24px;
+            gap: 14px;
+        }
+
+        /* Ficha Técnica Compacta y Ejecutiva */
+        .process-header-card {
+            background: rgba(18, 27, 47, 0.85);
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            padding: 10px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+        }
+
+        .process-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .process-title-row h2 {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--text-title);
+        }
+
+        .process-desc {
+            font-size: 12px;
+            color: var(--text-muted);
+            line-height: 1.35;
+        }
+
+        .tech-metadata-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .tech-metadata-box {
+            background: rgba(11, 17, 32, 0.6);
+            border: 1px solid var(--border-subtle);
+            border-radius: 6px;
+            padding: 6px 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .tech-metadata-label {
+            font-size: 9.5px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+        }
+
+        .tech-metadata-value {
+            font-size: 11.5px;
+            color: var(--text-title);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        /* Viewport del Diagrama */
+        .diagram-viewport {
+            flex: 1;
+            background-color: rgba(18, 27, 47, 0.9);
+            backdrop-filter: blur(14px);
+            border: 1px solid var(--border-subtle);
+            border-radius: 12px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.45);
+        }
+
+        .diagram-toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-subtle);
+            flex-shrink: 0;
+        }
+
+        .sim-controls-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .btn-sim-play {
+            background: linear-gradient(135deg, #2563eb, #06b6d4);
+            border: none;
+            color: white;
+            font-weight: 600;
+            font-size: 12px;
+            padding: 7px 16px;
+            border-radius: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(6, 182, 212, 0.35);
+            transition: all 0.2s ease;
+        }
+
+        .btn-sim-play:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+        }
+
+        .speed-selector {
+            background: #0b1220;
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 2px;
+            display: flex;
+            gap: 2px;
+        }
+
+        .speed-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 16px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .speed-btn.active {
+            background-color: var(--primary-blue);
+            color: white;
+            font-weight: 600;
+        }
+
+        .diagram-controls {
+            display: flex;
+            gap: 6px;
+        }
+
+        .control-btn {
+            background: #0e1626;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-body);
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .control-btn:hover {
+            background: var(--primary-blue);
+            color: white;
+            border-color: var(--primary-blue);
+        }
+
+        /* Barra de Telemetría Dinámica */
+        .telemetry-bar {
+            background: rgba(11, 18, 32, 0.95);
+            border: 1px solid var(--border-glow);
+            border-radius: 8px;
+            padding: 8px 14px;
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-top: 8px;
+            flex-shrink: 0;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.25);
+        }
+
+        .telemetry-info {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .telemetry-pulse {
+            width: 9px;
+            height: 9px;
+            background-color: var(--accent-cyan);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--accent-cyan);
+            animation: pulseGlow 1s infinite alternate;
+        }
+
+        @keyframes pulseGlow {
+            from { transform: scale(0.9); opacity: 0.7; }
+            to { transform: scale(1.3); opacity: 1; }
+        }
+
+        .telemetry-text {
+            font-size: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            color: #93c5fd;
+        }
+
+        .telemetry-progress-container {
+            width: 160px;
+            height: 6px;
+            background: #1e293b;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .telemetry-progress-bar {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #2563eb, #06b6d4);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+
+        /* Área Gráfica Panorámica con Auto-Fit Total */
+        .render-area {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+            padding: 10px;
+            position: relative;
+            cursor: grab;
+            user-select: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        .render-area:active {
+            cursor: grabbing;
+        }
+
+        #focus-mermaid-target {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: transform 0.15s ease-out;
+            transform-origin: center center;
+            user-select: none;
+            width: 100%;
+            height: 100%;
+        }
+
+        /* Reglas Globales SVG sin truncado y soporte para Subgrafos */
+        .mermaid svg {
+            display: block !important;
+            max-width: 100% !important;
+            max-height: 100% !important;
+            overflow: visible !important;
+            user-select: none;
+        }
+
+        .mermaid svg .node {
+            cursor: pointer;
+        }
+
+        .mermaid svg .node .label,
+        .mermaid svg .node foreignObject div,
+        .mermaid svg .node text {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif !important;
+            font-size: 12px !important;
+            font-weight: 500 !important;
+            line-height: 1.3 !important;
+            overflow: visible !important;
+            word-wrap: normal !important;
+            text-align: center !important;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .mermaid svg .node foreignObject {
+            overflow: visible !important;
+        }
+
+        /* Estilo para Subgrafos (Fases del Flujo) */
+        .mermaid svg .cluster rect {
+            fill: rgba(12, 18, 32, 0.75) !important;
+            stroke: #1e3a5f !important;
+            stroke-width: 1.5px !important;
+            stroke-dasharray: 4 4 !important;
+            rx: 12px !important;
+            ry: 12px !important;
+        }
+
+        .mermaid svg .cluster text {
+            fill: #7dd3fc !important;
+            font-family: 'JetBrains Mono', monospace !important;
+            font-weight: 600 !important;
+            font-size: 11px !important;
+            letter-spacing: 0.04em !important;
+            text-transform: uppercase !important;
+        }
+
+        /* Tuberías de datos láser continuas */
+        .mermaid svg .edgePath path,
+        .mermaid svg .flowchart-link {
+            stroke: #38bdf8 !important;
+            stroke-width: 2.2px !important;
+            stroke-dasharray: 8 6 !important;
+            animation: streamPulse 1.2s linear infinite !important;
+            filter: drop-shadow(0 0 4px rgba(56, 189, 248, 0.7)) !important;
+        }
+
+        @keyframes streamPulse {
+            to { stroke-dashoffset: -28; }
+        }
+
+        .mermaid svg .marker {
+            fill: #38bdf8 !important;
+            stroke: #38bdf8 !important;
+            filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.9));
+        }
+
+        /* Hover estable en figuras */
+        .mermaid svg .node rect,
+        .mermaid svg .node polygon,
+        .mermaid svg .node circle {
+            transition: stroke 0.2s ease, stroke-width 0.2s ease, filter 0.2s ease !important;
+        }
+
+        .mermaid svg .node:hover rect,
+        .mermaid svg .node:hover polygon,
+        .mermaid svg .node:hover circle {
+            stroke: #38bdf8 !important;
+            stroke-width: 2.8px !important;
+            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.8)) !important;
+        }
+
+        /* Nodos de Decisión */
+        .mermaid svg .node.decision polygon,
+        .mermaid svg .node.decision rect {
+            animation: decisionBreath 3s ease-in-out infinite alternate !important;
+        }
+
+        @keyframes decisionBreath {
+            0% { filter: drop-shadow(0 0 3px rgba(139, 92, 246, 0.4)); }
+            100% { filter: drop-shadow(0 0 12px rgba(192, 132, 252, 0.8)); }
+        }
+
+        /* Nodos de Éxito */
+        .mermaid svg .node.success polygon,
+        .mermaid svg .node.success rect {
+            animation: successGlow 2.5s ease-in-out infinite alternate !important;
+        }
+
+        @keyframes successGlow {
+            0% { filter: drop-shadow(0 0 3px rgba(16, 185, 129, 0.4)); }
+            100% { filter: drop-shadow(0 0 14px rgba(52, 211, 153, 0.8)); }
+        }
+
+        /* Resaltado del Nodo Activo en la Simulación */
+        .node-active-step polygon,
+        .node-active-step rect,
+        .node-active-step circle {
+            stroke: #fbbf24 !important;
+            stroke-width: 3.5px !important;
+            animation: activePulseGlow 0.8s ease-in-out infinite alternate !important;
+        }
+
+        @keyframes activePulseGlow {
+            0% { filter: drop-shadow(0 0 8px rgba(251, 191, 36, 0.6)); }
+            100% { filter: drop-shadow(0 0 20px rgba(251, 191, 36, 1)); }
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <!-- Barra de Navegación -->
+    <header class="top-navbar">
+        <div class="brand-container">
+            <div class="brand-badge">W</div>
+            <div class="brand-text">
+                <h1>WintonCoin Protocol</h1>
+                <p>Simulador Dinámico de Arquitectura</p>
+            </div>
+        </div>
+
+        <div class="header-metrics">
+            <div class="metric-pill live-stream">
+                <span class="live-dot"></span>
+                <span>Streaming Transaccional: <strong>ACTIVO</strong></span>
+            </div>
+            <div class="metric-pill">
+                <span>⚖️</span>
+                <span>Invariante: <strong>TotalSupply(BLUE) == TotalSupply(RED)</strong></span>
+            </div>
+            <div class="metric-pill">
+                <span>🛡️</span>
+                <span>Cero Confianza: <strong>Zero-Trust SOC 2</strong></span>
+            </div>
+        </div>
+    </header>
+
+    <div class="main-layout">
+        <!-- Barra Lateral de Módulos -->
+        <aside class="sidebar">
+            <div class="category-group">
+                <div class="category-header">
+                    <span>Core Protocol & FinTech</span>
+                    <span style="color: #38bdf8;">(2)</span>
+                </div>
+                <button class="sidebar-item active" data-id="sec-economic" onclick="selectDiagram('sec-economic')">
+                    <span>💰</span>
+                    <span>BLUE / COMPROMISO RED</span>
+                </button>
+                <button class="sidebar-item" data-id="sec-treasury" onclick="selectDiagram('sec-treasury')">
+                    <span>🏛️</span>
+                    <span>Dogfooding de Tesorería</span>
+                </button>
+            </div>
+
+            <div class="category-group">
+                <div class="category-header">
+                    <span>Seguridad & Identidad</span>
+                    <span style="color: #38bdf8;">(2)</span>
+                </div>
+                <button class="sidebar-item" data-id="sec-auth" onclick="selectDiagram('sec-auth')">
+                    <span>🔐</span>
+                    <span>WebAuthn & Autenticación</span>
+                </button>
+                <button class="sidebar-item" data-id="sec-recovery" onclick="selectDiagram('sec-recovery')">
+                    <span>🔑</span>
+                    <span>Recuperabilidad Social</span>
+                </button>
+            </div>
+
+            <div class="category-group">
+                <div class="category-header">
+                    <span>Marketplace & Engine FIFO</span>
+                    <span style="color: #38bdf8;">(3)</span>
+                </div>
+                <button class="sidebar-item" data-id="sec-p2p-create" onclick="selectDiagram('sec-p2p-create')">
+                    <span>📝</span>
+                    <span>Publicación con Escrow</span>
+                </button>
+                <button class="sidebar-item" data-id="sec-p2p-match" onclick="selectDiagram('sec-p2p-match')">
+                    <span>⚡</span>
+                    <span>Matching FIFO & Pago</span>
+                </button>
+                <button class="sidebar-item" data-id="sec-p2p-dispute" onclick="selectDiagram('sec-p2p-dispute')">
+                    <span>⚖️</span>
+                    <span>Disputas y Arbitraje</span>
+                </button>
+            </div>
+
+            <div class="category-group">
+                <div class="category-header">
+                    <span>Gobernanza & Impacto</span>
+                    <span style="color: #38bdf8;">(2)</span>
+                </div>
+                <button class="sidebar-item" data-id="sec-gov" onclick="selectDiagram('sec-gov')">
+                    <span>🗳️</span>
+                    <span>Votación con Parking BLUE</span>
+                </button>
+                <button class="sidebar-item" data-id="sec-humanitarian" onclick="selectDiagram('sec-humanitarian')">
+                    <span>🇻🇪</span>
+                    <span>Proyectos SOS Venezuela</span>
+                </button>
+            </div>
+
+            <div class="category-group">
+                <div class="category-header">
+                    <span>Crédito & Web3 Engine</span>
+                    <span style="color: #38bdf8;">(2)</span>
+                </div>
+                <button class="sidebar-item" data-id="sec-scoring" onclick="selectDiagram('sec-scoring')">
+                    <span>📊</span>
+                    <span>Credit Scoring & Mora</span>
+                </button>
+                <button class="sidebar-item" data-id="sec-gas" onclick="selectDiagram('sec-gas')">
+                    <span>⛽</span>
+                    <span>Subsidio Gas & Relayer</span>
+                </button>
+            </div>
+
+            <div class="category-group">
+                <div class="category-header">
+                    <span>Auditoría & Compliance</span>
+                    <span style="color: #38bdf8;">(1)</span>
+                </div>
+                <button class="sidebar-item" data-id="sec-audit" onclick="selectDiagram('sec-audit')">
+                    <span>📜</span>
+                    <span>Logs SOC 2 & Reconciliación</span>
+                </button>
+            </div>
+        </aside>
+
+        <!-- Área Central -->
+        <main class="content-area">
+            <!-- Ficha Técnica -->
+            <div class="process-header-card">
+                <div class="process-title-row">
+                    <h2 id="focus-title">Protocolo Económico: BLUE / COMPROMISO RED</h2>
+                </div>
+                <p class="process-desc" id="focus-desc">Lógica de emisión paritaria 1:1, adquisición de compromiso RED y depósito diferido de tokens BLUE.</p>
+
+                <div class="tech-metadata-grid">
+                    <div class="tech-metadata-box">
+                        <span class="tech-metadata-label">Módulos & Smart Contracts</span>
+                        <span class="tech-metadata-value" id="focus-modules">CoreProtocol.sol, financialCoreService.js</span>
+                    </div>
+                    <div class="tech-metadata-box">
+                        <span class="tech-metadata-label">Regla Económica Bancaria</span>
+                        <span class="tech-metadata-value" id="focus-rule">Paridad Estricta: TotalSupply(BLUE) == TotalSupply(RED)</span>
+                    </div>
+                    <div class="tech-metadata-box">
+                        <span class="tech-metadata-label">Garantía de Auditoría</span>
+                        <span class="tech-metadata-value" id="focus-audit">Audit Log SOC 2 Inmutable + Parking Seguro</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Viewport Dinámico del Diagrama -->
+            <div class="diagram-viewport">
+                <div class="diagram-toolbar">
+                    <div class="sim-controls-group">
+                        <button class="btn-sim-play" id="btn-play-sim" onclick="toggleSimulation()">
+                            <span id="sim-icon">▶</span>
+                            <span id="sim-text">Reproducir Flujo en Vivo</span>
+                        </button>
+                        <div class="speed-selector">
+                            <button class="speed-btn" onclick="setSpeed(1500, this)">0.5x</button>
+                            <button class="speed-btn active" onclick="setSpeed(900, this)">1x</button>
+                            <button class="speed-btn" onclick="setSpeed(450, this)">2x</button>
+                        </div>
+                    </div>
+
+                    <div class="diagram-controls">
+                        <button class="control-btn" title="Ajustar a Pantalla (100% Visible)" onclick="fitDiagramToViewport()">🎯</button>
+                        <button class="control-btn" title="Aumentar Zoom" onclick="zoomDiagram(1.15)">＋</button>
+                        <button class="control-btn" title="Reducir Zoom" onclick="zoomDiagram(0.85)">－</button>
+                        <button class="control-btn" title="Centrar y Ajustar" onclick="resetZoom()">↺</button>
+                    </div>
+                </div>
+
+                <!-- Barra de Telemetría Dinámica -->
+                <div class="telemetry-bar" id="telemetry-box">
+                    <div class="telemetry-info">
+                        <div class="telemetry-pulse"></div>
+                        <div class="telemetry-text" id="telemetry-msg">Iniciando simulación...</div>
+                    </div>
+                    <div class="telemetry-progress-container">
+                        <div class="telemetry-progress-bar" id="telemetry-progress"></div>
+                    </div>
+                </div>
+
+                <!-- Área Gráfica SVG Panorámica -->
+                <div class="render-area" id="render-viewport">
+                    <div class="mermaid" id="focus-mermaid-target"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Inicializar Mermaid con tema visual estilizado, auto-ajuste y tuberías animadas en LR
+        function initMermaidConfig() {
+            mermaid.initialize({
+                startOnLoad: false,
+                theme: 'dark',
+                securityLevel: 'loose',
+                flowchart: {
+                    useMaxWidth: true,
+                    htmlLabels: true,
+                    curve: 'basis',
+                    nodeSpacing: 45,
+                    rankSpacing: 55,
+                    padding: 16
+                },
+                themeVariables: {
+                    darkMode: true,
+                    background: '#121b2f',
+                    primaryColor: '#1e293b',
+                    primaryTextColor: '#ffffff',
+                    primaryBorderColor: '#38bdf8',
+                    lineColor: '#38bdf8',
+                    secondaryColor: '#8b5cf6',
+                    tertiaryColor: '#10b981',
+                    fontSize: '13px',
+                    fontFamily: 'Inter, system-ui, sans-serif'
+                }
+            });
+        }
+
+        // Catálogo de Diagramas Panorámicos Horizontales (LR) con Subgrafos y Cero Truncado
+        const PROCESS_CATALOG = {
+            'sec-economic': {
+                title: 'Protocolo Económico: BLUE / COMPROMISO RED',
+                desc: 'Mapeo integral de la función financialCoreService.processPayment. Por cada transferencia, se acredita el activo BLUE con parking diferido al beneficiario y se registra el COMPROMISO RED en el pagador, verificando la invariante TotalSupply(BLUE) == TotalSupply(RED).',
+                modules: 'CoreProtocol.sol, RedToken.sol, financialCoreService.js',
+                rule: 'Paridad 1:1 Invariable, Masa Monetaria Neta Cero',
+                audit: 'Trazabilidad Bancaria SOC 2 en tabla audit_logs',
+                steps: [
+                    '1. Solicitud de pago o transferencia enviada por el usuario',
+                    '2. Smart Contract evalúa límite crediticio y balance disponible',
+                    '3. Cálculo de comisión de protocolo (2%) e importe neto a liquidar',
+                    '4. Generación de tokens BLUE con parking diferido al beneficiario',
+                    '5. Emisión de tokens RED al pagador: Registro de COMPROMISO RED',
+                    '6. Acreditación de tokens BLUE de comisión a la Tesorería',
+                    '7. Verificación criptográfica: TotalSupply(BLUE) == TotalSupply(RED)',
+                    '8. Inserción inmutable en tabla audit_logs y confirmación final'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+    classDef error fill:#b91c1c,color:#ffffff,stroke:#ef4444,stroke-width:2px;
+
+    subgraph S1 [" 1. Solicitud & Crédito "]
+        A(["1. Solicitud de Pago<br/>(Transferencia)"]):::startEnd --> B{"2. ¿Límite RED<br/>Disponible?"}:::decision
+        B -- "Insuficiente" --> C(["Error 403:<br/>Saldo Insuficiente"]):::error
+    end
+
+    subgraph S2 [" 2. Emisión Dual Paritaria "]
+        B -- "Aprobado" --> D["3. Calcular Comisión<br/>e Importe Neto"]:::process
+        D --> E["4. Acreditar BLUE<br/>(Parking Diferido)"]:::process
+        D --> F["5. Registrar<br/>COMPROMISO RED"]:::process
+        E --> G["6. Comisión a<br/>la Tesorería"]:::process
+    end
+
+    subgraph S3 [" 3. Verificación de Invariante & Auditoría "]
+        F --> H{"7. ¿Invariante<br/>BLUE == RED?"}:::decision
+        G --> H
+        H -- "Fallo" --> I(["REVERT:<br/>Fallo de Paridad"]):::error
+        H -- "Conforme" --> J["8. Inserción en<br/>audit_logs SOC 2"]:::process
+        J --> K(["9. Pago Confirmado<br/>y Liquidado"]):::success
+    end
+`
+            },
+            'sec-treasury': {
+                title: 'Dogfooding Protocolar de Tesorería',
+                desc: 'La Tesorería NUNCA transfiere tokens BLUE directamente por fuera del protocolo. Todo incentivo opera bajo el flujo estándar idéntico al de cualquier usuario: asume el COMPROMISO RED y amortiza con comisiones acumuladas.',
+                modules: 'ProtocolTreasury.sol, CoreProtocol.sol, RedToken.sol',
+                rule: 'Cero transferencias P2P directas de Tesorería',
+                audit: 'Amortización Contable con Comisiones Acumuladas',
+                steps: [
+                    '1. Evento de dispersión de incentivo o recompensa comunitaria',
+                    '2. Tesorería invoca CoreProtocol actuando como pagador estándar',
+                    '3. Emisión de tokens BLUE al usuario beneficiario con parking',
+                    '4. Tesorería asume el COMPROMISO RED correspondiente sin privilegios',
+                    '5. Tesorería recibe tokens BLUE ordinarios por comisión de plataforma',
+                    '6. Tesorería amortiza su COMPROMISO RED con sus tokens BLUE de comisión',
+                    '7. Verificación de variación neta cero en la masa monetaria circulante'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+
+    subgraph T1 [" 1. Origen del Incentivo "]
+        TA(["1. Dispersión de<br/>Recompensa"]):::startEnd --> TB["2. Invocación como<br/>Pagador Estándar"]:::process
+    end
+
+    subgraph T2 [" 2. Flujo Protocolar Ordinario "]
+        TB --> TC["3. Emitir Tokens BLUE<br/>con Parking al Usuario"]:::process
+        TB --> TD["4. Tesorería Asume<br/>COMPROMISO RED"]:::process
+        TC --> TE["5. Recepción Ordinaria de<br/>BLUE por Comisión"]:::process
+    end
+
+    subgraph T3 [" 3. Amortización & Paridad "]
+        TD --> TF["6. Amortización con<br/>BLUE de Comisiones"]:::process
+        TE --> TF
+        TF --> TG["7. Verificación:<br/>Masa Neta Cero"]:::process
+        TG --> TH(["8. Incentivo Liquidado<br/>con Paridad 1:1"]):::success
+    end
+`
+            },
+            'sec-auth': {
+                title: 'Autenticación WebAuthn & JWT Zero-Trust',
+                desc: 'Autenticación multifactorial y biométrica. Incluye generación de challenge criptográfico con WebAuthn/Passkeys, y protección estricta contra ataques de fuerza bruta mediante pinAttemptsPool.',
+                modules: 'authController.js, webauthnService.js, pinAttemptsPool.js',
+                rule: 'Principio de Cero Confianza (Zero-Trust) & Passkeys',
+                audit: 'Bloqueo tras 5 intentos fallidos y logs inmutables',
+                steps: [
+                    '1. Solicitud de inicio de sesión en frontend SPA',
+                    '2. Selección de método: Biometría Passkey o Credenciales',
+                    '3. Backend genera challenge criptográfico único',
+                    '4. Dispositivo de hardware verifica huella dactilar o rostro',
+                    '5. Validación de firma de clave pública en webauthnService',
+                    '6. Emisión de JWT de alta seguridad y Refresh Token HttpOnly'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+    classDef error fill:#b91c1c,color:#ffffff,stroke:#ef4444,stroke-width:2px;
+
+    subgraph A1 [" 1. Acceso a Plataforma "]
+        UA(["1. Solicitud de Login<br/>App / Admin"]):::startEnd --> UB{"2. ¿Método de<br/>Autenticación?"}:::decision
+    end
+
+    subgraph A2 [" 2a. Hardware Passkey "]
+        UB -- "Passkey" --> UC["3. Challenge<br/>Criptográfico"]:::process
+        UC --> UD["4. Biometría de<br/>Hardware"]:::process
+        UD --> UE{"¿Firma<br/>Válida?"}:::decision
+        UE -- "No" --> UF(["Error:<br/>Autenticación Denegada"]):::error
+    end
+
+    subgraph A3 [" 2b. Contraseña / PIN "]
+        UB -- "PIN / Clave" --> UH{"¿pinAttemptsPool<br/>Permitido?"}:::decision
+        UH -- "Excedido" --> UI(["Error 429:<br/>Intentos Excedidos"]):::error
+        UH -- "Permitido" --> UJ["Hash Argon2<br/>+ Pepper"]:::process
+        UJ --> UK{"¿Credenciales<br/>Válidas?"}:::decision
+        UK -- "No" --> UF
+    end
+
+    subgraph A4 [" 3. Sesión Segura "]
+        UE -- "Sí" --> UG["5. Validar en<br/>webauthnService"]:::process
+        UK -- "Sí" --> UG
+        UG --> UN["6. Generar JWT Seguro<br/>+ Refresh HttpOnly"]:::process
+        UN --> UO(["7. Sesión Zero-Trust<br/>Iniciada"]):::success
+    end
+`
+            },
+            'sec-recovery': {
+                title: 'Recuperabilidad Social de Cuentas',
+                desc: 'Permite a los usuarios restaurar el acceso a su billetera de autocustodia mediante un quórum distribuido de tutores autorizados y una ventana de seguridad TimeLock.',
+                modules: 'personalRecovery.js, recoverableAccounts.js',
+                rule: 'Quórum M-de-N de Tutores con TimeLock de Seguridad',
+                audit: 'Cancelación inmediata ante intento no autorizado',
+                steps: [
+                    '1. Usuario reporta pérdida de credenciales y solicita recuperación',
+                    '2. Notificación encriptada a tutores autorizados',
+                    '3. Tutores aprueban y firman criptográficamente la solicitud',
+                    '4. Verificación de quórum de firmas alcanzado',
+                    '5. Activación de TimeLock de seguridad (48 horas)',
+                    '6. Traspaso de control seguro a la nueva dirección'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+    classDef error fill:#b91c1c,color:#ffffff,stroke:#ef4444,stroke-width:2px;
+
+    subgraph R1 [" 1. Convocatoria de Tutores "]
+        RA(["1. Solicitud de<br/>Recuperación"]):::startEnd --> RB["2. Ingresar Identificador<br/>y Nueva Dirección"]:::process
+        RB --> RC["3. Notificar a Tutores<br/>Autorizados"]:::process
+        RC --> RD["4. Firma Criptográfica<br/>de Guardianes"]:::process
+        RD --> RE{"5. ¿Quórum M-de-N<br/>Alcanzado?"}:::decision
+        RE -- "No" --> RF(["En Espera de<br/>Confirmación"]):::error
+    end
+
+    subgraph R2 [" 2. Salvaguarda TimeLock "]
+        RE -- "Sí" --> RG["6. Iniciar TimeLock<br/>(Ventana 48h)"]:::process
+        RG --> RH{"7. ¿Sin Cancelación<br/>del Propietario?"}:::decision
+        RH -- "Cancelado" --> RI(["Recuperación<br/>Abortada"]):::error
+    end
+
+    subgraph R3 [" 3. Migración Definitiva "]
+        RH -- "Exitoso" --> RJ["8. Traspaso de Control<br/>a Nueva Billetera"]:::process
+        RJ --> RK(["9. Cuenta Restaurada<br/>con Éxito"]):::success
+    end
+`
+            },
+            'sec-p2p-create': {
+                title: 'Publicación P2P con Retención en Escrow',
+                desc: 'Creación de ofertas de compra o venta en el marketplace. En ventas de tokens BLUE, se retiene inmediatamente la estaca en custodia segura (Escrow) para blindar al comprador.',
+                modules: 'publicationController.js, publicationService.js',
+                rule: 'Estaca de Garantía Previa Obligatoria en Venta',
+                audit: 'Bloqueo de fondos en Escrow verificable on-chain/DB',
+                steps: [
+                    '1. Usuario define precio, volumen y moneda bancaria en la orden',
+                    '2. Verificación del tipo de operación (Venta o Compra de BLUE)',
+                    '3. Bloqueo preventivo de la masa de tokens BLUE en contrato de Escrow',
+                    '4. Comprobación de solvencia de la estaca de garantía',
+                    '5. Activación de la publicación en el Libro de Órdenes FIFO'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+    classDef error fill:#b91c1c,color:#ffffff,stroke:#ef4444,stroke-width:2px;
+
+    subgraph P1 [" 1. Configuración de Oferta "]
+        PA(["1. Crear Publicación<br/>P2P"]):::startEnd --> PB["2. Ingresar Monto, Tasa<br/>y Moneda FIAT"]:::process
+        PB --> PC{"3. ¿Es Oferta de<br/>Venta de BLUE?"}:::decision
+    end
+
+    subgraph P2 [" 2. Verificación y Custodia "]
+        PC -- "Venta" --> PD["4. Retención en<br/>Escrow de Seguridad"]:::process
+        PD --> PF{"5. ¿Fondos Suficientes<br/>para Garantía?"}:::decision
+        PF -- "No" --> PG(["Error:<br/>Balance Insuficiente"]):::error
+        PC -- "Compra" --> PE["Verificar Scoring<br/>y Reputación"]:::process
+    end
+
+    subgraph P3 [" 3. Visibilidad en Mercado "]
+        PF -- "Sí" --> PH["6. Registrar Oferta<br/>como ACTIVA"]:::process
+        PE --> PH
+        PH --> PI["7. Incorporar al Libro<br/>de Órdenes FIFO"]:::process
+        PI --> PJ(["8. Oferta Visible<br/>en el Mercado"]):::success
+    end
+`
+            },
+            'sec-p2p-match': {
+                title: 'Algoritmo de Matching FIFO (First-In-First-Out)',
+                desc: 'Coincidencia determinista por tiempo y precio. Las órdenes más antiguas se ejecutan primero de forma estricta. El pago se liquida en 2 fases con verificación bilateral.',
+                modules: 'FifoExchange.sol, p2pController.js',
+                rule: 'Prioridad Cronológica Determinista FIFO',
+                audit: 'Liberación de Escrow solo tras confirmación bilateral',
+                steps: [
+                    '1. Comprador selecciona orden disponible en el mercado',
+                    '2. Algoritmo confirma prioridad estricta por fecha/hora de creación',
+                    '3. Bloqueo transaccional de los tokens BLUE seleccionados',
+                    '4. Comprador transfiere fondos bancarios fuera de cadena',
+                    '5. Vendedor verifica acreditación bancaria y confirma recepción',
+                    '6. Contrato inteligente libera los tokens BLUE al comprador'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+
+    subgraph M1 [" 1. Emparejamiento FIFO "]
+        MA(["1. Selección en el<br/>Orderbook"]):::startEnd --> MB["2. Algoritmo Evalúa<br/>Prioridad FIFO"]:::process
+        MB --> MC["3. Bloquear Fracción<br/>en Custodia Escrow"]:::process
+    end
+
+    subgraph M2 [" 2. Transferencia Externa "]
+        MC --> MD["4. Transferencia Bancaria<br/>FIAT Externa"]:::process
+        MD --> ME["5. Comprador Marca Pagado<br/>+ Adjunta Comprobante"]:::process
+        ME --> MF{"6. ¿Vendedor Confirma<br/>Recepción Bancaria?"}:::decision
+    end
+
+    subgraph M3 [" 3. Cierre y Liquidación "]
+        MF -- "Confirmado" --> MG["7. Liberar BLUE de<br/>Escrow a Comprador"]:::process
+        MG --> MH["8. Liquidar Comisión<br/>y Subir Reputación"]:::process
+        MH --> MI(["9. Liquidación P2P<br/>Completada"]):::success
+    end
+`
+            },
+            'sec-p2p-dispute': {
+                title: 'Arbitraje y Resolución de Disputas P2P',
+                desc: 'Protección antifraude con mediación arbitral ante discrepancias en transferencias bancarias o vencimiento del temporizador de pago.',
+                modules: 'p2pController.js, adminController.js',
+                rule: 'Resolución Arbitral Auditable con Comprobantes Bancarios',
+                audit: 'Historial de auditoría completo y penalización de reputación',
+                steps: [
+                    '1. Apertura de disputa por discrepancia de pago',
+                    '2. Congelamiento de tokens en escrow',
+                    '3. Asignación de árbitro de administración',
+                    '4. Evaluación de extractos bancarios oficiales',
+                    '5. Emisión de dictamen arbitral y resolución de custodia'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+    classDef error fill:#b91c1c,color:#ffffff,stroke:#ef4444,stroke-width:2px;
+
+    subgraph D1 [" 1. Bloqueo & Asignación "]
+        DA(["1. Apertura de Disputa<br/>en Orden P2P"]):::startEnd --> DB["2. Congelar Tokens<br/>en Escrow"]:::process
+        DB --> DC["3. Asignar Árbitro<br/>de Administración"]:::process
+    end
+
+    subgraph D2 [" 2. Verificación de Extractos "]
+        DC --> DD["4. Cotejar Extractos<br/>Bancarios Oficiales"]:::process
+        DD --> DE{"5. ¿Pago FIAT Válido<br/>y Acreditado?"}:::decision
+    end
+
+    subgraph D3 [" 3. Sentencia Arbitral "]
+        DE -- "Acreditado" --> DF["6. Árbitro Libera BLUE<br/>al Comprador"]:::process
+        DF --> DG(["Resolución a Favor<br/>del Comprador"]):::success
+        DE -- "No Acreditado" --> DH["6. Árbitro Devuelve<br/>Escrow al Vendedor"]:::process
+        DH --> DI["Sancionar Cuenta del<br/>Comprador Infractor"]:::process
+        DI --> DJ(["Resolución a Favor<br/>del Vendedor"]):::error
+    end
+`
+            },
+            'sec-gov': {
+                title: 'Gobernanza Comunitarias & Votación',
+                desc: 'Participación directa con poder de voto derivado del saldo de tokens BLUE. Al emitir un voto, los tokens se congelan temporalmente en parking para prevenir doble voto.',
+                modules: 'governanceController.js, governanceService.js',
+                rule: 'Poder de Voto 1:1 con BLUE en Parking',
+                audit: 'Hash criptográfico inmutable por cada voto emitido',
+                steps: [
+                    '1. Usuario emite voto en causa comunitaria activa',
+                    '2. Verificación de saldo de tokens BLUE del votante',
+                    '3. Congelamiento temporal de poder de voto en parking',
+                    '4. Cómputo criptográfico de quórum y mayoría calificada',
+                    '5. Liberación de tokens de parking al finalizar el escrutinio'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+
+    subgraph G1 [" 1. Emisión de Voto "]
+        GA(["1. Emitir Voto en<br/>Propuesta Común"]):::startEnd --> GB["2. Comprobar Balance<br/>Disponible de BLUE"]:::process
+        GB --> GC["3. Congelar Poder en<br/>Parking de Votación"]:::process
+        GC --> GD["4. Hash Criptográfico<br/>de Voto en Base Datos"]:::process
+    end
+
+    subgraph G2 [" 2. Escrutinio "]
+        GD --> GE{"5. ¿Finalizó Período<br/>de Escrutinio?"}:::decision
+        GE -- "En Curso" --> GF["Recepción Continua<br/>de Votos"]:::process
+        GE -- "Finalizado" --> GG{"6. ¿Aprobada por<br/>Quórum y Mayoría?"}:::decision
+    end
+
+    subgraph G3 [" 3. Conclusión "]
+        GG -- "Aprobada" --> GH["Ejecutar Acción /<br/>Financiar Proyecto"]:::process
+        GG -- "Rechazada" --> GI["Archivar Decisión<br/>Desestimada"]:::process
+        GH --> GJ["7. Descongelar Tokens<br/>del Parking"]:::process
+        GI --> GJ
+        GJ --> GK(["8. Votación Finalizada<br/>y Auditada"]):::success
+    end
+`
+            },
+            'sec-humanitarian': {
+                title: 'Causas Solidarias SOS Venezuela',
+                desc: 'Canalización directa de donaciones y proyectos de impacto social comunitario con emisión de comprobantes y certificados auditables.',
+                modules: 'humanitarianController.js, humanitarianService.js',
+                rule: 'Trazabilidad 100% de Fondos y Certificados de Donación',
+                audit: 'Certificado criptográfico de donación generado al instante',
+                steps: [
+                    '1. Registro y verificación de proyecto humanitario de impacto',
+                    '2. Donante transfiere aportes en tokens BLUE',
+                    '3. Registro inmutable en libro contable de donaciones',
+                    '4. Generación de certificado criptográfico de impacto social',
+                    '5. Tesorería canaliza los insumos al beneficiario'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+
+    subgraph H1 [" 1. Causa & Verificación "]
+        HA(["1. Causa Humanitaria<br/>SOS Venezuela"]):::startEnd --> HB["2. Validación y Registro<br/>de Proyecto Social"]:::process
+    end
+
+    subgraph H2 [" 2. Donación Directa "]
+        HB --> HC["3. Donante Transfiere<br/>Aportes en BLUE"]:::process
+        HC --> HD["4. Registro en Libro<br/>Contable de Donaciones"]:::process
+    end
+
+    subgraph H3 [" 3. Impacto & Certificado "]
+        HD --> HE["5. Generar Certificado<br/>de Impacto Social"]:::process
+        HE --> HF["6. Tesorería Canaliza<br/>Insumos Directos"]:::process
+        HF --> HG(["7. Donación Auditada<br/>y Certificada"]):::success
+    end
+`
+            },
+            'sec-scoring': {
+                title: 'Credit Scoring & Halving de Compromiso RED',
+                desc: 'Evaluación crediticia dinámica con trinquete (*High-Water Mark*). El trinquete protege límites adquiridos por mérito, pero ante mora protocolar aplica halving inmediato (50% de recorte acumulativo).',
+                modules: 'creditScoringService.js, creditPolicyJobs.js',
+                rule: 'Halving 50% por Mora RED con Trinquete Desacoplado',
+                audit: 'Verificación on-chain de mora con isDelinquent()',
+                steps: [
+                    '1. Ejecución periódica de evaluación de riesgo crediticio',
+                    '2. Consulta de méritos por volumen y cumplimiento histórico',
+                    '3. Verificación de mora protocolar en compromisos RED',
+                    '4. Si no hay mora: se preserva límite adquirido mediante trinquete',
+                    '5. Si existe mora: se aplica halving estricto del 50% y sincroniza on-chain'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+    classDef error fill:#b91c1c,color:#ffffff,stroke:#ef4444,stroke-width:2px;
+
+    subgraph S1 [" 1. Evaluación de Comportamiento "]
+        SA(["1. Evaluar Scoring<br/>Crediticio"]):::startEnd --> SB["2. Computar Méritos<br/>y Cumplimiento"]:::process
+        SB --> SC{"3. ¿Usuario en Mora<br/>Protocolar RED?"}:::decision
+    end
+
+    subgraph S2 [" 2a. Sin Mora: Trinquete "]
+        SC -- "No" --> SD["4. Calcular Límite<br/>Base Adquirido"]:::process
+        SD --> SE["5. Trinquete Protege<br/>Límite Adquirido"]:::process
+        SE --> SF(["Límite Preservado<br/>o Incrementado"]):::success
+    end
+
+    subgraph S3 [" 2b. Con Mora: Halving 50% "]
+        SC -- "Sí" --> SG["4. Halving 50% Estricto<br/>por Incumplimiento"]:::process
+        SG --> SH["5. Trinquete Desacoplado<br/>por Riesgo de Mora"]:::process
+        SH --> SI["6. Sincronizar Límite<br/>Recortado On-Chain"]:::process
+        SI --> SJ(["Límite Reducido<br/>por Penalización"]):::error
+    end
+`
+            },
+            'sec-gas': {
+                title: 'Subsidio de Gas & Durable Relayer Web3',
+                desc: 'Permite transaccionar en la Blockchain sin fricción de gas nativo mediante Meta-Transacciones EIP-712 procesadas por un relayer seguro con cuotas presupuestarias.',
+                modules: 'demoGasPolicy.js, durableRelayer.js, safeExecution.js',
+                rule: 'Meta-Transacciones EIP-712 con Cuotas de Presupuesto',
+                audit: 'Límite de gas por usuario controlado en gasBudgetUsage',
+                steps: [
+                    '1. Solicitud de operación en la red Web3',
+                    '2. Comprobación de cupo de gas gratuito disponible',
+                    '3. Firma digital de Meta-Transacción EIP-712 en cliente',
+                    '4. Durable Relayer asume el coste del gas de la red',
+                    '5. Transmisión y confirmación en Optimism Sepolia'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+    classDef error fill:#b91c1c,color:#ffffff,stroke:#ef4444,stroke-width:2px;
+
+    subgraph G1 [" 1. Chequeo de Presupuesto "]
+        GA(["1. Solicitud de Operación<br/>en Red Web3"]):::startEnd --> GB["2. Consultar Cupo de Gas<br/>en gasBudgetUsage"]:::process
+        GB --> GC{"3. ¿Tiene Subsidio<br/>de Gas Activo?"}:::decision
+        GC -- "No" --> GD(["Usuario Paga Gas<br/>Directamente"]):::error
+    end
+
+    subgraph G2 [" 2. Meta-Transacción EIP-712 "]
+        GC -- "Sí" --> GE["4. Usuario Firma Meta-<br/>Transacción EIP-712"]:::process
+        GE --> GF["5. Durable Relayer Paga<br/>el Gas de la Red"]:::process
+    end
+
+    subgraph G3 [" 3. Liquidación On-Chain "]
+        GF --> GG["6. Envío y Minado en<br/>Optimism Sepolia"]:::process
+        GG --> GH["7. Registrar Consumo en<br/>Base de Datos"]:::process
+        GH --> GI(["8. Operación Confirmada<br/>sin Fricción"]):::success
+    end
+`
+            },
+            'sec-audit': {
+                title: 'Pipeline de Auditoría Bancaria & Trazabilidad SOC 2',
+                desc: 'Trazabilidad de cada evento sensible con emisión de logs inmutables en PostgreSQL y worker de reconciliación periódica entre balances SQL y saldos on-chain.',
+                modules: 'auditService.js, reconciliationService.js',
+                rule: 'Estándar Bancario SOC 2 de Inmutabilidad',
+                audit: 'Reconciliación periódica con alerta automática de desvío',
+                steps: [
+                    '1. Evento de operación crítica en la plataforma',
+                    '2. Invocación centralizada de auditService.logEvent',
+                    '3. Inserción inmutable en tabla audit_logs de base de datos',
+                    '4. Worker periódico de reconciliación compara saldos BD vs Contratos',
+                    '5. Certificación del 100% de coherencia o emisión de alerta'
+                ],
+                mermaid: `
+flowchart LR
+    classDef startEnd fill:#1d4ed8,color:#ffffff,stroke:#3b82f6,stroke-width:2px;
+    classDef decision fill:#6d28d9,color:#ffffff,stroke:#8b5cf6,stroke-width:2px;
+    classDef process fill:#0f172a,color:#ffffff,stroke:#38bdf8,stroke-width:1.8px;
+    classDef success fill:#047857,color:#ffffff,stroke:#10b981,stroke-width:2px;
+    classDef error fill:#b91c1c,color:#ffffff,stroke:#ef4444,stroke-width:2px;
+
+    subgraph AU1 [" 1. Captura Inmutable "]
+        AA(["1. Evento Sensible en<br/>la Plataforma"]):::startEnd --> AB["2. Invocación de<br/>auditService.logEvent"]:::process
+        AB --> AC["3. Inserción Inmutable<br/>en audit_logs SQL"]:::process
+        AB --> AD["4. Despacho a Bus de<br/>notificationEventBus"]:::process
+    end
+
+    subgraph AU2 [" 2. Notificación y Monitoreo "]
+        AD --> AE["5. Notificación WebSocket<br/>en la UI React"]:::process
+        AC --> AF["6. Worker Reconcilia<br/>Saldos BD vs On-Chain"]:::process
+    end
+
+    subgraph AU3 [" 3. Verificación de Integridad "]
+        AF --> AG{"7. ¿Coincidencia de<br/>Invariantes 100%?"}:::decision
+        AG -- "Sí" --> AH(["Auditoría Aprobada:<br/>Estado Saludable"]):::success
+        AG -- "No" --> AI(["Alerta Crítica de<br/>Discrepancia"]):::error
+    end
+`
+            }
+        };
+
+        let currentDiagramKey = 'sec-economic';
+        let currentZoom = 1.0;
+        let panX = 0;
+        let panY = 0;
+        let isDragging = false;
+        let dragStartX = 0;
+        let dragStartY = 0;
+
+        let isSimulating = false;
+        let simulationInterval = null;
+        let simStepIndex = 0;
+        let simSpeed = 900;
+
+        // Selección de Diagrama
+        async function selectDiagram(key) {
+            stopSimulation();
+            const data = PROCESS_CATALOG[key];
+            if (!data) return;
+
+            currentDiagramKey = key;
+
+            // Actualizar botones de barra lateral
+            document.querySelectorAll('.sidebar-item').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-id') === key);
+            });
+
+            // Actualizar textos
+            document.getElementById('focus-title').innerText = data.title;
+            document.getElementById('focus-desc').innerText = data.desc;
+            document.getElementById('focus-modules').innerText = data.modules;
+            document.getElementById('focus-rule').innerText = data.rule;
+            document.getElementById('focus-audit').innerText = data.audit;
+
+            // Renderizar SVG dinámicamente
+            const target = document.getElementById('focus-mermaid-target');
+            target.removeAttribute('data-processed');
+            target.innerHTML = data.mermaid;
+
+            try {
+                await mermaid.run({ nodes: [target] });
+                // Dar tiempo al motor gráfico del navegador para computar el layout del SVG y encajar al 100%
+                requestAnimationFrame(() => {
+                    fitDiagramToViewport();
+                });
+            } catch (err) {
+                console.error("Error al renderizar Mermaid:", err);
+            }
+        }
+
+        // Motor de Simulación en Vivo (Reproducir Flujo Paso a Paso)
+        function toggleSimulation() {
+            if (isSimulating) {
+                stopSimulation();
+            } else {
+                startSimulation();
+            }
+        }
+
+        function startSimulation() {
+            isSimulating = true;
+            document.getElementById('sim-icon').innerText = '⏸';
+            document.getElementById('sim-text').innerText = 'Pausar Simulación';
+            document.getElementById('telemetry-box').style.display = 'flex';
+
+            const data = PROCESS_CATALOG[currentDiagramKey];
+            const steps = data.steps || [];
+            simStepIndex = 0;
+
+            const nodes = document.querySelectorAll('#focus-mermaid-target svg .node');
+
+            simulationInterval = setInterval(() => {
+                if (simStepIndex >= nodes.length || simStepIndex >= steps.length) {
+                    simStepIndex = 0;
+                }
+
+                nodes.forEach(n => n.classList.remove('node-active-step'));
+
+                if (nodes[simStepIndex]) {
+                    nodes[simStepIndex].classList.add('node-active-step');
+                }
+
+                const progressPct = ((simStepIndex + 1) / steps.length) * 100;
+                document.getElementById('telemetry-progress').style.width = `${progressPct}%`;
+                document.getElementById('telemetry-msg').innerText = `[Paso ${simStepIndex + 1}/${steps.length}]: ${steps[simStepIndex] || 'Procesando nodo...'}`;
+
+                simStepIndex++;
+            }, simSpeed);
+        }
+
+        function stopSimulation() {
+            isSimulating = false;
+            if (simulationInterval) clearInterval(simulationInterval);
+            document.getElementById('sim-icon').innerText = '▶';
+            document.getElementById('sim-text').innerText = 'Reproducir Flujo en Vivo';
+            document.getElementById('telemetry-box').style.display = 'none';
+
+            document.querySelectorAll('#focus-mermaid-target svg .node').forEach(n => {
+                n.classList.remove('node-active-step');
+            });
+        }
+
+        function setSpeed(ms, btn) {
+            simSpeed = ms;
+            document.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+
+            if (isSimulating) {
+                stopSimulation();
+                startSimulation();
+            }
+        }
+
+        // Control de Zoom y Paneo Interactivo con Ajuste de Pantalla (Fit)
+        function applyTransform() {
+            const el = document.getElementById('focus-mermaid-target');
+            if (el) el.style.transform = `translate(${panX}px, ${panY}px) scale(${currentZoom})`;
+        }
+
+        function fitDiagramToViewport() {
+            const viewport = document.getElementById('render-viewport');
+            const target = document.getElementById('focus-mermaid-target');
+            const svg = target ? target.querySelector('svg') : null;
+            if (!viewport || !target || !svg) return;
+
+            let svgWidth = 0;
+            let svgHeight = 0;
+
+            if (svg.viewBox && svg.viewBox.baseVal && svg.viewBox.baseVal.width > 0) {
+                svgWidth = svg.viewBox.baseVal.width;
+                svgHeight = svg.viewBox.baseVal.height;
+            } else {
+                const bbox = svg.getBBox();
+                svgWidth = bbox.width;
+                svgHeight = bbox.height;
+            }
+
+            const vWidth = viewport.clientWidth - 24;
+            const vHeight = viewport.clientHeight - 24;
+
+            if (svgWidth <= 0 || svgHeight <= 0 || vWidth <= 0 || vHeight <= 0) return;
+
+            const scaleX = vWidth / svgWidth;
+            const scaleY = vHeight / svgHeight;
+            const fitScale = Math.min(scaleX, scaleY);
+
+            currentZoom = Math.min(Math.max(fitScale * 0.95, 0.2), 1.8);
+            panX = 0;
+            panY = 0;
+            applyTransform();
+        }
+
+        function zoomDiagram(factor) {
+            currentZoom = Math.min(Math.max(currentZoom * factor, 0.2), 3.0);
+            applyTransform();
+        }
+
+        function resetZoom() {
+            fitDiagramToViewport();
+        }
+
+        function initPanZoom() {
+            const viewport = document.getElementById('render-viewport');
+            if (!viewport) return;
+
+            viewport.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                isDragging = true;
+                viewport.style.cursor = 'grabbing';
+                dragStartX = e.clientX - panX;
+                dragStartY = e.clientY - panY;
+            });
+
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                panX = e.clientX - dragStartX;
+                panY = e.clientY - dragStartY;
+                applyTransform();
+            });
+
+            window.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    viewport.style.cursor = 'grab';
+                }
+            });
+
+            viewport.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const factor = e.deltaY < 0 ? 1.1 : 0.9;
+                zoomDiagram(factor);
+            }, { passive: false });
+
+            window.addEventListener('resize', () => {
+                fitDiagramToViewport();
+            });
+        }
+
+        // Animación de Malla de Partículas de Fondo en HTML5 Canvas
+        function initBackgroundMesh() {
+            const canvas = document.getElementById('bg-canvas');
+            const ctx = canvas.getContext('2d');
+            let width = canvas.width = window.innerWidth;
+            let height = canvas.height = window.innerHeight;
+
+            const particles = [];
+            const particleCount = 35;
+
+            for (let i = 0; i < particleCount; i++) {
+                particles.push({
+                    x: Math.random() * width,
+                    y: Math.random() * height,
+                    vx: (Math.random() - 0.5) * 0.35,
+                    vy: (Math.random() - 0.5) * 0.35,
+                    radius: Math.random() * 1.6 + 1
+                });
+            }
+
+            function draw() {
+                ctx.clearRect(0, 0, width, height);
+
+                for (let i = 0; i < particles.length; i++) {
+                    const p = particles[i];
+                    p.x += p.vx;
+                    p.y += p.vy;
+
+                    if (p.x < 0 || p.x > width) p.vx *= -1;
+                    if (p.y < 0 || p.y > height) p.vy *= -1;
+
+                    ctx.beginPath();
+                    ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#38bdf8';
+                    ctx.fill();
+
+                    for (let j = i + 1; j < particles.length; j++) {
+                        const p2 = particles[j];
+                        const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
+                        if (dist < 120) {
+                            ctx.beginPath();
+                            ctx.moveTo(p.x, p.y);
+                            ctx.lineTo(p2.x, p2.y);
+                            ctx.strokeStyle = `rgba(56, 189, 248, ${0.12 * (1 - dist / 120)})`;
+                            ctx.lineWidth = 0.8;
+                            ctx.stroke();
+                        }
+                    }
+                }
+
+                requestAnimationFrame(draw);
+            }
+
+            window.addEventListener('resize', () => {
+                width = canvas.width = window.innerWidth;
+                height = canvas.height = window.innerHeight;
+            });
+
+            draw();
+        }
+
+        // Inicialización esperando carga completa de fuentes
+        window.addEventListener('DOMContentLoaded', () => {
+            initBackgroundMesh();
+            initMermaidConfig();
+            initPanZoom();
+            if (document.fonts && document.fonts.ready) {
+                document.fonts.ready.then(() => selectDiagram('sec-economic'));
+            } else {
+                selectDiagram('sec-economic');
+            }
+        });
+    </script>
+</body>
+</html>

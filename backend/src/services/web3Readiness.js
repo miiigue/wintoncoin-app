@@ -3,7 +3,7 @@ const {Wallet, Contract}=require('ethers');
 const deployment=require('./chainDeployment');
 
 // Read-only diagnostics: no secret values, transaction signing or DB writes.
-async function inspect({pool, env=process.env, rpc=deployment.provider(), validate=deployment.validate, contract=(address,abi)=>new Contract(address,abi,rpc)}={}) {
+async function inspect({pool, env=process.env, rpc=deployment.provider(), validate=deployment.validate, contract=(address,abi)=>new Contract(address,abi,rpc),validateAccounts=async(rpc,env,chainId)=>{const p=require('./safeAccountPolicy');const c=p.configuration(env);if(String(c.chainId)!==String(chainId))throw new Error('Account network mismatch');await p.validateInfrastructure(rpc,c);}}={}) {
     const checks=[];
     const add=(id,name,ready)=>checks.push({id,name,ready:Boolean(ready)});
     const signers={};
@@ -18,6 +18,7 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
     try{
         config=await validate(rpc,deployment.configuration(env));
         add('deployment','Red, contratos y enlaces correctos',true);
+        try{await validateAccounts(rpc,env,config.chainId);add('recoverable_accounts','Contratos de acceso y recuperación verificados',true);}catch{add('recoverable_accounts','Contratos de acceso y recuperación verificados',false);}
         const head=await rpc.getBlock('latest');
         const age=Math.floor(Date.now()/1000)-head?.timestamp;
         add('rpc_fresh','Proveedor de blockchain actualizado',Number.isSafeInteger(head?.timestamp)&&age>=-60&&age<=300);
@@ -42,8 +43,8 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
     }catch{add('chain_unavailable','Lectura completa de contratos y permisos',false);}
     finally{rpc.destroy();}
     try{
-        const migrations=await pool.query("SELECT migration_name FROM schema_migrations WHERE migration_name IN ('114_wallet_pin_attempts.js','115_wallet_identity_credit_override.js','116_durable_chain_operations.js','117_payment_recovery_controls.js','118_chain_wallet_snapshots.js','119_credit_policy_exponential_backoff.js')");
-        add('migrations','Base de datos actualizada',migrations.rowCount===6);
+        const migrations=await pool.query("SELECT migration_name FROM schema_migrations WHERE migration_name IN ('114_wallet_pin_attempts.js','115_wallet_identity_credit_override.js','116_durable_chain_operations.js','117_payment_recovery_controls.js','118_chain_wallet_snapshots.js','119_credit_policy_exponential_backoff.js','121_recoverable_accounts.js')");
+        add('migrations','Base de datos actualizada',migrations.rowCount===7);
         const duplicates=await pool.query('SELECT 1 FROM users WHERE web3_wallet_address IS NOT NULL GROUP BY LOWER(web3_wallet_address) HAVING COUNT(*)>1 LIMIT 1');
         add('identity','Una billetera por cuenta, sin duplicaciones',duplicates.rowCount===0);
         const settings=await pool.query("SELECT setting_key,setting_value FROM app_settings WHERE setting_key LIKE 'gas_sponsor_%'");

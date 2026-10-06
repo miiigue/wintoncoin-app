@@ -49,6 +49,7 @@
 | 6 | `register.html` | `src/pages/Register.jsx` (`/register`, `/register.html`) | **Migrada a React** | `/api/auth/register`, wizard de 3 pasos, verificación de código |
 | 7 | `forgot-password.html` | `src/pages/ForgotPassword.jsx` (`/forgot-password`, `/forgot-password.html`) | **Migrada a React** | `/api/auth/forgot-password`, `/api/auth/reset-password` |
 | 8 | `admin-web3.html` | `src/pages/AdminWeb3Panel.jsx` (`/admin/web3`, `/admin-web3.html`) | **Migrada a React** | Gobernanza V4 Smart Contracts, balances de reserva, control de tesorería |
+| 9 | `docs/DIAGRAMAS_VISUALES_PROYECTO.html` | `src/pages/ArchitectureFlows.jsx` (`/flows`, `/admin/flows`, `/architecture`) | **Construida en React SPA** | Simulador dinámico de arquitectura, streaming SVG interactivo y telemetría de transacciones |
 
 ---
 
@@ -159,3 +160,10 @@ Cada vez que se aborde la migración de una pantalla, se deben ejecutar los sigu
 7. **Actualización de `EVOLUCION.md` y Commit:**
    - Registrar la evolución del sistema en `EVOLUCION.md`.
    - Solicitar confirmación previa al usuario antes de ejecutar `git commit` y mostrar el hash resultante.
+
+
+## 2026-10-05 — Acceso y recuperación de cuenta (candidato)
+
+La wallet React incorpora `AccountSecurity.jsx` y `PersonalRecovery.jsx`; la confirmación usa `OperationAuthorization.jsx` y `MarketplaceAuthorization.jsx`. La página heredada de publicación monta únicamente este diálogo React; no se considera migrada toda la página. `AdminWeb3Panel.jsx` incorpora `IdentityDocumentReview.jsx` para registrar documentos ya revisados por nombre de usuario. No cambian rutas del router ni entradas Vite. Se añade la dependencia oficial Safe cargada bajo demanda y la adaptación de Buffer para navegador.
+
+Compilación comprobada; prueba P-256 real en red local con el helper frontend. Validación en teléfono físico y configuración de despliegue pendientes: ver `docs/AUTOCUSTODIA_RECUPERABLE_IMPLEMENTACION.md`.

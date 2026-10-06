@@ -4,6 +4,8 @@ const {Contract,Interface,Wallet,parseUnits,formatEther,getAddress}=require('eth
 const deployment=require('./chainDeployment');
 const {ChainOperationStore,publicResult,error}=require('./chainOperationStore');
 const {signStep}=require('./chainSigning');
+const safePolicy=require('./safeAccountPolicy');
+const safeExecution=require('./safeExecution');
 const tokenABI=['function allowance(address,address) view returns(uint256)','function approve(address,uint256) returns(bool)','function transfer(address,uint256) returns(bool)','function balanceOf(address) view returns(uint256)'];
 const coreABI=['function isKYCVerified(address) view returns(bool)','function amortizeWithBlue(uint256)'];
 const vaultABI=['function deposit(uint256)','function withdraw(uint256)','function getFreeCollateral(address) view returns(uint256)','function repayWithCollateral(address,uint256)'];
@@ -35,10 +37,11 @@ class WalletOperations {
     async identity(userId) {
         const row=(await this.pool.query('SELECT id,web3_wallet_address,has_transaction_pin,account_status FROM users WHERE id=$1',[userId])).rows[0];
         if(row?.account_status!=='active')throw error('La cuenta no está habilitada para operar.',403);
-        if(!row?.has_transaction_pin)throw error('Configura tu PIN en Billetera antes de operar.',412);
+        const account=await safeExecution.account(this.pool,userId,this.config.chainId);
         try {row.address=getAddress(row.web3_wallet_address);}catch {throw error('Tu cuenta necesita revisar su billetera.',409);}
         const count=await this.pool.query('SELECT id FROM users WHERE LOWER(web3_wallet_address)=LOWER($1)',[row.address]);
         if(count.rowCount!==1)throw error('La billetera está asociada a más de una cuenta.');
+        if(account.address!==row.address.toLowerCase())throw error('La identidad y la cuenta no coinciden.');
         return row;
     }
     async prepare(userId,input) {
@@ -73,34 +76,25 @@ class WalletOperations {
         const maxFeeWei=String(process.env.WALLET_MAX_STEP_FEE_WEI || '100000000000000');
         if(!/^\d+$/.test(maxFeeWei)||BigInt(maxFeeWei)<=0n)throw error('Presupuesto de red no configurado.',503);
         const id=randomUUID();
-        const row=await this.store.prepare({id,userId,key:'wallet:'+id,chainId:this.config.chainId,sender:user.address,resource:'wallet:'+user.address.toLowerCase(),kind:p.action,
-            payload:{...p,kycContract:c.CoreProtocol,fingerprint:this.config.fingerprint,plan,planLength:plan.length,maxFeeWei,expiresAt:Date.now()+15*60*1000}});
+        const row=await this.store.prepare({id,userId,key:'wallet:'+id,chainId:this.config.chainId,sender:safeExecution.relayer().address,resource:'wallet:'+user.address.toLowerCase(),kind:p.action,
+            payload:{...p,account:user.address.toLowerCase(),kycAccount:user.address,kycContract:c.CoreProtocol,fingerprint:this.config.fingerprint,plan,planLength:plan.length,maxFeeWei,expiresAt:Date.now()+15*60*1000}});
         return {...publicResult(row),title:labels[p.action],amount:p.amount,destination:p.destination||user.address,chainId:this.config.chainId,
             maxNetworkFeeEth:formatEther(BigInt(maxFeeWei)*BigInt(plan.length)),stepsCount:plan.length};
     }
-    async authorize(userId,id,pin) {
+    async authorize(userId,id,authorization) {
         const user=await this.identity(userId);
         return this.store.authorize(id,userId,async(row,client)=>{
             await this.identity(userId);
-            if(row.sender!==user.address.toLowerCase()||row.payload.fingerprint!==this.config.fingerprint)throw error('La cuenta o el despliegue cambió.');
+            if(row.payload.account!==user.address.toLowerCase()||row.payload.fingerprint!==this.config.fingerprint)throw error('La cuenta o el despliegue cambió.');
             if(!row.steps.length && row.payload.expiresAt<Date.now())throw error('La autorización venció. Consulta el estado antes de preparar otra operación.');
             await deployment.validate(this.rpc,this.config);
             if(!await new Contract(this.config.contracts.CoreProtocol,coreABI,this.rpc).isKYCVerified(user.address))throw error('Tu KYC no está aprobado.',403);
-            let key;
-            // Legacy keystore migration belongs to its own committed DB transaction.
-            await client.query('BEGIN');
-            try { key=await this.walletService.decryptPrivateKeyWithPin(client,userId,pin);await client.query('COMMIT'); }
-            catch(e){await client.query('ROLLBACK');throw e;}
-            try {
-                const signer=new Wallet(key);
-                if(signer.address.toLowerCase()!==row.sender)throw error('La firma no corresponde a tu billetera.');
-                try {return [await signStep(this.rpc,signer,row.payload.plan[row.steps.length],row.chain_id,row.payload.maxFeeWei)];}
-                catch(e) {
-                    if(e.status!==402)throw e;
-                    const funding=await require('./gasSponsorship').sponsor(this,row,e.requiredWei);
-                    throw Object.assign(error('Se está preparando el gas patrocinado. Tu operación conserva su referencia.',202),{fundingOperationId:funding.operationId,operationId:row.id});
-                }
-            } finally {key=null;}
+            const config=safePolicy.configuration();
+            if(String(config.chainId)!==this.config.chainId)throw error('Red de cuenta incorrecta.');
+            const quote=await safeExecution.quote(this.pool,this.rpc,config,userId,row.payload.plan[row.steps.length]);
+            if(!authorization||quote.hash!==authorization.hash)throw error('Revisa y confirma la operación en tu dispositivo.');
+            const call=await safeExecution.build(this.rpc,config,quote,authorization.signature);
+            return [await safeExecution.sponsoredStep(this.pool,this.rpc,row.chain_id,userId,row,call)];
         });
     }
     async abandon(userId,id) {
@@ -110,8 +104,10 @@ class WalletOperations {
     async status(userId,id) {
         const row=await this.store.get(id,userId); // Ownership check before any reconciliation.
         const result=await this.store.reconcile(id);
-        return {...result,title:labels[row.kind]||'Patrocinio de gas',amount:row.payload.amount,
-            destination:row.payload.destination||row.sender,chainId:row.chain_id,stepsCount:row.payload.planLength||1,
+        const current=await this.store.get(id,userId);
+        const authorization=result.requiresSignature&&current.payload.account?await safeExecution.quote(this.pool,this.rpc,safePolicy.configuration(),userId,current.payload.plan[current.steps.length]):null;
+        return {...result,authorization,title:labels[row.kind]||'Patrocinio de gas',amount:row.payload.amount,
+            destination:row.payload.destination||row.payload.account||row.sender,chainId:row.chain_id,stepsCount:row.payload.planLength||1,
             maxNetworkFeeEth:row.payload.maxFeeWei?formatEther(BigInt(row.payload.maxFeeWei)*BigInt(row.payload.planLength||1)):'0'};
     }
 }

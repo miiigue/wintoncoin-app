@@ -3,6 +3,7 @@
  * Handles viewing and interacting with a single publication
  */
 
+import {authorizeMarketplace} from '../components/MarketplaceAuthorization.jsx';
 import { getApiUrl, showCustomAlert, showCustomConfirm, linkify, escapeHtml, escapeAttr, fetchAndStoreAppSettings, appSettings, silentRefreshIfNeeded, handleSessionExpired } from '../modules/index.js';
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -25,6 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const response=await fetch(API_URL+'/api/me/operations/marketplace/'+id,{credentials:'include',headers:storedToken?{Authorization:'Bearer '+storedToken}:{},cache:'no-store'});
             const result=await response.json();
             if(!response.ok)throw new Error(result.message);
+            if(result.authorization){const authorized=await authorizeMarketplace(id);if(authorized)setTimeout(recoverPayment,5000);return;}
             if(result.settled){sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();}
             else if(['failed','conflict'].includes(result.state)){if(result.state==='failed')sessionStorage.removeItem(recoveryKey);showCustomAlert(result.message+' Referencia: '+id);}
             else setTimeout(recoverPayment,5000);
@@ -1168,29 +1170,8 @@ Puedes ver los detalles aquí:`;
      * Muestra el modal para configurar por primera vez el PIN de seguridad de 6 dígitos (Autocustodia).
      * Explica al usuario de forma clara y sin tecnicismos la importancia de recordarlo para operar.
      */
-    function openSetupPinModal(onSuccessCallback) {
-        pendingPinCallback = onSuccessCallback;
-        if (elements.setupPinModal) {
-            if (elements.newPinInput) elements.newPinInput.value = '';
-            if (elements.confirmPinInput) elements.confirmPinInput.value = '';
-            const counter = document.getElementById('passphraseWordCount');
-            if (counter) {
-                counter.textContent = '0 / 4-6 palabras';
-                counter.style.color = '#94a3b8';
-            }
-            if (elements.setupPinStatusNotice) elements.setupPinStatusNotice.style.display = 'none';
-            if (elements.setupPinSubmitBtn) {
-                elements.setupPinSubmitBtn.disabled = false;
-                elements.setupPinSubmitBtn.textContent = 'Guardar Frase Secreta';
-            }
-            elements.setupPinModal.style.display = 'flex';
-            if (elements.newPinInput) setTimeout(() => elements.newPinInput.focus(), 150);
-        }
-    }
+    function openSetupPinModal(){window.location.assign('/wallet.html');}
 
-    /**
-     * Cierra el modal de configuración de PIN.
-     */
     function closeSetupPinModal() {
         if (elements.setupPinModal) {
             elements.setupPinModal.style.display = 'none';
@@ -1202,88 +1183,7 @@ Puedes ver los detalles aquí:`;
      * Procesa el envío del formulario para crear el PIN de seguridad.
      * Cifra la clave privada con AES-256-GCM y deriva la clave con PBKDF2 en el backend.
      */
-    async function handleSetupPinSubmit(event) {
-        event.preventDefault();
-        const phrase = elements.newPinInput ? elements.newPinInput.value.normalize('NFC').trim() : '';
-        const confirmPhrase = elements.confirmPinInput ? elements.confirmPinInput.value.normalize('NFC').trim() : '';
-        const normalizedPhrase = phrase.toLowerCase().replace(/\s+/g, ' ');
-        const normalizedConfirm = confirmPhrase.toLowerCase().replace(/\s+/g, ' ');
-        const words = normalizedPhrase.split(' ').filter(Boolean);
-
-        if (words.length < 4 || words.length > 6) {
-            showSetupPinNotice('La frase debe tener entre 4 y 6 palabras (ej: escucho musica cuando tengo mucha hambre).', true);
-            if (elements.newPinInput) elements.newPinInput.focus();
-            return;
-        }
-
-        for (const w of words) {
-            if (w.length < 2) {
-                showSetupPinNotice('Cada palabra de la frase debe tener al menos 2 letras.', true);
-                if (elements.newPinInput) elements.newPinInput.focus();
-                return;
-            }
-        }
-
-        if (new Set(words).size < 3) {
-            showSetupPinNotice('Por tu seguridad, no repitas la misma palabra en tu frase secreta.', true);
-            return;
-        }
-
-        if (normalizedPhrase !== normalizedConfirm) {
-            showSetupPinNotice('Las dos frases ingresadas no coinciden. Intenta de nuevo.', true);
-            if (elements.confirmPinInput) elements.confirmPinInput.focus();
-            return;
-        }
-
-        try {
-            if (elements.setupPinSubmitBtn) {
-                elements.setupPinSubmitBtn.disabled = true;
-                elements.setupPinSubmitBtn.textContent = 'Guardando frase secreta...';
-            }
-
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-            const token = localStorage.getItem('token') || storedToken;
-            const res = await fetch(`${API_URL}/api/me/set-pin`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    ...(token ? { 'Authorization': `Bearer ${token}` } : {})
-                },
-                body: JSON.stringify({ pin: normalizedPhrase, passphrase: normalizedPhrase }),
-                signal: controller.signal
-            });
-            clearTimeout(timeoutId);
-
-            const data = await res.json().catch(() => ({}));
-            if (!res.ok) {
-                throw new Error(data.message || `Error del servidor (${res.status}). No se pudo configurar la frase.`);
-            }
-
-            showSetupPinNotice(data.message || 'Frase Secreta configurada. Tu billetera está en autocustodia protegida.', false);
-            window.currentUserHasPin = true;
-            setTimeout(() => {
-                closeSetupPinModal();
-                if (typeof pendingPinCallback === 'function') {
-                    const cb = pendingPinCallback;
-                    pendingPinCallback = null;
-                    cb();
-                }
-            }, 1000);
-        } catch (err) {
-            const errorMsg = err.name === 'AbortError'
-                ? 'El servidor tardó demasiado en responder. Por favor verifica tu conexión e intenta de nuevo.'
-                : (err.message || 'Error al configurar tu Frase Secreta.');
-            showSetupPinNotice(errorMsg, true);
-        } finally {
-            // [FINTECH RELIABILITY] Garantizar siempre la restauración del botón para evitar congelamientos en UI
-            if (elements.setupPinSubmitBtn) {
-                elements.setupPinSubmitBtn.disabled = false;
-                elements.setupPinSubmitBtn.textContent = 'Guardar Frase Secreta';
-            }
-        }
-    }
+    async function handleSetupPinSubmit(event){event.preventDefault();window.location.assign('/wallet.html');}
 
     function showSetupPinNotice(msg, isError) {
         if (!elements.setupPinStatusNotice) return;
@@ -1398,20 +1298,6 @@ Puedes ver los detalles aquí:`;
     async function executeAuthorizedPayment(pubId, workerUsername) {
         const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText || storedUsername;
 
-        const enteredPin = elements.authModalPinInput ? elements.authModalPinInput.value.normalize('NFC').trim() : '';
-        const normalizedEntered = enteredPin.toLowerCase().replace(/\s+/g, ' ');
-        const words = normalizedEntered.split(' ').filter(Boolean);
-        if (words.length < 4 || words.length > 6) {
-            if (elements.authModalStatusNotice) {
-                elements.authModalStatusNotice.style.display = 'block';
-                elements.authModalStatusNotice.style.background = 'rgba(239, 68, 68, 0.15)';
-                elements.authModalStatusNotice.style.color = '#ef4444';
-                elements.authModalStatusNotice.style.border = '1px solid rgba(239, 68, 68, 0.3)';
-                elements.authModalStatusNotice.textContent = 'Por favor ingresa tu Frase Secreta de 4 a 6 palabras (ej: escucho musica cuando tengo mucha hambre).';
-            }
-            if (elements.authModalPinInput) elements.authModalPinInput.focus();
-            return;
-        }
 
         try {
             elements.authModalConfirmBtn.disabled = true;
@@ -1422,12 +1308,12 @@ Puedes ver los detalles aquí:`;
                 elements.authModalStatusNotice.style.background = 'rgba(56, 189, 248, 0.12)';
                 elements.authModalStatusNotice.style.color = '#38bdf8';
                 elements.authModalStatusNotice.style.border = '1px solid rgba(56, 189, 248, 0.3)';
-                elements.authModalStatusNotice.textContent = '⏳ Verificando tu clave y registrando la operación de forma segura... Por favor espera unos segundos.';
+                elements.authModalStatusNotice.textContent = '⏳ Preparando la autorización de la operación de forma segura... Por favor espera unos segundos.';
             }
 
             const action=pendingPaymentAction;
             if(!action)throw new Error('Abre nuevamente el resumen del pago.');
-            const result=await fetchFromServer(action.endpoint,'POST',{...action.body,pin:enteredPin,expectedFeeBps:action.expectedFeeBps});
+            const result=await fetchFromServer(action.endpoint,'POST',{...action.body,expectedFeeBps:action.expectedFeeBps});
             if(elements.authModalPinInput)elements.authModalPinInput.value='';
             if(result?.pending){closePaymentAuthModal();return;}
 
@@ -1498,7 +1384,7 @@ Puedes ver los detalles aquí:`;
             }
 
             if(result.code==='PAYMENT_PENDING'){
-                sessionStorage.setItem(recoveryKey,result.operationId);showCustomAlert(result.message);setTimeout(recoverPayment,1000);return {...result,pending:true};
+                sessionStorage.setItem(recoveryKey,result.operationId);closePaymentAuthModal();await authorizeMarketplace(result.operationId);setTimeout(recoverPayment,1000);return {...result,pending:true};
             }
             if(result.code==='PAYMENT_SETTLED'){
                 sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();return {success:true};

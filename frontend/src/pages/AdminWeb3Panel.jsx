@@ -14,6 +14,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getApiUrl } from '../modules/config.js';
 import ContractConfiguration from '../components/ContractConfiguration.jsx';
+import IdentityDocumentReview from '../components/IdentityDocumentReview.jsx';
 import Web3Readiness from '../components/Web3Readiness.jsx';
 import { administerContract } from '../modules/ownerWalletAdministration.js';
 import styles from './AdminWeb3Panel.module.css';
@@ -485,6 +486,7 @@ export default function AdminWeb3Panel() {
       {activeTab === 'governance' && (
         <div className={styles.actionsGrid}>
 <ContractConfiguration onUpdated={fetchStatus} />
+<IdentityDocumentReview />
 
           {/* Asignar Límite de Crédito */}
           <div className={styles.actionPanel}>

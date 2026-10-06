@@ -240,6 +240,8 @@ async function startServer() {
         app.use('/api/admin', adminRoutes); // <<< NUEVAS RUTAS MODULARES ADMIN
         const web3Routes = require('./src/routes/web3Routes');
         app.use('/api/me/operations', require('./src/routes/walletOperationRoutes'));
+        app.use('/api/me/account', require('./src/routes/recoverableAccountRoutes'));
+app.use('/api/admin/account-identity', require('./src/routes/accountIdentityAdminRoutes'));
         app.use('/api/web3', web3Routes); // <<< RUTAS PUBLICAS Y FAUCET WEB3 V4
         app.use('/api', masterApiRouter); // <<< RUTA CENTRALIZADA MODULAR
 

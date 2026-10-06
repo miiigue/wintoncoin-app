@@ -4,11 +4,11 @@ const deployment=require('../src/services/chainDeployment');
 
 function fixture(){
  const admin=Wallet.createRandom(),relayer=Wallet.createRandom(),sponsor=Wallet.createRandom();
- const env={MAINTENANCE_MAX_STEP_FEE_WEI:'10',MAINTENANCE_DAILY_BUDGET_WEI:'100',ADMIN_SECRET_KEY:'only-test-admin-secret',JWT_SECRET:'only-test-user-secret',ENCRYPTION_SECRET:'test-only-'.repeat(5),ADMIN_CHAIN_PRIVATE_KEY:admin.privateKey,RELAYER_PRIVATE_KEY:relayer.privateKey,GAS_SPONSOR_PRIVATE_KEY:sponsor.privateKey};
+ const env={IDENTITY_DOCUMENT_HMAC_KEY:'test-only-identity-key-000000000000000',MAINTENANCE_MAX_STEP_FEE_WEI:'10',MAINTENANCE_DAILY_BUDGET_WEI:'100',ADMIN_SECRET_KEY:'only-test-admin-secret',JWT_SECRET:'only-test-user-secret',ENCRYPTION_SECRET:'test-only-'.repeat(5),ADMIN_CHAIN_PRIVATE_KEY:admin.privateKey,RELAYER_PRIVATE_KEY:relayer.privateKey,GAS_SPONSOR_PRIVATE_KEY:sponsor.privateKey};
  const settings={gas_sponsor_maintenance_max_step_wei:'10',gas_sponsor_maintenance_daily_budget_wei:'100',gas_sponsor_enabled:'true',gas_sponsor_daily_budget_wei:'100',gas_sponsor_max_topup_wei:'10'};
  const state={fresh:true};
  const pool={query:jest.fn(async sql=>{
-  if(sql.includes('schema_migrations'))return {rowCount:6,rows:[]};
+  if(sql.includes('schema_migrations'))return {rowCount:7,rows:[]};
   if(sql.includes('GROUP BY'))return {rowCount:0,rows:[]};
   if(sql.includes('app_settings'))return {rows:Object.entries(settings).map(([setting_key,setting_value])=>({setting_key,setting_value}))};
   if(sql.includes('web3_exchange_sync'))return {rows:[{status:'ready',fresh:state.fresh}]};
@@ -16,7 +16,7 @@ function fixture(){
  })};
  const rpc={getBlock:jest.fn(async()=>({timestamp:Math.floor(Date.now()/1000)})),getBalance:jest.fn(async()=>1n),destroy:jest.fn()};
  const contract=()=>({owner:async()=>admin.address,relayer:async()=>relayer.address,paused:async()=>false});
- return {env,pool,rpc,contract,settings,state,validate:async()=>deployment.configuration(env)};
+ return {env,pool,rpc,contract,settings,state,validateAccounts:async()=>{},validate:async()=>deployment.configuration(env)};
 }
 test('comprueba roles, gas, enlace y SQL sin firmar ni escribir ni revelar claves',async()=>{
  const f=fixture(),result=await inspect(f);expect(result.ready).toBe(true);

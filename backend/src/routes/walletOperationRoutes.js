@@ -23,10 +23,15 @@ router.get('/marketplace/:id',run(req=>{
  if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});
  return require('../services/marketplacePayments').service().status(req.user.userId,req.params.id);
 }));
+router.post('/marketplace/:id/authorize',limit,run(req=>{
+ if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});
+ return require('../services/marketplacePayments').service().authorize(req.user.userId,req.params.id,req.body.signature);
+}));
 router.post('/prepare',limit,run(req=>service().prepare(req.user.userId,req.body)));
 router.post('/:id/authorize',limit,run(req=>{
     if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});
-    return service().authorize(req.user.userId,req.params.id,req.body.pin);
+    if(req.body.pin||req.body.passphrase)throw Object.assign(new Error('Nunca envíes tu frase al servidor. Actualiza la aplicación.'),{status:400});
+    return service().authorize(req.user.userId,req.params.id,req.body.authorization);
 }));
 router.post('/:id/abandon',limit,run(req=>{
     if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});
