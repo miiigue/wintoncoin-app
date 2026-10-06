@@ -7732,3 +7732,17 @@ Validación: 34 pruebas dirigidas backend, 3 PostgreSQL aislado, suite Solidity 
 - **Validación de Compilación Frontend (Vite Demo)**:
   - `npm run build:demo` ejecutado exitosamente con código 0 (104 módulos transformados, 175 entradas de precache PWA en `dist-demo/`).
 
+### 2026-10-06 (Revisión de Seguridad Senior & Auditoría Zero-Trust Bancaria): Blindaje On-Chain en Cuentas Recuperables
+- **Corrección Crítica de Extracción de Direcciones (`recoverableAccounts.js`)**:
+  - Detección y corrección de invocación errónea `deployment.addresses()` a `deployment.configuration().contracts` utilizando la resolución canónica de contratos PascalCase (`BlueToken`, `RedToken`, `USDT`, `CollateralVault`, `FifoExchange`).
+  - Extensión de la auditoría on-chain: verificación no solo de saldos líquidos y bloqueados de BLUE, compromisos RED y USDT, sino también de garantías bloqueadas en `CollateralVault` (`userCollateral`, `pendingReserve`) y reembolsos pendientes en `FifoExchange` (`pendingRefundBlue`, `pendingRefundUsdt`).
+  - Garantía de Cero Confianza (Zero-Trust): la sustitución de dirección se bloquea estrictamente (HTTP 409) si la dirección previa posee el menor vestigio de fondos, compromisos u órdenes activas.
+- **Ampliación de Pruebas Unitarias de Auditoría (`recoverableAccounts.test.js`)**:
+  - Incorporadas 6 pruebas exhaustivas para `assertOrMigrateLegacyAddress` cubriendo: idempotencia de Safe existente, ausencia de dirección previa, rechazo por pagos de marketplace pendientes, rechazo por saldo BLUE activo on-chain, rechazo por compromisos RED activos on-chain, y aprobación de reemplazo auditable para cuentas limpias.
+  - Suite ejecutada exitosamente: 15 de 15 pruebas PASS (código 0).
+- **Pruebas de Regresión y Compilación**:
+  - 5 suites backend adicionales aprobadas (`chainDeployment`, `creditPolicyJobs`, `transactionPinSelfCustody`, `web3Readiness`, `prelaunchPublicationRules`): 26/26 PASS.
+  - Integración Hardhat (`RecoverableSafeIntegration.test.js`): 8/8 PASS.
+  - Compilación Vite Demo (`npm run build:demo`): código 0, 104 módulos, 175 activos precacheados.
+
+
