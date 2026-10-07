@@ -4,7 +4,7 @@ const deployment=require('../src/services/chainDeployment');
 
 function fixture(){
  const admin=Wallet.createRandom(),relayer=Wallet.createRandom(),sponsor=Wallet.createRandom();
- const env={IDENTITY_DOCUMENT_HMAC_KEY:'test-only-identity-key-000000000000000',MAINTENANCE_MAX_STEP_FEE_WEI:'10',MAINTENANCE_DAILY_BUDGET_WEI:'100',ADMIN_SECRET_KEY:'only-test-admin-secret',JWT_SECRET:'only-test-user-secret',ENCRYPTION_SECRET:'test-only-'.repeat(5),ADMIN_CHAIN_PRIVATE_KEY:admin.privateKey,RELAYER_PRIVATE_KEY:relayer.privateKey,GAS_SPONSOR_PRIVATE_KEY:sponsor.privateKey};
+ const env={RECOVERY_RELAYER_PRIVATE_KEY:Wallet.createRandom().privateKey,RECOVERY_GAS_MAX_WEI:'10',RECOVERY_GAS_DAILY_WEI:'100',IDENTITY_DOCUMENT_HMAC_KEY:'test-only-identity-key-000000000000000',MAINTENANCE_MAX_STEP_FEE_WEI:'10',MAINTENANCE_DAILY_BUDGET_WEI:'100',ADMIN_SECRET_KEY:'only-test-admin-secret',JWT_SECRET:'only-test-user-secret',ENCRYPTION_SECRET:'test-only-'.repeat(5),ADMIN_CHAIN_PRIVATE_KEY:admin.privateKey,RELAYER_PRIVATE_KEY:relayer.privateKey,GAS_SPONSOR_PRIVATE_KEY:sponsor.privateKey};
  const settings={gas_sponsor_maintenance_max_step_wei:'10',gas_sponsor_maintenance_daily_budget_wei:'100',gas_sponsor_enabled:'true',gas_sponsor_daily_budget_wei:'100',gas_sponsor_max_topup_wei:'10'};
  const state={fresh:true};
  const pool={query:jest.fn(async sql=>{
@@ -14,7 +14,7 @@ function fixture(){
   if(sql.includes('web3_exchange_sync'))return {rows:[{status:'ready',fresh:state.fresh}]};
   throw Error('Unexpected SQL');
  })};
- const rpc={getBlock:jest.fn(async()=>({timestamp:Math.floor(Date.now()/1000)})),getBalance:jest.fn(async()=>1n),destroy:jest.fn()};
+ const rpc={getBlock:jest.fn(async()=>({timestamp:Math.floor(Date.now()/1000)})),getBalance:jest.fn(async()=>100n),destroy:jest.fn()};
  const contract=()=>({owner:async()=>admin.address,relayer:async()=>relayer.address,paused:async()=>false});
  return {env,pool,rpc,contract,settings,state,validateAccounts:async()=>{},validate:async()=>deployment.configuration(env)};
 }
@@ -50,4 +50,19 @@ test('reconoce firma externa si ambos contratos tienen el mismo propietario y ga
  const result=await inspect(f);
  expect(result.checks.find(x=>x.id==='external_owner').ready).toBe(true);
  expect(result.checks.find(x=>x.id==='owner_CollateralVault').ready).toBe(true);
+});
+
+test.each(['RECOVERY_RELAYER_PRIVATE_KEY','RECOVERY_GAS_MAX_WEI','RECOVERY_GAS_DAILY_WEI','IDENTITY_DOCUMENT_HMAC_KEY'])('falta %s: bloquea',async key=>{
+ const f=fixture();delete f.env[key];expect((await inspect(f)).ready).toBe(false);
+});
+test.each(['-1','abc','0','1.5'])('presupuesto inválido %s bloquea',async value=>{
+ const f=fixture();f.env.RECOVERY_GAS_MAX_WEI=value;expect((await inspect(f)).checks.find(c=>c.id==='recovery_budget').ready).toBe(false);
+});
+test('fondos insuficientes bloquean emergencia',async()=>{
+ const f=fixture();f.rpc.getBalance.mockResolvedValue(1n);expect((await inspect(f)).checks.find(c=>c.id==='recovery_funds').ready).toBe(false);
+});
+test('ejecutor compartido bloqueado; no filtra secretos',async()=>{
+ const f=fixture();f.env.RECOVERY_RELAYER_PRIVATE_KEY=f.env.RELAYER_PRIVATE_KEY;
+ const result=await inspect(f);expect(result.checks.find(c=>c.id==='recovery_signer').ready).toBe(false);
+ expect(JSON.stringify(result)).not.toContain(f.env.RECOVERY_RELAYER_PRIVATE_KEY);expect(JSON.stringify(result)).not.toContain(f.env.IDENTITY_DOCUMENT_HMAC_KEY);
 });

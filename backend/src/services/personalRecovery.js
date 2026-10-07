@@ -6,6 +6,7 @@ const {decodeCredentialPublicKey}=require('@simplewebauthn/server/helpers');
 const {error}=require('./chainOperationStore');
 const signing=require('./safeExecution');
 const policy=require('./safeAccountPolicy');
+const emergency=require('./recoveryEmergency');
 const passkeyAbi=['function getSigner(uint256,uint256,uint176) view returns(address)','function createSigner(uint256,uint256,uint176) returns(address)'];
 
 // Recovery changes only the Safe owner. Identity, account address and economic
@@ -16,7 +17,7 @@ class PersonalRecovery {
   const a=await signing.account(this.pool,userId,this.config.chainId);
   await policy.validateAccount(this.rpc,this.config,a);
   const id=randomUUID();
-  const options=await generateRegistrationOptions({rpName:'WintonCoin',rpID:rp.rpId,userID:String(userId)+':recovery:'+id,userName:'WintonCoin '+userId+' (recuperaci髇)',
+  const options=await generateRegistrationOptions({rpName:'WintonCoin',rpID:rp.rpId,userID:String(userId)+':recovery:'+id,userName:'WintonCoin '+userId+' (recuperaci贸n)',
    supportedAlgorithmIDs:[-7],attestationType:'none',authenticatorSelection:{residentKey:'required',userVerification:'required'}});
   await this.pool.query("INSERT INTO account_security_challenges(id,user_id,purpose,payload,expires_at) VALUES($1,$2,'recover',$3,NOW()+INTERVAL '15 minutes')",
    [id,userId,JSON.stringify({options,rp,account:a.address,manifestHash:this.config.hash})]);
@@ -92,7 +93,7 @@ class PersonalRecovery {
   const module=new Contract(this.config.contracts.recoveryModule.address,policy.recoveryAbi,this.rpc);
   const pending=await module.getRecoveryRequest(a.address,{blockTag:confirmedTag});
   const external=pending.executeAfter>0n&&(!c||['confirmed','cancelled','rejected'].includes(c.state)||pending.newOwners.length!==1||pending.newOwners[0].toLowerCase()!==c.payload.passkey.owner.toLowerCase()||pending.newThreshold!==1n);
-  if(external)return {recovery:{id:'external',state:'external',executeAfter:String(pending.executeAfter),ready:false,message:'Hay una recuperaci髇 registrada fuera de esta aplicaci髇. Si no la reconoces, canc閘ala con tu dispositivo actual.'}};
+  if(external)return {recovery:{id:'external',state:'external',executeAfter:String(pending.executeAfter),ready:false,message:'Hay una recuperaci贸n registrada fuera de esta aplicaci贸n. Si no la reconoces, canc茅lala con tu dispositivo actual.'}};
   if(!c)return {recovery:null};
   const request=await this.store.reconcile(c.id);
   if(!request.success){
@@ -147,13 +148,14 @@ class PersonalRecovery {
   const account=await signing.account(this.pool,userId,this.config.chainId);
   const module=new Contract(this.config.contracts.recoveryModule.address,policy.recoveryAbi,this.rpc);
   const key='recovery-cancel:'+account.address+':'+String(await module.nonce(account.address));
-  const previous=(await this.pool.query('SELECT id FROM chain_operations WHERE request_key=$1 AND user_id=$2',[key,userId])).rows[0];
+  const previous=(await this.pool.query('SELECT * FROM chain_operations WHERE request_key=$1 AND user_id=$2',[key,userId])).rows[0];
   const operationId=previous?.id||randomUUID();
-  const row=await this.store.prepare({id:operationId,userId,key,chainId:String(this.config.chainId),sender:signing.relayer().address,resource:'recovery:'+id,kind:'accountRecoveryCancel',payload:{manifestHash:this.config.hash,authorization:quote}});
+  if(previous&&previous.payload.authorization.hash!==quote.hash)throw error('La cuenta cambi贸. Revisa la cancelaci贸n pendiente o utiliza otra billetera.');
+  const row=previous||await this.store.prepare({id:operationId,userId,key,chainId:String(this.config.chainId),sender:emergency.signer().address,resource:'recovery:'+id,kind:'accountRecoveryCancel',payload:{manifestHash:this.config.hash,authorization:quote}});
   if(id!=='external')await this.pool.query('UPDATE account_recovery_cases SET payload=payload||$2::jsonb WHERE id=$1',[id,JSON.stringify({cancelId:row.id})]);
   return this.store.authorize(row.id,userId,async fresh=>{
-   const call=await signing.build(this.rpc,this.config,fresh.payload.authorization,signature);
-   return [await signing.sponsoredStep(this.pool,this.rpc,this.config.chainId,userId,fresh,call)];
+   const call=await signing.build(this.rpc,this.config,fresh.payload.authorization,signature,emergency.signer());
+   return [await emergency.sponsor(this.pool,this.rpc,this.config,fresh,call)];
   });
  }
 }

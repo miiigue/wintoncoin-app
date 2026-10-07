@@ -1,3 +1,4 @@
+import {cancelWithExternalWallet} from '../modules/emergencyCancellation.js';
 import React,{useEffect,useState} from 'react';
 import {startRegistration} from '@simplewebauthn/browser';
 import {accountRequest,authorizeRecovery,signAccountTransaction} from '../modules/recoverableAccount.js';
@@ -29,6 +30,10 @@ export default function PersonalRecovery({context,onRecovered}){
   const signature=await signAccountTransaction(quote,context);
   await accountRequest('/recovery/'+recovery.id+'/cancel',signature);await refresh();
  });
+ const cancelExternal=()=>run(async()=>{
+  const result=await cancelWithExternalWallet(context);
+  setMessage('Cancelación enviada con otra billetera. Referencia: '+result.hash+'. Todavía debes confirmar su inclusión en blockchain; pulsa Actualizar estado.');
+ });
  return <details className="personal-recovery"><summary>Recuperar el acceso o revisar solicitudes</summary>
   <p>La recuperación cambia el dispositivo autorizado; conserva tu dirección, tus BLUE y tus compromisos RED. Necesitas tu respaldo de 12 palabras. Perder también ese respaldo puede impedir la recuperación.</p>
   <p role="status" aria-live="polite">{message||recovery?.message}</p>
@@ -40,6 +45,10 @@ export default function PersonalRecovery({context,onRecovered}){
   {recovery?.executeAfter&&<p>La espera termina: {new Date(Number(recovery.executeAfter)*1000).toLocaleString()}. El contrato decide cuándo puede finalizarse.</p>}
   {recovery&&!['confirmed','cancelled','rejected','failed','conflict'].includes(recovery.state)&&<button disabled={busy} onClick={advance}>{recovery.ready?'Finalizar recuperación':'Continuar o consultar recuperación'}</button>}
   {['waiting','external'].includes(recovery?.state)&&<button disabled={busy} onClick={cancel}>Cancelar con mi dispositivo anterior</button>}
+  {context?.account?.state==='active'&&<details><summary>Cancelación de emergencia con otra billetera</summary>
+   <p>Si el envío de WintonCoin falla, firma la cancelación con tu dispositivo autorizado y envíala con una billetera Web3 conectada a la misma red. Esa billetera paga el gas en ETH; no recibe tus BLUE ni puede cambiar el acceso. No necesitas compartir tus 12 palabras. Requiere que esta página haya cargado tu cuenta y que el RPC público esté disponible.</p>
+   <button disabled={busy} onClick={cancelExternal}>Firmar cancelación y conectar otra billetera</button>
+  </details>}
   <button disabled={busy} onClick={()=>run(refresh)}>Actualizar estado</button>
  </details>;
 }

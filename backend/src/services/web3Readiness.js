@@ -14,11 +14,19 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
         if(key!=='ADMIN_CHAIN_PRIVATE_KEY'||signers[key])add(key,label,signers[key]);
     }
     add('separate_signers','Firmas de pagos y patrocinio separadas',Boolean(signers.RELAYER_PRIVATE_KEY&&signers.GAS_SPONSOR_PRIVATE_KEY)&&new Set(Object.values(signers)).size===Object.keys(signers).length);
+    add('identity_hmac','Protecci贸n de identidad configurada',(env.IDENTITY_DOCUMENT_HMAC_KEY||'').length>=32);
+    let emergencyAddress,max=0n,daily=0n;
+    try{emergencyAddress=require('./recoveryEmergency').signer(env).address;}catch{}
+    add('recovery_signer','Ejecutor de emergencia independiente',emergencyAddress&&!Object.values(signers).some(a=>a.toLowerCase()===emergencyAddress.toLowerCase()));
+    if(/^\d+$/.test(env.RECOVERY_GAS_MAX_WEI||'')&&/^\d+$/.test(env.RECOVERY_GAS_DAILY_WEI||'')){max=BigInt(env.RECOVERY_GAS_MAX_WEI);daily=BigInt(env.RECOVERY_GAS_DAILY_WEI);}
+    const emergencyBudget=max>0n&&daily>=max;
+    add('recovery_budget','Presupuesto de emergencia configurado',emergencyBudget);
     let config;
     try{
         config=await validate(rpc,deployment.configuration(env));
         add('deployment','Red, contratos y enlaces correctos',true);
-        try{await validateAccounts(rpc,env,config.chainId);add('recoverable_accounts','Contratos de acceso y recuperaci髇 verificados',true);}catch{add('recoverable_accounts','Contratos de acceso y recuperaci髇 verificados',false);}
+        try{await validateAccounts(rpc,env,config.chainId);add('recoverable_accounts','Contratos de acceso y recuperaci贸n verificados',true);}catch{add('recoverable_accounts','Contratos de acceso y recuperaci贸n verificados',false);}
+        add('recovery_funds','Fondos para al menos una cancelaci贸n de emergencia',emergencyBudget&&emergencyAddress&&await rpc.getBalance(emergencyAddress)>=max);
         const head=await rpc.getBlock('latest');
         const age=Math.floor(Date.now()/1000)-head?.timestamp;
         add('rpc_fresh','Proveedor de blockchain actualizado',Number.isSafeInteger(head?.timestamp)&&age>=-60&&age<=300);

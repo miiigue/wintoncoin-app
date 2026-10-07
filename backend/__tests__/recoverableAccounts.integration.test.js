@@ -30,4 +30,15 @@ suite('Identidad recuperable: PostgreSQL aislado',()=>{
   const recovery=()=>db.pool.query("INSERT INTO account_recovery_cases(id,identity_id,chain_id,terms_version) VALUES($1,$2,'10','synthetic')",[randomUUID(),a.id]);
   await recovery();await expect(recovery()).rejects.toMatchObject({code:'23505'});
  });
+ test('guardia de migración usa el esquema real y preserva la dirección heredada',async()=>{
+  const {RecoverableAccounts}=require('../src/services/recoverableAccounts');
+  const legacy='0x'+'9'.repeat(40);
+  const service=new RecoverableAccounts(db.pool,{}, {chainId:'10'});
+  await expect(service.assertOrMigrateLegacyAddress(2,{web3_wallet_address:legacy})).rejects.toMatchObject({code:'LEGACY_MIGRATION_REQUIRED'});
+  await expect(service.assertOrMigrateLegacyAddress(1,{web3_wallet_address:null})).resolves.toBe(true);
+  const before=await db.pool.query('SELECT address,state FROM smart_accounts ORDER BY address');
+  await expect(service.assertOrMigrateLegacyAddress(1,{web3_wallet_address:legacy})).rejects.toMatchObject({status:409});
+  expect((await db.pool.query('SELECT address,state FROM smart_accounts ORDER BY address')).rows).toEqual(before.rows);
+ });
+
 });

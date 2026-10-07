@@ -50,3 +50,12 @@ La recuperación asistida está deshabilitada. No hay proveedor independiente ni
 - Suite completa backend: no validada limpiamente; faltan configuración y credenciales de pruebas y existen integraciones heredadas. No confundir este resultado con las pruebas dirigidas aprobadas.
 
 Los artefactos de pruebas proceden de los paquetes oficiales Safe 1.4.1-2, safe-recovery 0.1.0 y safe-passkey 0.2.0. Se conservan sus licencias en `web3-contracts/test/vendor`. Los despliegues públicos deben verificarse por su versión y código exactos; no asumir que un artefacto de pruebas equivale a cualquier versión publicada.
+
+
+## Corrección de seguridad CODEX-106 (2026-10-06)
+
+Se elimina el reemplazo automático introducido después de CODEX-104. La comprobación de direcciones heredadas ya no consulta la tabla inexistente marketplace_payments ni convierte errores RPC en saldo cero. Cualquier dirección anterior distinta de la misma Safe activa bloquea el alta/reemplazo con LEGACY_MIGRATION_REQUIRED, incluso con saldos aparentes cero. La activación final aplica el mismo control dentro de su transacción. Esto impide abandonar fondos en órdenes abiertas, operaciones en tránsito o depósitos posteriores a una fotografía de balances.
+
+Esta corrección protege las cuentas, pero NO implementa una migración de direcciones heredadas ni cierra los pendientes de configuración, avisos, sesión perdida y revisión independiente. La migración controlada deberá inventariar contratos/redes y operaciones, resolver el acceso a la dirección anterior, impedir operaciones concurrentes y conservar evidencia verificable antes de habilitar cualquier reemplazo. No añadir una excepción basada solamente en saldos cero.
+
+La sección 3.6 de términos describe el alcance disponible y sus límites; permanece pendiente revisión jurídica integral, incluidos el resto del documento y el mecanismo de aceptación versionada antes de publicar.

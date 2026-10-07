@@ -90,6 +90,19 @@ describe('Integración real: Safe 1.4.1 y contratos Winton',function(){
   await time.increase(86401);await expect(f.recovery.finalizeRecovery(f.account)).to.be.reverted;
   expect(await f.safe.getOwners()).deep.eq([f.owner.address]);
  });
+ it('otro ejecutor paga el gas y cancela solo con autorización del titular',async()=>{
+  const f=await loadFixture(recoveryFixture);await f.request();
+  const policy=require('../../backend/src/services/safeAccountPolicy');
+  const data=f.recovery.interface.encodeFunctionData('cancelRecovery',[]);
+  const tx=policy.transaction({to:f.recovery.target,data},await f.safe.nonce());
+  const types={SafeTx:['to:address','value:uint256','data:bytes','operation:uint8','safeTxGas:uint256','baseGas:uint256','gasPrice:uint256','gasToken:address','refundReceiver:address','nonce:uint256'].map(x=>{const [name,type]=x.split(':');return {name,type};})};
+  const signature=await f.owner.signTypedData({chainId:1337,verifyingContract:f.account},types,tx);
+  const call=policy.execution(f.account,tx,signature);
+  await f.other.sendTransaction(call);
+  expect((await f.recovery.getRecoveryRequest(f.account)).executeAfter).eq(0);
+  expect(await f.safe.getOwners()).deep.eq([f.owner.address]);
+  await expect(f.other.sendTransaction(call)).to.be.reverted;
+ });
  it('detecta y permite cancelar una recuperación iniciada fuera de la aplicación',async()=>{
   const f=await loadFixture(recoveryFixture);await f.request();
   const contracts={};

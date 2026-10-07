@@ -21,7 +21,7 @@ async function quote(pool,rpc,config,userId,call,{active=true}={}) {
     const tx=policy.transaction(call,await safe.nonce());
     return {account:a.address,transaction:tx,hash:await safe.getTransactionHash(...policy.args(tx),tx.nonce),chainId:String(config.chainId),manifestHash:config.hash};
 }
-async function build(rpc,config,authorization,signature) {
+async function build(rpc,config,authorization,signature,executor=relayer()) {
     if(authorization.manifestHash!==config.hash||authorization.chainId!==String(config.chainId))throw error('La red o configuración cambió.');
     const safe=new Contract(authorization.account,policy.abi,rpc);
     if(String(await safe.nonce())!==authorization.transaction.nonce)throw error('La autorización cambió. Revisa y confirma de nuevo.');
@@ -30,7 +30,7 @@ async function build(rpc,config,authorization,signature) {
     const call=policy.execution(authorization.account,authorization.transaction,signature);
     // execTransaction with safeTxGas=gasPrice=0 reverts on inner failure (GS013).
     // A relayer receipt cannot masquerade as a successful user call.
-    await rpc.call({...call,from:relayer().address});
+    await rpc.call({...call,from:executor.address});
     return call;
 }
 async function sponsoredStep(pool,rpc,chainId,userId,row,call) {

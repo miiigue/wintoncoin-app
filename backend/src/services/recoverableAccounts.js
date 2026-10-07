@@ -20,118 +20,26 @@ class RecoverableAccounts {
         return {success:true,activationId:activation?.id,account:a?{address:a.address,state:a.state,passkey:a.passkey,backupConfirmed:Boolean(a.backup_confirmed_at)}:null,
             configuration:{...this.config,assistedRecoveryEnabled:false,assistedRecoveryFee:null}};
     }
-    // ============================================================================
-    // AUDITORÍA DE MIGRACIÓN DE DIRECCIÓN LEGADA (ZERO-TRUST & ESTÁNDAR BANCARIO)
-    // ============================================================================
-    // Verifica que una dirección previa en `users.web3_wallet_address` no tenga
-    // activos, compromisos RED, pagos pendientes, colateral ni reembolsos antes de
-    // permitir la inicialización de una nueva Safe 1.4.1.
+    // A balance snapshot cannot authorize abandoning a legacy address. In-flight
+    // transactions and deposits may arrive after it. Until a controlled migration
+    // exists, preserve the address regardless of RPC availability or balance.
     async assertOrMigrateLegacyAddress(userId, user, client = null) {
-        // Si el usuario no tiene dirección previa, no hay conflicto que auditar
-        if (!user || !user.web3_wallet_address) return true;
-        const legacyAddress = user.web3_wallet_address;
+        if (!user) throw error('No se pudo comprobar la cuenta.', 409);
+        if (!user.web3_wallet_address) return true;
         const runner = client || this.pool;
-
-        // 1. Verificación de Idempotencia: Si la dirección registrada ya coincide con
-        // la Safe asociada a la identidad del usuario en esta red, no hay conflicto.
-        const existingSafe = await runner.query(
-            `SELECT address FROM smart_accounts a JOIN account_identities i ON i.id = a.identity_id WHERE i.user_id = $1 AND a.chain_id = $2`,
+        const existing = await runner.query(
+            `SELECT address, state FROM smart_accounts a
+             JOIN account_identities i ON i.id=a.identity_id
+             WHERE i.user_id=$1 AND a.chain_id=$2`,
             [userId, String(this.config.chainId)]
         );
-        if (existingSafe.rows[0] && existingSafe.rows[0].address.toLowerCase() === legacyAddress.toLowerCase()) {
-            return true;
-        }
-
-        // 2. Verificación de Marketplace (Off-Chain): Rechazar si existen pagos pendientes o en custodia
-        const pendingPayments = await runner.query(
-            `SELECT COUNT(*) FROM marketplace_payments WHERE (payer_id = $1 OR payee_id = $1) AND status IN ('pending', 'in_escrow')`,
-            [userId]
+        // Idempotency is allowed only for the same already active account.
+        if (existing.rows[0]?.state === 'active' &&
+            existing.rows[0].address.toLowerCase() === user.web3_wallet_address.toLowerCase()) return true;
+        throw Object.assign(error(
+            'Tu dirección anterior se conserva. Para actualizarla hace falta una migración verificada que revise fondos, compromisos y órdenes pendientes. No se ha cambiado tu billetera.', 409),
+            {code:'LEGACY_MIGRATION_REQUIRED'}
         );
-        if (parseInt(pendingPayments.rows[0].count, 10) > 0) {
-            throw error('La cuenta posee pagos de marketplace en curso. No se puede sustituir la dirección.', 409);
-        }
-
-        // 3. Verificación On-Chain (Principio Zero-Trust / Cero Confianza):
-        // Comprobar saldos líquidos, compromisos RED, colaterales y reembolsos en la blockchain
-        if (this.rpc && typeof this.rpc.call === 'function') {
-            try {
-                // Obtener configuración canónica de despliegue indivisible V4
-                let contracts = null;
-                try {
-                    contracts = deployment.configuration().contracts;
-                } catch (_) {
-                    contracts = null;
-                }
-
-                if (contracts) {
-                    const erc20Abi = ['function balanceOf(address) view returns(uint256)'];
-
-                    // A. Token BLUE (Saldo líquido ERC-20 y saldo temporal en parking)
-                    if (contracts.BlueToken) {
-                        const blueContract = new Contract(contracts.BlueToken, [...erc20Abi, 'function lockedBalanceOf(address) view returns(uint256)'], this.rpc);
-                        const [bal, locked] = await Promise.all([
-                            blueContract.balanceOf(legacyAddress).catch(() => 0n),
-                            blueContract.lockedBalanceOf(legacyAddress).catch(() => 0n)
-                        ]);
-                        if (bal > 0n || locked > 0n) {
-                            throw error('La dirección previa posee saldo BLUE activo y requiere retiro antes de reemplazo.', 409);
-                        }
-                    }
-
-                    // B. Token RED (Compromisos RED activos que deben permanecer inmutables o amortizarse)
-                    if (contracts.RedToken) {
-                        const redContract = new Contract(contracts.RedToken, erc20Abi, this.rpc);
-                        const redBal = await redContract.balanceOf(legacyAddress).catch(() => 0n);
-                        if (redBal > 0n) {
-                            throw error('La dirección previa posee compromisos RED activos que deben ser amortizados.', 409);
-                        }
-                    }
-
-                    // C. Token USDT (Moneda de curso externo para compra o colateral)
-                    if (contracts.USDT) {
-                        const usdtContract = new Contract(contracts.USDT, erc20Abi, this.rpc);
-                        const usdtBal = await usdtContract.balanceOf(legacyAddress).catch(() => 0n);
-                        if (usdtBal > 0n) {
-                            throw error('La dirección previa posee saldo USDT activo.', 409);
-                        }
-                    }
-
-                    // D. Bóveda de Colateral (CollateralVault: fondos en garantía bloqueados o en reserva)
-                    if (contracts.CollateralVault) {
-                        const vaultContract = new Contract(contracts.CollateralVault, [
-                            'function userCollateral(address) view returns(uint256)',
-                            'function pendingReserve(address) view returns(uint256)'
-                        ], this.rpc);
-                        const [collateral, reserve] = await Promise.all([
-                            vaultContract.userCollateral(legacyAddress).catch(() => 0n),
-                            vaultContract.pendingReserve(legacyAddress).catch(() => 0n)
-                        ]);
-                        if (collateral > 0n || reserve > 0n) {
-                            throw error('La dirección previa posee colateral bloqueado en el Vault.', 409);
-                        }
-                    }
-
-                    // E. Exchange FIFO (FifoExchange: órdenes o reembolsos pendientes de reclamo)
-                    if (contracts.FifoExchange) {
-                        const exchangeContract = new Contract(contracts.FifoExchange, [
-                            'function pendingRefundBlue(address) view returns(uint128)',
-                            'function pendingRefundUsdt(address) view returns(uint128)'
-                        ], this.rpc);
-                        const [refundBlue, refundUsdt] = await Promise.all([
-                            exchangeContract.pendingRefundBlue(legacyAddress).catch(() => 0n),
-                            exchangeContract.pendingRefundUsdt(legacyAddress).catch(() => 0n)
-                        ]);
-                        if (refundBlue > 0n || refundUsdt > 0n) {
-                            throw error('La dirección previa posee reembolsos pendientes en el Exchange.', 409);
-                        }
-                    }
-                }
-            } catch (err) {
-                // Re-lanzar estrictamente los errores 409 de auditoría
-                if (err.status === 409 || err.statusCode === 409) throw err;
-            }
-        }
-        return true;
     }
     async options(userId,rp) {
         await policy.validateInfrastructure(this.rpc,this.config);

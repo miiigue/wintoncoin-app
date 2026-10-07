@@ -7746,3 +7746,22 @@ Validación: 34 pruebas dirigidas backend, 3 PostgreSQL aislado, suite Solidity 
   - Compilación Vite Demo (`npm run build:demo`): código 0, 104 módulos, 175 activos precacheados.
 
 
+
+
+### 2026-10-06 — CODEX-106: protección de direcciones heredadas
+Se retira la sustitución automática basada en saldos aparentes cero. Error RPC, fondos reservados o comprobaciones incompletas ya no permiten abandonar una dirección: LEGACY_MIGRATION_REQUIRED bloquea el reemplazo, incluida la activación final. Se elimina consulta a marketplace_payments inexistente. El alta sin dirección previa conserva su recorrido. Términos 3.6 ajustados al alcance disponible. Verificación: 21 pruebas dirigidas de cuentas, 11 regresiones PIN/readiness y 4 PostgreSQL aislado aprobadas. La migración completa y los pendientes de CODEX-104 siguen sin habilitar; no desplegado por Codex.
+
+### 2026-10-07 — Auditoría Bancaria 360°, Canal de Emergencia Desacoplado y Segregación de Funciones (SoD)
+- **Canal de Cancelación de Emergencia Desacoplado (`recoveryEmergency.js`)**:
+  - Implementado relayer dedicado de contingencia con clave privada independiente (`RECOVERY_RELAYER_PRIVATE_KEY`), presupuesto de gas separado (`RECOVERY_GAS_MAX_WEI`, `RECOVERY_GAS_DAILY_WEI`) y validación estricta de selector exclusivo para `cancelRecovery()`.
+  - Diseñada e implementada la alternativa de cliente con billetera externa (`emergencyCancellation.js`): permite al titular firmar con su passkey WebAuthn P-256 local y emitir directamente mediante MetaMask/billetera inyectada pagando gas nativo en la red, evitando bloqueos por congestión o agotamiento de cuotas del backend.
+- **Unificación de Segregación Estricta de Funciones (Segregation of Duties - SoD)**:
+  - En respuesta a CODEX-111, unificada la validación en `recoveryEmergency.signer(env)` para rechazar colisiones del ejecutor de emergencia no solo con `RELAYER_PRIVATE_KEY`, sino también con `ADMIN_CHAIN_PRIVATE_KEY` y `GAS_SPONSOR_PRIVATE_KEY`.
+  - Previene que una mala configuración operativa utilice claves administrativas o comerciales para contingencias, garantizando el principio de menor privilegio (Least Privilege) y Zero-Trust.
+- **Hardening de Diagnóstico de Preparación (`web3Readiness.js` y `check_recoverable_accounts.js`)**:
+  - Verificación de longitud mínima de clave HMAC de identidad (`IDENTITY_DOCUMENT_HMAC_KEY >= 32` caracteres), segregación de firmantes y disponibilidad de fondos para al menos una cancelación de emergencia sin imprimir secretos en pantalla ni logs.
+- **Certificación de Suites de Pruebas**:
+  - 51 de 51 pruebas backend PASS (`recoveryEmergency` 9/9, `recoverableAccounts` 21/21, `web3Readiness` 16/16, `transactionPinSelfCustody` 5/5).
+  - 9 de 9 pruebas de integración Safe / RIP-7212 aprobadas en Hardhat.
+  - Compilación Vite Demo aprobada (1.991 módulos).
+
