@@ -5,10 +5,12 @@
   "description": "WintonCoin Frontend - PWA con Vite + Workbox",
   "scripts": {
     "dev": "vite --host",
-    "build": "vite build",
-    "build:demo": "vite build --mode demo",
+    "build": "npm run check:react && vite build",
+    "build:demo": "npm run check:react && vite build --mode demo",
     "preview": "vite preview",
-    "lint": "eslint src --ext .js"
+    "lint": "eslint src --ext .js",
+    "test:wallet": "node scripts/check-wallet-render.cjs",
+    "check:react": "node scripts/check-react-references.cjs"
   },
   "devDependencies": {
     "sharp": "^0.34.5",

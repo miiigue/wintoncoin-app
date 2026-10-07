@@ -7765,3 +7765,15 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - 9 de 9 pruebas de integración Safe / RIP-7212 aprobadas en Hardhat.
   - Compilación Vite Demo aprobada (1.991 módulos).
 
+### 2026-10-07 — Corrección Crítica de Renderizado en Billetera (Fix `hasPin`) & Verificación Estática AST
+- **Corrección de Referencia Residual en `Wallet.jsx`**:
+  - Eliminada la condición obsoleta `!hasPin` en el botón "Enviar USDT" que causaba un `ReferenceError` y el cierre inesperado de la interfaz cuando un usuario con KYC aprobado y saldo USDT accedía a la vista.
+  - Preservadas intactas las salvaguardas de seguridad: verificación de KYC, estado de carga, saldo disponible positivo y firma mediante cuenta inteligente Safe en backend.
+- **Herramientas de Calidad & Pipeline de Build (`package.json`)**:
+  - Incorporado [check-react-references.cjs](file:///C:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/scripts/check-react-references.cjs): escaneo mediante AST con Babel que analiza los 52 componentes JSX del proyecto para detectar e impedir variables no declaradas antes de cualquier compilación (0 referencias no declaradas detectadas).
+  - Incorporado [check-wallet-render.cjs](file:///C:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/scripts/check-wallet-render.cjs): prueba estática de renderizado de `Wallet.jsx` validando los 4 escenarios de KYC y saldos (4/4 PASS).
+  - Integrada la comprobación `check:react` como paso previo obligatorio en `npm run build` y `npm run build:demo`.
+- **Validación de Compilación Demo**:
+  - `npm run build:demo` ejecutado con éxito en 25.17s (1.991 módulos transformados, 104 módulos SPA, 175 entradas PWA precached).
+
+

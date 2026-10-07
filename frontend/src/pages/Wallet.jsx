@@ -4,7 +4,7 @@
  * ============================================================================
  * Pantalla central de la Billetera WintonCoin con arquitectura 2026:
  * - Conexión On-Chain en Vivo: Lee contratos de Optimism Sepolia (Suite V4).
- * - Autorización integrada con PIN para Depósito de Garantías USDT y Amortización BLUE.
+ * - Autorización mediante firma del dispositivo para Depósito de Garantías USDT y Amortización BLUE.
  * - Desglose visual en tiempo real de Saldo Líquido, Garantías y Compromisos RED.
  * - Compensación en 1 Toque con quema simétrica de lotes en CoreProtocol.sol.
  * - Desglose justo de garantías USDT (Pignorado vs Libre para Retiro en Bóveda).
@@ -198,7 +198,7 @@ function Wallet() {
           </div>
         )}
 
-        {/* ALERTA DE AUTOCUSTODIA (FRASE SECRETA NO CONFIGURADA) */}
+        {/* CONFIGURACIÓN DE ACCESO Y RESPALDO */}
         <AccountSecurity onActivated={syncOnChain} />
 
         {/* NOTIFICACIÓN TOAST */}
@@ -324,7 +324,7 @@ function Wallet() {
           <h3 className={styles.sectionTitle}>USDT en tu billetera</h3>
           <div className={`${styles.creditBoxValue} ${styles.unlockedColor}`}>{fmt(displayWalletUsdt)} USDT</div>
           <p className={styles.routeADesc}>Puedes usarlos para comprar BLUE, aportar garantía o enviarlos a una dirección de la misma red. Este saldo no incluye los USDT reservados en garantía o en órdenes del Exchange.</p>
-          <div className={styles.collateralActions}><button className={styles.btnSuccess} disabled={!isKycOk||!hasPin||loading||!(displayWalletUsdt>0)} onClick={()=>{setAmountInput('');setWithdrawDestination('');setModalType('transferUsdt');}}>Enviar USDT</button><Link to="/exchange.html?tab=buy" className={styles.btnSecondary}>Comprar BLUE</Link></div>
+          <div className={styles.collateralActions}><button className={styles.btnSuccess} disabled={!isKycOk||loading||!(displayWalletUsdt>0)} onClick={()=>{setAmountInput('');setWithdrawDestination('');setModalType('transferUsdt');}}>Enviar USDT</button><Link to="/exchange.html?tab=buy" className={styles.btnSecondary}>Comprar BLUE</Link></div>
         </section>
 
         {/* SECCIÓN DE COMPROMISO Y LÍMITE RED */}
