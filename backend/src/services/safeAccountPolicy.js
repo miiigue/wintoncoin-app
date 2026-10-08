@@ -24,13 +24,14 @@ const recoveryAbi=[
 ];
 const SENTINEL='0x0000000000000000000000000000000000000001';
 function configuration(env=process.env) {
-    // Only an explicitly selected test network may use the versioned Demo deployment.
+    // Use the same validated deployment selection as the economic contracts.
     // An explicit custom path always wins and an invalid path never falls back.
-    const file=env.SMART_ACCOUNT_MANIFEST || (String(env.WINTON_CHAIN_ID)==='11155420'
+    const activeChainId=require('./chainDeployment').configuration(env).chainId;
+    const file=env.SMART_ACCOUNT_MANIFEST || (activeChainId==='11155420'
         ? path.resolve(__dirname,'../../config/accounts/optimism-sepolia.json') : null);
     if(!file)throw error('La activación de cuentas recuperables está pendiente de configurar y verificar.',503);
     const c=JSON.parse(readFileSync(file,'utf8'));
-    if(env.WINTON_CHAIN_ID && String(env.WINTON_CHAIN_ID)!==String(c.chainId))throw error('La red de la cuenta no coincide con la configuración del servicio.',503);
+    if(activeChainId!==String(c.chainId))throw error('La red de la cuenta no coincide con la configuración del servicio.',503);
     if(c.version!==1||!['10','11155420','31337','1337'].includes(String(c.chainId))||c.safeVersion!=='1.4.1')throw error('Manifiesto de cuentas no admitido.',503);
     for(const key of ['singleton','factory','fallbackHandler','passkeyFactory','passkeyVerifier','recoveryModule']) {
         const item=c.contracts?.[key];

@@ -15,6 +15,7 @@ router.use(authenticateToken,(req,res,next)=>{
 });
 router.use(rateLimit({windowMs:15*60*1000,limit:120,keyGenerator:req=>String(req.user.userId),standardHeaders:true,legacyHeaders:false}));
 const run=fn=>async(req,res)=>{try{res.json(await fn(req));}catch(e){res.status(e.status||503).json({success:false,message:e.status?e.message:'No se pudo verificar la cuenta. No se ha reemplazado su dirección.'});}};
+router.get('/activation-readiness',run(req=>service().activationReadiness(req.user.userId)));
 router.get('/status',run(req=>service().status(req.user.userId)));
 router.post('/registration/options',run(req=>service().options(req.user.userId,resolveWebAuthnRpContext(req))));
 router.post('/registration/verify',run(req=>service().register(req.user.userId,req.body)));

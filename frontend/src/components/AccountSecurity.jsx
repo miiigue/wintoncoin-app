@@ -8,7 +8,9 @@ export default function AccountSecurity({onActivated}) {
   const [context,setContext]=useState(null),[message,setMessage]=useState('Consultando la seguridad de tu cuenta…'),[busy,setBusy]=useState(false);
   const [backup,setBackup]=useState(null),[positions,setPositions]=useState([]),[answers,setAnswers]=useState(['','','']),[stage,setStage]=useState('start');
   const [operation,setOperation]=useState(null);
-  const refresh=()=>accountRequest('/status').then(c=>{setContext(c);setMessage(c.account?.state==='active'?'Acceso y respaldo activados.':'Configura tu acceso y guarda un respaldo antes de operar.');if(c.activationId)setOperation({operationId:c.activationId});}).catch(e=>setMessage(e.message));
+  const [sessionExpired,setSessionExpired]=useState(false);
+  function reportError(e){setSessionExpired(e.status===401);setMessage(e.message||'No pudimos conectar con el servicio. Comprueba tu conexión y vuelve a intentarlo.');}
+  const refresh=()=>accountRequest('/status').then(c=>{setContext(c);setMessage(c.account?.state==='active'?'Acceso y respaldo activados.':'Configura tu acceso y guarda un respaldo antes de operar.');if(c.activationId)setOperation({operationId:c.activationId});}).catch(reportError);
   useEffect(()=>{refresh();return ()=>{};},[]);
   function begin(){setBackup(createBackup());setPositions(backupPositions());setAnswers(['','','']);setStage('show');}
   async function configureBackup(){
@@ -17,10 +19,10 @@ export default function AccountSecurity({onActivated}) {
       const current=await accountRequest('/status');
       setContext(current);
       if(current.activationId){setOperation({operationId:current.activationId});setMessage('Tu activación está en curso. Pulsa Continuar para comprobarla.');}
-      else if(!current.account){begin();setMessage('Primero guarda tu respaldo; después registrarás tu dispositivo.');}
+      else if(!current.account){const readiness=await accountRequest('/activation-readiness');if(readiness.ready!==true)throw new Error('La activación todavía no está disponible.');begin();setMessage('Primero guarda tu respaldo; después registrarás tu dispositivo.');}
       else {setMessage(current.account.state==='active'?'Tu respaldo ya está activado. Conserva las palabras que guardaste al crear la cuenta.':'Tu cuenta necesita completar su activación. Vuelve a comprobar su estado.');}
     } catch(e) {
-      setMessage('Todavía no podemos iniciar la configuración del respaldo. Puedes volver a intentarlo con el botón de abajo. Si continúa, contacta con soporte. '+e.message);
+      reportError(e);
     } finally {setBusy(false);}
   }
   async function register(){
@@ -33,7 +35,7 @@ export default function AccountSecurity({onActivated}) {
       const result=await accountRequest('/registration/verify',{id:challenge.id,response,...proof});
       setOperation(result);setBackup(null);setAnswers(['','','']);setStage('activation');
       setContext(await accountRequest('/status'));setMessage('Respaldo comprobado. Continúa para activar tu cuenta.');
-    }catch(e){setMessage(e.message);}finally{setBusy(false);}
+    }catch(e){reportError(e);}finally{setBusy(false);}
   }
   async function advance(){
     setBusy(true);
@@ -46,12 +48,13 @@ export default function AccountSecurity({onActivated}) {
         result=await accountRequest('/activation/'+operation.operationId,authorization);
       }
       setMessage(result.message+' Puedes consultar otra vez; no se repite una transacción ya enviada.');
-    }catch(e){setMessage(e.message);}finally{setBusy(false);}
+    }catch(e){reportError(e);}finally{setBusy(false);}
   }
   return <section id="account-security" className="account-security" aria-labelledby="account-security-title">
     <h2 id="account-security-title">Seguridad y recuperación</h2>
     <p role="status" aria-live="polite">{message}</p>
-    {stage==='start'&&!operation&&context?.account?.state!=='active'&&<button onClick={configureBackup} disabled={busy}>{busy?'Comprobando disponibilidad…':'Configurar respaldo de mi billetera'}</button>}
+    {sessionExpired&&<a href="/login?returnTo=%2Fwallet.html">Iniciar sesión para continuar</a>}
+    {!sessionExpired&&stage==='start'&&!operation&&context?.account?.state!=='active'&&<button onClick={configureBackup} disabled={busy}>{busy?'Comprobando disponibilidad…':'Configurar respaldo de mi billetera'}</button>}
     {backup&&stage==='show'&&<>
       <p>Guarda estas 12 palabras en un lugar seguro fuera de este dispositivo. Permiten solicitar la recuperación de esta misma cuenta. Nunca las compartas con soporte.</p>
       <ol className="recovery-words">{backup.phrase.split(' ').map((word,i)=><li key={i}>{word}</li>)}</ol>

@@ -44,6 +44,7 @@ function Wallet() {
 
 
   const [operationError, setOperationError] = useState(null);
+  const [accountAvailability,setAccountAvailability]=useState('loading');
   function showOperationError(error, fallback) {
     setModalType(null);
     setOperationError(error.message || fallback);
@@ -60,15 +61,16 @@ function Wallet() {
   // Sincronización continua de estado On-Chain desde Optimism Sepolia
   const syncOnChain = async () => {
     try {
-      const account = await web3OnChainService.getAssociatedAccount();
+      const account = await web3OnChainService.getAssociatedAccount({allowUnconfigured:true});
       const addr = account.web3_wallet_address;
       if (addr) {
         setConnectedWallet(addr);
         const state = await web3OnChainService.fetchUserOnChainState(addr);
         setOnChainState(state);
         setSyncError(false);
-      }
-    } catch (_) { setOnChainState(null); setConnectedWallet(null); setSyncError(true); }
+        setAccountAvailability('ready');
+      } else {setConnectedWallet(null);setOnChainState(null);setSyncError(false);setAccountAvailability('pending');}
+    } catch (error) { setOnChainState(null); setConnectedWallet(null); setSyncError(true);setAccountAvailability(error.status===401?'session':'error'); }
   };
 
   useEffect(() => {
@@ -82,9 +84,13 @@ function Wallet() {
     if (storedUsername) setUsername(storedUsername);
 
     syncOnChain();
+  }, []);
+
+  useEffect(()=>{
+    if(!['ready','error'].includes(accountAvailability))return;
     const pollTimer = setInterval(syncOnChain, 4000);
     return () => clearInterval(pollTimer);
-  }, []);
+  }, [accountAvailability]);
 
   // Utilidad para mostrar notificaciones toast
   const showToast = (msg, txHash = null) => {
@@ -179,7 +185,7 @@ function Wallet() {
             <h2 className={styles.userName}>@{username}</h2>
             <div className={styles.userStatus} role="status" style={{color: onChainState ? '#34d399' : '#fbbf24'}}>
               <span className={styles.statusDot} aria-hidden="true" />
-              <span>{onChainState ? `${String(CONTRACT_ADDRESSES.chainId)==='10'?'Optimism':'Optimism Sepolia'} · Datos confirmados` : syncError ? 'No pudimos actualizar los saldos. Reintentaremos automáticamente.' : 'Consultando tus saldos…'}</span>
+              <span>{onChainState ? `${String(CONTRACT_ADDRESSES.chainId)==='10'?'Optimism':'Optimism Sepolia'} · Datos confirmados` : accountAvailability==='pending' ? 'Tu billetera está pendiente de activar. Configura tu respaldo para continuar.' : accountAvailability==='session' ? 'Tu sesión venció. Inicia sesión para continuar.' : syncError ? 'No pudimos actualizar los saldos. Reintentaremos automáticamente.' : 'Consultando tus saldos…'}</span>
             </div>
             <div className={styles.smartAccountTag}>
               <span>Dirección de tu billetera:</span>

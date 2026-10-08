@@ -22,3 +22,12 @@ La cuenta de la captura ya muestra una dirección anterior. El bloqueo LEGACY_MI
 
 ## Validación
 53/53 pruebas backend: safeAccountManifest, recoverableAccounts, web3Readiness y recoveryEmergency. Se verifica selección explícita Demo, rechazo de redes equivocadas, ruta inválida sin fallback y rechazo de contratos inexistentes. Verificación de infraestructura real por RPC público aprobada. No hubo acceso a Render ni publicación de backend en este turno. Preparación remota y prueba de teléfono pendientes: no declarar el servicio completo disponible por el solo despliegue de contratos.
+
+## Actualización CODEX-120 — 8 de octubre de 2026
+Sustituye el requisito de variable adicional indicado arriba: safeAccountPolicy obtiene siempre la red canónica de chainDeployment.configuration(env). Si esa red es Optimism Sepolia carga el manifiesto versionado; una ruta SMART_ACCOUNT_MANIFEST explícita conserva prioridad y su red se compara siempre con la canónica. Mainnet/local no adoptan automáticamente el manifiesto Demo. La red real y los códigos siguen verificándose contra RPC.
+
+Antes de generar palabras, la interfaz consulta GET /api/me/account/activation-readiness (autenticado, solo lectura). Comprueba usuario, dirección heredada, tablas de cuentas, contratos económicos y Safe, presupuestos/cuota disponibles para los cuatro pasos, fondos de activación y configuración/fondos de emergencia e identidad. No reserva presupuesto ni garantiza disponibilidad futura; los controles de cada operación siguen vigentes. La interfaz detiene el proceso con un mensaje útil si no está listo. Publicar frontend y backend juntos.
+
+Usuario sin dirección: Wallet presenta pendiente de activar, no error de saldos, y no repite consultas cada cuatro segundos. Las operaciones siguen requiriendo dirección válida; solo la consulta visual admite ausencia. Sesión vencida ofrece iniciar sesión desde Seguridad.
+
+Validación local: 67 pruebas backend, 4 render Wallet, 53 JSX sin referencias inexistentes, compilación Demo/PWA correcta. Prueba Chromium móvil con datos simulados: cuenta nueva sin dirección, sin consultas repetidas, bloqueo de palabras por falta de disponibilidad, reintento y sesión vencida. Esto no acredita recursos remotos ni una activación real de usuario. La comprobación completa en Demo público sigue pendiente tras publicación.

@@ -9,7 +9,7 @@ export async function accountRequest(path,body) {
     headers:{...(token?{Authorization:`Bearer ${token}`}:{ }),...(body?{'Content-Type':'application/json'}:{})},
     ...(body?{body:JSON.stringify(body)}:{})});
   const data=await response.json();
-  if(!response.ok)throw new Error(data.message||'No se pudo comprobar la cuenta.');
+  if(!response.ok)throw Object.assign(new Error(response.status===401?'Tu sesión venció. Inicia sesión nuevamente.':data.message||'No se pudo comprobar la cuenta.'),{status:response.status});
   return data;
 }
 export function createBackup() {

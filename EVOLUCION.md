@@ -7789,5 +7789,20 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
 - **Catálogo de Pruebas QA**:
   - Agregadas las misiones manuales **QA-56**, **QA-57** y **QA-58** en `QA_TEST_CATALOG.md` para verificación en dispositivos móviles.
 
+### 2026-10-08 — Resolución Canónica de Red, Preflight de Activación y UX Limpia para Cuentas Nuevas
+- **Resolución Canónica en `safeAccountPolicy.js`**:
+  - Unificada la obtención del `chainId` activo directamente desde `chainDeployment.configuration(env).chainId`, comparando incondicionalmente el manifiesto contra la red activa del servicio.
+  - Elimina el error HTTP 503 por discrepancia entre variables de entorno en Render y la configuración de contratos de la Suite V4 (Optimism Sepolia `11155420`).
+- **Servicio de Preflight de Activación (`accountActivationReadiness.js` y `recoverableAccountRoutes.js`)**:
+  - Creado endpoint en solo lectura `GET /api/me/account/activation-readiness` que valida proactivamente la salud de la infraestructura (RPC, contratos, cuotas de relayer, balances y ejecutor independiente de emergencias) antes de pedirle al usuario que escriba o guarde sus 12 palabras de respaldo en `AccountSecurity.jsx`.
+- **UX de Cuenta Nueva en Billetera (`Wallet.jsx` y `web3OnChainService.js`)**:
+  - Implementado soporte para cuentas no configuradas (`allowUnconfigured`) eliminando el error engañoso *"No pudimos actualizar los saldos"* y deteniendo el bucle de polling cada 4 segundos cuando el usuario no tiene dirección asignada.
+  - La interfaz muestra claramente *"Billetera pendiente de activar"* con el acceso directo al respaldo, y diferencia fallos de sesión (HTTP 401) de problemas de red.
+- **Certificación Integral de Pruebas**:
+  - 67 de 67 pruebas backend PASS (`accountActivationReadiness` 11/11, `safeAccountManifest` 10/10, `recoverableAccounts` 21/21, `web3Readiness` 16/16, `recoveryEmergency` 9/9).
+  - 53 componentes JSX auditados sin variables huérfanas (`check:react`).
+  - 4 de 4 pruebas de render de Wallet PASS (`test:wallet`).
+  - Compilación de producción Vite Demo completada exitosamente en 32.24s (código 0).
+
 
 

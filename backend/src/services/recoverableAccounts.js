@@ -13,6 +13,14 @@ const passkeyAbi=['function getSigner(uint256,uint256,uint176) view returns(addr
 function backupMessage(id,userId,config){return ['WintonCoin: confirmar respaldo de recuperación',id,String(userId),String(config.chainId),config.hash].join('\n');}
 class RecoverableAccounts {
     constructor(pool,rpc=deployment.provider(),config=policy.configuration()) {this.pool=pool;this.rpc=rpc;this.config=config;this.store=new ChainOperationStore(pool,rpc);}
+    async activationReadiness(userId) {
+        const context=await this.status(userId); // Also checks the account schema.
+        const user=(await this.pool.query('SELECT web3_wallet_address,account_status FROM users WHERE id=$1',[userId])).rows[0];
+        if(!user||user.account_status!=='active')throw error('Tu cuenta no está habilitada. Contacta con soporte.',403);
+        if(user.web3_wallet_address)await this.assertOrMigrateLegacyAddress(userId,user);
+        await require('./accountActivationReadiness').check({pool:this.pool,rpc:this.rpc,config:this.config,userId});
+        return {success:true,ready:true,checkedAt:new Date().toISOString(),alreadyActive:context.account?.state==='active'};
+    }
     async status(userId) {
         const result=await this.pool.query(`SELECT a.* FROM smart_accounts a JOIN account_identities i ON i.id=a.identity_id WHERE i.user_id=$1 AND a.chain_id=$2`,[userId,String(this.config.chainId)]);
         const a=result.rows[0];

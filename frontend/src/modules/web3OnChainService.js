@@ -77,13 +77,14 @@ class Web3OnChainService {
     Object.assign(CONTRACT_ADDRESSES,data.contracts,network,{chainId:data.chainId});
     this.deploymentCheckedAt=Date.now();
   }
-  async getAssociatedAccount() {
+  async getAssociatedAccount({allowUnconfigured=false}={}) {
     const token = localStorage.getItem('token');
     const response = await fetch(`${getApiUrl()}/api/me/wallet-identity`, {
       credentials:'include', cache:'no-store', headers:token ? {Authorization:`Bearer ${token}`} : {}
     });
-    if (!response.ok) { this.signer=null; this.connectedAddress=null; throw new Error('No se pudo verificar tu cuenta. Inicia sesión nuevamente.'); }
+    if (!response.ok) { this.signer=null; this.connectedAddress=null; throw Object.assign(new Error(response.status===401?'Tu sesión venció. Inicia sesión nuevamente.':'No se pudo consultar tu cuenta.'),{status:response.status}); }
     const account = await response.json();
+    if (allowUnconfigured && account.web3_wallet_address == null) return account;
     if (!ethers.isAddress(account.web3_wallet_address)) throw new Error('Tu cuenta aún no tiene una billetera asociada válida.');
     return account;
   }
