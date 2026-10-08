@@ -1,0 +1,52 @@
+{
+  "CompatibilityFallbackHandler": {
+    "package": "safe-global-safe-contracts-1.4.1-2.tgz",
+    "artifact": "package/build/artifacts/contracts/handler/CompatibilityFallbackHandler.sol/CompatibilityFallbackHandler.json",
+    "sha256": "4dd3880378bd9de9da4ca2f82993fcb8ab43b6265ac116144b6477d3e986a603"
+  },
+  "MultiSend": {
+    "package": "safe-global-safe-contracts-1.4.1-2.tgz",
+    "artifact": "package/build/artifacts/contracts/libraries/MultiSend.sol/MultiSend.json",
+    "sha256": "d2c5eabdf4f3530a2b601c3842f4cb56448727ced62560ede8825904e0379cfa"
+  },
+  "MultiSendCallOnly": {
+    "package": "safe-global-safe-contracts-1.4.1-2.tgz",
+    "artifact": "package/build/artifacts/contracts/libraries/MultiSendCallOnly.sol/MultiSendCallOnly.json",
+    "sha256": "53073b56fd4718f9876f5f69ac00caac5f4048e7384d9fab15216f016ba7d818"
+  },
+  "Safe": {
+    "package": "safe-global-safe-contracts-1.4.1-2.tgz",
+    "artifact": "package/build/artifacts/contracts/Safe.sol/Safe.json",
+    "sha256": "fe55f1953e6bc1d8f63762c392271d77533b4a66cb570a28b25947bdadd03b16"
+  },
+  "SafeProxy": {
+    "package": "safe-global-safe-contracts-1.4.1-2.tgz",
+    "artifact": "package/build/artifacts/contracts/proxies/SafeProxy.sol/SafeProxy.json",
+    "sha256": "0de8bec9e2e9d5eca559be9353873df2d5b6a59cbe556e88ba0e9e53809af321"
+  },
+  "SafeProxyFactory": {
+    "package": "safe-global-safe-contracts-1.4.1-2.tgz",
+    "artifact": "package/build/artifacts/contracts/proxies/SafeProxyFactory.sol/SafeProxyFactory.json",
+    "sha256": "73627e5410cde6a155eb9891f37e77654fbb349990a26f63938c23f2994b8dee"
+  },
+  "DaimoP256Verifier": {
+    "package": "safe-global-safe-passkey-0.2.0.tgz",
+    "artifact": "package/dist/src/vendor/daimo-eth/P256Verifier.json",
+    "sha256": "b2e7cbe3c9877264f3149dd5c998c639dc0aafc6e5257f608fd9967095aaca91"
+  },
+  "SafeWebAuthnSharedSigner": {
+    "package": "safe-global-safe-passkey-0.2.0.tgz",
+    "artifact": "package/build/artifacts/contracts/4337/SafeWebAuthnSharedSigner.sol/SafeWebAuthnSharedSigner.json",
+    "sha256": "abdf982dbc25c82e1e49915b6295b6d2d4c6be37d95a0bab367504cfac1da229"
+  },
+  "SafeWebAuthnSignerFactory": {
+    "package": "safe-global-safe-passkey-0.2.0.tgz",
+    "artifact": "package/build/artifacts/contracts/SafeWebAuthnSignerFactory.sol/SafeWebAuthnSignerFactory.json",
+    "sha256": "5816bde17adbd77dd40c78f1bec24228189b56197e0954efced7734a4e22c769"
+  },
+  "SocialRecoveryModule": {
+    "package": "safe-global-safe-recovery-0.1.0.tgz",
+    "artifact": "package/build/artifacts/candide-contracts/contracts/modules/social_recovery/SocialRecoveryModule.sol/SocialRecoveryModule.json",
+    "sha256": "fafbb16ed262e3cd62df3727b4452c89103bbca5064488fab9761ed3c83550d1"
+  }
+}

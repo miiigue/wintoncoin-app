@@ -16,6 +16,7 @@ import { Link } from 'react-router-dom';
 import { web3OnChainService, CONTRACT_ADDRESSES } from '../modules/web3OnChainService.js';
 import styles from './Wallet.module.css';
 import AccountSecurity from '../components/AccountSecurity.jsx';
+import WalletNotice from '../components/WalletNotice.jsx';
 import { displayAmount } from '../modules/financialUnits.js';
 import { getApiUrl } from '../modules/config.js';
 
@@ -41,6 +42,20 @@ function Wallet() {
   const [toastMessage, setToastMessage] = useState(null);
   const [lastTxHash, setLastTxHash] = useState(null);
 
+
+  const [operationError, setOperationError] = useState(null);
+  function showOperationError(error, fallback) {
+    setModalType(null);
+    setOperationError(error.message || fallback);
+  }
+  function openBackup() {
+    setOperationError(null);
+    requestAnimationFrame(() => {
+      const section = document.getElementById('account-security');
+      section?.scrollIntoView({behavior:'smooth', block:'center'});
+      section?.querySelector('button')?.focus({preventScroll:true});
+    });
+  }
 
   // Sincronización continua de estado On-Chain desde Optimism Sepolia
   const syncOnChain = async () => {
@@ -92,7 +107,7 @@ function Wallet() {
       showToast(`✅ Compensación confirmada en Blockchain. BLUE y RED quemados 1:1.`, res.txHash);
       await syncOnChain();
     } catch (err) {
-      alert(err.message || 'Error al procesar la compensación on-chain');
+      showOperationError(err, 'No se pudo completar la compensación.');
     } finally {
       setLoading(false);
     }
@@ -113,7 +128,7 @@ function Wallet() {
       showToast(modalType==='transferUsdt'||withdrawDestination.trim()?'Envío de USDT confirmado al destino indicado.':'Garantía retirada a tu billetera Winton.', res.txHash);
       await syncOnChain();
     } catch (err) {
-      alert(err.message || 'Error al retirar colateral');
+      showOperationError(err, 'No se pudo completar el retiro.');
     } finally {
       setLoading(false);
     }
@@ -130,7 +145,7 @@ function Wallet() {
       showToast(`🚀 Garantía depositada exitosamente en la Bóveda On-Chain.`, res.txHash);
       await syncOnChain();
     } catch (err) {
-      alert(err.message || 'Error al depositar USDT');
+      showOperationError(err, 'No se pudo completar el depósito.');
     } finally {
       setLoading(false);
     }
@@ -547,7 +562,7 @@ function Wallet() {
         </div>
       )}
 
-      {/* MODAL DE CONFIGURACIÓN DE FRASE DE SEGURIDAD DE AUTOCUSTODIA (REACT) */}
+      {operationError && <WalletNotice message={operationError} onClose={() => setOperationError(null)} onBackup={openBackup} />}
 
 
     </div>

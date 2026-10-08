@@ -748,3 +748,43 @@ PASOS:
 6. Verifica que al quinto fallo la aplicación muestre una alerta de seguridad informando que la billetera ha sido bloqueada temporalmente por quince minutos.
 7. Intenta ingresar nuevamente antes de que pasen los quince minutos y comprueba que el bloqueo continúe activo protegiendo tu cuenta.
 ```
+
+---
+
+```text
+TITULO: QA-56 - Acceso Fluido a la Billetera con Identidad Verificada
+DESCRIPCION: Esta misión tiene como objetivo comprobar que al ingresar a la billetera desde tu teléfono móvil con una cuenta que tenga su identidad verificada y saldo disponible, la pantalla cargue de manera inmediata, fluida y estable sin cerrarse repentinamente ni mostrar pantallas en blanco.
+PASOS:
+2. Abre la aplicación de WintonCoin en el navegador de tu teléfono móvil e inicia sesión con tu cuenta verificada.
+3. Toca la opción Billetera en el menú principal o en el panel de inicio.
+4. Observa que la pantalla de la Billetera cargue completamente mostrando tu nombre de usuario y tu saldo de tokens sin cerrarse.
+5. Desliza hacia abajo en la pantalla y comprueba que se visualicen correctamente tus balances de tokens BLUE y tu saldo en USDT.
+6. Confirma que la aplicación permanezca estable y responda con total fluidez a tus toques en la pantalla.
+```
+
+---
+
+```text
+TITULO: QA-57 - Apertura y Validación de la Ventana de Envío de USDT
+DESCRIPCION: El propósito de esta prueba es asegurar que cualquier usuario con su identidad aprobada y saldo de USDT en su billetera pueda presionar el botón de envío y ver la ventana correspondiente para transferir fondos, comprobando que los botones respondan correctamente sin generar bloqueos.
+PASOS:
+2. Ingresa a la sección Billetera desde tu teléfono móvil con una cuenta que disponga de saldo positivo en USDT.
+3. Localiza la tarjeta titulada USDT en tu billetera dentro de la pantalla.
+4. Revisa que el botón verde Enviar USDT se encuentre activo y listo para ser presionado.
+5. Presiona el botón Enviar USDT y comprueba que se abra de inmediato la ventana para ingresar el monto a transferir.
+6. Presiona el botón de cancelar o cerrar la ventana y confirma que regreses a tu billetera sin inconvenientes.
+```
+
+---
+
+```text
+TITULO: QA-58 - Inspección de la Tarjeta de Seguridad y Respaldo en la Billetera
+DESCRIPCION: Esta prueba busca confirmar que la tarjeta de seguridad de la billetera informe con claridad el estado de protección de tu cuenta, permitiéndote conocer si tu dispositivo ya cuenta con acceso configurado y ofreciéndote opciones claras para mantener a salvo tus fondos.
+PASOS:
+2. Abre tu Billetera en tu teléfono móvil y desplázate hasta la sección de seguridad de la cuenta.
+3. Observa el estado de tu billetera y confirma que se muestre la dirección pública asociada a tu cuenta.
+4. Revisa las opciones de respaldo y protección disponibles en la pantalla.
+5. Toca sobre la opción para ver los detalles de seguridad y comprueba que la información se presente en un lenguaje comprensible y sin errores.
+6. Confirma que la interfaz te guíe de manera intuitiva y amigable en todo momento.
+```
+

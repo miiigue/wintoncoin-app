@@ -1,0 +1,8 @@
+.wallet-notice{box-sizing:border-box;width:min(92vw,480px);max-height:85dvh;overflow:auto;border:1px solid #355371;border-radius:20px;background:#152339;color:#e7f0ff;padding:24px;overflow-wrap:anywhere}
+.wallet-notice::backdrop{background:rgba(0,0,0,.75)}
+.wallet-notice h2{font-size:1.3rem;margin:0 0 16px}
+.wallet-notice p{line-height:1.55}
+.wallet-notice-actions{display:flex;flex-direction:column;gap:12px;margin-top:20px}
+.wallet-notice button{border:0;border-radius:12px;padding:14px;background:#1674d8;color:white;font:inherit;cursor:pointer;min-height:48px}
+.wallet-notice button:last-child{background:#27374e}
+.wallet-notice button:focus-visible{outline:3px solid #9ddcff;outline-offset:3px}

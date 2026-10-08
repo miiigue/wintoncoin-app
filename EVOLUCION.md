@@ -7776,4 +7776,18 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
 - **Validación de Compilación Demo**:
   - `npm run build:demo` ejecutado con éxito en 25.17s (1.991 módulos transformados, 104 módulos SPA, 175 entradas PWA precached).
 
+### 2026-10-08 — Despliegue de Infraestructura Safe 1.4.1 en Optimism Sepolia, Manifiesto Oficial Demo y UX Accesible
+- **Despliegue y Verificación On-Chain de Safe 1.4.1 (`backend/config/accounts/`)**:
+  - Desplegados y verificados en Optimism Sepolia (Chain ID `11155420`) los 9 contratos auxiliares oficiales requeridos para autocustodia con passkeys y recuperación social: Safe Singleton 1.4.1, Safe Proxy Factory, Compatibility Fallback Handler, MultiSend, MultiSendCallOnly, WebAuthn Signer Factory / Verifier (P-256) y SocialRecoveryModule con timelock de 24 horas.
+  - Generado el manifiesto auditado `optimism-sepolia.json` (hash `0xf61c5738b85ba5e5884b8d6c6d2fe51b4bfe35f0c854c9678e7e3f39a6673a1c`) con evidencia de bloques y transacciones en `optimism-sepolia-evidence.json`.
+- **Resolución de Error 503 en Activación Demo (`safeAccountPolicy.js`)**:
+  - Implementada la resolución automática del manifiesto por defecto cuando `WINTON_CHAIN_ID === '11155420'` en ausencia de `SMART_ACCOUNT_MANIFEST`, eliminando el bloqueo "Servicio de activación no configurado" en Demo sin alterar el blindaje estricto de producción.
+- **Mejoras de Accesibilidad y Erradicación de `window.alert()` (`WalletNotice.jsx`)**:
+  - Reemplazados los popups nativos del navegador en la Billetera por el diálogo modal accesible `WalletNotice.jsx`, brindando un flujo asistido de seguridad acorde a estándares bancarios y FinTech.
+- **Ampliación de Pruebas Unitarias de Backend**:
+  - Incorporada la suite `safeAccountManifest.test.js` (7 pruebas nuevas). Certificadas **53 de 53 pruebas backend PASS** (`safeAccountManifest` 7/7, `recoverableAccounts` 21/21, `web3Readiness` 16/16, `recoveryEmergency` 9/9).
+- **Catálogo de Pruebas QA**:
+  - Agregadas las misiones manuales **QA-56**, **QA-57** y **QA-58** en `QA_TEST_CATALOG.md` para verificación en dispositivos móviles.
+
+
 
