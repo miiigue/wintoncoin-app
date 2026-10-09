@@ -20,13 +20,18 @@ jobs:
       - name: ⚙️ Configurar entorno Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22'
 
       - name: 📦 Instalar dependencias y Construir Demo (Build Demo)
         run: |
           cd frontend
-          npm install
+          npm ci
+          npm audit --audit-level=high
+          npx playwright install --with-deps chromium
+          npm run test:wallet
+          npm run test:account-security
           npm run build:demo
+          npm run test:pwa -- dist-demo
 
       - name: 🚀 Instalar cliente seguro LFTP
         run: sudo apt-get update && sudo apt-get install -y lftp

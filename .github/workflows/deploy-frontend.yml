@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'frontend/**'
+      - '.github/workflows/deploy-frontend.yml'
 
 jobs:
   web-deploy:
@@ -18,13 +19,18 @@ jobs:
       - name: Instalar Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22'
           
       - name: Instalar dependencias y Construir (Build)
         run: |
           cd frontend
-          npm install
+          npm ci
+          npm audit --audit-level=high
+          npx playwright install --with-deps chromium
+          npm run test:wallet
+          npm run test:account-security
           npm run build
+          npm run test:pwa -- dist
       
       # -- Instalar lftp una sola vez para ambos deploys --
       - name: Instalar lftp

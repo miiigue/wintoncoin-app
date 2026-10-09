@@ -11,17 +11,21 @@
     "lint": "eslint src --ext .js",
     "test:wallet": "node scripts/check-wallet-render.cjs",
     "check:react": "node scripts/check-react-references.cjs",
-    "test:account-security": "node scripts/check-account-security.cjs"
+    "test:account-security": "node scripts/check-account-security.cjs",
+    "test:pwa": "node scripts/check-pwa-build.cjs"
   },
   "devDependencies": {
+    "@babel/parser": "7.29.9",
+    "@babel/traverse": "7.29.10",
+    "esbuild": "0.28.2",
     "playwright": "1.62.1",
-    "sharp": "^0.34.5",
-    "vite": "^5.0.0",
-    "vite-plugin-pwa": "^0.17.0",
+    "sharp": "0.35.5",
+    "vite": "7.3.7",
+    "vite-plugin-pwa": "2.0.0",
     "workbox-window": "^7.0.0"
   },
   "engines": {
-    "node": ">=18.0.0"
+    "node": "^20.19.0 || >=22.12.0"
   },
   "dependencies": {
     "@safe-global/protocol-kit": "8.0.7",
