@@ -61,6 +61,10 @@ jobs:
         if: always()
         run: |
           echo "## 🛡️ Reporte de Integracion Continua Backend (WintonCoin FinTech)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Estado de la Suite**: Todas las pruebas unitarias y escaneo de 86 modulos ejecutados." >> $GITHUB_STEP_SUMMARY
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "- **Estado de la Suite**: Pruebas unitarias y verificacion de modulos ejecutados exitosamente (PASS)." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Estado de la Suite**: Fallo o ejecucion incompleta en el pipeline (Estado del Job: ${{ job.status }})." >> $GITHUB_STEP_SUMMARY
+          fi
           echo "- **Estándar**: SOC 2 / Zero-Trust / Zero Hardcoded Secrets." >> $GITHUB_STEP_SUMMARY
           echo "- **Timestamp UTC**: $(date -u)" >> $GITHUB_STEP_SUMMARY

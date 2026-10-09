@@ -7818,9 +7818,10 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Suite de interacción Playwright implementada (`test:account-security`): 12 de 12 pruebas de interacción PASS.
   - Backend: 69 de 69 pruebas PASS.
 - **Saneamiento de Dependencias y Barreras CI/CD (CODEX-125 / ANTIGRAVITY-093)**:
-  - Frontend npm audit reducido de 25 alertas a 0 vulnerabilidades absolutas mediante actualización a Vite 7.3.7, vite-plugin-pwa 2.0.0 y sharp 0.35.5, fijando dependencias directas de tooling.
+  - Frontend npm audit reducido de 25 alertas a 0 alertas conocidas reportadas en las dependencias frontend a la fecha de la comprobación mediante actualización a Vite 7.3.7, vite-plugin-pwa 2.0.0 y sharp 0.35.5, fijando dependencias directas de tooling.
   - Incorporadas barreras de seguridad en workflows de GitHub Actions (`deploy-frontend-demo.yml` y `deploy-frontend.yml`) que bloquean el despliegue si fallan `npm audit`, `test:wallet`, `test:account-security`, la compilación o la nueva prueba PWA.
   - Implementada nueva suite `test:pwa` (`check-pwa-build.cjs`) que valida con Chromium el ciclo de vida del Service Worker y 175 recursos cacheados sin 404 ni fugas administrativas.
+  - Ajustado el reporte de auditoría en `backend-ci.yml` para reflejar fielmente el estado real de ejecución del trabajo (PASS/FAIL/SKIPPED) sin afirmaciones ciegas.
 
 
 
