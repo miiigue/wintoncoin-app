@@ -7805,7 +7805,11 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Compilación de producción Vite Demo completada exitosamente en 32.24s (código 0).
 - **Soporte y Validación de `RECOVERY_RELAYER_ADDRESS`**:
   - Incorporada comprobación criptográfica estricta en `recoveryEmergency.js` que valida la correspondencia matemática entre `RECOVERY_RELAYER_PRIVATE_KEY` y `RECOVERY_RELAYER_ADDRESS` cuando esta última se define en el entorno de ejecución, evitando discrepancias operativas en despliegues hosteados.
-  - 10 de 10 pruebas unitarias en `recoveryEmergency.test.js` aprobadas.
+- **Optimización de UX en Activación de Billetera (`AccountSecurity.jsx` y `AccountSecurity.css`)**:
+  - Implementado auto-polling cada 60 segundos durante el despliegue en cadena cuando la pestaña está activa, permitiendo la finalización automática sin depender de toques manuales repetidos.
+  - Incorporado banner transparente que informa al usuario que el despliegue en blockchain puede tomar entre 2 y 10 minutos.
+  - Añadida tarjeta de felicitaciones moderna y descartable (`Entendido`) tras confirmarse la autocustodia, y colapsadas las opciones técnicas avanzadas de recuperación en un panel desplegable accesible (`<details>`) para mantener la vista principal de saldos completamente limpia y despejada.
+  - Certificación: 53 componentes JSX auditados (0 errores), 4/4 render PASS y compilación de producción Vite Demo exitosa (código 0).
 
 
 

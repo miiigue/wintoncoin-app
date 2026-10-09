@@ -5,4 +5,19 @@
 .account-security label{display:block;margin:12px 0}
 .account-security input{display:block;width:100%;max-width:340px;padding:12px;background:#0a1528;color:white;border:1px solid #507599;border-radius:8px}
 .recovery-words{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;padding:20px 20px 20px 40px;background:#0a1528;border-radius:10px}
-@media(max-width:440px){.recovery-words{grid-template-columns:repeat(2,minmax(0,1fr))}.account-security{padding:16px}}
+.activation-pending-banner{background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.3);border-radius:12px;padding:16px;margin:12px 0}
+.activation-pending-title{font-weight:600;color:#38bdf8;margin:0 0 8px}
+.activation-pending-desc{font-size:.9rem;color:#cbd5e1;line-height:1.45;margin:0 0 12px}
+.activation-success-card{background:linear-gradient(135deg,rgba(16,185,129,0.15),rgba(6,78,59,0.3));border:1px solid rgba(16,185,129,0.4);border-radius:14px;padding:16px 20px;display:flex;align-items:center;justify-content:space-between;gap:16px;margin:12px 0}
+.activation-success-content{display:flex;align-items:center;gap:14px}
+.activation-success-icon{font-size:1.8rem}
+.activation-success-content strong{color:#34d399;font-size:1rem;display:block;margin-bottom:2px}
+.activation-success-content p{color:#a7f3d0;font-size:.85rem;margin:0}
+.activation-dismiss-btn{background:#059669!important;color:white!important;border:0!important;border-radius:8px!important;padding:8px 16px!important;font-size:.85rem!important;font-weight:600!important;margin:0!important;cursor:pointer}
+.activation-dismiss-btn:hover{background:#10b981!important}
+.recovery-collapsible{margin-top:16px;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px}
+.recovery-summary-btn{cursor:pointer;color:#94a3b8;font-size:.9rem;font-weight:500;padding:6px 0;user-select:none;transition:color .2s}
+.recovery-summary-btn:hover{color:#38bdf8}
+.recovery-collapsible-body{padding-top:12px}
+.recovery-note{font-size:.8rem;color:#64748b;margin-top:12px}
+@media(max-width:440px){.recovery-words{grid-template-columns:repeat(2,minmax(0,1fr))}.account-security{padding:16px}.activation-success-card{flex-direction:column;align-items:flex-start}.activation-dismiss-btn{align-self:flex-end}}
