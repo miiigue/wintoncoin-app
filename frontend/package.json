@@ -10,9 +10,11 @@
     "preview": "vite preview",
     "lint": "eslint src --ext .js",
     "test:wallet": "node scripts/check-wallet-render.cjs",
-    "check:react": "node scripts/check-react-references.cjs"
+    "check:react": "node scripts/check-react-references.cjs",
+    "test:account-security": "node scripts/check-account-security.cjs"
   },
   "devDependencies": {
+    "playwright": "1.62.1",
     "sharp": "^0.34.5",
     "vite": "^5.0.0",
     "vite-plugin-pwa": "^0.17.0",

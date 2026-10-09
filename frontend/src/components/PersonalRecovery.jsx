@@ -1,13 +1,15 @@
 import {cancelWithExternalWallet} from '../modules/emergencyCancellation.js';
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useState,useRef} from 'react';
 import {startRegistration} from '@simplewebauthn/browser';
 import {accountRequest,authorizeRecovery,signAccountTransaction} from '../modules/recoverableAccount.js';
 
 export default function PersonalRecovery({context,onRecovered}){
  const [phrase,setPhrase]=useState(''),[prepared,setPrepared]=useState(null),[recovery,setRecovery]=useState(null),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
- const refresh=async()=>{const data=await accountRequest('/recovery/status');setRecovery(data.recovery);if(data.recovery?.state==='confirmed')onRecovered?.();};
- useEffect(()=>{refresh().catch(e=>setMessage(e.message));},[]);
- async function run(fn){setBusy(true);try{await fn();}catch(e){setMessage(e.message);}finally{setBusy(false);}}
+ const inFlight=useRef(false),mounted=useRef(true),onRecoveredRef=useRef(onRecovered);
+ onRecoveredRef.current=onRecovered;
+ const refresh=async()=>{const data=await accountRequest('/recovery/status');if(!mounted.current)return;setRecovery(data.recovery);if(data.recovery?.state==='confirmed')onRecoveredRef.current?.();};
+ async function run(fn){if(inFlight.current)return;inFlight.current=true;setBusy(true);try{await fn();}catch(e){if(mounted.current)setMessage(e.message);}finally{inFlight.current=false;if(mounted.current)setBusy(false);}}
+ useEffect(()=>{mounted.current=true;run(refresh);const timer=setInterval(()=>{if(document.visibilityState==='visible')run(refresh);},60000);return ()=>{mounted.current=false;clearInterval(timer);};},[context.account.address]);
  const register=()=>run(async()=>{
   const options=await accountRequest('/recovery/options',{});
   const response=await startRegistration(options.options);
@@ -34,9 +36,17 @@ export default function PersonalRecovery({context,onRecovered}){
   const result=await cancelWithExternalWallet(context);
   setMessage('Cancelación enviada con otra billetera. Referencia: '+result.hash+'. Todavía debes confirmar su inclusión en blockchain; pulsa Actualizar estado.');
  });
- return <details className="personal-recovery"><summary>Recuperar el acceso o revisar solicitudes</summary>
+ const needsAttention=['waiting','external','prepared','pending','failed','conflict'].includes(recovery?.state);
+ return <>
+  {needsAttention&&<div role="alert" className="activation-pending-banner">
+    <strong>Hay una solicitud de recuperación que debes revisar.</strong>
+    <p>{recovery?.message||'Revisa quién inició esta solicitud. Si no la reconoces, utiliza tu dispositivo autorizado para cancelarla.'}</p>
+    {['waiting','external'].includes(recovery?.state)&&<button disabled={busy} onClick={cancel}>Cancelar recuperación con mi dispositivo</button>}
+  </div>}
+  <p role="status" aria-live="polite">{message}</p>
+  <details className="personal-recovery"><summary>Opciones de seguridad y recuperación</summary>
   <p>La recuperación cambia el dispositivo autorizado; conserva tu dirección, tus BLUE y tus compromisos RED. Necesitas tu respaldo de 12 palabras. Perder también ese respaldo puede impedir la recuperación.</p>
-  <p role="status" aria-live="polite">{message||recovery?.message}</p>
+  <p>{recovery?.message}</p>
   {(!recovery||['confirmed','cancelled','rejected'].includes(recovery.state))&&!prepared&&<button disabled={busy} onClick={register}>Registrar dispositivo de reemplazo</button>}
   {prepared&&<form onSubmit={e=>{e.preventDefault();submit();}}><p>Cuenta que se conservará: {prepared.address}</p>
    <label>Respaldo de recuperación (solo se procesa aquí)<input type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} value={phrase} onChange={e=>setPhrase(e.target.value)} disabled={busy}/></label>
@@ -50,5 +60,5 @@ export default function PersonalRecovery({context,onRecovered}){
    <button disabled={busy} onClick={cancelExternal}>Firmar cancelación y conectar otra billetera</button>
   </details>}
   <button disabled={busy} onClick={()=>run(refresh)}>Actualizar estado</button>
- </details>;
+ </details></>;
 }

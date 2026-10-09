@@ -45,3 +45,8 @@ test.each(['transfer','delegate','refund','target','kind'])('rechaza abuso: %s',
 test('sin presupuesto configurado no promete enviar',async()=>{
  const f=fixture();await expect(emergency.sponsor(f.pool,{},config,f.row,f.call,{...env,RECOVERY_GAS_DAILY_WEI:'0'})).rejects.toMatchObject({status:503});
 });
+
+test('rechaza dirección del ejecutor expuesto sin usar su clave',()=>{
+ expect(()=>emergency.assertExecutorAllowed('0xF28a82bBc295c00f036d304D252E45A10B336323')).toThrow('sustituido');
+ expect(()=>emergency.assertExecutorAllowed(Wallet.createRandom().address)).not.toThrow();
+});

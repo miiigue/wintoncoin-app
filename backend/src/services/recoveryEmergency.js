@@ -14,9 +14,16 @@ const {signStep}=require('./chainSigning');
  * @param {object} env Variables de entorno
  * @returns {Wallet} Instancia ethers.Wallet del ejecutor de emergencia
  */
+// Public address only. The credential was disclosed in incident ANTIGRAVITY-089.
+// Reject on every network; changing networks does not change key ownership.
+const revokedExecutors=new Set(['0xf28a82bbc295c00f036d304d252e45a10b336323']);
+function assertExecutorAllowed(address){
+ if(revokedExecutors.has(address.toLowerCase()))throw error('El ejecutor de emergencia debe ser sustituido por el administrador antes de continuar. Puedes cancelar con otra billetera compatible.',503);
+}
 function signer(env=process.env){
  if(!env.RECOVERY_RELAYER_PRIVATE_KEY)throw error('El envío de emergencia no está configurado. Utiliza la opción de otra billetera.',503);
  const wallet=new Wallet(env.RECOVERY_RELAYER_PRIVATE_KEY);
+ assertExecutorAllowed(wallet.address);
  
  // Lista de roles con los que bajo ninguna circunstancia debe colisionar el ejecutor de emergencia
  const conflictingRoles=['RELAYER_PRIVATE_KEY','ADMIN_CHAIN_PRIVATE_KEY','GAS_SPONSOR_PRIVATE_KEY'];
@@ -64,4 +71,4 @@ async function sponsor(pool,rpc,config,row,call,env=process.env){
   return step;
  });
 }
-module.exports={signer,assertCancellation,sponsor};
+module.exports={signer,assertCancellation,sponsor,assertExecutorAllowed};

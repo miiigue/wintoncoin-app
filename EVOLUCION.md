@@ -7810,6 +7810,13 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Incorporado banner transparente que informa al usuario que el despliegue en blockchain puede tomar entre 2 y 10 minutos.
   - Añadida tarjeta de felicitaciones moderna y descartable (`Entendido`) tras confirmarse la autocustodia, y colapsadas las opciones técnicas avanzadas de recuperación en un panel desplegable accesible (`<details>`) para mantener la vista principal de saldos completamente limpia y despejada.
   - Certificación: 53 componentes JSX auditados (0 errores), 4/4 render PASS y compilación de producción Vite Demo exitosa (código 0).
+- **Hardenización de Seguridad y Cobertura de Interacción (CODEX-123 / ANTIGRAVITY-091)**:
+  - Temporizador desacoplado en `AccountSecurity.jsx`: opera estrictamente en modo de solo lectura (GET status) cada 60s sin invocar firmas biométricas ni WebAuthn de forma automática, requiriendo acción explícita del usuario para cualquier transacción.
+  - Bloqueo de dobles clics y detención automática ante estados terminales o sesión expirada (HTTP 401).
+  - Scope de descarte de felicitación acotado por red y billetera (`winton_activation_success_dismissed_${chainId}_${address}`).
+  - Lista de revocación en `recoveryEmergency.js` que rechaza la dirección de prueba comprometida y exige rotación segura de credenciales.
+  - Suite de interacción Playwright implementada (`test:account-security`): 12 de 12 pruebas de interacción PASS.
+  - Backend: 69 de 69 pruebas PASS.
 
 
 
