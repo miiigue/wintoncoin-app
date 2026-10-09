@@ -31,6 +31,9 @@ function signer(env=process.env){
    }
   }
  }
+ if(env.RECOVERY_RELAYER_ADDRESS && wallet.address.toLowerCase() !== env.RECOVERY_RELAYER_ADDRESS.toLowerCase()){
+  throw error('La dirección pública de emergencia no coincide con la clave privada configurada.',503);
+ }
  return wallet;
 }
 function assertCancellation(config,row,call){

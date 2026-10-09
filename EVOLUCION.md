@@ -7803,6 +7803,9 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - 53 componentes JSX auditados sin variables huérfanas (`check:react`).
   - 4 de 4 pruebas de render de Wallet PASS (`test:wallet`).
   - Compilación de producción Vite Demo completada exitosamente en 32.24s (código 0).
+- **Soporte y Validación de `RECOVERY_RELAYER_ADDRESS`**:
+  - Incorporada comprobación criptográfica estricta en `recoveryEmergency.js` que valida la correspondencia matemática entre `RECOVERY_RELAYER_PRIVATE_KEY` y `RECOVERY_RELAYER_ADDRESS` cuando esta última se define en el entorno de ejecución, evitando discrepancias operativas en despliegues hosteados.
+  - 10 de 10 pruebas unitarias en `recoveryEmergency.test.js` aprobadas.
 
 
 

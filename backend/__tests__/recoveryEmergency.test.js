@@ -27,6 +27,11 @@ test('ejecutor de emergencia debe ser independiente de relayer habitual, admin y
  expect(()=>emergency.signer({...env,ADMIN_CHAIN_PRIVATE_KEY:key})).toThrow('independiente');
  expect(()=>emergency.signer({...env,GAS_SPONSOR_PRIVATE_KEY:key})).toThrow('independiente');
 });
+test('valida consistencia con RECOVERY_RELAYER_ADDRESS si esta configurada',()=>{
+ const wallet=new Wallet(env.RECOVERY_RELAYER_PRIVATE_KEY);
+ expect(()=>emergency.signer({...env,RECOVERY_RELAYER_ADDRESS:wallet.address})).not.toThrow();
+ expect(()=>emergency.signer({...env,RECOVERY_RELAYER_ADDRESS:Wallet.createRandom().address})).toThrow('no coincide');
+});
 test.each(['transfer','delegate','refund','target','kind'])('rechaza abuso: %s',mode=>{
  const f=fixture();
  if(mode==='transfer')f.tx.value='1';
