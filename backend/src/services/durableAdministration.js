@@ -30,6 +30,10 @@ async function credit(bridge,wallet,amount,{manual=true,alreadyLocked=false}={})
 }
 async function reconcile() {
     const rpc=deployment.provider();
-    try {return await new ChainOperationStore(pool,rpc).sweep();}finally{rpc.destroy();}
+    try {
+        const result=await new ChainOperationStore(pool,rpc).sweep();
+        const migrations=await require('./legacyMigrationExecution').sweep(pool,rpc);
+        return {...result,migrations};
+    }finally{rpc.destroy();}
 }
 module.exports={execute,credit,reconcile};

@@ -10,6 +10,7 @@ export default function AccountSecurity({onActivated}) {
   const [operation,setOperation]=useState(null);
   const [sessionExpired,setSessionExpired]=useState(false);
   const [activationState,setActivationState]=useState('unknown');
+  const [migrating,setMigrating]=useState(false);
   const inFlight=useRef(false),mounted=useRef(true);
   function startAction(){if(inFlight.current)return false;inFlight.current=true;setBusy(true);return true;}
   function endAction(){inFlight.current=false;if(mounted.current)setBusy(false);}
@@ -32,7 +33,7 @@ export default function AccountSecurity({onActivated}) {
       const current=await accountRequest('/status');
       setContext(current);
       if(current.activationId){setOperation({operationId:current.activationId});setMessage('Tu activación está en curso. Pulsa Continuar para comprobarla.');}
-      else if(!current.account){const readiness=await accountRequest('/activation-readiness');if(readiness.ready!==true)throw new Error('La activación todavía no está disponible.');begin();setMessage('Primero guarda tu respaldo; después registrarás tu dispositivo.');}
+      else if(!current.account){const readiness=await accountRequest('/activation-readiness');if(readiness.ready!==true)throw new Error('La activación todavía no está disponible.');begin();setMessage(readiness.replacingLegacy?'Tu billetera anterior puede actualizarse. Guarda el respaldo y registra tu dispositivo. La nueva dirección sustituirá a la anterior al completar la activación; conservarás tu usuario.':'Primero guarda tu respaldo; después registrarás tu dispositivo.');}
       else {setMessage(current.account.state==='active'?'Tu respaldo ya está activado. Conserva las palabras que guardaste al crear la cuenta.':'Tu cuenta necesita completar su activación. Vuelve a comprobar su estado.');}
     } catch(e) {
       reportError(e);
@@ -55,6 +56,7 @@ export default function AccountSecurity({onActivated}) {
     try {
       let result=await accountRequest('/activation/'+operation.operationId);
       if(!mounted.current)return;
+      setMigrating(Boolean(result.migration));
       if(result.success){
         const current=await refresh();
         if(current?.account?.state==='active'){setActivationState('confirmed');onActivated?.();}
@@ -65,7 +67,7 @@ export default function AccountSecurity({onActivated}) {
       }
       if(result.requiresSignature){
         setActivationState('authorization');
-        if(!userInitiated){setMessage('Falta tu confirmación para continuar. Pulsa Confirmar siguiente paso.');return;}
+        if(!userInitiated){setMessage(result.migration?result.message:'Falta tu confirmación para continuar. Pulsa Confirmar siguiente paso.');return;}
         const authorization=result.authorization?await signAccountTransaction(result.authorization,context):{};
         if(!mounted.current)return;
         result=await accountRequest('/activation/'+operation.operationId,authorization);
@@ -112,7 +114,7 @@ export default function AccountSecurity({onActivated}) {
         <p className="activation-pending-desc">
           {activationState==='authorization'?'Para continuar, confirma el siguiente paso. La aplicación no solicitará firmas automáticamente.':activationState==='stopped'?'No se enviarán más pasos automáticamente. Puedes consultar el estado.':'La confirmación depende de la red y puede tardar varios minutos. Consultamos el estado cada 60 segundos mientras esta pestaña esté visible; las firmas y envíos requieren que pulses el botón.'}
         </p>
-        <button disabled={busy||sessionExpired} onClick={()=>checkActivation(true)}>{busy?'Comprobando…':activationState==='authorization'?'Confirmar siguiente paso':'Consultar o continuar activación'}</button>
+        <button disabled={busy||sessionExpired} onClick={()=>checkActivation(true)}>{busy?'Comprobando…':activationState==='authorization'?(migrating?'Actualizar billetera y conservar saldo':'Confirmar siguiente paso'):'Consultar o continuar activación'}</button>
       </div>
     )}
     {isActive&&!dismissedSuccess&&(

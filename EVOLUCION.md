@@ -7835,6 +7835,11 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Portabilidad de `testMatch` en `package.json` para entornos multi-plataforma.
   - Configuración en `.github/workflows/backend-ci.yml` con Node 22, pasos desagregados y variables de aislamiento (`PG_REVIEW_PORT`, `WINTON_MIGRATION_TEST_PORT`), asegurando la ejecución completa de la suite de pruebas sin omisiones.
   - Suites certificadas localmente: 16 de 16 PASS en credit scoring y 53 de 53 PASS en las 4 suites de seguridad y autorecuperación (69 de 69 tests principales en verde).
+- **Migración Canónica de Cuentas Legadas (EOA) a Safe Smart Accounts (CODEX-131 / CODEX-132 / ANTIGRAVITY-100)**:
+  - Implementación de planificación de inventario fail-closed en `legacyWalletMigration.js`: verificación exhaustiva de compromisos RED activos, órdenes de intercambio pendientes, bóvedas bloqueadas y saldos externos antes de cualquier sustitución.
+  - Ejecución de reemplazo seguro en `legacyMigrationExecution.js`: soporte para traslados autorizados de balances USDT hacia la nueva Safe, revocación y reaplicación atómica de estado de KYC en CoreProtocol, y actualización auditada en base de datos.
+  - Consentimiento explícito de usuario implementado en la interfaz `AccountSecurity.jsx` para migración de billetera legada a Safe, complementado con sweep cron para finalización diferida.
+  - Suites de pruebas exhaustivas: `legacyWalletMigration.test.js`, `legacyMigrationExecution.test.js` y `recoverableAccounts.test.js` pasando al 100% (70 de 70 pruebas PASS en backend) y 14 de 14 chequeos de interfaz PASS.
 
 
 

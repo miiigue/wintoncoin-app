@@ -94,9 +94,9 @@ describe('Protección de direcciones heredadas', () => {
 test('activación final revierte sin reemplazar una dirección heredada',async()=>{
  const signing=require('../src/services/safeExecution');
  const old='0x'+'1'.repeat(40),next='0x'+'2'.repeat(40),owner='0x'+'3'.repeat(40);
- const client={query:jest.fn(async sql=>({rows:sql.includes('SELECT web3_wallet_address')?[{web3_wallet_address:old}]:[]})),release:jest.fn()};
- const service=new RecoverableAccounts({connect:async()=>client},{},{chainId:'10'});
- service.store={get:async()=>({kind:'accountActivation'}),reconcile:async()=>({success:true})};
+ const client={query:jest.fn(async sql=>({rows:sql.includes('SELECT web3_wallet_address')?[{web3_wallet_address:old,account_status:'active'}]:[]})),release:jest.fn()};
+ const service=new RecoverableAccounts({connect:async()=>client},{},{chainId:'10',hash:'test'});
+ service.store={get:async()=>({kind:'accountActivation',payload:{account:next,manifestHash:'test',legacyAddress:old},steps:[]}),reconcile:async()=>({success:true})};
  const account=jest.spyOn(signing,'account').mockResolvedValue({address:next,identity_id:'id',passkey:{owner}});
  const validate=jest.spyOn(policy,'validateAccount').mockResolvedValue({getOwners:async()=>[owner]});
  try {
