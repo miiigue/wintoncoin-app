@@ -34,3 +34,5 @@
 .security-current-step-badge{display:flex;align-items:center;gap:10px;background:rgba(2,132,199,0.12);border:1px solid rgba(56,189,248,0.3);border-radius:10px;padding:8px 12px;margin:12px 0 16px;color:#e7f0ff}
 .security-current-step-badge .step-badge-pill{background:#0284c7;color:#ffffff;font-size:.75rem;font-weight:700;padding:3px 8px;border-radius:6px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
 .security-current-step-badge strong{font-size:.9rem;color:#f0f9ff}
+.account-security input[aria-invalid="true"]{border-color:#f87171!important;background:rgba(239,68,68,0.12)!important;box-shadow:0 0 0 1px #ef4444}
+.account-security span[role="alert"]{display:block;color:#fca5a5;font-size:.8rem;margin-top:6px;font-weight:500}

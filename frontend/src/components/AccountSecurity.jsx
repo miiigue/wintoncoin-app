@@ -130,22 +130,22 @@ export default function AccountSecurity({onActivated}) {
     <p role="status" aria-live="polite">{message}</p>
     {!isActive && !sessionExpired && (stage !== 'start' || operation) && (
       <div className="security-steps-tracker" aria-label="Progreso de configuración de 4 pasos">
-        <div className={`security-step-item ${currentStep === 1 ? 'active' : currentStep > 1 ? 'completed' : ''}`}>
+        <div className={`security-step-item ${currentStep === 1 ? 'active' : currentStep > 1 ? 'completed' : ''}`} aria-current={currentStep === 1 ? 'step' : undefined}>
           <span className="security-step-bubble">{currentStep > 1 ? '✓' : '1'}</span>
           <span className="security-step-label">Respaldo</span>
         </div>
         <div className={`security-step-line ${currentStep > 1 ? 'completed' : ''}`} />
-        <div className={`security-step-item ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : ''}`}>
+        <div className={`security-step-item ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : ''}`} aria-current={currentStep === 2 ? 'step' : undefined}>
           <span className="security-step-bubble">{currentStep > 2 ? '✓' : '2'}</span>
           <span className="security-step-label">Confirmación</span>
         </div>
         <div className={`security-step-line ${currentStep > 2 ? 'completed' : ''}`} />
-        <div className={`security-step-item ${currentStep === 3 ? 'active' : currentStep > 3 ? 'completed' : ''}`}>
+        <div className={`security-step-item ${currentStep === 3 ? 'active' : currentStep > 3 ? 'completed' : ''}`} aria-current={currentStep === 3 ? 'step' : undefined}>
           <span className="security-step-bubble">{currentStep > 3 ? '✓' : '3'}</span>
           <span className="security-step-label">Dispositivo</span>
         </div>
         <div className={`security-step-line ${currentStep > 3 ? 'completed' : ''}`} />
-        <div className={`security-step-item ${currentStep === 4 ? 'active' : ''}`}>
+        <div className={`security-step-item ${currentStep === 4 ? 'active' : ''}`} aria-current={currentStep === 4 ? 'step' : undefined}>
           <span className="security-step-bubble">4</span>
           <span className="security-step-label">Activación</span>
         </div>
@@ -167,7 +167,7 @@ export default function AccountSecurity({onActivated}) {
       <button onClick={()=>setStage('resume')} disabled={busy}>Volver</button>
     </div>}
     {stage==='device'&&backup&&<div>
-      <div className="security-current-step-badge"><span className="step-badge-pill">Paso 3 de 4</span><strong>Registra tu dispositivo móvil</strong></div>
+      <div className="security-current-step-badge"><span className="step-badge-pill">Paso 3 de 4</span><strong>Registra tu dispositivo</strong></div>
       <button disabled={busy} onClick={registerDevice}>{busy?'Esperando confirmación…':'Registrar mi dispositivo'}</button>
     </div>}
     {backup&&stage==='show'&&<>
@@ -187,10 +187,10 @@ export default function AccountSecurity({onActivated}) {
     </form>}
     {operation&&(
       <div className="activation-pending-banner">
-        <div className="security-current-step-badge"><span className="step-badge-pill">Paso 4 de 4</span><strong>{migrating ? 'Autoriza la actualización de tu billetera' : 'Activación de tu billetera'}</strong></div>
+        <div className="security-current-step-badge"><span className="step-badge-pill">Paso 4 de 4</span><strong>{activationState==='authorization'?(migrating?'Autoriza la actualización de tu billetera':'Autoriza la activación de tu billetera'):(migrating?'Actualizando tu billetera':'Activando tu billetera')}</strong></div>
         <p className="activation-pending-title">{activationState==='authorization'?'Falta tu confirmación':activationState==='stopped'?'La activación necesita revisión':'Activación de tu billetera'}</p>
         <p className="activation-pending-desc">
-          {activationState==='authorization'?'Para continuar, confirma el siguiente paso. La aplicación no solicitará firmas automáticamente.':activationState==='stopped'?'No se enviarán más pasos automáticamente. Puedes consultar el estado.':'La confirmación depende de la red y puede tardar varios minutos. Consultamos el estado cada 60 segundos mientras esta pestaña esté visible; las firmas y envíos requieren que pulses el botón.'}
+          {activationState==='authorization'?'Para continuar, confirma el siguiente paso. La aplicación no solicitará firmas automáticamente.':activationState==='stopped'?'No se enviarán más pasos automáticamente. Puedes consultar el estado.':'La operación está en curso en la red y continuará automáticamente. Consultamos el estado periódicamente mientras esta pestaña esté visible; también puedes pulsar el botón para consultar el estado de inmediato.'}
         </p>
         <button disabled={busy||sessionExpired} onClick={()=>checkActivation(true)}>{busy?'Comprobando…':activationState==='authorization'?(migrating?'Actualizar billetera y conservar saldo':'Confirmar siguiente paso'):'Consultar o continuar activación'}</button>
       </div>
