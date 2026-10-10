@@ -31,6 +31,19 @@ test.each(['v2','cbc'])('rescata únicamente el sobre heredado %s de la direcci�
 test.each([{has_transaction_pin:true},{web3_keystore:{}},{web3_private_key_encrypted:'invalid'}])('no reutiliza PIN, keystore ni material inválido: %j',override=>{
  expect(()=>execution.legacySigner({web3_wallet_address:old.address,web3_private_key_encrypted:envelope(old),...override},{ENCRYPTION_SECRET:envelopeSecret})).toThrow('No pudimos');
 });
+test.each([true,false])('rescata clave histórica sin cifrar solo si corresponde a la dirección, prefijo=%s',prefix=>{
+ const value=prefix?old.privateKey:old.privateKey.slice(2);
+ const u={web3_wallet_address:old.address,web3_private_key_encrypted:value};
+ expect(execution.legacySigner(u,{}).address).toBe(old.address);
+ expect(()=>execution.legacySigner({...u,web3_wallet_address:next},{})).toThrow('No pudimos');
+ for(const override of [{has_transaction_pin:true},{web3_keystore:{}},{web3_private_key_encrypted:'0x'+'0'.repeat(64)}])
+  expect(()=>execution.legacySigner({...u,...override},{})).toThrow('No pudimos');
+});
+test.each(['cbc','v2'])('un sobre %s no utiliza fallback cuando falta o cambia el secreto',version=>{
+ const u={web3_wallet_address:old.address,web3_private_key_encrypted:envelope(old,version)};
+ expect(()=>execution.legacySigner(u,{})).toThrow('No pudimos');
+ expect(()=>execution.legacySigner(u,{ENCRYPTION_SECRET:'incorrect-secret-'.repeat(3)})).toThrow('No pudimos');
+});
 function snapshot(){return {address:old.address.toLowerCase(),chainId:'10',fingerprint:'suite',blockNumber:100,blockHash:'block',usdt:[{token,amount:'500000000'}],authorizations:[core],core,credit:{limit:'20000000',level:'3',margin:'0'},restoreKyc:true};}
 test('ordena revocar, trasladar, conservar beneficios y habilitar; el cliente no elige destino',()=>{
  const tasks=execution.tasks(snapshot(),next);expect(tasks.map(t=>t.key)).toEqual(['revoke-0','transfer-0','credit','benefits','kyc']);

@@ -7840,6 +7840,10 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Ejecución de reemplazo seguro en `legacyMigrationExecution.js`: soporte para traslados autorizados de balances USDT hacia la nueva Safe, revocación y reaplicación atómica de estado de KYC en CoreProtocol, y actualización auditada en base de datos.
   - Consentimiento explícito de usuario implementado en la interfaz `AccountSecurity.jsx` para migración de billetera legada a Safe, complementado con sweep cron para finalización diferida.
   - Suites de pruebas exhaustivas: `legacyWalletMigration.test.js`, `legacyMigrationExecution.test.js` y `recoverableAccounts.test.js` pasando al 100% (70 de 70 pruebas PASS en backend) y 14 de 14 chequeos de interfaz PASS.
+- **Resolución de Compatibilidad de Claves Históricas Raw para Cuentas Legadas (CODEX-133 / CODEX-134 / ANTIGRAVITY-102)**:
+  - Diagnóstico en modo solo lectura de la cuenta de prueba `@test8` (`0xf8BBF5E0518fB325aE0e026B43feEC764Fa47837`): el material histórico fue generado bajo el fallback temprano sin cifrado v2/CBC, impidiendo su apertura en el primer adaptador de migración.
+  - Corrección de `legacyMigrationExecution.js`: soporte seguro para claves históricas en formato hexadecimal plano (*raw* de 32 bytes), validando estrictamente que deriven la dirección vinculada en base de datos antes de cualquier operación.
+  - Certificación en `legacyMigrationExecution.test.js`: 25 de 25 pruebas unitarias PASS cubriendo formatos cifrados v2, CBC y raw, rechazo de PIN/keystore y comprobación de derivación de dirección.
 
 
 

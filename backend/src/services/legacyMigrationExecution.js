@@ -15,8 +15,15 @@ const views=['function owner() view returns(address)','function isKYCVerified(ad
  ...['creditLimits','userLevels','extensionMarginLimits','extensionMarginUsed','paymentNonces','getUserDebtLotsCount'].map(n=>'function '+n+'(address) view returns(uint256)')];
 function legacySigner(user,env=process.env){
  try{
-  if(user.has_transaction_pin||user.web3_keystore||!user.web3_private_key_encrypted||!env.ENCRYPTION_SECRET||env.ENCRYPTION_SECRET.length<32)throw Error();
+  if(user.has_transaction_pin||user.web3_keystore||typeof user.web3_private_key_encrypted!=='string'||!user.web3_private_key_encrypted)throw Error();
   const value=user.web3_private_key_encrypted;let plaintext;
+  // The first deployed generator stored a raw key when no master secret existed.
+  // Read only existing server material for migration; never create this format
+  // or accept a key from the client. The address check below remains mandatory.
+  if(/^(0x)?[a-fA-F0-9]{64}$/.test(value)){
+   plaintext=value.startsWith('0x')?value:'0x'+value;
+  }else{
+  if(!env.ENCRYPTION_SECRET||env.ENCRYPTION_SECRET.length<32)throw Error();
   if(value.startsWith('v2:')){
    const box=JSON.parse(Buffer.from(value.slice(3),'base64').toString('utf8'));
    const key=crypto.scryptSync(env.ENCRYPTION_SECRET,'winton-wallet-envelope-v2',32);
@@ -28,6 +35,7 @@ function legacySigner(user,env=process.env){
    const [iv,ciphertext]=value.split(':');const key=crypto.scryptSync(env.ENCRYPTION_SECRET,'salt',32);
    const decipher=crypto.createDecipheriv('aes-256-cbc',key,Buffer.from(iv,'hex'));
    plaintext=Buffer.concat([decipher.update(Buffer.from(ciphertext,'hex')),decipher.final()]).toString('utf8');key.fill(0);
+  }
   }
   const wallet=new Wallet(plaintext);plaintext=null;
   if(wallet.address.toLowerCase()!==user.web3_wallet_address.toLowerCase())throw Error();
