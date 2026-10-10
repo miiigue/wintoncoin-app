@@ -21,9 +21,15 @@ export function createBackup() {
   return {phrase:wallet.mnemonic.phrase,address:wallet.address};
 }
 export function restoreBackup(phrase,address) {
-  const normalized=phrase.trim().toLowerCase().replace(/\s+/g,' ');
-  const wallet=HDNodeWallet.fromPhrase(normalized);
-  if(normalized.split(' ').length!==12||wallet.address.toLowerCase()!==address.toLowerCase())throw new Error('Estas palabras no corresponden al respaldo que estabas configurando.');
+  const normalized=typeof phrase==='string'?phrase.normalize('NFKD').trim().toLowerCase().replace(/\s+/g,' '):'';
+  const count=normalized?normalized.split(' ').length:0;
+  if(count!==12)throw new Error(`Escribe las 12 palabras completas, en el orden en que las guardaste. Has introducido ${count} de 12.`);
+  let wallet;
+  try{wallet=HDNodeWallet.fromPhrase(normalized);}catch{
+    // Never show library errors: they can contain sensitive arguments.
+    throw new Error('No pudimos reconocer este respaldo. Revisa las 12 palabras y su orden; escribe solo las palabras, sin números.');
+  }
+  if(typeof address!=='string'||wallet.address.toLowerCase()!==address.toLowerCase())throw new Error('Estas palabras pertenecen a otro respaldo. Utiliza las que guardaste para esta configuración pendiente.');
   return {phrase:normalized,address:wallet.address};
 }
 export function backupPositions() {

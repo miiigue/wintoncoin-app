@@ -4,6 +4,7 @@ const esbuild=require('esbuild');
 const {chromium}=require('playwright');
 // Actual security components; external authorization/network calls are synthetic.
 (async()=>{
+ require('node:child_process').execFileSync(process.execPath,[path.join(__dirname,'check-backup-validation.cjs')],{stdio:'inherit'});
  const root=path.resolve(__dirname,'..');
  const build=await esbuild.build({stdin:{resolveDir:root,loader:'jsx',contents:
   "import React from 'react';import {createRoot} from 'react-dom/client';import Security from './src/components/AccountSecurity.jsx';const root=createRoot(document.getElementById('root'));let n=0;window.mount=()=>root.render(<Security key={++n} onActivated={()=>window.stats.activated++}/>);window.unmount=()=>root.render(null);window.mount();"},bundle:true,write:false,plugins:[{name:'isolated-security-fixture',setup(b){
@@ -46,7 +47,12 @@ const {chromium}=require('playwright');
   await page.getByLabel('Palabras del respaldo pendiente').fill('wrong');await page.getByRole('button',{name:'Retomar mi respaldo',exact:true}).click();
   await page.getByText('Respaldo incorrecto',{exact:true}).waitFor();checks++;
   await page.getByLabel('Palabras del respaldo pendiente').fill(Array(12).fill('fixture').join(' '));await page.getByRole('button',{name:'Retomar mi respaldo',exact:true}).click();
-  for(let i=1;i<=3;i++)await page.getByLabel('Palabra '+i,{exact:true}).fill('fixture');
+  await page.getByRole('button',{name:'Confirmar palabras y continuar',exact:true}).click();
+  assert.equal(await page.locator('input[aria-invalid="true"]').count(),3);checks++;
+  await page.getByRole('button',{name:'Mostrar lo escrito',exact:true}).click();
+  assert.equal(await page.locator('#account-security input[type="text"]').count(),3);
+  await page.getByRole('button',{name:'Ocultar lo escrito',exact:true}).click();checks++;
+  for(let i=0;i<3;i++)await page.locator('#account-security input').nth(i).fill('fixture');
   await page.getByRole('button',{name:'Confirmar palabras y continuar',exact:true}).click();
   await page.getByRole('button',{name:'Registrar mi dispositivo',exact:true}).waitFor();
   assert.equal(await page.evaluate(()=>window.stats.registrations||0),0);checks++;

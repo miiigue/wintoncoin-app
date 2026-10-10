@@ -7849,6 +7849,17 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Incorporación de opción «Retomar mi respaldo» tras recargar, verificando las palabras anotadas contra la dirección antes de continuar y evitando la generación aleatoria de nuevas frases.
   - Desacople estricto del botón «Registrar mi dispositivo» para disparar `navigator.credentials.create` directamente desde el evento de clic del usuario sin retardos asíncronos de red, garantizando compatibilidad con navegadores móviles estrictos.
   - 17 de 17 chequeos de interfaz PASS en `check-account-security.cjs` y 21 de 21 tests PASS en `recoverableAccounts.test.js`.
+- **Validación Amigable de Frase de Respaldo y Manejo de Errores Mnemónicos (CODEX-137 / ANTIGRAVITY-106)**:
+  - Eliminación de errores crudos de biblioteca criptográfica (`invalid mnemonic length`): validación preventiva de 12 palabras y normalización NFKD/espacios antes de invocar `ethers`.
+  - Claridad visual en confirmación: indicación explícita de las posiciones requeridas (ej. 1, 2, 9), marcado de campos incorrectos y opción de «Mostrar/Ocultar lo escrito» sin filtrar la frase correcta.
+  - Certificación con nueva suite `check-backup-validation.cjs` (8 casos con validación real de ethers PASS) y 19 de 19 interacciones UI PASS.
+- **Indicador Visual de Progreso y Numeración de Pasos (1 a 4) (UX Mobile Clarity)**:
+  - Implementación de barra de seguimiento visual de 4 pasos (`.security-steps-tracker`) y badges informativos numerados (`.security-current-step-badge`) en `AccountSecurity.jsx` y `AccountSecurity.css`.
+  - Paso 1: Respaldo (Anota tus 12 palabras).
+  - Paso 2: Confirmación (Confirma 3 palabras de tu lista o retoma borrador guardado).
+  - Paso 3: Dispositivo (Registra tu dispositivo móvil con FaceID/Huella).
+  - Paso 4: Activación (Autoriza la actualización de tu billetera y conserva saldo).
+  - Compilación de `dist-demo` aprobada con código 0 y 175 recursos PWA.
 
 
 
