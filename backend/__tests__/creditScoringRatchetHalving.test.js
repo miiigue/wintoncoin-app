@@ -95,17 +95,31 @@ describe('Gobernanza de Compromisos RED: Trinquete Financiero y Halving por Mora
 
 describe('Integración On-Chain: Fail-Closed ante fallos de RPC y red (CODEX-091 / CODEX-092)', () => {
     let originalQuery;
+    let originalConnect;
+    let lockedClient;
     let originalGetProtocol;
     let originalSetCreditLimit;
 
     beforeEach(() => {
         originalQuery = pool.query;
+        originalConnect = pool.connect;
+        // The real lock wrapper uses a checked-out client, not pool.query.
+        lockedClient = {
+            query: jest.fn((sql, ...args) => sql.includes('pg_try_advisory_lock')
+                ? Promise.resolve({rows:[{acquired:true}]}) : pool.query(sql, ...args)),
+            release: jest.fn()
+        };
+        pool.connect = jest.fn().mockResolvedValue(lockedClient);
         originalGetProtocol = bridge._getProtocol;
         originalSetCreditLimit = bridge.setCreditLimit;
     });
 
     afterEach(() => {
+        const usedClient = pool.connect.mock.calls.length > 0;
+        pool.connect = originalConnect;
         pool.query = originalQuery;
+        jest.restoreAllMocks();
+        if (usedClient) expect(lockedClient.release).toHaveBeenCalledTimes(1);
         bridge._getProtocol = originalGetProtocol;
         bridge.setCreditLimit = originalSetCreditLimit;
     });
@@ -260,6 +274,22 @@ describe('Integración On-Chain: Fail-Closed ante fallos de RPC y red (CODEX-091
         // Se omite la llamada Web3 preservando el límite histórico adquirido (trinquete)
         expect(result).toEqual({ skipped: true, reason: 'already_current' });
         expect(bridge.setCreditLimit).not.toHaveBeenCalled();
+    });
+
+    test('Una operación pendiente impide enviar otro límite y libera la conexión', async () => {
+        pool.query = jest.fn(async sql => {
+            if (sql.includes('FROM users')) return {rows:[{web3_wallet_address:'0x'+'5'.repeat(40)}]};
+            if (sql.includes('SELECT id FROM chain_operations')) return {rowCount:1,rows:[{id:'pending-limit'}]};
+            return {rows:[]};
+        });
+        bridge._getProtocol = jest.fn();
+        bridge.setCreditLimit = jest.fn();
+        const score = jest.spyOn(creditScoringService,'calculateUserScore');
+        await expect(creditScoringService.syncCreditLimitOnChain(555)).resolves.toEqual({pending:true,operationId:'pending-limit'});
+        expect(score).not.toHaveBeenCalled();
+        expect(bridge._getProtocol).not.toHaveBeenCalled();
+        expect(bridge.setCreditLimit).not.toHaveBeenCalled();
+        expect(lockedClient.query).toHaveBeenCalledWith('SELECT pg_advisory_unlock(hashtextextended($1,778))', ['credit:0x'+'5'.repeat(40)]);
     });
 
     describe('Recuperación Gradual Post-Mora (10% Mensual - Punto A / Whitepaper Canónico)', () => {

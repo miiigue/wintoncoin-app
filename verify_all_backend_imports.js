@@ -75,6 +75,6 @@ if (failedModules.length > 0) {
     failedModules.forEach(f => console.error(`   • ${f.file}: ${f.error}`));
     process.exit(1);
 } else {
-    console.log('\n✅ GARANTÍA 100%: Los 84 módulos del backend se cargan en memoria sin ningún ReferenceError.');
+    console.log(`\n✅ ${totalChecked} módulos cargados sin errores síncronos. No verifica operaciones asíncronas ni garantiza ausencia de vulnerabilidades.`);
     process.exit(0);
 }

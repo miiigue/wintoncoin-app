@@ -53,7 +53,7 @@
   "jest": {
     "testEnvironment": "node",
     "testMatch": [
-      "<rootDir>/backend/__tests__/**/*.test.js"
+      "**/backend/__tests__/**/*.test.js"
     ]
   }
 }

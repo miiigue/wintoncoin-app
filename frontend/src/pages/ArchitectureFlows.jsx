@@ -1,34 +1,135 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './ArchitectureFlows.module.css';
 
 /**
  * ============================================================================
- * [WINTONCOIN] - ARCHITECTURE FLOWS (React SPA Component)
+ * [WINTONCOIN] - ARCHITECTURE FLOWS (React SPA Component 2026)
  * ============================================================================
- * Tablero de Arquitectura y Simulador de Flujos Transaccionales Dinámicos.
- * Cumple con Zero-Trust, SOC 2, paridad TotalSupply(BLUE) == TotalSupply(RED),
- * y el principio de no utilizar la palabra "deuda", sino COMPROMISO RED.
- * Orientación Panorámica Horizontal (LR) para máxima legibilidad y estética FinTech.
+ * Visualizador Interactivo de Arquitectura y Procesos de WintonCoin.
+ * - Estética oficial de WintonCoin: Logotipo de alta resolución, paleta de colores
+ *   azul marino / zafiro / esmeralda, y tipografía bancaria 'Inter' / 'Outfit'.
+ * - Cero botones de Play: Interactividad 100% reactiva por hover (mouse) y toque (pantalla táctil).
+ * - Scroll vertical natural y fluido en toda la página (desktop y móvil sin bloqueos).
+ * - Inspector de pasos en vivo con explicaciones técnicas detalladas de cómo
+ *   funciona realmente cada proceso en el backend, smart contracts y base de datos.
+ * - Cumplimiento estricto: COMPROMISO RED (cero palabra "deuda"), invariante
+ *   TotalSupply(BLUE) == TotalSupply(RED), SOC 2 y Zero-Trust.
  * ============================================================================
  */
 
-const PROCESS_CATALOG = {
+export const PROCESS_CATEGORIES = [
+  {
+    id: 'cat-core',
+    name: 'Core Protocol & FinTech',
+    icon: '💰',
+    items: ['sec-economic', 'sec-treasury']
+  },
+  {
+    id: 'cat-security',
+    name: 'Seguridad & Identidad',
+    icon: '🔐',
+    items: ['sec-auth', 'sec-recovery']
+  },
+  {
+    id: 'cat-p2p',
+    name: 'Marketplace & Engine FIFO',
+    icon: '⚡',
+    items: ['sec-p2p-create', 'sec-p2p-match', 'sec-p2p-dispute']
+  },
+  {
+    id: 'cat-impact',
+    name: 'Gobernanza & Impacto',
+    icon: '🏛️',
+    items: ['sec-gov', 'sec-humanitarian']
+  },
+  {
+    id: 'cat-credit',
+    name: 'Crédito & Web3 Engine',
+    icon: '📊',
+    items: ['sec-scoring', 'sec-gas']
+  },
+  {
+    id: 'cat-audit',
+    name: 'Auditoría & Cumplimiento',
+    icon: '📜',
+    items: ['sec-audit']
+  }
+];
+
+export const PROCESS_CATALOG = {
   'sec-economic': {
     title: 'Protocolo Económico: BLUE / COMPROMISO RED',
+    category: 'Core Protocol & FinTech',
+    icon: '💰',
     desc: 'Mapeo integral de financialCoreService.processPayment. Por cada transferencia, se acredita el activo BLUE con parking diferido al beneficiario y se registra el COMPROMISO RED en el pagador, verificando la invariante TotalSupply(BLUE) == TotalSupply(RED).',
     modules: 'CoreProtocol.sol, RedToken.sol, financialCoreService.js',
     rule: 'Paridad 1:1 Invariable, Masa Monetaria Neta Cero',
     audit: 'Trazabilidad Bancaria SOC 2 en tabla audit_logs',
     steps: [
-      '1. Solicitud de pago o transferencia enviada por el usuario',
-      '2. Smart Contract evalúa límite crediticio y balance disponible',
-      '3. Cálculo de comisión de protocolo (2%) e importe neto a liquidar',
-      '4. Generación de tokens BLUE con parking diferido al beneficiario',
-      '5. Emisión de tokens RED al pagador: Registro de COMPROMISO RED',
-      '6. Acreditación de tokens BLUE de comisión a la Tesorería',
-      '7. Verificación criptográfica: TotalSupply(BLUE) == TotalSupply(RED)',
-      '8. Inserción inmutable en tabla audit_logs y confirmación final'
+      {
+        num: 1,
+        title: 'Solicitud de Pago o Transferencia',
+        desc: 'El usuario envía la orden desde la aplicación. El backend valida la sesión bajo principios Zero-Trust y autentica la firma criptográfica antes de despachar a CoreProtocol.sol.',
+        module: 'financialCoreService.js / CoreProtocol.sol',
+        security: 'Validación de firma y token de sesión activo'
+      },
+      {
+        num: 2,
+        title: 'Evaluación de Límite Crediticio RED',
+        desc: 'El Smart Contract y el servicio calculan la capacidad crediticia: se evalúa que el nuevo compromiso RED no exceda el límite asignado y que el usuario no esté en mora protocolar.',
+        module: 'CoreProtocol.sol: getCreditLimit() / isDelinquent()',
+        security: 'Guarda estricta de solvencia contra sobre-endeudamiento'
+      },
+      {
+        num: 3,
+        title: 'Cálculo de Comisión e Importe Neto',
+        desc: 'Se descuenta la comisión de plataforma (2%) y se determina el monto neto a acreditar. Los cálculos operan con precisión fija a 6 decimales para evitar desvíos contables.',
+        module: 'financialCoreService.js: calculateFeeAndNet()',
+        security: 'Precisión matemática bancaria sin punto flotante'
+      },
+      {
+        num: 4,
+        title: 'Acreditación de BLUE con Parking Diferido',
+        desc: 'Se emiten los tokens BLUE netos a favor del beneficiario con un bloqueo temporal en parking. Esto protege ambas partes contra disputas inmediatas o cancelaciones fraudulentas.',
+        module: 'BlueToken.sol / CoreProtocol.sol: mintWithParking()',
+        security: 'Retención programada con liberación gradual auditable'
+      },
+      {
+        num: 5,
+        title: 'Registro de COMPROMISO RED en el Pagador',
+        desc: 'Se emite la cantidad equivalente de tokens RED a la billetera del pagador. Esto formaliza su COMPROMISO RED con la plataforma, sin usar la palabra deuda.',
+        module: 'RedToken.sol: mintRedCommitment()',
+        security: 'Emisión simétrica atómica vinculada al lote de pago'
+      },
+      {
+        num: 6,
+        title: 'Comisión a la Tesorería',
+        desc: 'Los tokens BLUE correspondientes al 2% de comisión se transfieren directamente a la bóveda de la Tesorería para el sostenimiento del protocolo y cobertura de gas.',
+        module: 'ProtocolTreasury.sol',
+        security: 'Fondos asignados a la reserva protocolar verificable'
+      },
+      {
+        num: 7,
+        title: 'Verificación Criptográfica de Invariante',
+        desc: 'El protocolo comprueba de forma obligatoria que TotalSupply(BLUE) == TotalSupply(RED). Si no coincide con precisión exacta, la transacción ejecuta REVERT.',
+        module: 'CoreProtocol.sol: assertParityInvariant()',
+        security: 'Invariante matemática estricta: Masa monetaria neta cero'
+      },
+      {
+        num: 8,
+        title: 'Inserción Inmutable en audit_logs SOC 2',
+        desc: 'Se asienta un registro forense en la base de datos con hash SHA-256 de la operación, timestamp UTC, dirección de billetera y balances resultantes.',
+        module: 'auditService.js: logEvent() / tabla audit_logs',
+        security: 'Estándar bancario SOC 2 de inmutabilidad y no-repudio'
+      },
+      {
+        num: 9,
+        title: 'Pago Confirmado y Liquidado',
+        desc: 'Se notifica en tiempo real a los clientes mediante WebSockets y se actualizan los balances en el Dashboard de React.',
+        module: 'notificationEventBus.js / Frontend React SPA',
+        security: 'Confirmación instantánea al usuario sin recarga'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -61,18 +162,69 @@ flowchart LR
   },
   'sec-treasury': {
     title: 'Dogfooding Protocolar de Tesorería',
+    category: 'Core Protocol & FinTech',
+    icon: '🏛️',
     desc: 'La Tesorería NUNCA transfiere tokens BLUE directamente por fuera del protocolo. Todo incentivo opera bajo el flujo estándar idéntico al de cualquier usuario: asume el COMPROMISO RED y amortiza con comisiones acumuladas.',
     modules: 'ProtocolTreasury.sol, CoreProtocol.sol, RedToken.sol',
     rule: 'Cero transferencias P2P directas de Tesorería',
     audit: 'Amortización Contable con Comisiones Acumuladas',
     steps: [
-      '1. Evento de dispersión de incentivo o recompensa comunitaria',
-      '2. Tesorería invoca CoreProtocol actuando como pagador estándar',
-      '3. Emisión de tokens BLUE al usuario beneficiario con parking',
-      '4. Tesorería asume el COMPROMISO RED correspondiente sin privilegios',
-      '5. Tesorería recibe tokens BLUE ordinarios por comisión de plataforma',
-      '6. Tesorería amortiza su COMPROMISO RED con sus tokens BLUE de comisión',
-      '7. Verificación de variación neta cero en la masa monetaria circulante'
+      {
+        num: 1,
+        title: 'Dispersión de Recompensa o Incentivo',
+        desc: 'La plataforma aprueba un pago de incentivo para un colaborador comunitario o creador de contenido.',
+        module: 'adminPublicationsController.js',
+        security: 'Autorización administrativa multirrol'
+      },
+      {
+        num: 2,
+        title: 'Invocación como Pagador Estándar',
+        desc: 'La Tesorería llama al método canónico de pago actuando como un usuario común, sin puertas traseras ni privilegios de evasión de reglas.',
+        module: 'CoreProtocol.sol: processPayment()',
+        security: 'Dogfooding estricto: La Tesorería sigue las mismas reglas que los usuarios'
+      },
+      {
+        num: 3,
+        title: 'Emisión de BLUE con Parking al Usuario',
+        desc: 'Se transfieren los tokens BLUE correspondientes al beneficiario con el respectivo calendario de parking.',
+        module: 'BlueToken.sol',
+        security: 'Custodia programada simétrica'
+      },
+      {
+        num: 4,
+        title: 'Tesorería Asume COMPROMISO RED',
+        desc: 'La Tesorería contrae el COMPROMISO RED ordinario, registrando el débito contable sin excepciones.',
+        module: 'RedToken.sol',
+        security: 'Trazabilidad de compromisos sin saldos virtuales ocultos'
+      },
+      {
+        num: 5,
+        title: 'Recepción Ordinaria de BLUE por Comisión',
+        desc: 'Como cualquier operación económica, se genera la comisión protocolar que entra a la cuenta de comisiones.',
+        module: 'ProtocolTreasury.sol: feeRecipient',
+        security: 'Auditoría de ingresos operativos'
+      },
+      {
+        num: 6,
+        title: 'Amortización con BLUE de Comisiones',
+        desc: 'La Tesorería quema sus tokens BLUE ganados legítimamente por comisiones para amortizar su COMPROMISO RED.',
+        module: 'CoreProtocol.sol: burnBlueToSettleRed()',
+        security: 'Aniquilación bilateral materia-antimateria'
+      },
+      {
+        num: 7,
+        title: 'Verificación de Variación Neta Cero',
+        desc: 'La cantidad total de tokens circulantes no sufre inflación artificial; la paridad se mantiene exacta.',
+        module: 'CoreProtocol.sol',
+        security: 'Garantía matemática anti-inflacionaria'
+      },
+      {
+        num: 8,
+        title: 'Incentivo Liquidado con Paridad 1:1',
+        desc: 'El pago concluye exitosamente con balance neto cero para el ecosistema monetario.',
+        module: 'audit_logs',
+        security: 'Registro inmutable de recompensa'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -100,17 +252,62 @@ flowchart LR
   },
   'sec-auth': {
     title: 'Autenticación WebAuthn & JWT Zero-Trust',
+    category: 'Seguridad & Identidad',
+    icon: '🔐',
     desc: 'Autenticación multifactorial y biométrica. Incluye generación de challenge criptográfico con WebAuthn/Passkeys, y protección estricta contra ataques de fuerza bruta mediante pinAttemptsPool.',
     modules: 'authController.js, webauthnService.js, pinAttemptsPool.js',
     rule: 'Principio de Cero Confianza (Zero-Trust) & Passkeys',
     audit: 'Bloqueo tras 5 intentos fallidos y logs inmutables',
     steps: [
-      '1. Solicitud de inicio de sesión en frontend SPA',
-      '2. Selección de método: Biometría Passkey o Credenciales',
-      '3. Backend genera challenge criptográfico único',
-      '4. Dispositivo de hardware verifica huella dactilar o rostro',
-      '5. Validación de firma de clave pública en webauthnService',
-      '6. Emisión de JWT de alta seguridad y Refresh Token HttpOnly'
+      {
+        num: 1,
+        title: 'Solicitud de Login en la Aplicación',
+        desc: 'El usuario inicia el acceso desde el navegador o la aplicación móvil.',
+        module: 'authController.js: login()',
+        security: 'Canal seguro TLS 1.3 con sanitización estricta'
+      },
+      {
+        num: 2,
+        title: 'Selección de Método de Autenticación',
+        desc: 'El cliente elige entre Biometría de Hardware (Passkeys) o Clave/Frase Secreta de autocustodia.',
+        module: 'passkeyAuthorization.js',
+        security: 'Compatibilidad FIDO2 / WebAuthn W3C'
+      },
+      {
+        num: 3,
+        title: 'Challenge Criptográfico de Servidor',
+        desc: 'El servidor emite un nonce aleatorio criptográfico con expiración de 60 segundos para evitar replay attacks.',
+        module: 'webauthnService.js: generateChallenge()',
+        security: 'Entropía criptográfica CSPRNG'
+      },
+      {
+        num: 4,
+        title: 'Biometría de Hardware en Dispositivo',
+        desc: 'El chip de seguridad del teléfono (Secure Enclave o TPM) firma el challenge mediante huella o reconocimiento facial.',
+        module: 'Hardware Authenticator (FIDO2)',
+        security: 'Clave privada nunca sale del hardware del usuario'
+      },
+      {
+        num: 5,
+        title: 'Validación en Servidor & Control de Intentos',
+        desc: 'El backend valida la firma de clave pública y verifica el pool de intentos en pinAttemptsPool.js.',
+        module: 'pinAttemptsPool.js / webauthnService.js',
+        security: 'Bloqueo preventivo de 15 minutos tras 5 fallos'
+      },
+      {
+        num: 6,
+        title: 'Generación de JWT Seguro + Refresh HttpOnly',
+        desc: 'Se emite un token de sesión de corta duración y un Refresh Token en cookie HttpOnly con SameSite=Strict.',
+        module: 'authMiddleware.js',
+        security: 'Prevención total contra ataques XSS y CSRF'
+      },
+      {
+        num: 7,
+        title: 'Sesión Zero-Trust Iniciada',
+        desc: 'El usuario ingresa al sistema y se inicializa la telemetría segura de la sesión.',
+        module: 'Dashboard.jsx',
+        security: 'Auditoría de inicio de sesión en audit_logs'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -149,17 +346,76 @@ flowchart LR
   },
   'sec-recovery': {
     title: 'Recuperabilidad Social de Cuentas',
+    category: 'Seguridad & Identidad',
+    icon: '🔑',
     desc: 'Permite a los usuarios restaurar el acceso a su billetera de autocustodia mediante un quórum distribuido de tutores autorizados y una ventana de seguridad TimeLock.',
     modules: 'personalRecovery.js, recoverableAccounts.js',
     rule: 'Quórum M-de-N de Tutores con TimeLock de Seguridad',
     audit: 'Cancelación inmediata ante intento no autorizado',
     steps: [
-      '1. Usuario reporta pérdida de credenciales y solicita recuperación',
-      '2. Notificación encriptada a tutores autorizados',
-      '3. Tutores aprueban y firman criptográficamente la solicitud',
-      '4. Verificación de quórum de firmas alcanzado',
-      '5. Activación de TimeLock de seguridad (48 horas)',
-      '6. Traspaso de control seguro a la nueva dirección'
+      {
+        num: 1,
+        title: 'Solicitud de Recuperación de Cuenta',
+        desc: 'El usuario que perdió el acceso a su clave privada inicia el proceso indicando su identificador.',
+        module: 'recoverableAccountRoutes.js',
+        security: 'Comprobación de estado activo y no-suspendido'
+      },
+      {
+        num: 2,
+        title: 'Ingreso de Nueva Dirección de Billetera',
+        desc: 'Se especifica la nueva dirección Web3 que asumirá el control tras la verificación.',
+        module: 'recoverableAccounts.js',
+        security: 'Sanitización de dirección checksum EVM'
+      },
+      {
+        num: 3,
+        title: 'Notificación Criptográfica a Guardianes',
+        desc: 'Se envía un aviso encriptado a los tutores configurados previamente por el usuario.',
+        module: 'personalRecovery.js',
+        security: 'Comunicaciones blindadas sin intermediarios'
+      },
+      {
+        num: 4,
+        title: 'Firmas Criptográficas de los Guardianes',
+        desc: 'Cada tutor autoriza la recuperación firmando el paquete con su propia clave privada.',
+        module: 'SafeAccountPolicy.sol',
+        security: 'Firmas ECDSA verificadas on-chain'
+      },
+      {
+        num: 5,
+        title: 'Comprobación de Quórum M-de-N',
+        desc: 'Se evalúa si se alcanzó la cantidad mínima de firmas configurada (por ejemplo, 3 de 5).',
+        module: 'safeAccountPolicy.js',
+        security: 'Quórum descentralizado sin punto único de falla'
+      },
+      {
+        num: 6,
+        title: 'Ventana de Espera TimeLock (48 horas)',
+        desc: 'Se activa un período de seguridad donde el propietario legítimo puede vetar la recuperación si fue víctima de coacción.',
+        module: 'recoveryEmergency.js',
+        security: 'Ventana de rescate de 48 horas inmutable'
+      },
+      {
+        num: 7,
+        title: 'Verificación de Ausencia de Cancelación',
+        desc: 'Si no hubo oposición del titular durante el TimeLock, se procede con la migración.',
+        module: 'recoverableAccounts.js',
+        security: 'Chequeo defensivo anti-usurpación'
+      },
+      {
+        num: 8,
+        title: 'Traspaso de Control a la Nueva Billetera',
+        desc: 'Se actualizan las credenciales y el contrato Safe asigna los derechos a la nueva clave.',
+        module: 'SafeContract.sol',
+        security: 'Rotación segura de llaves en blockchain'
+      },
+      {
+        num: 9,
+        title: 'Cuenta Restaurada con Éxito',
+        desc: 'El usuario recupera el control íntegro de sus fondos y compromisos sin perder saldos.',
+        module: 'audit_logs',
+        security: 'Cierre auditable en base de datos'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -191,16 +447,69 @@ flowchart LR
   },
   'sec-p2p-create': {
     title: 'Publicación P2P con Retención en Escrow',
+    category: 'Marketplace & Engine FIFO',
+    icon: '📝',
     desc: 'Creación de ofertas de compra o venta en el marketplace. En ventas de tokens BLUE, se retiene inmediatamente la estaca en custodia segura (Escrow) para blindar al comprador.',
     modules: 'publicationController.js, publicationService.js',
     rule: 'Estaca de Garantía Previa Obligatoria en Venta',
     audit: 'Bloqueo de fondos en Escrow verificable on-chain/DB',
     steps: [
-      '1. Usuario define precio, volumen y moneda bancaria en la orden',
-      '2. Verificación del tipo de operación (Venta o Compra de BLUE)',
-      '3. Bloqueo preventivo de la masa de tokens BLUE en contrato de Escrow',
-      '4. Comprobación de solvencia de la estaca de garantía',
-      '5. Activación de la publicación en el Libro de Órdenes FIFO'
+      {
+        num: 1,
+        title: 'Creación de Publicación P2P',
+        desc: 'El comerciante define la cantidad, el precio por token y los métodos bancarios aceptados.',
+        module: 'publish.js / PublicationTypeModal.jsx',
+        security: 'Sanitización de precios y límites mínimos'
+      },
+      {
+        num: 2,
+        title: 'Configuración de Parámetros y Moneda FIAT',
+        desc: 'Se establecen los términos de liquidación y los tiempos máximos de respuesta para el pago.',
+        module: 'publicationController.js',
+        security: 'Control de monedas bancarias admitidas'
+      },
+      {
+        num: 3,
+        title: 'Detección de Tipo de Oferta',
+        desc: 'El sistema valida si se trata de una venta de tokens BLUE o una solicitud de compra de liquidez.',
+        module: 'publicationService.js',
+        security: 'Enrutamiento según perfil de riesgo'
+      },
+      {
+        num: 4,
+        title: 'Retención Inmediata en Custodia Escrow',
+        desc: 'En ventas de BLUE, la plataforma bloquea de forma preventiva los tokens ofrecidos para evitar ventas en corto.',
+        module: 'EscrowVault.sol / marketplacePayments.js',
+        security: 'Bloqueo 100% colateralizado de la orden'
+      },
+      {
+        num: 5,
+        title: 'Comprobación de Solvencia de Fondos',
+        desc: 'Se verifica que el balance líquido cubra el total más las comisiones de intermediación.',
+        module: 'walletService.js: getLiquidBalance()',
+        security: 'Protección contra doble gasto'
+      },
+      {
+        num: 6,
+        title: 'Registro de Oferta como ACTIVA',
+        desc: 'La oferta es validada y cambia a estatus activo en la base de datos de publicaciones.',
+        module: 'publicationController.js: createPublication()',
+        security: 'Transacción ACID en PostgreSQL'
+      },
+      {
+        num: 7,
+        title: 'Incorporación al Libro de Órdenes FIFO',
+        desc: 'Se inserta con timestamp de alta precisión en la cola pública First-In-First-Out.',
+        module: 'FifoExchange.sol / fifoExchangeService.js',
+        security: 'Ordenamiento cronológico determinista'
+      },
+      {
+        num: 8,
+        title: 'Oferta Visible en el Marketplace',
+        desc: 'Aparece disponible en el feed de los demás usuarios con insignias de reputación y garantía.',
+        module: 'PublicationsFeed.jsx',
+        security: 'Difusión reactiva en tiempo real'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -232,17 +541,76 @@ flowchart LR
   },
   'sec-p2p-match': {
     title: 'Algoritmo de Matching FIFO (First-In-First-Out)',
+    category: 'Marketplace & Engine FIFO',
+    icon: '⚡',
     desc: 'Coincidencia determinista por tiempo y precio. Las órdenes más antiguas se ejecutan primero de forma estricta. El pago se liquida en 2 fases con verificación bilateral.',
     modules: 'FifoExchange.sol, p2pController.js',
     rule: 'Prioridad Cronológica Determinista FIFO',
     audit: 'Liberación de Escrow solo tras confirmación bilateral',
     steps: [
-      '1. Comprador selecciona orden disponible en el mercado',
-      '2. Algoritmo confirma prioridad estricta por fecha/hora de creación',
-      '3. Bloqueo transaccional de los tokens BLUE seleccionados',
-      '4. Comprador transfiere fondos bancarios fuera de cadena',
-      '5. Vendedor verifica acreditación bancaria y confirma recepción',
-      '6. Contrato inteligente libera los tokens BLUE al comprador'
+      {
+        num: 1,
+        title: 'Selección de Orden en el Orderbook',
+        desc: 'El tomador de la orden elige el monto a intercambiar dentro del libro de órdenes.',
+        module: 'Exchange.jsx / contractInteraction.js',
+        security: 'Comprobación de disponibilidad en vivo'
+      },
+      {
+        num: 2,
+        title: 'Evaluación de Prioridad FIFO',
+        desc: 'El motor asigna la ejecución a la orden más antigua al mejor precio según la cola temporal.',
+        module: 'FifoExchange.sol: matchOrder()',
+        security: 'Transparencia de precios sin front-running'
+      },
+      {
+        num: 3,
+        title: 'Bloqueo de Fracción en Custodia Escrow',
+        desc: 'Los tokens seleccionados quedan asignados a la orden en curso y se activa el cronómetro de pago.',
+        module: 'EscrowVault.sol',
+        security: 'Temporizador estricto de liquidación'
+      },
+      {
+        num: 4,
+        title: 'Transferencia Bancaria FIAT Externa',
+        desc: 'El comprador efectúa la transferencia bancaria tradicional directamente a la cuenta del vendedor.',
+        module: 'Banca Tradicional (Fuera de Cadena)',
+        security: 'Cero intermediación de fondos bancarios'
+      },
+      {
+        num: 5,
+        title: 'Marcado de Pago y Comprobante',
+        desc: 'El comprador notifica que completó la transferencia y adjunta la referencia de la operación.',
+        module: 'p2pController.js: markPaid()',
+        security: 'Sellado de tiempo UTC inmutable'
+      },
+      {
+        num: 6,
+        title: 'Confirmación Bilateral del Vendedor',
+        desc: 'El vendedor valida la acreditación efectiva en su extracto bancario y confirma la recepción.',
+        module: 'p2pController.js: confirmPayment()',
+        security: 'Requisito de confirmación explícita del receptor'
+      },
+      {
+        num: 7,
+        title: 'Liberación de Tokens BLUE de Escrow',
+        desc: 'El contrato inteligente transfiere los tokens BLUE retenidos directamente a la billetera del comprador.',
+        module: 'FifoExchange.sol / CoreProtocol.sol',
+        security: 'Liberación criptográfica atómica'
+      },
+      {
+        num: 8,
+        title: 'Liquidación de Comisión y Reputación',
+        desc: 'Se acredita la comisión del protocolo y se incrementan las puntuaciones de mérito de los participantes.',
+        module: 'reputationService.js',
+        security: 'Actualización de scoring de confiabilidad'
+      },
+      {
+        num: 9,
+        title: 'Liquidación P2P Completada',
+        desc: 'Ambas partes reciben la confirmación final y la orden se archiva como completada.',
+        module: 'audit_logs',
+        security: 'Cierre auditable SOC 2'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -271,16 +639,55 @@ flowchart LR
   },
   'sec-p2p-dispute': {
     title: 'Arbitraje y Resolución de Disputas P2P',
+    category: 'Marketplace & Engine FIFO',
+    icon: '⚖️',
     desc: 'Protección antifraude con mediación arbitral ante discrepancias en transferencias bancarias o vencimiento del temporizador de pago.',
     modules: 'p2pController.js, adminController.js',
     rule: 'Resolución Arbitral Auditable con Comprobantes Bancarios',
     audit: 'Historial de auditoría completo y penalización de reputación',
     steps: [
-      '1. Apertura de disputa por discrepancia de pago',
-      '2. Congelamiento de tokens en escrow',
-      '3. Asignación de árbitro de administración',
-      '4. Evaluación de extractos bancarios oficiales',
-      '5. Emisión de dictamen arbitral y resolución de custodia'
+      {
+        num: 1,
+        title: 'Apertura de Disputa en Orden P2P',
+        desc: 'Una de las partes solicita arbitraje oficial por retraso de fondos, comprobante falso o falta de respuesta.',
+        module: 'disputeService.js: openDispute()',
+        security: 'Bloqueo automático de cancelaciones unilaterales'
+      },
+      {
+        num: 2,
+        title: 'Congelamiento Cautelar en Escrow',
+        desc: 'Los tokens permanecen en la bóveda de custodia y se prohíbe cualquier retiro hasta el veredicto.',
+        module: 'EscrowVault.sol',
+        security: 'Medida cautelar criptográfica inmutable'
+      },
+      {
+        num: 3,
+        title: 'Asignación de Árbitro de Cumplimiento',
+        desc: 'Un operador de soporte certificado asume el expediente con rol de mediación imparcial.',
+        module: 'adminPanel.js / disputeController.js',
+        security: 'Registro de operador en logs de cumplimiento'
+      },
+      {
+        num: 4,
+        title: 'Cotejo de Extractos Bancarios Oficiales',
+        desc: 'Las partes aportan comprobantes en PDF con número de referencia bancaria y sellos de origen.',
+        module: 'disputeEvidenceStore.js',
+        security: 'Verificación forense de comprobantes bancarios'
+      },
+      {
+        num: 5,
+        title: 'Evaluación de Prueba de Fondos',
+        desc: 'El árbitro comprueba si el dinero ingresó efectivamente a la cuenta bancaria del vendedor.',
+        module: 'adminAuditService.js',
+        security: 'Criterio bancario estricto de recepción'
+      },
+      {
+        num: 6,
+        title: 'Sentencia Arbitral y Liberación de Custodia',
+        desc: 'Si el pago fue acreditado, se liberan los tokens al comprador. Si fue falso, se restituyen al vendedor y se suspende al infractor.',
+        module: 'p2pController.js: resolveDispute()',
+        security: 'Resolución final con penalización de scoring'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -310,17 +717,70 @@ flowchart LR
 `
   },
   'sec-gov': {
-    title: 'Gobernanza Comunitarias & Votación',
+    title: 'Gobernanza Comunitaria & Votación',
+    category: 'Gobernanza & Impacto',
+    icon: '🏛️',
     desc: 'Participación directa con poder de voto derivado del saldo de tokens BLUE. Al emitir un voto, los tokens se congelan temporalmente en parking para prevenir doble voto.',
     modules: 'governanceController.js, governanceService.js',
     rule: 'Poder de Voto 1:1 con BLUE en Parking',
     audit: 'Hash criptográfico inmutable por cada voto emitido',
     steps: [
-      '1. Usuario emite voto en causa comunitaria activa',
-      '2. Verificación de saldo de tokens BLUE del votante',
-      '3. Congelamiento temporal de poder de voto en parking',
-      '4. Cómputo criptográfico de quórum y mayoría calificada',
-      '5. Liberación de tokens de parking al finalizar el escrutinio'
+      {
+        num: 1,
+        title: 'Emisión de Voto en Causa Comunitaria',
+        desc: 'El miembro de la comunidad elige la propuesta activa y emite su sufragio.',
+        module: 'GovernancePanel.jsx / governance-panel.js',
+        security: 'Firma de voto con clave de usuario'
+      },
+      {
+        num: 2,
+        title: 'Comprobación de Balance Disponible de BLUE',
+        desc: 'El sistema valida que el votante posea saldo suficiente sin gravar compromisos.',
+        module: 'governanceService.js: getVotingPower()',
+        security: 'Cálculo de poder de voto no comprometido'
+      },
+      {
+        num: 3,
+        title: 'Congelamiento Temporal en Parking de Votación',
+        desc: 'Los tokens quedan en parking durante la ventana electoral para impedir transferencias dobles.',
+        module: 'BlueToken.sol: lockForVoting()',
+        security: 'Prevención de ataques de doble voto'
+      },
+      {
+        num: 4,
+        title: 'Generación de Hash Criptográfico del Voto',
+        desc: 'Se genera un hash de voto que vincula la papeleta, la dirección y el bloque para certificar autenticidad.',
+        module: 'governanceController.js',
+        security: 'Registro de voto a prueba de manipulaciones'
+      },
+      {
+        num: 5,
+        title: 'Monitoreo de Período de Escrutinio',
+        desc: 'Se computan los votos hasta la fecha y hora límite establecida en la propuesta.',
+        module: 'governanceService.js: tallyVotes()',
+        security: 'Cierre automático programado por bloque'
+      },
+      {
+        num: 6,
+        title: 'Evaluación de Quórum y Mayoría Calificada',
+        desc: 'Se verifica que la propuesta cumpla con los umbrales mínimos comunitarios para su aprobación.',
+        module: 'GovernanceRules.sol',
+        security: 'Reglas de mayoría inmutables en código'
+      },
+      {
+        num: 7,
+        title: 'Descongelamiento de Tokens de Parking',
+        desc: 'Finalizado el proceso, los tokens BLUE vuelven íntegramente al saldo líquido de los votantes.',
+        module: 'BlueToken.sol: unlockFromVoting()',
+        security: 'Liberación simétrica y garantizada'
+      },
+      {
+        num: 8,
+        title: 'Votación Finalizada y Auditada',
+        desc: 'La resolución se asienta formalmente en el histórico de gobernanza.',
+        module: 'audit_logs',
+        security: 'Transparencia democrática total'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -352,16 +812,62 @@ flowchart LR
   },
   'sec-humanitarian': {
     title: 'Causas Solidarias SOS Venezuela',
+    category: 'Gobernanza & Impacto',
+    icon: '🇻🇪',
     desc: 'Canalización directa de donaciones y proyectos de impacto social comunitario con emisión de comprobantes y certificados auditables.',
     modules: 'humanitarianController.js, humanitarianService.js',
     rule: 'Trazabilidad 100% de Fondos y Certificados de Donación',
     audit: 'Certificado criptográfico de donación generado al instante',
     steps: [
-      '1. Registro y verificación de proyecto humanitario de impacto',
-      '2. Donante transfiere aportes en tokens BLUE',
-      '3. Registro inmutable en libro contable de donaciones',
-      '4. Generación de certificado criptográfico de impacto social',
-      '5. Tesorería canaliza los insumos al beneficiario'
+      {
+        num: 1,
+        title: 'Causa Humanitaria SOS Venezuela',
+        desc: 'Identificación y registro formal de una emergencia o proyecto humanitario en territorio venezolano.',
+        module: 'sos-venezuela.html / causa-solidaria.html',
+        security: 'Auditoría previa del caso y beneficiario'
+      },
+      {
+        num: 2,
+        title: 'Validación y Registro de Proyecto Social',
+        desc: 'El comité de auditoría verifica la legitimidad de la causa y activa el canal de recaudación.',
+        module: 'humanitarianController.js',
+        security: 'Comprobación de identidad y necesidad comprobable'
+      },
+      {
+        num: 3,
+        title: 'Donación Directa en Tokens BLUE',
+        desc: 'Los donantes aportan tokens BLUE desde su saldo de recompensas o liquidez ganada.',
+        module: 'humanitarianService.js: donate()',
+        security: 'Aportes transparentes sin comisiones ocultas'
+      },
+      {
+        num: 4,
+        title: 'Registro en Libro Contable de Donaciones',
+        desc: 'Se asienta cada aporte en la tabla auditada de donaciones solidarias.',
+        module: 'humanitarian_donations (PostgreSQL)',
+        security: 'Trazabilidad pública de cada céntimo'
+      },
+      {
+        num: 5,
+        title: 'Emisión de Certificado de Impacto Social',
+        desc: 'Se genera un diploma criptográfico descargable en PDF con código QR de verificación.',
+        module: 'certificateGenerator.js',
+        security: 'Sello criptográfico de autenticidad'
+      },
+      {
+        num: 6,
+        title: 'Canalización de Insumos al Beneficiario',
+        desc: 'La Tesorería y los colaboradores en terreno entregan víveres, medicinas o asistencia.',
+        module: 'ProtocolTreasury.sol',
+        security: 'Rendición de cuentas con evidencias fotográficas'
+      },
+      {
+        num: 7,
+        title: 'Donación Auditada y Certificada',
+        desc: 'El proyecto alcanza su meta y queda archivado en el histórico permanente de solidaridad.',
+        module: 'audit_logs',
+        security: 'Auditoría social abierta a la comunidad'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -387,16 +893,55 @@ flowchart LR
   },
   'sec-scoring': {
     title: 'Credit Scoring & Halving de Compromiso RED',
+    category: 'Crédito & Web3 Engine',
+    icon: '📊',
     desc: 'Evaluación crediticia dinámica con trinquete (*High-Water Mark*). El trinquete protege límites adquiridos por mérito, pero ante mora protocolar aplica halving inmediato (50% de recorte acumulativo).',
     modules: 'creditScoringService.js, creditPolicyJobs.js',
     rule: 'Halving 50% por Mora RED con Trinquete Desacoplado',
     audit: 'Verificación on-chain de mora con isDelinquent()',
     steps: [
-      '1. Ejecución periódica de evaluación de riesgo crediticio',
-      '2. Consulta de méritos por volumen y cumplimiento histórico',
-      '3. Verificación de mora protocolar en compromisos RED',
-      '4. Si no hay mora: se preserva límite adquirido mediante trinquete',
-      '5. Si existe mora: se aplica halving estricto del 50% y sincroniza on-chain'
+      {
+        num: 1,
+        title: 'Evaluación Periódica de Scoring Crediticio',
+        desc: 'El motor analiza el historial transaccional y cumplimiento del usuario.',
+        module: 'creditScoringService.js: computeEffectiveCreditLimit()',
+        security: 'Algoritmo determinista sin sesgo discrecional'
+      },
+      {
+        num: 2,
+        title: 'Cómputo de Méritos y Cumplimiento',
+        desc: 'Se evalúa volumen comercializado, antigüedad y cumplimiento de amortizaciones.',
+        module: 'creditScoringService.js',
+        security: 'Mérito basado en actividad económica verificable'
+      },
+      {
+        num: 3,
+        title: 'Verificación On-Chain de Mora Protocolar RED',
+        desc: 'Se consulta el contrato CoreProtocol.sol: isDelinquent(walletAddress) y el cabezal de lotes activos.',
+        module: 'CoreProtocol.sol: isDelinquent()',
+        security: 'Detección automática de incumplimiento a 30 días'
+      },
+      {
+        num: 4,
+        title: 'Sin Mora: Protección por Trinquete (High-Water Mark)',
+        desc: 'Si no hay mora, el trinquete impide que recortes administrativos bajen el límite alcanzado por mérito.',
+        module: 'creditScoringService.js (Ratchet)',
+        security: 'Garantía de protección de límite adquirido'
+      },
+      {
+        num: 5,
+        title: 'Con Mora: Halving 50% y Desacople del Trinquete',
+        desc: 'Ante mora protocolar, el trinquete se desactiva y el límite sufre un halving inmediato del 50%.',
+        module: 'creditScoringService.js (Halving)',
+        security: 'Penalización de riesgo crediticio estricta'
+      },
+      {
+        num: 6,
+        title: 'Sincronización On-Chain en CoreProtocol',
+        desc: 'El nuevo límite crediticio resultante se escribe en blockchain mediante syncCreditLimitOnChain().',
+        module: 'CoreProtocol.sol: setCreditLimit()',
+        security: 'Actualización atómica en Optimism Sepolia'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -427,16 +972,69 @@ flowchart LR
   },
   'sec-gas': {
     title: 'Subsidio de Gas & Durable Relayer Web3',
+    category: 'Crédito & Web3 Engine',
+    icon: '⛽',
     desc: 'Permite transaccionar en la Blockchain sin fricción de gas nativo mediante Meta-Transacciones EIP-712 procesadas por un relayer seguro con cuotas presupuestarias.',
     modules: 'demoGasPolicy.js, durableRelayer.js, safeExecution.js',
     rule: 'Meta-Transacciones EIP-712 con Cuotas de Presupuesto',
     audit: 'Límite de gas por usuario controlado en gasBudgetUsage',
     steps: [
-      '1. Solicitud de operación en la red Web3',
-      '2. Comprobación de cupo de gas gratuito disponible',
-      '3. Firma digital de Meta-Transacción EIP-712 en cliente',
-      '4. Durable Relayer asume el coste del gas de la red',
-      '5. Transmisión y confirmación en Optimism Sepolia'
+      {
+        num: 1,
+        title: 'Solicitud de Operación en Red Web3',
+        desc: 'El usuario desea ejecutar una transacción on-chain (ej. depósito o compensación) sin poseer ETH para gas.',
+        module: 'Wallet.jsx / web3BridgeService.js',
+        security: 'UX sin fricción para adopción masiva'
+      },
+      {
+        num: 2,
+        title: 'Consulta de Cupo de Gas en gasBudgetUsage',
+        desc: 'El backend evalúa si la billetera tiene cuota de transacciones patrocinadas disponible en el día.',
+        module: 'gasBudgetUsage.js',
+        security: 'Control de presupuesto anti-spam'
+      },
+      {
+        num: 3,
+        title: 'Verificación de Subsidio de Gas Activo',
+        desc: 'Si la cuota es positiva, se aprueba el patrocinio. Si expiró, el usuario debe proveer su propio gas.',
+        module: 'demoGasPolicy.js',
+        security: 'Políticas configurables por gobernanza'
+      },
+      {
+        num: 4,
+        title: 'Firma de Meta-Transacción EIP-712',
+        desc: 'El cliente firma un mensaje estructurado typed-data con su clave privada sin emitir una transacción directa.',
+        module: 'chainSigning.js / EIP-712',
+        security: 'Criptografía de firma off-chain segura'
+      },
+      {
+        num: 5,
+        title: 'Durable Relayer Paga el Gas en Optimism',
+        desc: 'El servicio de servidor asume el coste en ETH y remite la transacción a la mempool de Optimism Sepolia.',
+        module: 'durableRelayer.js',
+        security: 'Clave de servidor aislada (GAS_SPONSOR_KEY)'
+      },
+      {
+        num: 6,
+        title: 'Minado y Confirmación en Blockchain',
+        desc: 'Los validadores de la red minan el bloque y el contrato ejecuta la operación en nombre del usuario.',
+        module: 'Optimism Sepolia L2',
+        security: 'Finalidad criptográfica L2'
+      },
+      {
+        num: 7,
+        title: 'Registro de Consumo en Base de Datos',
+        desc: 'Se incrementa el contador de gas utilizado en la tabla de consumo y se guarda el hash en chain_operations.',
+        module: 'chainOperationStore.js',
+        security: 'Trazabilidad de costes de infraestructura'
+      },
+      {
+        num: 8,
+        title: 'Operación Confirmada sin Fricción',
+        desc: 'El usuario recibe la confirmación con cero coste de comisión nativa.',
+        module: 'OperationAuthorization.jsx',
+        security: 'Experiencia Web3 de nivel bancario'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -466,16 +1064,69 @@ flowchart LR
   },
   'sec-audit': {
     title: 'Pipeline de Auditoría Bancaria & Trazabilidad SOC 2',
+    category: 'Auditoría & Cumplimiento',
+    icon: '📜',
     desc: 'Trazabilidad de cada evento sensible con emisión de logs inmutables en PostgreSQL y worker de reconciliación periódica entre balances SQL y saldos on-chain.',
     modules: 'auditService.js, reconciliationService.js',
     rule: 'Estándar Bancario SOC 2 de Inmutabilidad',
     audit: 'Reconciliación periódica con alerta automática de desvío',
     steps: [
-      '1. Evento de operación crítica en la plataforma',
-      '2. Invocación centralizada de auditService.logEvent',
-      '3. Inserción inmutable en tabla audit_logs de base de datos',
-      '4. Worker periódico de reconciliación compara saldos BD vs Contratos',
-      '5. Certificación del 100% de coherencia o emisión de alerta'
+      {
+        num: 1,
+        title: 'Evento Sensible en la Plataforma',
+        desc: 'Se produce una transferencia, liquidación, cambio de límites o acceso administrativo.',
+        module: 'Todos los controladores de backend',
+        security: 'Intercepción universal obligatoria'
+      },
+      {
+        num: 2,
+        title: 'Invocación Centralizada de auditService',
+        desc: 'El controlador invoca auditService.logEvent() con los parámetros completos y contexto de seguridad.',
+        module: 'auditService.js',
+        security: 'Cero eventos financieros no auditados'
+      },
+      {
+        num: 3,
+        title: 'Inserción Inmutable en audit_logs SQL',
+        desc: 'Se inserta una fila con timestamp UTC, dirección IP, hash de payload y usuario.',
+        module: 'audit_logs (PostgreSQL)',
+        security: 'Permisos de base de datos APPEND-ONLY'
+      },
+      {
+        num: 4,
+        title: 'Despacho a Bus de Notificaciones',
+        desc: 'Se emite el evento al bus central para alimentar alertas administrativas y telemetría.',
+        module: 'notificationEventBus.js',
+        security: 'Monitoreo en vivo de actividad'
+      },
+      {
+        num: 5,
+        title: 'Notificación WebSocket en la UI React',
+        desc: 'La interfaz del usuario se refresca inmediatamente mostrando el estado de la operación.',
+        module: 'DashboardHeader.jsx',
+        security: 'Actualización en tiempo real sin polling ciego'
+      },
+      {
+        num: 6,
+        title: 'Worker Reconcilia Saldos BD vs On-Chain',
+        desc: 'Un proceso en segundo plano suma todos los saldos de base de datos y los contrasta con totalSupply() de los Smart Contracts.',
+        module: 'reconciliationService.js',
+        security: 'Detección automática de inconsistencias'
+      },
+      {
+        num: 7,
+        title: 'Comprobación de Invariantes 100%',
+        desc: 'Se evalúa que la diferencia sea cero. Si se detecta un desvío, se emite una alerta crítica para intervención inmediata.',
+        module: 'reconciliationService.js',
+        security: 'Certificación contable bancaria continua'
+      },
+      {
+        num: 8,
+        title: 'Auditoría Aprobada: Estado Saludable',
+        desc: 'El sistema certifica la integridad del 100% de los libros contables y la paridad del protocolo.',
+        module: 'SOC 2 Compliance Log',
+        security: 'Informe de auditoría inmutable'
+      }
     ],
     mermaid: `
 flowchart LR
@@ -507,29 +1158,26 @@ flowchart LR
 
 export default function ArchitectureFlows() {
   const [activeKey, setActiveKey] = useState('sec-economic');
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
   const [zoom, setZoom] = useState(1.0);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
-  const dragStartRef = useRef({ x: 0, y: 0 });
-
-  const [isSimulating, setIsSimulating] = useState(false);
-  const [simSpeed, setSimSpeed] = useState(900);
-  const [telemetryMessage, setTelemetryMessage] = useState('');
-  const [telemetryProgress, setTelemetryProgress] = useState(0);
   const [mermaidReady, setMermaidReady] = useState(false);
 
   const containerRef = useRef(null);
-  const canvasRef = useRef(null);
-  const simIntervalRef = useRef(null);
-  const stepIndexRef = useRef(0);
+  const viewportRef = useRef(null);
+  const dragStartRef = useRef({ x: 0, y: 0 });
 
-  // Reiniciar pan y zoom al cambiar de diagrama
+  const activeProcess = PROCESS_CATALOG[activeKey] || PROCESS_CATALOG['sec-economic'];
+
+  // Reiniciar selección de paso y vista al cambiar de diagrama
   useEffect(() => {
+    setActiveStepIndex(0);
     setPan({ x: 0, y: 0 });
     setZoom(1.0);
   }, [activeKey]);
 
-  // Handlers para arrastrar (Pan) con el mouse y zoom con rueda
+  // Manejo de Pan (arrastrar) con el ratón
   const handleMouseDown = (e) => {
     if (e.button !== 0) return;
     setIsDragging(true);
@@ -548,14 +1196,19 @@ export default function ArchitectureFlows() {
     setIsDragging(false);
   };
 
+  // Zoom con rueda de ratón (preservando el scroll general de página si no está sobre el diagrama)
   const handleWheel = (e) => {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1.1 : 0.9;
-    setZoom(prev => Math.min(Math.max(prev * factor, 0.2), 3.0));
+    // Si presiona Ctrl o está haciendo zoom enfocado
+    if (e.ctrlKey || Math.abs(e.deltaY) > 0) {
+      e.preventDefault();
+      const factor = e.deltaY < 0 ? 1.08 : 0.92;
+      setZoom(prev => Math.min(Math.max(prev * factor, 0.3), 3.0));
+    }
   };
 
-  const fitToViewport = () => {
-    const viewport = containerRef.current?.parentElement;
+  // Ajuste matemático al viewport del contenedor
+  const fitToViewport = useCallback(() => {
+    const viewport = viewportRef.current;
     const svg = containerRef.current?.querySelector('svg');
     if (!viewport || !svg) return;
 
@@ -566,13 +1219,13 @@ export default function ArchitectureFlows() {
       svgWidth = svg.viewBox.baseVal.width;
       svgHeight = svg.viewBox.baseVal.height;
     } else {
-      const bbox = svg.getBBox();
+      const bbox = svg.getBBox ? svg.getBBox() : { width: 900, height: 450 };
       svgWidth = bbox.width;
       svgHeight = bbox.height;
     }
 
-    const vWidth = viewport.clientWidth - 24;
-    const vHeight = viewport.clientHeight - 24;
+    const vWidth = viewport.clientWidth - 32;
+    const vHeight = viewport.clientHeight - 32;
 
     if (svgWidth <= 0 || svgHeight <= 0 || vWidth <= 0 || vHeight <= 0) return;
 
@@ -580,15 +1233,11 @@ export default function ArchitectureFlows() {
     const scaleY = vHeight / svgHeight;
     const fitScale = Math.min(scaleX, scaleY);
 
-    setZoom(Math.min(Math.max(fitScale * 0.95, 0.2), 1.8));
+    setZoom(Math.min(Math.max(fitScale * 0.96, 0.35), 1.6));
     setPan({ x: 0, y: 0 });
-  };
+  }, []);
 
-  const resetTransform = () => {
-    fitToViewport();
-  };
-
-  // 1. Inicialización de Mermaid esperando a que las tipografías estén listas
+  // Inicializar Mermaid esperando tipografías
   useEffect(() => {
     const initMermaidEngine = () => {
       window.mermaid.initialize({
@@ -599,13 +1248,13 @@ export default function ArchitectureFlows() {
           useMaxWidth: true,
           htmlLabels: true,
           curve: 'basis',
-          nodeSpacing: 45,
-          rankSpacing: 55,
-          padding: 16
+          nodeSpacing: 40,
+          rankSpacing: 50,
+          padding: 14
         },
         themeVariables: {
           darkMode: true,
-          background: '#121b2f',
+          background: '#0c1220',
           primaryColor: '#1e293b',
           primaryTextColor: '#ffffff',
           primaryBorderColor: '#38bdf8',
@@ -616,7 +1265,7 @@ export default function ArchitectureFlows() {
           fontFamily: 'Inter, system-ui, sans-serif'
         }
       });
-      // Esperar que la tipografía Inter termine de medirse en pantalla
+
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(() => setMermaidReady(true));
       } else {
@@ -639,15 +1288,27 @@ export default function ArchitectureFlows() {
     };
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
+  }, [fitToViewport]);
+
+  // Función para resaltar nodo visual en el SVG
+  const highlightNodeInSvg = useCallback((stepNum) => {
+    if (!containerRef.current) return;
+    const nodes = containerRef.current.querySelectorAll('svg .node');
+    nodes.forEach(node => {
+      node.classList.remove('node-active-step');
+      const text = node.textContent || '';
+      // Si el texto del nodo comienza con el número del paso (ej: "1.", "2.", "3.")
+      if (text.trim().startsWith(`${stepNum}.`) || text.includes(`${stepNum}.`)) {
+        node.classList.add('node-active-step');
+      }
+    });
   }, []);
 
-  // 2. Renderizado reactivo del diagrama activo
+  // Renderizar diagrama al cambiar de proceso o cuando Mermaid esté listo
   useEffect(() => {
     if (!mermaidReady || !containerRef.current) return;
 
-    stopSimulation();
-
-    const data = PROCESS_CATALOG[activeKey];
+    const data = activeProcess;
     if (!data) return;
 
     const el = containerRef.current;
@@ -659,162 +1320,74 @@ export default function ArchitectureFlows() {
       .then(() => {
         requestAnimationFrame(() => {
           fitToViewport();
+
+          // Conectar interactividad a los nodos de Mermaid para hover y click/touch
+          const svg = el.querySelector('svg');
+          if (svg) {
+            const nodes = svg.querySelectorAll('.node');
+            nodes.forEach((node, idx) => {
+              node.style.cursor = 'pointer';
+              const text = node.textContent || '';
+              const match = text.match(/(\d+)/);
+              const stepNum = match ? parseInt(match[1], 10) : idx + 1;
+
+              // Hover (computadora)
+              node.onmouseenter = () => {
+                setActiveStepIndex(stepNum - 1);
+                highlightNodeInSvg(stepNum);
+              };
+
+              // Click / Toque táctil (teléfonos móviles y tablets)
+              node.onclick = (e) => {
+                e.stopPropagation();
+                setActiveStepIndex(stepNum - 1);
+                highlightNodeInSvg(stepNum);
+              };
+            });
+          }
+
+          // Resaltar el primer paso por defecto
+          highlightNodeInSvg(1);
         });
       })
       .catch(err => {
         console.error('Error al renderizar diagrama en React:', err);
       });
-  }, [activeKey, mermaidReady]);
+  }, [activeKey, mermaidReady, activeProcess, fitToViewport, highlightNodeInSvg]);
 
-  // 3. Malla interactiva de partículas de fondo
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext('2d');
-    let width = (canvas.width = window.innerWidth);
-    let height = (canvas.height = window.innerHeight);
-
-    const particles = [];
-    const count = 35;
-
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * width,
-        y: Math.random() * height,
-        vx: (Math.random() - 0.5) * 0.35,
-        vy: (Math.random() - 0.5) * 0.35,
-        radius: Math.random() * 1.6 + 1
-      });
-    }
-
-    let animationFrameId;
-
-    const renderMesh = () => {
-      ctx.clearRect(0, 0, width, height);
-
-      for (let i = 0; i < particles.length; i++) {
-        const p = particles[i];
-        p.x += p.vx;
-        p.y += p.vy;
-
-        if (p.x < 0 || p.x > width) p.vx *= -1;
-        if (p.y < 0 || p.y > height) p.vy *= -1;
-
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-        ctx.fillStyle = '#38bdf8';
-        ctx.fill();
-
-        for (let j = i + 1; j < particles.length; j++) {
-          const p2 = particles[j];
-          const dist = Math.hypot(p.x - p2.x, p.y - p2.y);
-          if (dist < 120) {
-            ctx.beginPath();
-            ctx.moveTo(p.x, p.y);
-            ctx.lineTo(p2.x, p2.y);
-            ctx.strokeStyle = `rgba(56, 189, 248, ${0.12 * (1 - dist / 120)})`;
-            ctx.lineWidth = 0.8;
-            ctx.stroke();
-          }
-        }
-      }
-
-      animationFrameId = requestAnimationFrame(renderMesh);
-    };
-
-    renderMesh();
-
-    const handleResize = () => {
-      width = canvas.width = window.innerWidth;
-      height = canvas.height = window.innerHeight;
-    };
-    window.addEventListener('resize', handleResize);
-
-    return () => {
-      cancelAnimationFrame(animationFrameId);
-      window.removeEventListener('resize', handleResize);
-    };
-  }, []);
-
-  // 4. Lógica de Simulación Paso a Paso
-  const startSimulation = () => {
-    setIsSimulating(true);
-    const data = PROCESS_CATALOG[activeKey];
-    const steps = data.steps || [];
-    stepIndexRef.current = 0;
-
-    const nodes = containerRef.current?.querySelectorAll('svg .node') || [];
-
-    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
-
-    simIntervalRef.current = setInterval(() => {
-      if (stepIndexRef.current >= nodes.length || stepIndexRef.current >= steps.length) {
-        stepIndexRef.current = 0;
-      }
-
-      nodes.forEach(n => n.classList.remove('node-active-step'));
-
-      if (nodes[stepIndexRef.current]) {
-        nodes[stepIndexRef.current].classList.add('node-active-step');
-      }
-
-      const pct = ((stepIndexRef.current + 1) / steps.length) * 100;
-      setTelemetryProgress(pct);
-      setTelemetryMessage(
-        `[Paso ${stepIndexRef.current + 1}/${steps.length}]: ${steps[stepIndexRef.current] || 'Ejecutando nodo...'}`
-      );
-
-      stepIndexRef.current++;
-    }, simSpeed);
+  // Handler para cuando el usuario toca un paso en la lista o timeline
+  const handleSelectStep = (idx) => {
+    setActiveStepIndex(idx);
+    highlightNodeInSvg(idx + 1);
   };
 
-  const stopSimulation = () => {
-    setIsSimulating(false);
-    if (simIntervalRef.current) clearInterval(simIntervalRef.current);
-    if (containerRef.current) {
-      const nodes = containerRef.current.querySelectorAll('svg .node');
-      nodes.forEach(n => n.classList.remove('node-active-step'));
-    }
-  };
-
-  const toggleSimulation = () => {
-    if (isSimulating) {
-      stopSimulation();
-    } else {
-      startSimulation();
-    }
-  };
-
-  const changeSpeed = (ms) => {
-    setSimSpeed(ms);
-    if (isSimulating) {
-      stopSimulation();
-      setTimeout(startSimulation, 50);
-    }
-  };
-
-  const activeProcess = PROCESS_CATALOG[activeKey];
+  const currentStep = activeProcess.steps[activeStepIndex] || activeProcess.steps[0];
 
   return (
     <div className={styles.pageContainer}>
-      <canvas ref={canvasRef} className={styles.bgCanvas} />
-
-      {/* Top Bar Ejecutiva */}
+      {/* 1. Header Oficial de WintonCoin */}
       <header className={styles.headerNavbar}>
         <div className={styles.brandGroup}>
-          <div className={styles.brandLogo}>W</div>
+          <img
+            src="/assets/icons/logo-high-res.png"
+            alt="WintonCoin"
+            className={styles.brandLogoImg}
+            onError={(e) => {
+              // Fallback seguro si la ruta de ícono es relativa a la raíz
+              e.currentTarget.onerror = null;
+              e.currentTarget.src = 'assets/icons/logo-high-res.png';
+            }}
+          />
           <div className={styles.brandMeta}>
-            <h1>WintonCoin Protocol</h1>
-            <p>Simulador Dinámico de Arquitectura (React 19)</p>
+            <h1 className={styles.brandTitle}>
+              <span className="logo-winton">Winton</span>
+              <span className="logo-coin">Coin</span>
+            </h1>
+            <p className={styles.brandSubtitle}>Arquitectura de Protocolo & Diagramas de Procesos</p>
           </div>
         </div>
 
         <div className={styles.headerMetrics}>
-          <div className={`${styles.metricBadge} ${styles.activeStream}`}>
-            <span className={styles.liveIndicator}></span>
-            <span>Streaming React: <strong>EN VIVO</strong></span>
-          </div>
           <div className={styles.metricBadge}>
             <span>⚖️</span>
             <span>Invariante: <strong>TotalSupply(BLUE) == TotalSupply(RED)</strong></span>
@@ -824,267 +1397,201 @@ export default function ArchitectureFlows() {
             <span>Seguridad: <strong>SOC 2 / Zero-Trust</strong></span>
           </div>
           <Link to="/dashboard" className={styles.backBtn}>
-            Volver al Dashboard
+            ← Volver al Dashboard
           </Link>
         </div>
       </header>
 
-      {/* Main Layout */}
-      <div className={styles.mainLayout}>
-        {/* Sidebar */}
-        <aside className={styles.sidebar}>
-          <div className={styles.categoryGroup}>
-            <div className={styles.categoryHeader}>
-              <span>Core Protocol & FinTech</span>
-              <span style={{ color: '#38bdf8' }}>(2)</span>
-            </div>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-economic' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-economic')}
-            >
-              <span>💰</span>
-              <span>BLUE / COMPROMISO RED</span>
-            </button>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-treasury' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-treasury')}
-            >
-              <span>🏛️</span>
-              <span>Dogfooding de Tesorería</span>
-            </button>
-          </div>
-
-          <div className={styles.categoryGroup}>
-            <div className={styles.categoryHeader}>
-              <span>Seguridad & Identidad</span>
-              <span style={{ color: '#38bdf8' }}>(2)</span>
-            </div>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-auth' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-auth')}
-            >
-              <span>🔐</span>
-              <span>WebAuthn & Autenticación</span>
-            </button>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-recovery' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-recovery')}
-            >
-              <span>🔑</span>
-              <span>Recuperabilidad Social</span>
-            </button>
-          </div>
-
-          <div className={styles.categoryGroup}>
-            <div className={styles.categoryHeader}>
-              <span>Marketplace & Engine FIFO</span>
-              <span style={{ color: '#38bdf8' }}>(3)</span>
-            </div>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-p2p-create' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-p2p-create')}
-            >
-              <span>📝</span>
-              <span>Publicación con Escrow</span>
-            </button>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-p2p-match' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-p2p-match')}
-            >
-              <span>⚡</span>
-              <span>Matching FIFO & Pago</span>
-            </button>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-p2p-dispute' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-p2p-dispute')}
-            >
-              <span>⚖️</span>
-              <span>Disputas y Arbitraje</span>
-            </button>
-          </div>
-
-          <div className={styles.categoryGroup}>
-            <div className={styles.categoryHeader}>
-              <span>Gobernanza & Impacto</span>
-              <span style={{ color: '#38bdf8' }}>(2)</span>
-            </div>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-gov' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-gov')}
-            >
-              <span>🗳️</span>
-              <span>Votación con Parking BLUE</span>
-            </button>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-humanitarian' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-humanitarian')}
-            >
-              <span>🇻🇪</span>
-              <span>Proyectos SOS Venezuela</span>
-            </button>
-          </div>
-
-          <div className={styles.categoryGroup}>
-            <div className={styles.categoryHeader}>
-              <span>Crédito & Web3 Engine</span>
-              <span style={{ color: '#38bdf8' }}>(2)</span>
-            </div>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-scoring' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-scoring')}
-            >
-              <span>📊</span>
-              <span>Credit Scoring & Mora</span>
-            </button>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-gas' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-gas')}
-            >
-              <span>⛽</span>
-              <span>Subsidio Gas & Relayer</span>
-            </button>
-          </div>
-
-          <div className={styles.categoryGroup}>
-            <div className={styles.categoryHeader}>
-              <span>Auditoría & Compliance</span>
-              <span style={{ color: '#38bdf8' }}>(1)</span>
-            </div>
-            <button
-              className={`${styles.sidebarItem} ${activeKey === 'sec-audit' ? styles.active : ''}`}
-              onClick={() => setActiveKey('sec-audit')}
-            >
-              <span>📜</span>
-              <span>Logs SOC 2 & Reconciliación</span>
-            </button>
-          </div>
-        </aside>
-
-        {/* Content Area */}
-        <main className={styles.contentArea}>
-          {/* Process Metadata Card */}
-          <div className={styles.processCard}>
-            <div className={styles.processTitleRow}>
-              <h2>{activeProcess.title}</h2>
-            </div>
-            <p className={styles.processDesc}>{activeProcess.desc}</p>
-
-            <div className={styles.metadataGrid}>
-              <div className={styles.metadataBox}>
-                <span className={styles.metadataLabel}>Módulos & Smart Contracts</span>
-                <span className={styles.metadataValue}>{activeProcess.modules}</span>
+      {/* 2. Barra de Categorías y Selector de Procesos (Horizontal y Adaptable a Móvil) */}
+      <nav className={styles.categoryNav} aria-label="Categorías de Procesos">
+        <div className={styles.categoryNavScroll}>
+          {PROCESS_CATEGORIES.map(cat => (
+            <div key={cat.id} className={styles.categorySection}>
+              <span className={styles.categoryLabel}>
+                <span className={styles.categoryIcon}>{cat.icon}</span>
+                <span>{cat.name}</span>
+              </span>
+              <div className={styles.categoryChips}>
+                {cat.items.map(procKey => {
+                  const proc = PROCESS_CATALOG[procKey];
+                  if (!proc) return null;
+                  const isActive = activeKey === procKey;
+                  return (
+                    <button
+                      key={procKey}
+                      className={`${styles.processChip} ${isActive ? styles.chipActive : ''}`}
+                      onClick={() => setActiveKey(procKey)}
+                    >
+                      <span className={styles.chipIcon}>{proc.icon}</span>
+                      <span className={styles.chipTitle}>{proc.title}</span>
+                    </button>
+                  );
+                })}
               </div>
-              <div className={styles.metadataBox}>
-                <span className={styles.metadataLabel}>Regla Económica Bancaria</span>
-                <span className={styles.metadataValue}>{activeProcess.rule}</span>
-              </div>
-              <div className={styles.metadataBox}>
-                <span className={styles.metadataLabel}>Garantía de Auditoría</span>
-                <span className={styles.metadataValue}>{activeProcess.audit}</span>
+            </div>
+          ))}
+        </div>
+      </nav>
+
+      {/* 3. Contenedor Principal con Scroll Natural */}
+      <main className={styles.mainContent}>
+        {/* Ficha Técnica del Proceso Activo */}
+        <section className={styles.processCard}>
+          <div className={styles.processHeaderRow}>
+            <div className={styles.processTitleGroup}>
+              <span className={styles.processIconBig}>{activeProcess.icon}</span>
+              <div>
+                <span className={styles.processCategoryBadge}>{activeProcess.category}</span>
+                <h2 className={styles.processTitleText}>{activeProcess.title}</h2>
               </div>
             </div>
           </div>
 
-          {/* Diagram Viewport */}
-          <div className={styles.diagramViewport}>
-            <div className={styles.toolbar}>
-              <div className={styles.simControls}>
-                <button className={styles.btnSimPlay} onClick={toggleSimulation}>
-                  <span>{isSimulating ? '⏸' : '▶'}</span>
-                  <span>{isSimulating ? 'Pausar Simulación' : 'Reproducir Flujo en Vivo'}</span>
-                </button>
-                <div className={styles.speedSelector}>
-                  <button
-                    className={`${styles.speedBtn} ${simSpeed === 1500 ? styles.active : ''}`}
-                    onClick={() => changeSpeed(1500)}
-                  >
-                    0.5x
-                  </button>
-                  <button
-                    className={`${styles.speedBtn} ${simSpeed === 900 ? styles.active : ''}`}
-                    onClick={() => changeSpeed(900)}
-                  >
-                    1x
-                  </button>
-                  <button
-                    className={`${styles.speedBtn} ${simSpeed === 450 ? styles.active : ''}`}
-                    onClick={() => changeSpeed(450)}
-                  >
-                    2x
-                  </button>
-                </div>
-              </div>
+          <p className={styles.processDescription}>{activeProcess.desc}</p>
 
-              <div className={styles.zoomControls}>
-                <button
-                  className={styles.controlBtn}
-                  title="Ajustar a Pantalla (100% Visible)"
-                  onClick={fitToViewport}
-                >
-                  🎯
-                </button>
-                <button
-                  className={styles.controlBtn}
-                  title="Aumentar Zoom"
-                  onClick={() => setZoom(prev => Math.min(prev * 1.15, 3.0))}
-                >
-                  ＋
-                </button>
-                <button
-                  className={styles.controlBtn}
-                  title="Reducir Zoom"
-                  onClick={() => setZoom(prev => Math.max(prev * 0.85, 0.2))}
-                >
-                  －
-                </button>
-                <button
-                  className={styles.controlBtn}
-                  title="Centrar y Ajustar"
-                  onClick={resetTransform}
-                >
-                  ↺
-                </button>
-              </div>
+          <div className={styles.metadataGrid}>
+            <div className={styles.metadataBox}>
+              <span className={styles.metadataLabel}>Módulos & Smart Contracts</span>
+              <span className={styles.metadataValue}>{activeProcess.modules}</span>
+            </div>
+            <div className={styles.metadataBox}>
+              <span className={styles.metadataLabel}>Regla Económica Bancaria</span>
+              <span className={styles.metadataValue}>{activeProcess.rule}</span>
+            </div>
+            <div className={styles.metadataBox}>
+              <span className={styles.metadataLabel}>Garantía de Auditoría</span>
+              <span className={styles.metadataValue}>{activeProcess.audit}</span>
+            </div>
+          </div>
+        </section>
+
+        {/* Lienzo del Diagrama con Controles de Zoom */}
+        <section className={styles.diagramSection}>
+          <div className={styles.diagramToolbar}>
+            <div className={styles.toolbarPrompt}>
+              <span className={styles.promptPulse}></span>
+              <span>Posa el cursor sobre un nodo o tócalo en tu teléfono para ver qué ocurre en el código</span>
             </div>
 
-            {/* Telemetry Bar */}
-            {isSimulating && (
-              <div className={styles.telemetryBox}>
-                <div className={styles.telemetryLeft}>
-                  <div className={styles.telemetryPulse}></div>
-                  <div className={styles.telemetryText}>{telemetryMessage}</div>
-                </div>
-                <div className={styles.telemetryTrack}>
-                  <div
-                    className={styles.telemetryBar}
-                    style={{ width: `${telemetryProgress}%` }}
-                  ></div>
-                </div>
-              </div>
-            )}
-
-            {/* Render Area Interactivo con Pan & Zoom */}
-            <div
-              className={styles.renderArea}
-              onMouseDown={handleMouseDown}
-              onMouseMove={handleMouseMove}
-              onMouseUp={handleMouseUp}
-              onMouseLeave={handleMouseUp}
-              onWheel={handleWheel}
-            >
-              <div
-                className={`${styles.mermaidWrapper} mermaid`}
-                ref={containerRef}
-                style={{
-                  transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+            <div className={styles.zoomButtonsGroup}>
+              <button
+                className={styles.controlBtn}
+                title="Ajustar a Pantalla (100% Visible)"
+                onClick={fitToViewport}
+              >
+                🎯 Ajustar
+              </button>
+              <button
+                className={styles.controlBtn}
+                title="Aumentar Zoom"
+                onClick={() => setZoom(prev => Math.min(prev * 1.15, 3.0))}
+              >
+                ＋
+              </button>
+              <button
+                className={styles.controlBtn}
+                title="Reducir Zoom"
+                onClick={() => setZoom(prev => Math.max(prev * 0.85, 0.3))}
+              >
+                －
+              </button>
+              <button
+                className={styles.controlBtn}
+                title="Centrar Vista"
+                onClick={() => {
+                  setPan({ x: 0, y: 0 });
+                  fitToViewport();
                 }}
               >
-                {!mermaidReady && <div style={{ color: '#94a3b8' }}>Cargando tipografía y motor gráfico...</div>}
-              </div>
+                ↺ Centrar
+              </button>
             </div>
           </div>
-        </main>
-      </div>
+
+          {/* Área de Visualización Panorámica */}
+          <div
+            className={styles.viewportArea}
+            ref={viewportRef}
+            onMouseDown={handleMouseDown}
+            onMouseMove={handleMouseMove}
+            onMouseUp={handleMouseUp}
+            onMouseLeave={handleMouseUp}
+            onWheel={handleWheel}
+          >
+            <div
+              className={`${styles.mermaidCanvas} mermaid`}
+              ref={containerRef}
+              style={{
+                transform: `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`
+              }}
+            >
+              {!mermaidReady && (
+                <div className={styles.loadingPlaceholder}>
+                  Iniciando tipografía bancaria y motor gráfico vectorial...
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* 4. Inspector de Pasos Técnico (Explicación por Hover o Toque) */}
+        {currentStep && (
+          <section className={styles.stepInspectorCard}>
+            <div className={styles.inspectorHeader}>
+              <div className={styles.inspectorStepBadge}>
+                Paso {currentStep.num} de {activeProcess.steps.length}
+              </div>
+              <h3 className={styles.inspectorStepTitle}>{currentStep.title}</h3>
+            </div>
+
+            <p className={styles.inspectorStepDesc}>{currentStep.desc}</p>
+
+            <div className={styles.inspectorMetaRow}>
+              <div className={styles.inspectorMetaItem}>
+                <span className={styles.metaLabel}>Módulo / Función en Ejecución:</span>
+                <code className={styles.metaCode}>{currentStep.module}</code>
+              </div>
+              <div className={styles.inspectorMetaItem}>
+                <span className={styles.metaLabel}>Garantía de Seguridad / Auditoría:</span>
+                <span className={styles.metaSecurity}>{currentStep.security}</span>
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* 5. Desglose Secuencial Completo (Timeline Interactivo) */}
+        <section className={styles.stepsTimelineSection}>
+          <div className={styles.timelineHeader}>
+            <h3>Secuencia Paso a Paso del Proceso</h3>
+            <span className={styles.timelineHint}>
+              Toca o pasa el cursor por cualquier tarjeta para seleccionarla en el diagrama
+            </span>
+          </div>
+
+          <div className={styles.stepsGrid}>
+            {activeProcess.steps.map((step, idx) => {
+              const isCurrent = activeStepIndex === idx;
+              return (
+                <div
+                  key={step.num}
+                  className={`${styles.stepCard} ${isCurrent ? styles.stepCardActive : ''}`}
+                  onMouseEnter={() => handleSelectStep(idx)}
+                  onClick={() => handleSelectStep(idx)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  <div className={styles.stepCardTop}>
+                    <span className={styles.stepNumberBadge}>Paso {step.num}</span>
+                    {isCurrent && <span className={styles.activePill}>Activo</span>}
+                  </div>
+                  <h4 className={styles.stepCardTitle}>{step.title}</h4>
+                  <p className={styles.stepCardSummary}>{step.desc}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

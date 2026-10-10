@@ -1,4 +1,4 @@
-name: Backend CI - Pruebas Unitarias y Auditoria Continua (SOC 2)
+name: Backend CI - Verificacion de modulos y pruebas
 
 on:
   pull_request:
@@ -22,11 +22,12 @@ jobs:
       postgres:
         image: postgres:15-alpine
         env:
-          POSTGRES_USER: postgres
+          POSTGRES_USER: review070
           POSTGRES_PASSWORD: postgrespassword
           POSTGRES_DB: wintoncoin_test
+          PGDATA: /var/lib/postgresql/data/pg-review-070
         ports:
-          - 5432:5432
+          - '127.0.0.1:5432:5432'
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -40,31 +41,38 @@ jobs:
       - name: ⚙️ Configurar entorno Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '22'
           cache: 'npm'
 
       - name: 📦 Instalar dependencias
         run: npm install --ignore-scripts
 
-      - name: 🛡️ Ejecutar Auditoria de Modulos y Suite de Pruebas Unitarias (Jest)
+      - name: Ejecutar comprobaciones y pruebas del backend
+        id: backend_checks
         env:
-          DATABASE_URL: postgres://postgres:postgrespassword@localhost:5432/wintoncoin_test
+          DATABASE_URL: postgres://review070:postgrespassword@127.0.0.1:5432/wintoncoin_test
+          PGPASSWORD: postgrespassword
+          PG_REVIEW_PORT: 5432
+          WINTON_MIGRATION_TEST_PORT: 5432
           JWT_SECRET: ci-test-secret-key-soc2-auditable
           ADMIN_SECRET_KEY: ci-test-admin-key-soc2
           ENCRYPTION_SECRET: ci-test-encryption-secret-32-chars-key
           OTP_SECRET: ci-test-otp-secret-key-soc2
           NODE_ENV: test
           IS_DEMO_ENV: 'true'
-        run: npm test
+        run: |
+          node verify_all_backend_imports.js
+          node frontend/src/modules/tableSort.test.js
+          npm run test:unit
 
       - name: 📋 Registro de Auditoria de Calidad (GitHub Step Summary)
         if: always()
         run: |
           echo "## 🛡️ Reporte de Integracion Continua Backend (WintonCoin FinTech)" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ job.status }}" = "success" ]; then
+          if [ "${{ steps.backend_checks.outcome }}" = "success" ]; then
             echo "- **Estado de la Suite**: Pruebas unitarias y verificacion de modulos ejecutados exitosamente (PASS)." >> $GITHUB_STEP_SUMMARY
           else
-            echo "- **Estado de la Suite**: Fallo o ejecucion incompleta en el pipeline (Estado del Job: ${{ job.status }})." >> $GITHUB_STEP_SUMMARY
+            echo "- **Estado de la Suite**: Fallo o ejecucion incompleta en el pipeline (Comprobaciones: ${{ steps.backend_checks.outcome }}; trabajo: ${{ job.status }})." >> $GITHUB_STEP_SUMMARY
           fi
-          echo "- **Estándar**: SOC 2 / Zero-Trust / Zero Hardcoded Secrets." >> $GITHUB_STEP_SUMMARY
+          echo "- **Alcance**: Verificacion automatizada; no constituye certificacion de seguridad." >> $GITHUB_STEP_SUMMARY
           echo "- **Timestamp UTC**: $(date -u)" >> $GITHUB_STEP_SUMMARY

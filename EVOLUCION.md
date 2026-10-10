@@ -13,26 +13,32 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
-### 2026-10-06 — Estandarización Bancaria Visual de Diagramas de Arquitectura: Visibilidad 100% sin Recortes, Auto-Fit Matemático a Pantalla y Paneo Interactivo
-* **Diagnóstico de Defectos Visuales y Geométricos**:
-  - *Imágenes y Diagramas Incompletos ("useMaxWidth: false" & Desborde de Contenedor)*: Al configurar Mermaid con `useMaxWidth: false`, el renderizador inyectaba estilos con anchos absolutos en píxeles fijos (ej. `width: 1845px`). En monitores y ventanas estándar, esto provocaba que los extremos derecho e inferior del diagrama quedaran por fuera del marco visible (`overflow: hidden`), dando la apariencia de "imágenes o diagramas cortados".
-  - *Truncado de Texto ("Font Race Condition" & ForeignObject Clipping)*: En resoluciones panorámicas, Mermaid medía las dimensiones de los nodos antes de que Google Fonts finalizara la carga del glifo de 'Inter'. La inyección de padding adicional en CSS (`padding: 4px 6px !important`) forzaba al `<div>` interno a sobrepasar el ancho fijo del `<foreignObject>` SVG, provocando el recorte de caracteres en textos como `"1. Solicitud de Pag"`, `"Saldo Insuficie"` y `"Inserción er"`.
-  - *Colapso Vertical por Cabecera Voluminosa*: La tarjeta de metadatos del proceso consumía ~180px de alto, reduciendo drásticamente el espacio vertical útil disponible para el visor de diagramas.
-  - *Temblores en el Cursor*: La aplicación de `transform: scale(1.04)` sobre grupos SVG `<g class="node">` entraba en conflicto con los atributos nativos `transform="translate(x, y)"` de Mermaid, generando vibraciones involuntarias en el cursor al pasar sobre los nodos.
-* **Soluciones Implementadas bajo Estándares FinTech & Enterprise**:
-  - *Motor Matemático de Auto-Fit Dinámico al 100% de la Pantalla*:
-    - Se activó `useMaxWidth: true` en Mermaid para habilitar la reactividad vectorial nativa basada en `viewBox`.
-    - Se programó el algoritmo de encuadre automático `fitDiagramToViewport()` / `fitToViewport()`: calcula las proporciones entre el contenedor visible (`viewportWidth`, `viewportHeight`) y la caja delimitadora del SVG (`svgWidth`, `svgHeight`), calculando `scale = Math.min(vWidth / svgWidth, vHeight / svgHeight) * 0.94` y centrando automáticamente las coordenadas `(translateX, translateY)`. De esta forma, el 100% del diagrama (todos sus nodos, enlaces y subgrafos) se ve completo inmediatamente sin cortes.
-    - Se agregó el botón de control `🎯` ("Ajustar a Pantalla (100% Visible)") y se vinculó el auto-fit al evento global `window.resize`.
-  - *Cabecera Compacta de Tres Columnas*: Se rediseñó la tarjeta superior de metadatos en un formato horizontal compacto (~78px), liberando más de 100px de espacio vertical directo para la visualización del diagrama.
-  - *Arquitectura Modular con Subgrafos BPMN/Enterprise*: Se organizaron los 11 diagramas del catálogo (`PROCESS_CATALOG`) por fases secuenciales en subgrafos (`subgraph S1`, `subgraph S2`, etc.) en orientación panorámica horizontal (`flowchart LR`).
-  - *Soporte de Paneo y Zoom Interactivo (Drag & Wheel)*: Se integró navegación interactiva con arrastre de ratón (`mousedown`, `mousemove`, `mouseup`), zoom centrado con rueda (`wheel`) y botones de control (`＋`, `－`, `↺`, `🎯`).
-  - *Estabilización Tipográfica y CSS SVG*: Se eliminó el padding parásito de `<foreignObject div>`, se habilitó `overflow: visible`, se aplicaron saltos de línea estratégicos `<br/>` en los textos de los nodos y se vinculó la ejecución a `document.fonts.ready`.
-  - *Cumplimiento Protocolar Estricto*: Se respetó de forma irrevocable el término **COMPROMISO RED** (cero mención de la palabra deuda), la invariante de paridad `TotalSupply(BLUE) == TotalSupply(RED)` y las garantías de auditoría bancaria SOC 2.
+### 2026-10-09 — Rediseño UI/UX Profesional de Arquitectura: Integración de Identidad WintonCoin, Scroll Natural de Página, Eliminación del Botón Play e Inspector Técnico Interactivo (Hover & Touch)
+* **Diagnóstico de Fricción de Experiencia de Usuario (UI/UX)**:
+  - *Desconexión Visual de Marca*: La pantalla de flujos presentaba un estilo aislado con un cuadro genérico "W", sin incorporar el logotipo oficial de alta resolución de WintonCoin ni los degradados característicos (`logo-winton` / `logo-coin`).
+  - *Bloqueo Claustrofóbico de Scroll (`height: 100vh; overflow: hidden`)*: El contenedor maestro y sus submódulos forzaban un viewport rígido sin barras de desplazamiento vertical, impidiendo al usuario desplazarse con normalidad para leer fichas técnicas o explorar procesos extensos en dispositivos móviles y monitores comunes.
+  - *Incomodidad del Botón de Play y Simulación Artificial*: El reproductor con temporizadores automáticos (`setInterval`) resultaba invasivo e ineficiente para el análisis técnico. El usuario requería interactividad directa y explicaciones contextuales que se activen exclusivamente al posar el cursor (`hover`) o tocar el paso en pantalla táctil (`touch`).
+* **Implementación de Soluciones y Arquitectura de Diseño FinTech**:
+  - *Identidad Oficial WintonCoin*:
+    - Integración del logotipo oficial de alta resolución (`/assets/icons/logo-high-res.png`) en la barra de navegación superior.
+    - Incorporación de los estilos tipográficos institucionales con degradado zafiro/esmeralda (`.logo-winton` en blanco puro y `.logo-coin` en degradado #60a5fa a #2563eb).
+    - Paleta de diseño unificada con variables del protocolo: azul marino profundo (`#060911` / `#0b1220`), bordes sutiles en `#1e293b` y acentos láser en `#38bdf8` y `#10b981`.
+  - *Scroll Vertical Natural y Fluido en Toda la Página*:
+    - Erradicación de `height: 100vh; overflow: hidden`. Se adoptó `min-height: 100vh; overflow-y: auto;` permitiendo desplazamiento cómodo y ergonómico sin saltos ni barras invasivas.
+    - Barra de navegación de categorías (`categoryNav`) con desplazamiento horizontal suave (`overflow-x: auto`) y chips interactivos agrupados en 6 áreas de arquitectura.
+  - *Eliminación del Botón Play e Interactividad 100% por Hover / Touch*:
+    - Eliminación de controladores de simulación automática, bucles temporizados y botones de reproducción.
+    - Conexión de eventos `mouseenter`, `click` y `touchstart` sobre cada nodo vectorial SVG de Mermaid (`<g class="node">`). Al interactuar con cualquier nodo, este se resalta inmediatamente con halo dorado (`.node-active-step`).
+  - *Inspector Técnico de Pasos en Tiempo Real (`stepInspectorCard`)*:
+    - Despliegue dinámico de la ficha técnica del paso seleccionado: número de paso, descripción detallada de cómo opera el código y Smart Contract en la realidad, módulos/archivos que intervienen y garantías de seguridad bancaria / SOC 2.
+  - *Timeline Secuencial Interactivo (`stepsGrid`)*:
+    - Cuadrícula de tarjetas paso a paso debajo del diagrama. Al posar el cursor o tocar cualquier tarjeta, se sincroniza el nodo correspondiente en el diagrama SVG y se actualiza el inspector técnico.
+  - *Gobernanza Terminológica y Cumplimiento Protocolar*:
+    - Estricto respeto al término **COMPROMISO RED** (cero mención de la palabra deuda), invariante de paridad `TotalSupply(BLUE) == TotalSupply(RED)`, SOC 2 y principio Zero-Trust.
 * **Archivos Actualizados**:
-  - [`frontend/src/pages/ArchitectureFlows.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/ArchitectureFlows.jsx): Componente React SPA con motor de simulación, telemetría, auto-fit a viewport y botón `🎯`.
-  - [`frontend/src/pages/ArchitectureFlows.module.css`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/ArchitectureFlows.module.css): Estilos de cabecera compacta, render-area optimizada y visualización sin recortes.
-  - [`docs/DIAGRAMAS_VISUALES_PROYECTO.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/DIAGRAMAS_VISUALES_PROYECTO.html): Visor autónomo HTML sincronizado con idéntico motor de auto-fit dinámico y controles interactivos.
+  - [`frontend/src/pages/ArchitectureFlows.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/ArchitectureFlows.jsx): Componente React SPA con selector de categorías, inspector de pasos, timeline y eventos hover/touch.
+  - [`frontend/src/pages/ArchitectureFlows.module.css`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/ArchitectureFlows.module.css): Hoja de estilos oficial con scroll natural, responsive design para teléfonos y glow dinámico.
+  - [`docs/DIAGRAMAS_VISUALES_PROYECTO.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/DIAGRAMAS_VISUALES_PROYECTO.html): Visor HTML autónomo actualizado con idéntico diseño, logotipo oficial, inspector interactivo y scroll fluido.
 * **Verificación y Pruebas Unitarias**:
   - `npm run build:demo` ejecutado con éxito (código de salida 0, 104 módulos transformados, 171 recursos precacheados).
   - Verificación de imports de backend aprobada al 100% (123/123 módulos).
@@ -7822,6 +7828,13 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Incorporadas barreras de seguridad en workflows de GitHub Actions (`deploy-frontend-demo.yml` y `deploy-frontend.yml`) que bloquean el despliegue si fallan `npm audit`, `test:wallet`, `test:account-security`, la compilación o la nueva prueba PWA.
   - Implementada nueva suite `test:pwa` (`check-pwa-build.cjs`) que valida con Chromium el ciclo de vida del Service Worker y 175 recursos cacheados sin 404 ni fugas administrativas.
   - Ajustado el reporte de auditoría en `backend-ci.yml` para reflejar fielmente el estado real de ejecución del trabajo (PASS/FAIL/SKIPPED) sin afirmaciones ciegas.
+- **Resolución de Pruebas Unitarias de Backend y Aislamiento en CI (CODEX-128 / CODEX-129 / ANTIGRAVITY-097)**:
+  - Diagnóstico preciso de fallo en CI de backend (`runs/38001020616`): la suite `creditScoringRatchetHalving.test.js` fallaba en consultas de PostgreSQL por intento de acceso a `chain_operations` a través de `client.query` en conexiones bloqueadas.
+  - Corrección de la suite con mocks adecuados de `pool.connect()` y `client.query`, preservando el wrapper `locked()` y los cerrojos de concurrencia, y agregando un nuevo caso de prueba que verifica que operaciones pendientes impiden la emisión de nuevos límites.
+  - Actualización de `verify_all_backend_imports.js` para reportar con precisión dinámica 125 módulos cargados sin errores síncronos.
+  - Portabilidad de `testMatch` en `package.json` para entornos multi-plataforma.
+  - Configuración en `.github/workflows/backend-ci.yml` con Node 22, pasos desagregados y variables de aislamiento (`PG_REVIEW_PORT`, `WINTON_MIGRATION_TEST_PORT`), asegurando la ejecución completa de la suite de pruebas sin omisiones.
+  - Suites certificadas localmente: 16 de 16 PASS en credit scoring y 53 de 53 PASS en las 4 suites de seguridad y autorecuperación (69 de 69 tests principales en verde).
 
 
 
