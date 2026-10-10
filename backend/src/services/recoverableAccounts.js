@@ -27,7 +27,7 @@ class RecoverableAccounts {
         const result=await this.pool.query(`SELECT a.* FROM smart_accounts a JOIN account_identities i ON i.id=a.identity_id WHERE i.user_id=$1 AND a.chain_id=$2`,[userId,String(this.config.chainId)]);
         const a=result.rows[0];
         const activation=a&&a.state!=='active'?(await this.pool.query("SELECT id FROM chain_operations WHERE user_id=$1 AND kind='accountActivation' AND payload->>'account'=$2 ORDER BY created_at DESC LIMIT 1",[userId,a.address])).rows[0]:null;
-        return {success:true,activationId:activation?.id,account:a?{address:a.address,state:a.state,passkey:a.passkey,backupConfirmed:Boolean(a.backup_confirmed_at)}:null,
+        return {success:true,userId,activationId:activation?.id,account:a?{address:a.address,state:a.state,passkey:a.passkey,backupConfirmed:Boolean(a.backup_confirmed_at)}:null,
             configuration:{...this.config,assistedRecoveryEnabled:false,assistedRecoveryFee:null}};
     }
     // Verify only; never detach the old address before the replacement is complete.

@@ -8,7 +8,8 @@ const {chromium}=require('playwright');
  const build=await esbuild.build({stdin:{resolveDir:root,loader:'jsx',contents:
   "import React from 'react';import {createRoot} from 'react-dom/client';import Security from './src/components/AccountSecurity.jsx';const root=createRoot(document.getElementById('root'));let n=0;window.mount=()=>root.render(<Security key={++n} onActivated={()=>window.stats.activated++}/>);window.unmount=()=>root.render(null);window.mount();"},bundle:true,write:false,plugins:[{name:'isolated-security-fixture',setup(b){
   b.onLoad({filter:/recoverableAccount\.js$/},()=>({contents:
-   "export async function accountRequest(path,body){if(path==='/activation-readiness')return {ready:true,replacingLegacy:true};if(path==='/status'&&window.mode==='legacy')return {account:null,configuration:{chainId:'11155420'}};if(path==='/status')return {account:{state:window.mode==='active'?'active':'prepared',address:window.accountAddress},configuration:{chainId:'11155420'},activationId:window.mode==='active'?null:'fixture-operation'};if(path==='/recovery/status')return {recovery:window.recovery};if(body){window.stats.posts++;if(window.mode==='migration')window.migrationApproved=true;return {state:'pending',message:'Esperando confirmación'};}window.stats.gets++;if(window.mode==='migration')return {migration:true,state:window.migrationApproved?'pending':'prepared',requiresSignature:!window.migrationApproved,message:window.migrationApproved?'Actualización en curso':'Confirma la actualización para conservar tu saldo'};if(window.mode==='expired')throw Object.assign(new Error('Sesión vencida'),{status:401});if(window.mode==='failed')return {state:'failed',message:'Revisión necesaria'};if(window.mode==='complete'){window.mode='active';return {success:true,state:'confirmed'};}if(window.hold)await new Promise(r=>window.releaseRequest=r);return window.mode==='pending'?{state:'pending',message:'Esperando'}:{state:'prepared',requiresSignature:true,authorization:{fixture:true}};}export async function signAccountTransaction(){window.stats.signs++;if(window.rejectSignature)throw Error('Confirmación cancelada');return {signature:'synthetic',hash:'synthetic'};}export const authorizeRecovery=()=>{};export const createBackup=()=>({phrase:Array(12).fill('fixture').join(' ')});export const backupPositions=()=>[];export const verifyBackupWords=()=>false;export const proveBackup=()=>{};"}));
+   "export async function accountRequest(path,body){if(path==='/registration/options'){window.stats.options=(window.stats.options||0)+1;return {id:'challenge',options:{},backupMessage:'fixture'};}if(path==='/registration/verify'){window.stats.verified=(window.stats.verified||0)+1;window.mode='pending';return {operationId:'fixture-operation'};}if(path==='/activation-readiness')return {ready:true,replacingLegacy:true};if(path==='/status'&&window.mode==='legacy')return {userId:8,account:null,configuration:{chainId:'11155420'}};if(path==='/status')return {account:{state:window.mode==='active'?'active':'prepared',address:window.accountAddress},configuration:{chainId:'11155420'},activationId:window.mode==='active'?null:'fixture-operation'};if(path==='/recovery/status')return {recovery:window.recovery};if(body){window.stats.posts++;if(window.mode==='migration')window.migrationApproved=true;return {state:'pending',message:'Esperando confirmación'};}window.stats.gets++;if(window.mode==='migration')return {migration:true,state:window.migrationApproved?'pending':'prepared',requiresSignature:!window.migrationApproved,message:window.migrationApproved?'Actualización en curso':'Confirma la actualización para conservar tu saldo'};if(window.mode==='expired')throw Object.assign(new Error('Sesión vencida'),{status:401});if(window.mode==='failed')return {state:'failed',message:'Revisión necesaria'};if(window.mode==='complete'){window.mode='active';return {success:true,state:'confirmed'};}if(window.hold)await new Promise(r=>window.releaseRequest=r);return window.mode==='pending'?{state:'pending',message:'Esperando'}:{state:'prepared',requiresSignature:true,authorization:{fixture:true}};}export async function signAccountTransaction(){window.stats.signs++;if(window.rejectSignature)throw Error('Confirmación cancelada');return {signature:'synthetic',hash:'synthetic'};}export const authorizeRecovery=()=>{};export const createBackup=()=>({phrase:Array(12).fill('fixture').join(' '),address:'0x'+'7'.repeat(40)});export const restoreBackup=(phrase,address)=>{if(phrase!==Array(12).fill('fixture').join(' '))throw Error('Respaldo incorrecto');return {phrase,address};};export const backupPositions=()=>[0,1,2];export const verifyBackupWords=(p,positions,answers)=>answers.every(x=>x==='fixture');export const proveBackup=()=>{};"}));
+  b.onLoad({filter:/@simplewebauthn[\\/]browser[\\/]/},()=>({contents:"export async function startRegistration(){window.stats.registrations=(window.stats.registrations||0)+1;return {id:'synthetic'};}"}));
   b.onLoad({filter:/emergencyCancellation\.js$/},()=>({contents:"export const cancelWithExternalWallet=async()=>({hash:'synthetic'});"}));
   b.onLoad({filter:/\.css$/},()=>({contents:'',loader:'js'}));
  }}]});
@@ -22,7 +23,7 @@ const {chromium}=require('playwright');
   async function fixture(mode='prepared',extra={}){
    await page.goto('https://fixture.invalid/wallet.html');
    await page.evaluate(({mode,extra})=>{
-    window.stats={signs:0,gets:0,posts:0,activated:0};window.mode=mode;window.accountAddress='0x'+'1'.repeat(40);window.recovery=null;
+    localStorage.clear();window.stats={signs:0,gets:0,posts:0,activated:0};window.mode=mode;window.accountAddress='0x'+'1'.repeat(40);window.recovery=null;
     Object.assign(window,extra);const timers=new Map();let id=0;
     window.setInterval=(fn)=>{timers.set(++id,fn);return id;};window.clearInterval=id=>timers.delete(id);
     window.tick=()=>{for(const fn of [...timers.values()])fn();};
@@ -37,6 +38,21 @@ const {chromium}=require('playwright');
   await fixture('legacy');await page.getByRole('button',{name:'Configurar respaldo de mi billetera',exact:true}).click();
   await page.getByText('Tu billetera anterior puede actualizarse.',{exact:false}).waitFor();
   assert.equal(await page.evaluate(()=>window.stats.signs+window.stats.posts),0);checks++;
+
+  // Reload/remount must keep only public draft metadata, not seed words.
+  await page.evaluate(()=>window.mount());
+  await page.getByRole('button',{name:'Retomar mi respaldo',exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>JSON.stringify(localStorage).includes('fixture')),false);
+  await page.getByLabel('Palabras del respaldo pendiente').fill('wrong');await page.getByRole('button',{name:'Retomar mi respaldo',exact:true}).click();
+  await page.getByText('Respaldo incorrecto',{exact:true}).waitFor();checks++;
+  await page.getByLabel('Palabras del respaldo pendiente').fill(Array(12).fill('fixture').join(' '));await page.getByRole('button',{name:'Retomar mi respaldo',exact:true}).click();
+  for(let i=1;i<=3;i++)await page.getByLabel('Palabra '+i,{exact:true}).fill('fixture');
+  await page.getByRole('button',{name:'Confirmar palabras y continuar',exact:true}).click();
+  await page.getByRole('button',{name:'Registrar mi dispositivo',exact:true}).waitFor();
+  assert.equal(await page.evaluate(()=>window.stats.registrations||0),0);checks++;
+  await page.getByRole('button',{name:'Registrar mi dispositivo',exact:true}).click();
+  await page.waitForFunction(()=>window.stats.verified===1);
+  assert.equal(await page.evaluate(()=>localStorage.getItem('winton_backup_draft:11155420:8')),null);checks++;
 
   await fixture('migration');await tick();
   await page.getByRole('button',{name:'Actualizar billetera y conservar saldo',exact:true}).click();

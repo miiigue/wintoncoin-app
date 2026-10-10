@@ -5,16 +5,26 @@ import {getApiUrl} from './config.js';
 
 export async function accountRequest(path,body) {
   const token=localStorage.getItem('token');
-  const response=await fetch(`${getApiUrl()}/api/me/account${path}`,{method:body?'POST':'GET',credentials:'include',cache:'no-store',
+  const controller=new AbortController();
+  const timer=setTimeout(()=>controller.abort(),60000);
+  try {
+  const response=await fetch(`${getApiUrl()}/api/me/account${path}`,{signal:controller.signal,method:body?'POST':'GET',credentials:'include',cache:'no-store',
     headers:{...(token?{Authorization:`Bearer ${token}`}:{ }),...(body?{'Content-Type':'application/json'}:{})},
     ...(body?{body:JSON.stringify(body)}:{})});
   const data=await response.json();
   if(!response.ok)throw Object.assign(new Error(response.status===401?'Tu sesión venció. Inicia sesión nuevamente.':data.message||'No se pudo comprobar la cuenta.'),{status:response.status});
   return data;
+  }catch(e){if(e.name==='AbortError')throw new Error('La solicitud tardó demasiado. Comprueba el estado antes de repetirla; puede haberse registrado.');throw e;}finally{clearTimeout(timer);}
 }
 export function createBackup() {
   const wallet=HDNodeWallet.createRandom();
   return {phrase:wallet.mnemonic.phrase,address:wallet.address};
+}
+export function restoreBackup(phrase,address) {
+  const normalized=phrase.trim().toLowerCase().replace(/\s+/g,' ');
+  const wallet=HDNodeWallet.fromPhrase(normalized);
+  if(normalized.split(' ').length!==12||wallet.address.toLowerCase()!==address.toLowerCase())throw new Error('Estas palabras no corresponden al respaldo que estabas configurando.');
+  return {phrase:normalized,address:wallet.address};
 }
 export function backupPositions() {
   const indices=new Set();

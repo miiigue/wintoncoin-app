@@ -7844,6 +7844,11 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Diagnóstico en modo solo lectura de la cuenta de prueba `@test8` (`0xf8BBF5E0518fB325aE0e026B43feEC764Fa47837`): el material histórico fue generado bajo el fallback temprano sin cifrado v2/CBC, impidiendo su apertura en el primer adaptador de migración.
   - Corrección de `legacyMigrationExecution.js`: soporte seguro para claves históricas en formato hexadecimal plano (*raw* de 32 bytes), validando estrictamente que deriven la dirección vinculada en base de datos antes de cualquier operación.
   - Certificación en `legacyMigrationExecution.test.js`: 25 de 25 pruebas unitarias PASS cubriendo formatos cifrados v2, CBC y raw, rechazo de PIN/keystore y comprobación de derivación de dirección.
+- **Resiliencia de Flujo de Respaldo y Desacople de Registro WebAuthn (CODEX-135 / CODEX-136 / ANTIGRAVITY-104)**:
+  - Detección y corrección de pérdida de borrador de respaldo al recargar la página: `AccountSecurity.jsx` persiste únicamente la dirección pública del borrador en `localStorage` (nunca semillas ni claves privadas).
+  - Incorporación de opción «Retomar mi respaldo» tras recargar, verificando las palabras anotadas contra la dirección antes de continuar y evitando la generación aleatoria de nuevas frases.
+  - Desacople estricto del botón «Registrar mi dispositivo» para disparar `navigator.credentials.create` directamente desde el evento de clic del usuario sin retardos asíncronos de red, garantizando compatibilidad con navegadores móviles estrictos.
+  - 17 de 17 chequeos de interfaz PASS en `check-account-security.cjs` y 21 de 21 tests PASS en `recoverableAccounts.test.js`.
 
 
 
