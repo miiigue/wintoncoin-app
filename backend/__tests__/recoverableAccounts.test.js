@@ -106,3 +106,17 @@ test('activación final revierte sin reemplazar una dirección heredada',async()
   expect(client.release).toHaveBeenCalled();
  }finally{account.mockRestore();validate.mockRestore();}
 });
+
+// Database JSON objects can return keys in a different order, including nested keys.
+test.each([false,true])('registro compara valores del plan, no orden de claves; saldo cambiado=%s',async changed=>{
+ const id='12345678-1234-4234-8234-123456789012',address='0x'+'1'.repeat(40);
+ const plan={address,chainId:'10',usdt:[{token:'0x'+'2'.repeat(40),amount:'500000000'}],credit:{limit:'20000000',level:'0'},blockNumber:10,blockHash:'old'};
+ const stored={blockHash:'old',credit:{level:'0',limit:'20000000'},usdt:[{amount:'500000000',token:'0x'+'2'.repeat(40)}],chainId:'10',address,blockNumber:10};
+ const client={query:jest.fn(async sql=>({rows:sql.includes('SELECT * FROM account_security_challenges')?[{payload:{manifestHash:'m',legacyAddress:address,legacyPlan:stored}}]:sql.startsWith('SELECT web3_wallet_address')?[{web3_wallet_address:address,account_status:'active'}]:[]})),release:jest.fn()};
+ const service=new RecoverableAccounts({connect:async()=>client},{},{chainId:'10',hash:'m'});
+ const infrastructure=jest.spyOn(policy,'validateInfrastructure').mockResolvedValue({});
+ service.assertOrMigrateLegacyAddress=async()=>({...plan,blockNumber:20,blockHash:'new',usdt:[{...plan.usdt[0],amount:changed?'499000000':'500000000'}]});
+ const signer=Wallet.createRandom(),other=Wallet.createRandom();
+ try{await expect(service.register(1,{id,recoveryAddress:other.address,recoverySignature:await signer.signMessage(backupMessage(id,1,service.config))})).rejects.toThrow(changed?'El estado de tu billetera cambió':'No se pudo comprobar el respaldo.');}
+ finally{infrastructure.mockRestore();}
+});

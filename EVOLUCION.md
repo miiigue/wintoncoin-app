@@ -7866,6 +7866,11 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Generalización del Paso 3 a «Registra tu dispositivo» (aplica tanto a móviles como a escritorio con biometría).
   - Sincronización precisa del Paso 4: muestra «Autoriza la actualización...» cuando requiere consentimiento y «Actualizando tu billetera» mientras el trabajador procesa la transacción en segundo plano, evitando contradicciones visuales.
   - Certificación con 19 de 19 interacciones UI PASS y 53 de 53 componentes React verificados.
+- **Corrección de Comparación Estructural en Base de Datos PostgreSQL JSONB (CODEX-139 / ANTIGRAVITY-110)**:
+  - Causa Raíz Detectada: En PostgreSQL las columnas `JSONB` no garantizan el orden de serialización de las claves de objetos almacenados. La comparación previa con `JSON.stringify` provocaba falsos positivos de alteración del plan al registrar la passkey («El estado de tu billetera cambió...»), retornando erróneamente al paso 2.
+  - Solución Implementada: Reemplazo por comparación estructural semántica mediante `node:util.isDeepStrictEqual` en `recoverableAccounts.js` y `legacyMigrationExecution.js`.
+  - Seguridad Preservada: La prueba de regresión certifica que cambios reales de saldo (de 500 a 499 USDT) siguen siendo estrictamente rechazados, mientras que objetos idénticos con claves desordenadas se procesan limpiamente.
+  - Certificación: 76 de 76 pruebas de backend PASS en 3 suites principales (`recoverableAccounts`, `legacyMigrationExecution`, `legacyWalletMigration`).
 
 
 

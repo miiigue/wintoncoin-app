@@ -1,4 +1,5 @@
 'use strict';
+const {isDeepStrictEqual}=require('node:util');
 // Transitional rescue only. No endpoint accepts a destination, amount or user key.
 // New Safe credentials are never decrypted or held by this service.
 const crypto=require('crypto');
@@ -108,7 +109,7 @@ async function status(service,parent,userId){
  for(const task of sequence){
   const row=recorded.find(r=>r.request_key==='legacy:'+parent.id+':'+task.key);
   const expected={to:task.to,data:task.data,value:task.value};
-  if(row&&(row.kind!=='legacyMigration'||row.user_id!==userId||row.chain_id!==snapshot.chainId||row.payload.account!==target||JSON.stringify(row.payload.call)!==JSON.stringify(expected)))throw error('El registro de migración no coincide.');
+  if(row&&(row.kind!=='legacyMigration'||row.user_id!==userId||row.chain_id!==snapshot.chainId||row.payload.account!==target||!isDeepStrictEqual(row.payload.call,expected)))throw error('El registro de migración no coincide.');
   if(!row||row.state!=='confirmed')return {done:false,task,row,snapshot};
   await verifyRecorded(service,row,expected);
   // A successful receipt alone is insufficient for ERC20s returning false.
@@ -137,9 +138,9 @@ async function beforeSigning(service,parent,userId,snapshot,task){
  const nonceAllowance=snapshot.usdt.length-pendingTokens.length;
  const current=await inspection.inspect({rpc:service.rpc,runner:service.pool,userId,address:snapshot.address,chainId:snapshot.chainId,excludeOperationId:parent.id,
   migration:{planning:true,nativeAllowance:String(nativeAllowance),nonceAllowance:String(nonceAllowance)}});
- if(JSON.stringify(current.usdt)!==JSON.stringify(pendingTokens))throw error('El saldo anterior cambió durante la migración. Se requiere revisión antes de enviar más operaciones.');
+ if(!isDeepStrictEqual(current.usdt,pendingTokens))throw error('El saldo anterior cambió durante la migración. Se requiere revisión antes de enviar más operaciones.');
  const pendingAuth=snapshot.authorizations.filter((_,i)=>!doneKeys.has('legacy:'+parent.id+':revoke-'+i));
- if(JSON.stringify(current.authorizations)!==JSON.stringify(pendingAuth))throw error('La autorización anterior cambió durante la migración.');
+ if(!isDeepStrictEqual(current.authorizations,pendingAuth))throw error('La autorización anterior cambió durante la migración.');
  const core=new Contract(snapshot.core,views,service.rpc);
  for(const [method,value] of [['creditLimits',snapshot.credit.limit],['userLevels',snapshot.credit.level],['extensionMarginLimits',snapshot.credit.margin],['extensionMarginUsed','0'],['paymentNonces','0'],['getUserDebtLotsCount','0']])
   if(await core[method](snapshot.address,{blockTag:current.blockNumber})!==BigInt(value))throw error('Los compromisos o beneficios cambiaron durante la migración.');

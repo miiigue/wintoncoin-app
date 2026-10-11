@@ -1,4 +1,5 @@
 'use strict';
+const {isDeepStrictEqual}=require('node:util');
 const {randomUUID}=require('crypto');
 const {Contract,Interface,ZeroAddress,keccak256,concat,zeroPadValue,toBeHex,getCreate2Address,verifyMessage,getAddress}=require('ethers');
 const {generateRegistrationOptions,verifyRegistrationResponse}=require('@simplewebauthn/server');
@@ -73,7 +74,7 @@ class RecoverableAccounts {
             if(!user||user.account_status!=='active')throw error('La cuenta cambió o no está habilitada.');
             if((user.web3_wallet_address?.toLowerCase()||null)!==(c.payload.legacyAddress||null))throw error('Tu billetera cambió. Vuelve a iniciar la configuración.',409);
             const legacyPlan=user.web3_wallet_address?await this.assertOrMigrateLegacyAddress(userId,user,client):null;
-            if(JSON.stringify(migrationExecution.terms(legacyPlan))!==JSON.stringify(migrationExecution.terms(c.payload.legacyPlan)))throw error('El estado de tu billetera cambió. Vuelve a confirmar la configuración.');
+            if(!isDeepStrictEqual(migrationExecution.terms(legacyPlan),migrationExecution.terms(c.payload.legacyPlan)))throw error('El estado de tu billetera cambió. Vuelve a confirmar la configuración.');
             if(verifyMessage(backupMessage(id,userId,this.config),recoverySignature).toLowerCase()!==getAddress(recoveryAddress).toLowerCase()||getAddress(recoveryAddress)===ZeroAddress)throw error('No se pudo comprobar el respaldo.');
             const verification=await verifyRegistrationResponse({response,expectedChallenge:c.payload.options.challenge,
                 expectedOrigin:c.payload.rp.origin,expectedRPID:c.payload.rp.rpId,requireUserVerification:true});
