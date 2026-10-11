@@ -22,8 +22,8 @@ function CommunitySection() {
           }}
         >
           <h2
+            className="community-title"
             style={{
-              fontSize: '3.5rem',
               fontWeight: 800,
               lineHeight: 1.1,
               marginBottom: '2rem',

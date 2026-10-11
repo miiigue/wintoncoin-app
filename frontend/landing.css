@@ -189,6 +189,50 @@ h2 {
     color: var(--text-primary);
 }
 
+/* Título de sección Comunidad adaptativo */
+.community-title {
+    font-size: 3.5rem;
+}
+
+@media (max-width: 768px) {
+    .community-title {
+        font-size: 2.2rem !important;
+        margin-bottom: 1.25rem !important;
+    }
+}
+
+/* Botón Iniciar Sesión en la barra de navegación (Desktop & Mobile) */
+.btn-login-nav {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(59, 130, 246, 0.12);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: #ffffff !important;
+    padding: 0.5rem 1.25rem;
+    border-radius: 50px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    font-family: var(--font-body);
+    text-decoration: none;
+    margin-left: 1.5rem;
+    transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+}
+
+.btn-login-nav:hover {
+    background: rgba(59, 130, 246, 0.28);
+    border-color: rgba(96, 165, 250, 0.8);
+    box-shadow: 0 0 15px rgba(59, 130, 246, 0.5);
+    transform: translateY(-1px);
+}
+
+.btn-login-nav:active {
+    transform: translateY(0);
+}
+
 .btn-primary-nav {
     background: rgba(255, 255, 255, 0.1);
     padding: 0.5rem 1.2rem;
@@ -806,29 +850,65 @@ h2 {
     }
 }
 
-/* Mobile adjustments */
+/* Animación sutil y fluida de microgravedad para pantallas táctiles móviles */
+@keyframes floatPendulumMobile {
+    0%,
+    100% {
+        transform: translateY(0) rotateZ(-3deg);
+    }
+
+    50% {
+        transform: translateY(-14px) rotateZ(3deg);
+    }
+}
+
+/* ==========================================================================
+   AJUSTES RESPONSIVOS DE MONEDAS 3D EN TELÉFONOS MÓVILES (< 768px)
+   Centrado milimétrico vertical y horizontal, eliminación de espacios muertos
+   ========================================================================== */
 @media (max-width: 768px) {
     .coin-orbit-container {
-        height: 350px;
+        height: 220px;
+        max-width: 380px;
+        margin: 0 auto;
+        perspective: 1000px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        position: relative;
+    }
+
+    .coin-flip {
+        width: 120px;
+        height: 120px;
     }
 
     .coin {
-        width: 100px;
-        height: 100px;
+        width: 120px;
+        height: 120px;
+        /* Centrado vertical matemático en el contenedor de 220px: (220 - 120) / 2 = 50px */
+        top: calc(50% - 60px);
+        bottom: auto;
+        /* Animación suave adaptada al viewport de celular */
+        animation: floatPendulumMobile 5s ease-in-out infinite;
     }
 
+    /* Moneda BLUE centrada hacia el lado izquierdo con balance óptico */
     .coin-blue {
-        left: 10%;
-        top: 15%;
+        left: calc(50% - 130px);
+        right: auto;
     }
 
+    /* Moneda RED centrada hacia el lado derecho con balance óptico */
     .coin-red {
-        right: 10%;
-        top: 15%;
+        left: calc(50% + 10px);
+        right: auto;
     }
 
     .coin-neutral {
-        top: 55%;
+        top: calc(50% - 60px);
+        left: 50%;
+        transform: translateX(-50%);
     }
 
     .coin-icon {
@@ -846,6 +926,29 @@ h2 {
 
     .coin-label {
         font-size: 0.8rem;
+    }
+}
+
+/* Optimización extra para pantallas muy compactas (ej. iPhone SE / Galaxy Fold - 380px o menos) */
+@media (max-width: 380px) {
+    .coin-orbit-container {
+        height: 190px;
+    }
+
+    .coin-flip,
+    .coin {
+        width: 100px;
+        height: 100px;
+        /* Centrado vertical en 190px: (190 - 100) / 2 = 45px */
+        top: calc(50% - 50px);
+    }
+
+    .coin-blue {
+        left: calc(50% - 110px);
+    }
+
+    .coin-red {
+        left: calc(50% + 10px);
     }
 }
 
@@ -2240,39 +2343,103 @@ h2 {
         transform: none;
     }
 
-    /* --- Responsive --- */
+    /* --- Responsive Maestro para Teléfonos Móviles (< 768px) --- */
     @media (max-width: 768px) {
+        /* Cabecera compacta con efecto Glassmorphism optimizada para viewport móvil */
+        .glass-nav {
+            padding: 0.75rem 1.25rem !important;
+            height: 60px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+        }
+
+        .logo-phrase-img {
+            height: 25px !important;
+            max-width: 150px;
+            object-fit: contain;
+        }
+
+        /* Contenedor de enlaces activo en móvil para alojar el botón Iniciar Sesión a la derecha */
         .nav-links {
-            display: none;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: flex-end !important;
+            margin-left: auto !important;
+            gap: 0.5rem !important;
+        }
+
+        /* Ocultar anclas de texto para mantener la cabecera limpia y profesional */
+        .nav-links a:not(.btn-login-nav):not(.btn-primary-nav),
+        .nav-links .nav-anchor {
+            display: none !important;
+        }
+
+        /* Ocultar Iniciar App en teléfonos para destacar únicamente Iniciar Sesión arriba a la derecha */
+        .btn-primary-nav {
+            display: none !important;
+        }
+
+        /* Botón Iniciar Sesión destacado, ergonómico y con degradado Zafiro */
+        .btn-login-nav {
+            display: inline-flex !important;
+            margin-left: 0 !important;
+            padding: 0.42rem 1rem !important;
+            font-size: 0.84rem !important;
+            font-weight: 600 !important;
+            border-radius: 9999px !important;
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.28) 0%, rgba(37, 99, 235, 0.4) 100%) !important;
+            border: 1px solid rgba(96, 165, 250, 0.6) !important;
+            color: #ffffff !important;
+            box-shadow: 0 0 14px rgba(59, 130, 246, 0.35) !important;
+            white-space: nowrap !important;
+            text-decoration: none !important;
+        }
+
+        .btn-login-nav:active {
+            transform: scale(0.97) !important;
         }
 
         .stats-ticker {
             display: none;
         }
 
-        /* Simplificado para demo, idealmente un burger menu */
-
         .hero-title {
-            font-size: 2.5rem;
+            font-size: 2.3rem;
+            line-height: 1.15;
+            margin-bottom: 1rem;
+        }
+
+        .hero-subtitle {
+            font-size: 1.05rem;
+            margin-bottom: 1.5rem;
         }
 
         .hero-section {
             flex-direction: column;
-            padding-top: 120px;
+            padding-top: 85px !important;
+            padding-bottom: 1rem !important;
+            min-height: auto !important;
             text-align: center;
         }
 
         .cta-group {
             justify-content: center;
             flex-wrap: wrap;
+            margin-bottom: 1.5rem !important;
         }
 
         .hero-visual {
             flex-direction: column;
-            height: auto;
-            padding: 4rem 1rem;
-            gap: 2rem;
-            margin-top: 2rem;
+            height: auto !important;
+            padding: 0.5rem 0 !important;
+            gap: 0 !important;
+            margin-top: 0.5rem !important;
+        }
+
+        /* Espaciado armónico y sin vacíos desmedidos hacia la sección Comunidad */
+        .community-visual-section {
+            padding: 2.5rem 0 3.5rem 0 !important;
         }
 
         .card-float {
@@ -2317,145 +2484,49 @@ h2 {
             gap: 0.5rem;
         }
 
-        /* Responsive Adjustments for Images */
-        @media (max-width: 768px) {
-            .visual-split {
-                flex-direction: column;
-                text-align: center;
-                gap: 2rem;
-            }
-
-            .visual-image img {
-                max-width: 100%;
-            }
-
-            .duality-img {
-                max-width: 100%;
-            }
-
-            .hero-bg-image {
-                opacity: 0.2;
-                /* Darker on mobile for readability */
-            }
+        /* Ajustes visuales de imágenes y partición en móvil */
+        .visual-split {
+            flex-direction: column;
+            text-align: center;
+            gap: 2rem;
         }
 
-        /* FIX: Layout Móvil "Auto-Swap Card" (Estilo Tiktok/Wallet Moderno) */
-        .hero-visual {
-            position: relative;
-            height: 320px;
-            /* Altura fija para el contenedor de swap */
-            margin-top: 3rem;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            overflow: hidden;
-            /* Contener efectos */
+        .visual-image img {
+            max-width: 100%;
         }
 
-        .card-float {
-            position: absolute !important;
-            /* Superpuestas */
-            top: 50% !important;
-            left: 50% !important;
-            transform: translate(-50%, -50%) !important;
-            width: 90%;
-            max-width: 320px;
-            margin: 0;
-            opacity: 0;
-            transition: none;
-            /* Controlado por animación keyframes */
-            background: rgba(15, 20, 35, 0.9);
-            backdrop-filter: blur(20px);
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
-            z-index: 1;
+        .duality-img {
+            max-width: 100%;
         }
 
-        /* Animación de Ciclo Infinito */
-        .card-blue {
-            border-top: 4px solid var(--accent-blue);
-            animation: swapCardBlue 8s infinite;
+        .hero-bg-image {
+            opacity: 0.2;
+            /* Oscurecido sutil para máxima legibilidad en móvil */
         }
 
-        .card-red {
-            border-top: 4px solid var(--accent-red);
-            animation: swapCardRed 8s infinite;
-        }
-
-        /* Keyframes para el Swap (Alternancia perfecta) */
-        @keyframes swapCardBlue {
-
-            0%,
-            45% {
-                opacity: 1;
-                z-index: 2;
-                transform: translate(-50%, -50%) scale(1);
-                filter: blur(0px);
-            }
-
-            50%,
-            95% {
-                opacity: 0;
-                z-index: 1;
-                transform: translate(-50%, -40%) scale(0.9);
-                filter: blur(10px);
-            }
-
-            100% {
-                opacity: 1;
-                z-index: 2;
-                transform: translate(-50%, -50%) scale(1);
-                filter: blur(0px);
-            }
-        }
-
-        @keyframes swapCardRed {
-
-            0%,
-            45% {
-                opacity: 0;
-                z-index: 1;
-                transform: translate(-50%, -40%) scale(0.9);
-                filter: blur(10px);
-            }
-
-            50%,
-            95% {
-                opacity: 1;
-                z-index: 2;
-                transform: translate(-50%, -50%) scale(1);
-                filter: blur(0px);
-            }
-
-            100% {
-                opacity: 0;
-                z-index: 1;
-                transform: translate(-50%, -40%) scale(0.9);
-                filter: blur(10px);
-            }
-        }
-
-        /* Ocultar elementos innecesarios en este modo */
-        .hero-image-3d {
-            position: absolute;
-            width: 120%;
-            opacity: 0.3;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            z-index: 0;
-        }
-
-        .hero-visual::after {
-            display: none;
-        }
-
-        /* Quitar conector vertical */
+        /* Ocultar conectores vectoriales decorativos en móvil */
         .connector-svg {
             display: none;
         }
     }
 
+/* ==========================================================================
+   OPTIMIZACIONES EXTRA PARA DISPOSITIVOS COMPACTOS (360px o menos)
+   ========================================================================== */
+@media (max-width: 360px) {
+    .glass-nav {
+        padding: 0.65rem 0.85rem !important;
+    }
 
+    .logo-phrase-img {
+        height: 22px !important;
+        max-width: 125px !important;
+    }
+
+    .btn-login-nav {
+        padding: 0.38rem 0.8rem !important;
+        font-size: 0.8rem !important;
+    }
 }
 
 /* CIERRE DE SEGURIDAD PARA SALIR DE CUALQUIER MEDIA QUERY ANTERIOR */

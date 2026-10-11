@@ -132,17 +132,17 @@ export default function AccountSecurity({onActivated}) {
       <div className="security-steps-tracker" aria-label="Progreso de configuración de 4 pasos">
         <div className={`security-step-item ${currentStep === 1 ? 'active' : currentStep > 1 ? 'completed' : ''}`} aria-current={currentStep === 1 ? 'step' : undefined}>
           <span className="security-step-bubble">{currentStep > 1 ? '✓' : '1'}</span>
-          <span className="security-step-label">Respaldo</span>
+          <span className="security-step-label">Llave maestra</span>
         </div>
         <div className={`security-step-line ${currentStep > 1 ? 'completed' : ''}`} />
         <div className={`security-step-item ${currentStep === 2 ? 'active' : currentStep > 2 ? 'completed' : ''}`} aria-current={currentStep === 2 ? 'step' : undefined}>
           <span className="security-step-bubble">{currentStep > 2 ? '✓' : '2'}</span>
-          <span className="security-step-label">Confirmación</span>
+          <span className="security-step-label">Comprobación</span>
         </div>
         <div className={`security-step-line ${currentStep > 2 ? 'completed' : ''}`} />
         <div className={`security-step-item ${currentStep === 3 ? 'active' : currentStep > 3 ? 'completed' : ''}`} aria-current={currentStep === 3 ? 'step' : undefined}>
           <span className="security-step-bubble">{currentStep > 3 ? '✓' : '3'}</span>
-          <span className="security-step-label">Dispositivo</span>
+          <span className="security-step-label">Tu dispositivo</span>
         </div>
         <div className={`security-step-line ${currentStep > 3 ? 'completed' : ''}`} />
         <div className={`security-step-item ${currentStep === 4 ? 'active' : ''}`} aria-current={currentStep === 4 ? 'step' : undefined}>
@@ -153,34 +153,35 @@ export default function AccountSecurity({onActivated}) {
     )}
     {sessionExpired&&<a href="/login?returnTo=%2Fwallet.html">Iniciar sesión para continuar</a>}
     {!sessionExpired&&stage==='start'&&!operation&&!isActive&&<button onClick={configureBackup} disabled={busy}>{busy?'Comprobando disponibilidad…':'Configurar respaldo de mi billetera'}</button>}
-    {stage==='resume'&&!operation&&!isActive&&<form onSubmit={e=>{e.preventDefault();resumeBackup();}}>
+    {stage==='resume'&&!operation&&!isActive&&<form autoComplete="off" data-form-type="other" onSubmit={e=>{e.preventDefault();resumeBackup();}}>
       <div className="security-current-step-badge"><span className="step-badge-pill">Paso 2 de 4</span><strong>Retoma tus 12 palabras guardadas</strong></div>
-      <p>Introduce las 12 palabras que guardaste. Se comprueban solo en este dispositivo y no se envían al servidor.</p>
-      <label>Palabras del respaldo pendiente<textarea value={resumeWords} onChange={e=>setResumeWords(e.target.value)} autoComplete="off" autoCapitalize="none" spellCheck={false}/></label>
+      <p>Se actualizó la pantalla mientras configurabas tu llave de seguridad. Si ya habías anotado tus 12 palabras, puedes escribirlas aquí para continuar sin perder nada.</p>
+      <label>Palabras del respaldo pendiente<textarea value={resumeWords} onChange={e=>setResumeWords(e.target.value)} autoComplete="off" autoCapitalize="none" autoCorrect="off" spellCheck={false} data-form-type="other" data-lpignore="true" data-1p-ignore="true"/></label>
       <button disabled={busy}>Retomar mi respaldo</button>
       <button type="button" disabled={busy} onClick={()=>setStage('discard')}>No guardé esas palabras</button>
     </form>}
     {stage==='discard'&&!operation&&!isActive&&<div>
-      <div className="security-current-step-badge"><span className="step-badge-pill">Reemplazo de Respaldo</span><strong>Crear un nuevo respaldo</strong></div>
-      <p>Crear otro respaldo reemplazará las palabras pendientes de este dispositivo. Primero comprobaremos si ya existe una activación.</p>
+      <div className="security-current-step-badge"><span className="step-badge-pill">Nueva Llave</span><strong>Crear un nuevo respaldo</strong></div>
+      <p>Si no alcanzaste a guardar las 12 palabras anteriores, no te preocupes. Puedes generar una nueva llave limpia para proteger tu cuenta.</p>
       <button disabled={busy} onClick={async()=>{if(!startAction())return;try{const c=await accountRequest('/status');setContext(c);if(c.account||c.activationId){await refresh();return;}const r=await accountRequest('/activation-readiness');if(!r.ready)throw new Error('No se pudo comprobar la activación.');begin(c);setMessage('Guarda este nuevo respaldo. El anterior pendiente queda descartado.');}catch(e){reportError(e);}finally{endAction();}}}>Confirmar creación de otro respaldo</button>
       <button onClick={()=>setStage('resume')} disabled={busy}>Volver</button>
     </div>}
     {stage==='device'&&backup&&<div>
       <div className="security-current-step-badge"><span className="step-badge-pill">Paso 3 de 4</span><strong>Registra tu dispositivo</strong></div>
+      <p>Protege tus operaciones diarias con la huella digital o el reconocimiento facial de tu teléfono (como cuando desbloqueas tu celular). Así podrás entrar y autorizar pagos al instante sin recordar contraseñas difíciles.</p>
       <button disabled={busy} onClick={registerDevice}>{busy?'Esperando confirmación…':'Registrar mi dispositivo'}</button>
     </div>}
     {backup&&stage==='show'&&<>
       <div className="security-current-step-badge"><span className="step-badge-pill">Paso 1 de 4</span><strong>Anota tus 12 palabras de respaldo</strong></div>
-      <p>Guarda estas 12 palabras en un lugar seguro fuera de este dispositivo. Permiten solicitar la recuperación de esta misma cuenta. Nunca las compartas con soporte.</p>
+      <p>Como una copia de la llave de tu casa: si alguna vez cambias o pierdes tu teléfono, estas 12 palabras te permitirán entrar de nuevo y recuperar tu saldo. Anótalas en un papel y guárdalas en un lugar seguro.</p>
       <ol className="recovery-words">{backup.phrase.split(' ').map((word,i)=><li key={i}>{word}</li>)}</ol>
-      <p>No se enviarán al servidor. Confirmar las palabras no garantiza que conserves el respaldo: es importante guardarlo.</p>
+      <p className="recovery-note">⚠️ Importante: Nadie de nuestro equipo te pedirá estas palabras jamás. No se comparten por internet.</p>
       <button onClick={()=>setStage('check')}>Ya guardé mi respaldo</button>
     </>}
-    {backup&&stage==='check'&&<form onSubmit={e=>{e.preventDefault();register();}}>
+    {backup&&stage==='check'&&<form autoComplete="off" data-form-type="other" onSubmit={e=>{e.preventDefault();register();}}>
       <div className="security-current-step-badge"><span className="step-badge-pill">Paso 2 de 4</span><strong>Confirma 3 palabras de seguridad</strong></div>
-      <p>Escribe únicamente las palabras en las posiciones {positions.map(n=>n+1).join(', ')} de tu lista de 12. Por ejemplo, «Palabra 9» pide la novena palabra. Se comprueban solo en este dispositivo.</p>
-      {positions.map((position,i)=><label key={position}>Palabra {position+1}<input type={showAnswers?"text":"password"} aria-invalid={answerErrors.includes(position)} aria-describedby={answerErrors.includes(position)?`backup-error-${position}`:undefined} autoComplete="off" autoCapitalize="none" spellCheck={false} value={answers[i]} disabled={busy} onChange={e=>setAnswers(old=>old.map((v,n)=>n===i?e.target.value:v))}/>{answerErrors.includes(position)&&<span id={`backup-error-${position}`} role="alert">Revisa la palabra en la posición {position+1}.</span>}</label>)}
+      <p>Para asegurarnos de que las anotaste bien, escribe solo las 3 palabras que te pedimos abajo según su número en tu lista (ejemplo: «Palabra 5» pide la quinta palabra que anotaste).</p>
+      {positions.map((position,i)=><label key={position}>Palabra {position+1}<input type={showAnswers?"text":"password"} name={`winton-verify-pos-${position+1}`} aria-invalid={answerErrors.includes(position)} aria-describedby={answerErrors.includes(position)?`backup-error-${position}`:undefined} autoComplete="one-time-code" autoCapitalize="none" autoCorrect="off" spellCheck={false} data-form-type="other" data-lpignore="true" data-1p-ignore="true" data-bwignore="true" value={answers[i]} disabled={busy} onChange={e=>setAnswers(old=>old.map((v,n)=>n===i?e.target.value:v))}/>{answerErrors.includes(position)&&<span id={`backup-error-${position}`} role="alert">Revisa la palabra en la posición {position+1}.</span>}</label>)}
       <button type="button" disabled={busy} aria-pressed={showAnswers} onClick={()=>setShowAnswers(v=>!v)}>{showAnswers?'Ocultar lo escrito':'Mostrar lo escrito'}</button>
       <button disabled={busy}>{busy?'Preparando registro…':'Confirmar palabras y continuar'}</button>
       <button type="button" disabled={busy} onClick={()=>setStage('show')}>Revisar palabras</button>
@@ -190,7 +191,7 @@ export default function AccountSecurity({onActivated}) {
         <div className="security-current-step-badge"><span className="step-badge-pill">Paso 4 de 4</span><strong>{activationState==='authorization'?(migrating?'Autoriza la actualización de tu billetera':'Autoriza la activación de tu billetera'):(migrating?'Actualizando tu billetera':'Activando tu billetera')}</strong></div>
         <p className="activation-pending-title">{activationState==='authorization'?'Falta tu confirmación':activationState==='stopped'?'La activación necesita revisión':'Activación de tu billetera'}</p>
         <p className="activation-pending-desc">
-          {activationState==='authorization'?'Para continuar, confirma el siguiente paso. La aplicación no solicitará firmas automáticamente.':activationState==='stopped'?'No se enviarán más pasos automáticamente. Puedes consultar el estado.':'La operación está en curso en la red y continuará automáticamente. Consultamos el estado periódicamente mientras esta pestaña esté visible; también puedes pulsar el botón para consultar el estado de inmediato.'}
+          {activationState==='authorization'?'Tu nueva bóveda digital ya está lista. Confirma el siguiente paso para trasladar tu saldo de forma protegida.':activationState==='stopped'?'La operación requiere una breve revisión. Puedes pulsar el botón abajo para consultar su estado.':'Estamos configurando tu nueva bóveda protegida. La operación se procesa automáticamente en segundo plano. Puedes pulsar el botón abajo para comprobar el estado de inmediato.'}
         </p>
         <button disabled={busy||sessionExpired} onClick={()=>checkActivation(true)}>{busy?'Comprobando…':activationState==='authorization'?(migrating?'Actualizar billetera y conservar saldo':'Confirmar siguiente paso'):'Consultar o continuar activación'}</button>
       </div>
