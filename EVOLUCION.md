@@ -7898,6 +7898,10 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Lenguaje Amigable con Analogías Sencillas: Rediseño de todos los textos con explicaciones breves y cotidianas (ejemplo: llave maestra de 12 palabras explicada como copia de la llave de una casa, y biometría como el desbloqueo facial/huella del celular).
   - Resiliencia de Sesión y Claridad ante Recarga: Orientación comprensible ante recargas accidentales, permitiendo continuar o reiniciar sin textos punitivos ni barreras complejas.
   - Certificación: 8 pruebas mnemónicas PASS, 19 interacciones UI en Playwright PASS y 53 de 53 componentes React verificados.
+- **Rediseño Limpio y No Invasivo del Estado Activo de la Billetera (ANTIGRAVITY-115)**:
+  - Eliminación de Ruido Visual en la Billetera: Una vez que la billetera está confirmada y activa, se suprime el contenedor invasivo que ocupaba la parte superior y se sustituye por un badge sutil y tranquilizador (`🛡️ Seguridad y recuperación [Activa]`).
+  - Reubicación de Acciones Secundarias en Acordeón Plegado: Los botones de «Registrar dispositivo de reemplazo» y «Actualizar estado» quedan replegados dentro de un menú colapsable cerrado por defecto, eliminando la confusión del usuario sobre supuestas acciones pendientes y dando protagonismo absoluto al Saldo Total BLUE y la operativa cotidiana.
+  - Certificación: 8 pruebas mnemónicas PASS, 19 interacciones UI Playwright PASS y compilación de producción `build:demo` aprobada en 27.35s con código 0.
 
 
 

@@ -125,7 +125,7 @@ export default function AccountSecurity({onActivated}) {
   const dismissedSuccess=successKey&&dismissedKey===successKey;
   const currentStep = isActive ? 4 : operation ? 4 : stage === 'device' ? 3 : (stage === 'check' || stage === 'resume' || stage === 'discard') ? 2 : 1;
 
-  return <section id="account-security" className="account-security" aria-labelledby="account-security-title">
+  return <section id="account-security" className={`account-security ${isActive ? 'account-security-active' : ''}`} aria-labelledby="account-security-title">
     <h2 id="account-security-title">Seguridad y recuperación</h2>
     <p role="status" aria-live="polite">{message}</p>
     {!isActive && !sessionExpired && (stage !== 'start' || operation) && (
@@ -211,9 +211,8 @@ export default function AccountSecurity({onActivated}) {
       </div>
     )}
     {isActive&&(
-      <div className="recovery-collapsible-body">
+      <div className="security-active-clean-wrapper">
         <PersonalRecovery context={context} onRecovered={refresh}/>
-        <p className="recovery-note">La recuperación asistida todavía no está habilitada. No se cobra ninguna tarifa por un servicio no disponible.</p>
       </div>
     )}
     {!isActive&&<p className="recovery-note">La recuperación asistida todavía no está habilitada. No se cobra ninguna tarifa por un servicio no disponible.</p>}

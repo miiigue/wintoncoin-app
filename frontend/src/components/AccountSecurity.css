@@ -36,3 +36,12 @@
 .security-current-step-badge strong{font-size:.9rem;color:#f0f9ff}
 .account-security input[aria-invalid="true"]{border-color:#f87171!important;background:rgba(239,68,68,0.12)!important;box-shadow:0 0 0 1px #ef4444}
 .account-security span[role="alert"]{display:block;color:#fca5a5;font-size:.8rem;margin-top:6px;font-weight:500}
+
+.account-security.account-security-active{background:rgba(10,21,40,0.4);border:1px solid rgba(56,189,248,0.15);border-radius:12px;padding:10px 14px;margin:8px 0 16px}
+.account-security.account-security-active h2{font-size:.85rem;color:#38bdf8;margin:0;display:flex;align-items:center;gap:6px;font-weight:500}
+.account-security.account-security-active h2::before{content:"🛡️ "}
+.account-security.account-security-active .security-active-clean-wrapper{margin-top:4px}
+.account-security.account-security-active .personal-recovery summary{cursor:pointer;color:#64748b;font-size:.78rem;padding:2px 0;user-select:none;transition:color .2s}
+.account-security.account-security-active .personal-recovery summary:hover{color:#94a3b8}
+.account-security.account-security-active .personal-recovery button{background:rgba(255,255,255,0.06);color:#cbd5e1;border:1px solid rgba(255,255,255,0.1);font-size:.8rem;padding:8px 12px}
+.account-security.account-security-active .personal-recovery button:hover{background:rgba(255,255,255,0.1);color:#ffffff}
