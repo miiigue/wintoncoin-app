@@ -53,7 +53,7 @@ const spaFallbackPlugin = () => {
       server.middlewares.use((req, res, next) => {
         const pathname = req.url ? req.url.split('?')[0] : '';
         // Rutas Web3 React SPA 2026: servir dashboard.html para montar React SPA
-        if (['/wallet', '/exchange', '/dashboard', '/admin/web3', '/admin-web3', '/flows', '/architecture', '/admin/flows'].includes(pathname)) {
+        if (['/wallet', '/exchange', '/dashboard', '/admin/web3', '/admin-web3', '/flows', '/architecture', '/admin/flows', '/recovery', '/recovery.html'].includes(pathname)) {
           const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
           req.url = '/dashboard.html' + query;
         }

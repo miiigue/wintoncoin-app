@@ -172,6 +172,9 @@ export default function DashboardHeader({
               <a href="/" target="_blank" rel="noopener noreferrer" onClick={() => setProfileOpen(false)}>
                 🌐 Ir al Sitio Web
               </a>
+              <Link to="/recovery" style={{ color: '#38bdf8', fontWeight: 600 }} onClick={() => setProfileOpen(false)}>
+                🛡️ Recuperación
+              </Link>
               <a href="#" id="openSettingsModal" onClick={(e) => {
                 e.preventDefault();
                 setProfileOpen(false);

@@ -45,9 +45,13 @@ export default function PersonalRecovery({context,onRecovered}){
   </div>}
   <p role="status" aria-live="polite">{message}</p>
   <details className="personal-recovery"><summary>Opciones de seguridad y recuperación</summary>
-  <p>La recuperación cambia el dispositivo autorizado; conserva tu dirección, tus BLUE y tus compromisos RED. Necesitas tu respaldo de 12 palabras. Perder también ese respaldo puede impedir la recuperación.</p>
-  <p>{recovery?.message}</p>
-  {(!recovery||['confirmed','cancelled','rejected'].includes(recovery.state))&&!prepared&&<button disabled={busy} onClick={register}>Registrar dispositivo de reemplazo</button>}
+   <div className="recovery-guide-box" style={{background:'rgba(2,132,199,0.12)',border:'1px solid rgba(56,189,248,0.3)',borderRadius:'10px',padding:'12px 14px',margin:'12px 0 16px',color:'#e0f2fe',fontSize:'0.85rem'}}>
+     <strong style={{color:'#38bdf8',display:'block',marginBottom:'4px'}}>💡 ¿En qué momento es necesario usar estos botones?</strong>
+     <p style={{margin:0,lineHeight:1.45}}>Usa esta opción únicamente si cambiaste de celular, perdiste tu equipo anterior o necesitas transferir el acceso seguro a otro dispositivo. En tu día a día no necesitas tocar nada aquí; tu cuenta ya está blindada con tu dispositivo actual y tu respaldo.</p>
+   </div>
+   <p>La recuperación cambia el dispositivo autorizado; conserva tu dirección, tus BLUE y tus compromisos RED. Necesitas tu respaldo de 12 palabras. Perder también ese respaldo puede impedir la recuperación.</p>
+   <p>{recovery?.message}</p>
+   {(!recovery||['confirmed','cancelled','rejected'].includes(recovery.state))&&!prepared&&<button disabled={busy} onClick={register}>Cambiar a otro dispositivo</button>}
   {prepared&&<form onSubmit={e=>{e.preventDefault();submit();}}><p>Cuenta que se conservará: {prepared.address}</p>
    <label>Respaldo de recuperación (solo se procesa aquí)<input type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} value={phrase} onChange={e=>setPhrase(e.target.value)} disabled={busy}/></label>
    <button disabled={busy||!phrase}>Solicitar recuperación</button><button type="button" disabled={busy} onClick={()=>{setPhrase('');setPrepared(null);}}>Cancelar preparación</button>

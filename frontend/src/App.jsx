@@ -12,6 +12,7 @@ import AdminGate from './components/AdminGate.jsx';
 import AdminWeb3Panel from './pages/AdminWeb3Panel.jsx';
 import ArchitectureFlows from './pages/ArchitectureFlows.jsx';
 import Dashboard from './pages/Dashboard.jsx';
+import Recovery from './pages/Recovery.jsx';
 
 /**
  * ============================================================================
@@ -50,6 +51,8 @@ function App() {
       <Route path="/wallet.html" element={<Wallet />} />
       <Route path="/exchange" element={<Exchange />} />
       <Route path="/exchange.html" element={<Exchange />} />
+      <Route path="/recovery" element={<Recovery />} />
+      <Route path="/recovery.html" element={<Recovery />} />
 
       {/* Simulador Dinámico de Arquitectura y Flujos de Procesos React */}
       <Route path="/flows" element={<ArchitectureFlows />} />

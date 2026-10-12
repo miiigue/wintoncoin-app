@@ -219,8 +219,8 @@ function Wallet() {
           </div>
         )}
 
-        {/* CONFIGURACIÓN DE ACCESO Y RESPALDO */}
-        <AccountSecurity onActivated={syncOnChain} />
+        {/* CONFIGURACIÓN DE ACCESO Y RESPALDO (SOLO SI NO ESTÁ ACTIVA) */}
+        <AccountSecurity onActivated={syncOnChain} hideWhenActive={true} />
 
         {/* NOTIFICACIÓN TOAST */}
         {toastMessage && (

@@ -71,6 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <li><a href="/documentation.html" class="nav-link"><span class="icon">📄</span> Documentación</a></li>
                     <li><a href="/" target="_blank" class="nav-link"><span class="icon">🌐</span> Ir al Sitio Web</a></li>
                     <li><a href="/profile.html" class="nav-link"><span class="icon">👤</span> Mi Perfil</a></li>
+                    <li><a href="/recovery.html" class="nav-link"><span class="icon">🛡️</span> Recuperación</a></li>
                 </ul>
             </nav>
 

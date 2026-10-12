@@ -7898,10 +7898,12 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Lenguaje Amigable con Analogías Sencillas: Rediseño de todos los textos con explicaciones breves y cotidianas (ejemplo: llave maestra de 12 palabras explicada como copia de la llave de una casa, y biometría como el desbloqueo facial/huella del celular).
   - Resiliencia de Sesión y Claridad ante Recarga: Orientación comprensible ante recargas accidentales, permitiendo continuar o reiniciar sin textos punitivos ni barreras complejas.
   - Certificación: 8 pruebas mnemónicas PASS, 19 interacciones UI en Playwright PASS y 53 de 53 componentes React verificados.
-- **Rediseño Limpio y No Invasivo del Estado Activo de la Billetera (ANTIGRAVITY-115)**:
-  - Eliminación de Ruido Visual en la Billetera: Una vez que la billetera está confirmada y activa, se suprime el contenedor invasivo que ocupaba la parte superior y se sustituye por un badge sutil y tranquilizador (`🛡️ Seguridad y recuperación [Activa]`).
-  - Reubicación de Acciones Secundarias en Acordeón Plegado: Los botones de «Registrar dispositivo de reemplazo» y «Actualizar estado» quedan replegados dentro de un menú colapsable cerrado por defecto, eliminando la confusión del usuario sobre supuestas acciones pendientes y dando protagonismo absoluto al Saldo Total BLUE y la operativa cotidiana.
-  - Certificación: 8 pruebas mnemónicas PASS, 19 interacciones UI Playwright PASS y compilación de producción `build:demo` aprobada en 27.35s con código 0.
+- **Segregación de Recuperación al Menú y Creación de Pantalla Dedicada (ANTIGRAVITY-117)**:
+  - Billetera 100% Despejada: `Wallet.jsx` oculta completamente la sección de seguridad cuando la cuenta ya está activa (`hideWhenActive={true}`), logrando paridad de diseño con Binance y Coinbase donde el Saldo Total BLUE y las operaciones son los protagonistas inmediatos.
+  - Creación de Pantalla Oficial de Recuperación (`Recovery.jsx`): Accesible desde la ruta `/recovery` y `/recovery.html`, centralizando las opciones de gestión de llaves y cambio de equipos.
+  - Enlaces de Menú Reubicados: Agregada la opción «🛡️ Recuperación» al final de los menús de navegación en `DashboardHeader.jsx` (móvil React), `sidebar.js` (escritorio) y `contract_interaction.html` (menú móvil legado).
+  - Claridad de Uso Contextual y Rediseño de Botones: Inclusión de guía explicativa visible (*«¿En qué momento es necesario usar estos botones?»*) aclarando que solo aplica ante cambio o pérdida de teléfono, y renombramiento del botón técnico a «Cambiar a otro dispositivo», el cual dispara directamente la API nativa de Passkeys (`startRegistration`).
+  - Certificación: 8 pruebas mnemónicas PASS, 19 interacciones UI Playwright PASS y compilación de producción `build:demo` completada en 27.00s con código 0.
 
 
 

@@ -4,7 +4,7 @@ import {accountRequest,createBackup,restoreBackup,backupPositions,verifyBackupWo
 import './AccountSecurity.css';
 import PersonalRecovery from './PersonalRecovery.jsx';
 
-export default function AccountSecurity({onActivated}) {
+export default function AccountSecurity({onActivated, hideWhenActive = false}) {
   const [context,setContext]=useState(null),[message,setMessage]=useState('Consultando la seguridad de tu cuenta…'),[busy,setBusy]=useState(false);
   const [backup,setBackup]=useState(null),[positions,setPositions]=useState([]),[answers,setAnswers]=useState(['','','']),[stage,setStage]=useState('start');
   const [operation,setOperation]=useState(null);
@@ -124,6 +124,8 @@ export default function AccountSecurity({onActivated}) {
   useEffect(()=>{try{setDismissedKey(successKey&&localStorage.getItem(successKey)==='true'?successKey:null);}catch{setDismissedKey(null);}},[successKey]);
   const dismissedSuccess=successKey&&dismissedKey===successKey;
   const currentStep = isActive ? 4 : operation ? 4 : stage === 'device' ? 3 : (stage === 'check' || stage === 'resume' || stage === 'discard') ? 2 : 1;
+
+  if (isActive && hideWhenActive) return null;
 
   return <section id="account-security" className={`account-security ${isActive ? 'account-security-active' : ''}`} aria-labelledby="account-security-title">
     <h2 id="account-security-title">Seguridad y recuperación</h2>
