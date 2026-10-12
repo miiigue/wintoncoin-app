@@ -172,6 +172,9 @@ export default defineConfig(({ mode }) => ({
 
         // Governance (Winton-Consensus)
         governancePanel: resolve(__dirname, 'governance-panel.html'),
+
+        // Seguridad y Recuperación
+        recovery: resolve(__dirname, 'recovery.html'),
       },
 
 

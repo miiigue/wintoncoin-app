@@ -204,7 +204,8 @@ export default function AccountSecurity({onActivated, hideWhenActive = false}) {
           <span className="activation-success-icon" aria-hidden="true">🎉</span>
           <div>
             <strong>¡Felicidades! Tu billetera está activa</strong>
-            <p>Tu cuenta cuenta con protección de autocustodia y respaldo configurado.</p>
+            {/* Mensaje de confirmación claro y profesional: autocustodia y respaldo activo */}
+            <p>Tu billetera ya tiene protección de autocustodia y respaldo configurado.</p>
           </div>
         </div>
         <button type="button" className="activation-dismiss-btn" onClick={()=>{

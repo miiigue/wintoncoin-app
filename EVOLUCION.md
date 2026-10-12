@@ -32,6 +32,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - [`frontend/index.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/index.html): Landing page principal con botón Iniciar Sesión y clase de título responsive.
   - [`frontend/src/components/landing/CommunitySection.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/landing/CommunitySection.jsx): Título de comunidad gobernado por clase responsive.
   - [`frontend/landing.css`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/landing.css): Estilos del botón Iniciar Sesión, centrado móvil de monedas y saneamiento de espaciados.
+  - [`frontend/src/components/AccountSecurity.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/AccountSecurity.jsx): Corrección de UX copy en la tarjeta de éxito de activación de billetera («Tu billetera ya tiene protección de autocustodia y respaldo configurado.»).
 * **Gobernanza y Cumplimiento Protocolar**:
   - Estricto apego al término **COMPROMISO RED** (cero mención de la palabra deuda), invariante de paridad `TotalSupply(BLUE) == TotalSupply(RED)`, SOC 2, Zero-Trust y responsive mobile-first.
 
@@ -7904,6 +7905,11 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - Enlaces de Menú Reubicados: Agregada la opción «🛡️ Recuperación» al final de los menús de navegación en `DashboardHeader.jsx` (móvil React), `sidebar.js` (escritorio) y `contract_interaction.html` (menú móvil legado).
   - Claridad de Uso Contextual y Rediseño de Botones: Inclusión de guía explicativa visible (*«¿En qué momento es necesario usar estos botones?»*) aclarando que solo aplica ante cambio o pérdida de teléfono, y renombramiento del botón técnico a «Cambiar a otro dispositivo», el cual dispara directamente la API nativa de Passkeys (`startRegistration`).
   - Certificación: 8 pruebas mnemónicas PASS, 19 interacciones UI Playwright PASS y compilación de producción `build:demo` completada en 27.00s con código 0.
+- **Solución Definitiva de 404 en Servidor Estático Hostinger y Claridad en Reanudación (ANTIGRAVITY-118)**:
+  - Causa Raíz 404 Detectada: En el hosting compartido (Hostinger/Apache), las solicitudes directas a `/recovery.html` fallaban con 404 porque no existía un archivo HTML estático físico en el árbol de Vite. Se creó `frontend/recovery.html` y se agregó formalmente a `rollupOptions.input` en `vite.config.js`, generando `dist-demo/recovery.html` físico (176 recursos precacheados).
+  - Claridad Operativa en Paso 2 ante Recarga: Al reanudar con las 12 palabras, la interfaz orienta explícitamente al usuario sobre el llenado de las 3 casillas de verificación requeridas para avanzar al registro de dispositivo, evitando sensaciones de bloqueo.
+  - Diagnóstico Técnico de Tiempos On-Chain: El proceso de reemplazo de llaves vía `SocialRecoveryModule` cuenta con un período de seguridad (timelock) de hasta 24 horas on-chain para permitir la cancelación de emergencia del usuario legítimo ante intentos de suplantación. En activaciones ordinarias, la espera se debía a transacciones pendientes de firma de traslado de saldo.
+  - Certificación: 8 pruebas mnemónicas PASS, 19 interacciones UI Playwright PASS y `build:demo` completado con 176 entradas PWA.
 
 
 
