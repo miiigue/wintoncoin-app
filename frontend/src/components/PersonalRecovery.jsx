@@ -3,7 +3,7 @@ import React,{useEffect,useState,useRef} from 'react';
 import {startRegistration} from '@simplewebauthn/browser';
 import {accountRequest,authorizeRecovery,signAccountTransaction} from '../modules/recoverableAccount.js';
 
-export default function PersonalRecovery({context,onRecovered}){
+export default function PersonalRecovery({context,onRecovered,alertsOnly=false}){
  const [phrase,setPhrase]=useState(''),[prepared,setPrepared]=useState(null),[recovery,setRecovery]=useState(null),[busy,setBusy]=useState(false),[message,setMessage]=useState('');
  const inFlight=useRef(false),mounted=useRef(true),onRecoveredRef=useRef(onRecovered);
  onRecoveredRef.current=onRecovered;
@@ -44,10 +44,10 @@ export default function PersonalRecovery({context,onRecovered}){
     {['waiting','external'].includes(recovery?.state)&&<button disabled={busy} onClick={cancel}>Cancelar recuperación con mi dispositivo</button>}
   </div>}
   <p role="status" aria-live="polite">{message}</p>
-  <details className="personal-recovery"><summary>Opciones de seguridad y recuperación</summary>
+  {!alertsOnly&&<details className="personal-recovery"><summary>Opciones de seguridad y recuperación</summary>
    <div className="recovery-guide-box" style={{background:'rgba(2,132,199,0.12)',border:'1px solid rgba(56,189,248,0.3)',borderRadius:'10px',padding:'12px 14px',margin:'12px 0 16px',color:'#e0f2fe',fontSize:'0.85rem'}}>
      <strong style={{color:'#38bdf8',display:'block',marginBottom:'4px'}}>💡 ¿En qué momento es necesario usar estos botones?</strong>
-     <p style={{margin:0,lineHeight:1.45}}>Usa esta opción únicamente si cambiaste de celular, perdiste tu equipo anterior o necesitas transferir el acceso seguro a otro dispositivo. En tu día a día no necesitas tocar nada aquí; tu cuenta ya está blindada con tu dispositivo actual y tu respaldo.</p>
+     <p style={{margin:0,lineHeight:1.45}}>Usa esta opción únicamente si cambiaste de celular, perdiste tu equipo anterior o necesitas transferir el acceso seguro a otro dispositivo. En tu día a día no necesitas tocar nada aquí; conserva tu respaldo y revisa cualquier aviso de recuperación que no reconozcas.</p>
    </div>
    <p>La recuperación cambia el dispositivo autorizado; conserva tu dirección, tus BLUE y tus compromisos RED. Necesitas tu respaldo de 12 palabras. Perder también ese respaldo puede impedir la recuperación.</p>
    <p>{recovery?.message}</p>
@@ -64,5 +64,5 @@ export default function PersonalRecovery({context,onRecovered}){
    <button disabled={busy} onClick={cancelExternal}>Firmar cancelación y conectar otra billetera</button>
   </details>}
   <button disabled={busy} onClick={()=>run(refresh)}>Actualizar estado</button>
- </details></>;
+ </details>}</>;
 }

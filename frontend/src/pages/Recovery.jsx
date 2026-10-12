@@ -46,7 +46,7 @@ export default function Recovery() {
             💡 ¿En qué momento es necesario usar esta pantalla?
           </strong>
           <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.5', color: '#cbd5e1' }}>
-            Usa esta pantalla únicamente si <strong>cambiaste de teléfono celular</strong>, perdiste tu equipo anterior o necesitas transferir el acceso seguro a otro dispositivo. En tu día a día no necesitas tocar nada aquí; tu cuenta ya está blindada con tu llave maestra y tu dispositivo autorizado.
+            Usa esta pantalla únicamente si <strong>cambiaste de teléfono celular</strong>, perdiste tu equipo anterior o necesitas transferir el acceso seguro a otro dispositivo. En tu día a día no necesitas tocar nada aquí; conserva tu respaldo y revisa cualquier solicitud de recuperación que no reconozcas.
           </p>
         </div>
 

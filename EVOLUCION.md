@@ -7913,3 +7913,9 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
 
 
 
+
+- **Correcciones de seguridad y recuperación (CODEX-143/144, revisión ANTIGRAVITY-120)**:
+  - Se rechazó la propuesta inicial de confiar en longitud Bearer y subdominios arbitrarios. La implementación final verifica orígenes HTTPS exactos y mantiene autenticación y roles; localhost solo desarrollo.
+  - La billetera activa conserva monitor y cancelación de recuperación sospechosa. Consulta al montar y cada 60 segundos con página visible; no garantiza avisos con aplicación cerrada.
+  - El reloj muestra tiempo de seguimiento en esta pantalla, sin estimación de confirmación ni bloques ficticios. Diferencia autorización, espera y detención.
+  - Comprobaciones: 18 de origen, 23 interacciones y 8 validaciones de respaldo. No constituyen certificación ni auditoría SOC2. La causa concreta de las demoras móviles requiere evidencia de la solicitud real.

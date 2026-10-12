@@ -7,7 +7,7 @@ const {chromium}=require('playwright');
  require('node:child_process').execFileSync(process.execPath,[path.join(__dirname,'check-backup-validation.cjs')],{stdio:'inherit'});
  const root=path.resolve(__dirname,'..');
  const build=await esbuild.build({stdin:{resolveDir:root,loader:'jsx',contents:
-  "import React from 'react';import {createRoot} from 'react-dom/client';import Security from './src/components/AccountSecurity.jsx';const root=createRoot(document.getElementById('root'));let n=0;window.mount=()=>root.render(<Security key={++n} onActivated={()=>window.stats.activated++}/>);window.unmount=()=>root.render(null);window.mount();"},bundle:true,write:false,plugins:[{name:'isolated-security-fixture',setup(b){
+  "import React from 'react';import {createRoot} from 'react-dom/client';import Security from './src/components/AccountSecurity.jsx';const root=createRoot(document.getElementById('root'));let n=0;window.mount=()=>root.render(<Security key={++n} hideWhenActive={Boolean(window.hideSecurity)} onActivated={()=>window.stats.activated++}/>);window.unmount=()=>root.render(null);window.mount();"},bundle:true,write:false,plugins:[{name:'isolated-security-fixture',setup(b){
   b.onLoad({filter:/recoverableAccount\.js$/},()=>({contents:
    "export async function accountRequest(path,body){if(path==='/registration/options'){window.stats.options=(window.stats.options||0)+1;return {id:'challenge',options:{},backupMessage:'fixture'};}if(path==='/registration/verify'){window.stats.verified=(window.stats.verified||0)+1;window.mode='pending';return {operationId:'fixture-operation'};}if(path==='/activation-readiness')return {ready:true,replacingLegacy:true};if(path==='/status'&&window.mode==='legacy')return {userId:8,account:null,configuration:{chainId:'11155420'}};if(path==='/status')return {account:{state:window.mode==='active'?'active':'prepared',address:window.accountAddress},configuration:{chainId:'11155420'},activationId:window.mode==='active'?null:'fixture-operation'};if(path==='/recovery/status')return {recovery:window.recovery};if(body){window.stats.posts++;if(window.mode==='migration')window.migrationApproved=true;return {state:'pending',message:'Esperando confirmación'};}window.stats.gets++;if(window.mode==='migration')return {migration:true,state:window.migrationApproved?'pending':'prepared',requiresSignature:!window.migrationApproved,message:window.migrationApproved?'Actualización en curso':'Confirma la actualización para conservar tu saldo'};if(window.mode==='expired')throw Object.assign(new Error('Sesión vencida'),{status:401});if(window.mode==='failed')return {state:'failed',message:'Revisión necesaria'};if(window.mode==='complete'){window.mode='active';return {success:true,state:'confirmed'};}if(window.hold)await new Promise(r=>window.releaseRequest=r);return window.mode==='pending'?{state:'pending',message:'Esperando'}:{state:'prepared',requiresSignature:true,authorization:{fixture:true}};}export async function signAccountTransaction(){window.stats.signs++;if(window.rejectSignature)throw Error('Confirmación cancelada');return {signature:'synthetic',hash:'synthetic'};}export const authorizeRecovery=()=>{};export const createBackup=()=>({phrase:Array(12).fill('fixture').join(' '),address:'0x'+'7'.repeat(40)});export const restoreBackup=(phrase,address)=>{if(phrase!==Array(12).fill('fixture').join(' '))throw Error('Respaldo incorrecto');return {phrase,address};};export const backupPositions=()=>[0,1,2];export const verifyBackupWords=(p,positions,answers)=>answers.every(x=>x==='fixture');export const proveBackup=()=>{};"}));
   b.onLoad({filter:/@simplewebauthn[\\/]browser[\\/]/},()=>({contents:"export async function startRegistration(){window.stats.registrations=(window.stats.registrations||0)+1;return {id:'synthetic'};}"}));
@@ -92,6 +92,19 @@ const {chromium}=require('playwright');
   await page.getByRole('alert').waitFor();assert(await page.getByRole('button',{name:'Cancelar recuperación con mi dispositivo',exact:true}).isVisible());
   assert.equal(await page.locator('details[open]').count(),0);assert.equal(await page.evaluate(()=>window.stats.signs+window.stats.posts),0);checks++;
   await page.evaluate(()=>window.unmount());await page.waitForTimeout(40);await unchanged(tick);checks++;
+  await fixture('active',{recovery:{state:'external',id:'fixture-recovery',message:'Solicitud detectada'}});
+  await page.evaluate(()=>{window.hideSecurity=true;window.mount();});
+  await page.getByRole('button',{name:'Cancelar recuperación con mi dispositivo',exact:true}).waitFor();
+  assert.equal(await page.locator('details').count(),0);
+  assert.equal(await page.evaluate(()=>window.stats.signs+window.stats.posts),0);checks++;
+  await page.getByRole('button',{name:'Cancelar recuperación con mi dispositivo',exact:true}).click();
+  await page.waitForFunction(()=>window.stats.signs===1&&window.stats.posts===1);checks++;
+  await page.evaluate(()=>{window.recovery=null;window.mount();});
+  await page.waitForTimeout(100);assert.equal(await page.getByRole('alert').count(),0);assert.equal(await page.locator('button').count(),0);checks++;
+  await fixture('failed');await tick();await page.getByText('Revisión necesaria',{exact:true}).waitFor();
+  assert.equal(await page.locator('.blockchain-progress-track').count(),0);
+  assert.equal(await page.getByText('Operación detenida: revisa el mensaje',{exact:true}).count(),1);
+  assert.equal(await page.getByText('Minando en Optimism Sepolia',{exact:false}).count(),0);checks++;
   assert.deepEqual(errors,[]);console.log('PASS: '+checks+' interaction checks; no real signatures, accounts or transactions.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});

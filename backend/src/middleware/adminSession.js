@@ -4,15 +4,30 @@ const pool = require('../config/db');
 const roles = new Set(['superadmin', 'admin', 'auditor']);
 const mutates = method => !['GET', 'HEAD', 'OPTIONS'].includes(method.toUpperCase());
 function trustedOrigin(req) {
+    // Origin is a browser boundary, not proof of authentication. Never trust a
+    // Bearer-shaped string here: this helper also protects cookie admin sessions.
     const raw = req.headers.origin || req.headers.referer;
-    if (!raw) return false;
-    try {
-        const origin = new URL(raw).origin;
-        const allowed = [process.env.FRONTEND_URL, process.env.ADMIN_FRONTEND_URL,
-            'https://wintoncoin.com', 'https://admin.wintoncoin.com', 'https://demo.wintoncoin.com'];
-        if (process.env.NODE_ENV !== 'production') allowed.push('http://localhost:5173', 'http://localhost:3000');
-        return allowed.filter(Boolean).some(value => { try { return new URL(value).origin === origin; } catch { return false; } });
-    } catch { return false; }
+    if (!raw || typeof raw !== 'string') return false;
+    const production = process.env.NODE_ENV === 'production';
+    const normalize = value => {
+        try {
+            const url = new URL(value);
+            if (url.username || url.password) return null;
+            const local = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+            if (production && local) return null;
+            if (url.protocol !== 'https:' && !(local && !production && url.protocol === 'http:')) return null;
+            return url.origin;
+        } catch { return null; }
+    };
+    const origin = normalize(raw);
+    if (!origin) return false;
+    const allowed = [process.env.FRONTEND_URL, process.env.ADMIN_FRONTEND_URL,
+        'https://wintoncoin.com', 'https://www.wintoncoin.com',
+        'https://admin.wintoncoin.com', 'https://demo.wintoncoin.com',
+        'https://www.demo.wintoncoin.com', 'https://sc.wintoncoin.com',
+        'https://www.sc.wintoncoin.com'];
+    if (!production) allowed.push('http://localhost:5173', 'http://localhost:3000', 'http://127.0.0.1:3000');
+    return allowed.filter(Boolean).some(value => normalize(value) === origin);
 }
 async function verifySession(req, res, next, token = req.cookies?.admin_token) {
     res.setHeader?.('Cache-Control', 'no-store');

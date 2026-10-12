@@ -16,11 +16,26 @@ export default function AccountSecurity({onActivated, hideWhenActive = false}) {
   const [sessionExpired,setSessionExpired]=useState(false);
   const [activationState,setActivationState]=useState('unknown');
   const [migrating,setMigrating]=useState(false);
+  const [elapsedSeconds,setElapsedSeconds]=useState(0);
+  useEffect(()=>{
+    if(!operation||['unknown','authorization','stopped','confirmed'].includes(activationState)){setElapsedSeconds(0);return;}
+    const startTime=Date.now();
+    setElapsedSeconds(0);
+    const timer=setInterval(()=>{
+      setElapsedSeconds(Math.floor((Date.now()-startTime)/1000));
+    },1000);
+    return ()=>clearInterval(timer);
+  },[operation?.operationId,activationState]);
+  function formatElapsed(sec){
+    const m=Math.floor(sec/60).toString().padStart(2,'0');
+    const s=(sec%60).toString().padStart(2,'0');
+    return `${m}:${s}`;
+  }
   const inFlight=useRef(false),mounted=useRef(true);
   function startAction(){if(inFlight.current)return false;inFlight.current=true;setBusy(true);return true;}
   function endAction(){inFlight.current=false;if(mounted.current)setBusy(false);}
 
-  function reportError(e){if(!mounted.current)return;if(e.status===401)setSessionExpired(true);setMessage(e.message||'No pudimos conectar con el servicio. Comprueba tu conexión y vuelve a intentarlo.');}
+  function reportError(e){if(!mounted.current)return;if(e.status===401)setSessionExpired(true);const msg=e.message?.includes('Origen no autorizado')?'No se pudo autorizar esta página. Abre la dirección oficial de WintonCoin; si el problema continúa, contacta con soporte. No se completó esta solicitud.':e.message||'No pudimos conectar con el servicio. Comprueba tu conexión y vuelve a intentarlo.';setMessage(msg);}
   const refresh=async()=>{
     try {
       const c=await accountRequest('/status');if(!mounted.current)return null;
@@ -125,7 +140,7 @@ export default function AccountSecurity({onActivated, hideWhenActive = false}) {
   const dismissedSuccess=successKey&&dismissedKey===successKey;
   const currentStep = isActive ? 4 : operation ? 4 : stage === 'device' ? 3 : (stage === 'check' || stage === 'resume' || stage === 'discard') ? 2 : 1;
 
-  if (isActive && hideWhenActive) return null;
+  if (isActive && hideWhenActive) return <PersonalRecovery context={context} onRecovered={refresh} alertsOnly />;
 
   return <section id="account-security" className={`account-security ${isActive ? 'account-security-active' : ''}`} aria-labelledby="account-security-title">
     <h2 id="account-security-title">Seguridad y recuperación</h2>
@@ -188,14 +203,45 @@ export default function AccountSecurity({onActivated, hideWhenActive = false}) {
       <button disabled={busy}>{busy?'Preparando registro…':'Confirmar palabras y continuar'}</button>
       <button type="button" disabled={busy} onClick={()=>setStage('show')}>Revisar palabras</button>
     </form>}
-    {operation&&(
+    {operation&&!isActive&&(
       <div className="activation-pending-banner">
         <div className="security-current-step-badge"><span className="step-badge-pill">Paso 4 de 4</span><strong>{activationState==='authorization'?(migrating?'Autoriza la actualización de tu billetera':'Autoriza la activación de tu billetera'):(migrating?'Actualizando tu billetera':'Activando tu billetera')}</strong></div>
-        <p className="activation-pending-title">{activationState==='authorization'?'Falta tu confirmación':activationState==='stopped'?'La activación necesita revisión':'Activación de tu billetera'}</p>
+        <p className="activation-pending-title">{activationState==='authorization'?'Falta tu confirmación':activationState==='stopped'?'La activación necesita revisión':'Activación de tu billetera en blockchain'}</p>
+
+        {/* Reloj y Temporizador de Blockchain */}
+        <div className="blockchain-wait-card">
+          <div className="blockchain-timer-header">
+            <div className="blockchain-clock-pulse">
+              <span className="clock-icon-rotating" aria-hidden="true">⏱️</span>
+              <span className="blockchain-timer-digits">{activationState==='waiting'?formatElapsed(elapsedSeconds):'—'}</span>
+            </div>
+            <div className="blockchain-timer-estimate">
+              <span>Tiempo de seguimiento en esta pantalla</span>
+              <div style={{color:'#38bdf8',fontWeight:600}}>La duración depende del estado de la operación</div>
+            </div>
+          </div>
+
+          {activationState==='waiting'&&<div className="blockchain-progress-track" aria-hidden="true">
+            <div className="blockchain-progress-bar"></div>
+          </div>}
+
+          <div className="blockchain-wait-status">
+            <span className="status-beacon-live"></span>
+            <span>{activationState==='authorization'?'Esperando tu autorización':activationState==='stopped'?'Operación detenida: revisa el mensaje':activationState==='waiting'?'Esperando la confirmación del servicio':'Consultando el estado de la operación'}</span>
+          </div>
+        </div>
+
+        {activationState==='authorization'&&(
+          <div className="blockchain-action-required-card">
+            <strong>👉 Acción requerida para continuar:</strong>
+            <p style={{margin:'4px 0 0',fontSize:'.85rem'}}>{migrating?'Revisa y autoriza la actualización de tu billetera para conservar tu saldo.':'Pulsa el botón para revisar y autorizar el siguiente paso de activación.'}</p>
+          </div>
+        )}
+
         <p className="activation-pending-desc">
-          {activationState==='authorization'?'Tu nueva bóveda digital ya está lista. Confirma el siguiente paso para trasladar tu saldo de forma protegida.':activationState==='stopped'?'La operación requiere una breve revisión. Puedes pulsar el botón abajo para consultar su estado.':'Estamos configurando tu nueva bóveda protegida. La operación se procesa automáticamente en segundo plano. Puedes pulsar el botón abajo para comprobar el estado de inmediato.'}
+          {activationState==='authorization'?'Tu confirmación es necesaria para finalizar el proceso y asegurar tus fondos.':activationState==='stopped'?'La operación requiere una breve revisión. Puedes pulsar el botón abajo para consultar su estado.':'Consultamos el estado periódicamente mientras esta pantalla está visible. Puedes volver después y retomar la misma operación; el contador solo mide este período de seguimiento, no el tiempo total desde su creación.'}
         </p>
-        <button disabled={busy||sessionExpired} onClick={()=>checkActivation(true)}>{busy?'Comprobando…':activationState==='authorization'?(migrating?'Actualizar billetera y conservar saldo':'Confirmar siguiente paso'):'Consultar o continuar activación'}</button>
+        <button className={activationState==='authorization'?'btn-action-highlight':''} disabled={busy||sessionExpired} onClick={()=>checkActivation(true)}>{busy?'Comprobando…':activationState==='authorization'?(migrating?'Actualizar billetera y conservar saldo':'Confirmar siguiente paso'):'Consultar o continuar activación'}</button>
       </div>
     )}
     {isActive&&!dismissedSuccess&&(
