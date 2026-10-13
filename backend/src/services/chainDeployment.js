@@ -1,7 +1,7 @@
 'use strict';
 const {readFileSync}=require('fs');
 const path=require('path');
-const {JsonRpcProvider, Contract, getAddress, keccak256, toUtf8Bytes}=require('ethers');
+const {Contract, getAddress, keccak256, toUtf8Bytes}=require('ethers');
 const keys={CoreProtocol:'CORE_PROTOCOL_ADDRESS',CollateralVault:'COLLATERAL_VAULT_ADDRESS',FifoExchange:'FIFO_EXCHANGE_ADDRESS',BlueToken:'BLUE_TOKEN_ADDRESS',RedToken:'RED_TOKEN_ADDRESS',USDT:'USDT_TOKEN_ADDRESS',ProtocolTreasury:'PROTOCOL_TREASURY_ADDRESS'};
 function configuration(env=process.env) {
     const manifest=JSON.parse(readFileSync(path.resolve(__dirname,'../../../web3-contracts/deployment-manifest-v4.json'),'utf8'));
@@ -23,7 +23,11 @@ function configuration(env=process.env) {
     const fingerprint=keccak256(toUtf8Bytes(JSON.stringify({chainId,contracts})));
     return {chainId,contracts,fingerprint};
 }
-function provider() { return new JsonRpcProvider(process.env.OPTIMISM_RPC_URL || 'http://127.0.0.1:8545'); }
+function provider() {
+    const {ChainRpcProvider,endpoints}=require('./chainRpcProvider');
+    const config=configuration();
+    return new ChainRpcProvider(endpoints(process.env,config.chainId),config.chainId);
+}
 async function validate(rpc,config=configuration()) {
     if(String((await rpc.getNetwork()).chainId)!==config.chainId)throw new Error('La red no corresponde al despliegue configurado.');
     for(const address of Object.values(config.contracts))if(await rpc.getCode(address)==='0x')throw new Error('No se encontró un contrato del despliegue.');

@@ -13,6 +13,22 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-13 — Backend & Frontend: Respaldo RPC Automático (Failover) con Inmutabilidad Criptográfica y Timeout Protector para Pagos y Administración
+* **Diagnóstico & Causa Raíz (Timeouts en Resumen de Pagos y 503 en Admin Web3)**:
+  - Las peticiones de consulta on-chain en el backend dependían de un único endpoint RPC primario (`OPTIMISM_RPC_URL`) sin timeout estricto ni conmutación ante fallos.
+  - La congestión o congelamiento del nodo primario de Optimism Sepolia provocaba que las llamadas on-chain demoraran más de 55 segundos o cayeran en timeout, bloqueando la carga del desglose financiero en el modal de Marketplace y arrojando HTTP 503 en `/api/web3/status`.
+* **Resoluciones Técnicas Implementadas**:
+  - *`backend/src/services/chainRpcProvider.js`*: Proveedor JSON-RPC institucional centralizado (`ChainRpcProvider`) con timeout estricto de 5 segundos y lista de conexiones (`endpoints`). Ante errores de transporte (`TIMEOUT`, `ECONNREFUSED`, `SERVER_ERROR`) o saturación (`-32005`), conmuta inmediatamente al nodo de respaldo verificado (`https://optimism-sepolia-rpc.publicnode.com` en Demo) y recuerda el nodo saludable durante 30 segundos.
+  - *Inmutabilidad Criptográfica & Prevención de Replay*: Si una transacción firmada (`eth_sendRawTransaction`) sufre fallo de transporte, se retransmiten con total fidelidad exactamente los mismos bytes (`rawTx`) sin alterar nonces ni generar firmas nuevas.
+  - *Preservación de Errores de Negocio*: Los reverts de contratos y redes incorrectas (`NETWORK_MISMATCH`) **no** se reintentan para no enmascarar reglas de gobernanza o seguridad bancaria.
+  - *Sanitización*: Los errores y trazas nunca filtran credenciales o URLs de nodos en logs o respuestas al cliente.
+  - *Frontend (`AdminWeb3Panel.jsx` & `pinOperations.js`)*: Adición de timeouts de 30s en consultas de estatus administrativo y discriminación de errores HTTP 401/403 frente a 503, evitando falsas alertas de sesión vencida.
+* **Verificación y Seguridad**:
+  - Backend: `npm test -- backend/__tests__/chainRpcProvider.test.js` → 8/8 tests PASS (failover verificado, rechazo de red incorrecta, reintento sin alteración de bytes, auditoría de logs sin credenciales).
+  - Frontend: `npm run test:account-security` → 5/5 suites PASS (incluyendo `check-admin-status.cjs` y `check-publication-payment.cjs`).
+  - React Reference Check: `npm run check:react` → 54 componentes revisados; 0 referencias sin declarar.
+  - Compilación: `npm run build:demo` → Código 0 en 27.32s, 176 activos precacheados.
+
 ### 2026-10-13 — Protocolo & Backend: Habilitación On-Chain de KYC para ProtocolTreasury y Preflight HTTP 503 Protector
 * **Diagnóstico & Causa Raíz (On-Chain CoreProtocol en Optimism Sepolia)**:
   - En `CoreProtocol.sol`, la función interna `_processPayment` exige irrevocablemente `require(isKYCVerified[treasury], "Treasury KYC required")` ante pagos que generan comisiones (`fee > 0`).

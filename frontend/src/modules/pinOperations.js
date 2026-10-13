@@ -19,7 +19,7 @@ export async function operationRequest(path,body) {
     if(!response.ok)throw Object.assign(new Error(data.message||'No se pudo comprobar la operación.'),{status:response.status});
     return data;
     } catch(e) {
-        if(e.name==='AbortError')throw Object.assign(new Error('El servicio tardó demasiado en responder. Consulta el estado de esta misma operación antes de volver a autorizar.'),{uncertain:Boolean(body)});
+        if(e.name==='AbortError')throw Object.assign(new Error(path==='/marketplace/terms'&&!body?'No pudimos consultar las condiciones del pago a tiempo. No se ha enviado un pago desde este resumen. Intenta nuevamente.':'El servicio tardó demasiado en responder. Consulta el estado de esta misma operación antes de volver a autorizar.'),{uncertain:Boolean(body)});
         throw e;
     } finally {clearTimeout(timer);}
 }

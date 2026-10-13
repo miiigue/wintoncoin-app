@@ -30,7 +30,6 @@ try {
 }
 
 // Variables de entorno con fallback al manifiesto V4
-const RPC_URL = process.env.OPTIMISM_RPC_URL || 'http://127.0.0.1:8545';
 const RELAYER_PK = process.env.RELAYER_PRIVATE_KEY;
 
 const verifiedAddresses = require('./chainDeployment').configuration().contracts;
@@ -48,7 +47,7 @@ class Web3BridgeService {
             console.warn('[WEB3 BRIDGE] ⚠️ RELAYER_PRIVATE_KEY o CORE_PROTOCOL_ADDRESS no configurados completamente. Las operaciones que requieran estas credenciales no están disponibles. No se simulan saldos.');
         }
 
-        this.provider = new ethers.JsonRpcProvider(RPC_URL);
+        this.provider = require('./chainDeployment').provider();
         this.wallet = RELAYER_PK ? new NonceManager(new ethers.Wallet(RELAYER_PK, this.provider)) : null;
 
         // ABIs de la Suite V4

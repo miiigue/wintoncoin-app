@@ -23,6 +23,7 @@ export default function AdminWeb3Panel() {
   const [activeTab, setActiveTab] = useState('directory'); // 'directory', 'governance', 'auditor', 'sandbox'
   const [statusData, setStatusData] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
+  const [statusError, setStatusError] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [recoveryId,setRecoveryId]=useState('');
@@ -74,31 +75,25 @@ export default function AdminWeb3Panel() {
 
   // Carga inicial del estado del protocolo
   const fetchStatus = async () => {
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),30000);
+    setLoadingStatus(true);
+    setStatusError('');
     try {
-      setLoadingStatus(true);
-      const API_URL = getApiUrl();
-
-      
-      const res = await fetch(`${API_URL}/api/admin/web3/status`, {
-        credentials: 'include',
-        headers: {
-
-          'Content-Type': 'application/json'
-        }
+      const res=await fetch(`${getApiUrl()}/api/admin/web3/status`,{
+        credentials:'include',cache:'no-store',signal:controller.signal,
+        headers:{'Content-Type':'application/json'}
       });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success !== true) throw new Error(data.error || "Estado Web3 no disponible");
-        setStatusData(data);
-      } else {
-        console.warn("Servicio Web3 no disponible o sesión administrativa expirada.");
-        setStatusData(null);
-      }
-    } catch (err) {
-      console.error("Error al cargar estado Web3:", err);
+      if(res.status===401||res.status===403)throw new Error('Tu sesión administrativa no está autorizada. Vuelve a iniciar sesión como administrador.');
+      if(!res.ok)throw new Error(`El servidor no pudo consultar los contratos (HTTP ${res.status}). Reintenta la conexión; si continúa, revisa el acceso del servidor a blockchain.`);
+      const data=await res.json();
+      if(data.success!==true)throw new Error('No se pudo comprobar el estado de los contratos. Reintenta la conexión.');
+      setStatusData(data);
+    }catch(err){
       setStatusData(null);
-    } finally {
+      setStatusError(err.name==='AbortError'?'La consulta tardó más de 30 segundos. Puedes reintentar la conexión.':err.message);
+    }finally{
+      clearTimeout(timer);
       setLoadingStatus(false);
     }
   };
@@ -431,10 +426,10 @@ export default function AdminWeb3Panel() {
           backdropFilter: 'blur(10px)',
         }}>
           <div style={{ fontWeight: 800, fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span>⚠️</span> Servicio Web3 Desconectado o Sesión Administrativa Expirada
+            <span>⚠️</span> No pudimos consultar los contratos
           </div>
           <div style={{ fontSize: '0.84rem', color: '#cbd5e1', lineHeight: '1.45' }}>
-            No se pudo obtener el estado en vivo de los contratos desde el backend (/api/admin/web3/status). Asegúrate de haber iniciado sesión como administrador y que el nodo RPC o relayer esté activo.
+            {statusError || 'Reintenta la conexión para comprobar el estado de los contratos.'}
           </div>
           <button
             onClick={fetchStatus}
