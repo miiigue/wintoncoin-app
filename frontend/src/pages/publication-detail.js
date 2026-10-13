@@ -3,6 +3,9 @@
  * Handles viewing and interacting with a single publication
  */
 
+import {publicationKycWarning} from '../modules/publicationKyc.js';
+import {web3OnChainService} from '../modules/web3OnChainService.js';
+import {operationRequest} from '../modules/pinOperations.js';
 import {authorizeMarketplace} from '../components/MarketplaceAuthorization.jsx';
 import { getApiUrl, showCustomAlert, showCustomConfirm, linkify, escapeHtml, escapeAttr, fetchAndStoreAppSettings, appSettings, silentRefreshIfNeeded, handleSessionExpired } from '../modules/index.js';
 
@@ -23,9 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id=sessionStorage.getItem(recoveryKey);if(!id||recoveringPayment)return;
         recoveringPayment=true;
         try {
-            const response=await fetch(API_URL+'/api/me/operations/marketplace/'+id,{credentials:'include',headers:storedToken?{Authorization:'Bearer '+storedToken}:{},cache:'no-store'});
-            const result=await response.json();
-            if(!response.ok)throw new Error(result.message);
+            const result=await operationRequest('/marketplace/'+id);
             if(result.authorization){const authorized=await authorizeMarketplace(id);if(authorized)setTimeout(recoverPayment,5000);return;}
             if(result.settled){sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();}
             else if(['failed','conflict'].includes(result.state)){if(result.state==='failed')sessionStorage.removeItem(recoveryKey);showCustomAlert(result.message+' Referencia: '+id);}
@@ -146,6 +147,16 @@ document.addEventListener('DOMContentLoaded', () => {
             window.currentPlatformSettings = platformSettings;
             renderPublication(publication, platformSettings);
             setupEventListeners();
+            // The publication requires KYC; the warning depends on this viewer.
+            if(publication.requires_kyc_to_accept){
+                const badge=elements.container.querySelector('.kyc-notice-badge');
+                if(badge)void (async()=>{
+                    try {
+                        const show=await publicationKycWarning(web3OnChainService);
+                        if(badge.isConnected)badge.hidden=show!==true;
+                    }catch{}
+                })();
+            }
 
             // [AUTOCUSTODIA PRE-FLIGHT] Consultar de forma anticipada el estado del PIN del usuario
             if (activeToken) {
@@ -747,7 +758,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'not_participating':
                     default:
                         if (pub.available_slots > 0 && !pub.is_paused) {
-                            const kycNotice = pub.requires_kyc_to_accept ? `<div class="kyc-notice-badge" style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#fef08a;padding:8px 12px;border-radius:8px;font-size:0.85rem;margin-bottom:10px;text-align:center;">🔒 Esta tarea se liquida en blockchain y requiere verificación de identidad (KYC) aprobada.</div>` : '';
+                            const kycNotice = pub.requires_kyc_to_accept ? `<div class="kyc-notice-badge" hidden style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#fef08a;padding:8px 12px;border-radius:8px;font-size:0.85rem;margin-bottom:10px;text-align:center;">🔒 Esta tarea se liquida en blockchain y requiere verificación de identidad (KYC) aprobada.</div>` : '';
                             acceptButtonHTML = `${kycNotice}<button class="action-button accept" data-action="accept">${verb}</button>`;
                         } else if (pub.is_paused) {
                             messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;

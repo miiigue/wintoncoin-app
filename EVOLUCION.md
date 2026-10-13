@@ -13,6 +13,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-12 — Frontend Móvil: Resilencia de Autorización de Marketplace (Timeout y Anti-Atasco tras Passkey) y Aviso Dinámico de KYC
+* **Diagnóstico & Causa Raíz (Capturas Móviles de Miguel)**:
+  - *Atasco en "Confirmando..." tras firma*: En `pinOperations.js`, las peticiones a `/api/me/operations/marketplace/:id` carecían de `AbortController`. Ante latencia o fluctuación de red móvil tras la firma WebAuthn, la promesa quedaba suspendida sin resolver, dejando la interfaz en estado infinito de confirmación.
+  - *Falsa alarma de KYC*: En `publication-detail.js`, la insignia de advertencia de KYC se mostraba estáticamente para cualquier usuario, incluso si ya contaba con KYC aprobado on-chain.
+* **Resoluciones Técnicas Implementadas**:
+  - *`pinOperations.js`*: Adición de `AbortController` con timeout de 45 segundos, control explícito de estados inciertos y re-consulta del mismo identificador sin reenvío duplicado.
+  - *`MarketplaceAuthorization.jsx`*: Flujo desacoplado en tres etapas explícitas (`reading` -> `signing` -> `relaying`), timeout de 90s para firmas WebAuthn/passkey, prevención estricta de doble-click mediante `submittingRef`, comparación del resumen EIP-712 por digest y habilitación del botón "Cerrar" en resultados inciertos para re-consultar el mismo `operationId` sin emitir firmas redundantes.
+  - *`publicationKyc.js` & `publication-detail.js`*: El badge `kyc-notice-badge` inicia oculto (`hidden`). Se consulta el estado on-chain real de la billetera del usuario mediante `web3OnChainService.fetchUserOnChainState()` y se expone el aviso únicamente si `isKYCVerified === false`. Si el estado es desconocido o hay error de red, no se alarma ni se bloquea la UI preventivamente.
+* **Impacto y Verificación**:
+  - `npm run test:account-security --prefix frontend`: 36/36 PASS (8 mnemónicas, 23 UI y 5 casos nuevos de autorización de marketplace y KYC en `check-marketplace-authorization.cjs`).
+  - `npm run test:wallet --prefix frontend`: 4/4 PASS.
+  - `npm run build:demo --prefix frontend`: Compilación Vite aprobada con código de salida 0 en 25.78s (104 módulos, 176 recursos precacheados).
+
 ### 2026-10-12 — Cumplimiento AML: KYC obligatorio para aceptar tareas con pago en blockchain
 * **Regla de negocio (instrucción de Miguel)**: con el prelanzamiento **desactivado**, un usuario sin KYC aprobado no puede aceptar tareas cuyo pago se liquida en blockchain. Única excepción: tareas creadas por la cuenta de la Plataforma con pago BLUE IOU off-chain (`is_booster_task = true`). Con prelanzamiento activo todo el pago es BLUE IOU off-chain y no se exige KYC.
 * **Backend (`publicationController.js`)**:
