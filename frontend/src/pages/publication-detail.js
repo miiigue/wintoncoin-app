@@ -35,7 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if(result.settled){sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();}
             else if(['failed','conflict'].includes(result.state)){if(result.state==='failed')sessionStorage.removeItem(recoveryKey);showCustomAlert(result.message+' Referencia: '+id);}
             else setTimeout(recoverPayment,5000);
-        }catch{showCustomAlert('No se pudo consultar el pago. Conservamos su referencia para recuperarlo al volver a esta página.');}
+        }catch(e){showCustomAlert((e.message||'No se pudo consultar el pago.')+' Conservamos su referencia para consultar nuevamente.');}
         finally{recoveringPayment=false;}
     }
     setTimeout(recoverPayment,1000);

@@ -126,6 +126,11 @@ async function main() {
     const txProtocol = await protocol.setContracts(blueAddress, redAddress, treasuryAddress, vaultAddress);
     await txProtocol.wait();
     await (await treasury.setCoreProtocol(protocolAddress)).wait();
+    // System recipient deployed and linked above; this is not approval of a user identity.
+    await (await protocol.setKYCStatus(treasuryAddress, true)).wait();
+    if (!await protocol.isKYCVerified(treasuryAddress)) {
+        throw new Error("La tesorería oficial no quedó habilitada para comisiones");
+    }
     console.log("   ✅ CoreProtocol configurado con Blue, Red, Treasury y Vault");
 
     // Configuración de Relayer

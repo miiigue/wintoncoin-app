@@ -13,6 +13,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-13 — Protocolo & Backend: Habilitación On-Chain de KYC para ProtocolTreasury y Preflight HTTP 503 Protector
+* **Diagnóstico & Causa Raíz (On-Chain CoreProtocol en Optimism Sepolia)**:
+  - En `CoreProtocol.sol`, la función interna `_processPayment` exige irrevocablemente `require(isKYCVerified[treasury], "Treasury KYC required")` ante pagos que generan comisiones (`fee > 0`).
+  - En el despliegue de Optimism Sepolia de Demo, el pagador y el cobrador poseían KYC aprobado, pero el contrato de la tesorería oficial (`0x0962E79b66e2F17F4069f1E7C2A6f3ad37914cE8`) se encontraba en `isKYCVerified == false`.
+  - Con una comisión estándar del 4% (`commissionBps = 400`), cualquier pago en Marketplace con comisión revertía de forma inmediata e inevitable al liquidar en el contrato inteligente tras la firma Passkey.
+* **Resoluciones Implementadas**:
+  - *Acción Administrativa On-Chain*: Ejecutada llamada `setKYCStatus(0x0962E79b66e2F17F4069f1E7C2A6f3ad37914cE8, true)` en `CoreProtocol` desde la cuenta dueña (`0x7d2C6c16EDe986a8bea0204A9824b4C264256C77`). Verificado on-chain vía RPC: `TREASURY_KYC_STATUS: true`.
+  - *`backend/src/services/marketplacePreflight.js`*: Función `assertTreasuryReady(core, amount, feeBps)` que comprueba preventivamente on-chain que la tesorería tenga KYC activo antes de solicitar la firma al usuario en `begin()` o antes de despachar en `authorize()`. Ante omisión, responde de inmediato con HTTP 503 (`TREASURY_KYC_REQUIRED`) evitando firmas innecesarias y estados inciertos.
+  - *`frontend/src/pages/publication-detail.js`*: Manejo transparente que expone el mensaje de error del servidor en lugar de alertar sobre timeouts genéricos.
+  - *`web3-contracts/scripts/deploy-v4-suite.js`*: Automatización del alta de KYC del contrato de la tesorería inmediatamente después del despliegue para inmunizar futuros entornos contra esta omisión.
+* **Verificación y Suites**:
+  - On-chain: `core.isKYCVerified(treasury) == true` comprobado en nodo Optimism Sepolia.
+  - Backend: `npm test -- backend/__tests__/marketplacePreflight.test.js backend/__tests__/marketplaceExpiry.test.js backend/__tests__/publicationPayment.test.js` → 3/3 suites PASS (5/5 tests). 129 módulos auditados.
+  - Frontend: `npm run test:account-security` → 36/36 checks PASS. `npm run check:react` → 54/54 PASS. `npm run build:demo` → Código 0 en 25.89s (176 activos PWA).
+
 ### 2026-10-13 — Backend & Frontend: Detección Determinista de Expiración de Pagos Marketplace sin Escrituras por GET y Salida Limpia de UI
 * **Diagnóstico & Causa Raíz (Operación Demo `c567eae0`)**:
   - La operación de pago quedó en estado `prepared` con 0 pasos ejecutados y con su `deadline` on-chain vencido (21:46:00Z) sin que se hubiese enviado ninguna transacción a la red.
