@@ -115,6 +115,10 @@ class MarketplacePayments {
   const row=await this.store.get(operationId);
   if(row.kind!=='marketplace'||row.payload.payerId!==userId)throw error('Pago no encontrado.',404);
   const settled=(await this.journalPool.query('SELECT 1 FROM marketplace_payment_settlements WHERE operation_id=$1',[row.id])).rowCount>0;
+  if(row.state==='prepared'&&row.steps.length===0&&row.payload.authorization&&!settled){
+   const block=await this.rpc.getBlock('latest');
+   if(require('./marketplaceExpiry').canRenewUnsentPayment(row,block?.timestamp,settled))return {...publicResult(row),state:'expired',authorization:null,success:false,settled:false,canRenew:true,message:'El resumen de este pago venció sin registrar un envío. Vuelve a pulsar Confirmar pago en la publicación para revisar un resumen actualizado y autorizarlo.'};
+  }
   return {...publicResult(row),authorization:row.state==='prepared'?{domain:{name:'WintonCore',version:'4',chainId:this.config.chainId,verifyingContract:row.payload.core},types,primaryType:'Payment',message:row.payload.authorization}:null,success:settled,settled,message:settled?'Pago confirmado y registrado.':row.state==='failed'?'El contrato rechazó este intento. Puedes abrir el resumen y autorizar otro intento en tu dispositivo.':row.state==='conflict'?'El pago necesita revisión. Conserva esta referencia; no se enviará un pago nuevo automáticamente.':'Pago registrado. Espera la confirmación y actualización de la publicación; no repitas el pago.'};
  }
  async close(){if(!this.options.journalPool)await this.journalPool.end();}

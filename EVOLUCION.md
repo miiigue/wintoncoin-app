@@ -13,6 +13,21 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-13 — Backend & Frontend: Detección Determinista de Expiración de Pagos Marketplace sin Escrituras por GET y Salida Limpia de UI
+* **Diagnóstico & Causa Raíz (Operación Demo `c567eae0`)**:
+  - La operación de pago quedó en estado `prepared` con 0 pasos ejecutados y con su `deadline` on-chain vencido (21:46:00Z) sin que se hubiese enviado ninguna transacción a la red.
+  - Al consultar el estado del pago, el backend devolvía la autorización caducada y el frontend entraba en un bucle permanente de consulta/recuperación sin ofrecer al usuario un mecanismo para descartar la preparación caducada y reintentar el pago.
+* **Resoluciones Técnicas Implementadas**:
+  - *`backend/src/services/marketplaceExpiry.js`*: Función pura determinista `canRenewUnsentPayment(row, blockTimestamp, settled)` que valida que la operación esté en `prepared`, con 0 pasos, sin liquidar (`!settled`), y que el timestamp del bloque de la cadena haya superado el `deadline` numérico seguro. Si el RPC falla o no hay timestamp verificado, no se infiere expiración (principio fail-closed).
+  - *`backend/src/services/marketplacePayments.js`*: En `status()`, si `canRenewUnsentPayment` es verdadero, responde con `state: 'expired'`, `authorization: null`, `canRenew: true` y mensaje amigable de renovación. Cumple con auditoría bancaria y SOC 2: **cero escrituras en base de datos mediante peticiones GET**.
+  - *`frontend/src/pages/publication-detail.js`*: En `recoverPayment()`, ante `state === 'expired'` y `canRenew === true`, purga las claves temporales `recoveryKey` y `donationKey` del `sessionStorage` y presenta una alerta explicativa para que el usuario pueda volver a presionar "Confirmar pago" y generar un nuevo resumen con cotizaciones vigentes.
+  - *`frontend/src/components/MarketplaceAuthorization.jsx`*: Conserva y exhibe el código y mensaje HTTP devueltos por el servidor ante fallos de autorización para facilitar el diagnóstico operativo sin asumir timeout generalizado.
+* **Verificación y Seguridad**:
+  - Backend: `npm test -- backend/__tests__/marketplaceExpiry.test.js backend/__tests__/publicationPayment.test.js` → 2/2 suites PASS (3/3 tests). 128 módulos auditados sin fallos síncronos.
+  - Frontend: `npm run test:account-security --prefix frontend` → 36/36 checks PASS.
+  - React Reference Check: `npm run check:react --prefix frontend` → 54 componentes revisados; 0 referencias sin declarar.
+  - Compilación: `npm run build:demo --prefix frontend` → Código 0 (Exitoso) en 24.98s, 176 activos precacheados en Service Worker PWA.
+
 ### 2026-10-12 — Frontend Móvil: Resilencia de Autorización de Marketplace (Timeout y Anti-Atasco tras Passkey) y Aviso Dinámico de KYC
 * **Diagnóstico & Causa Raíz (Capturas Móviles de Miguel)**:
   - *Atasco en "Confirmando..." tras firma*: En `pinOperations.js`, las peticiones a `/api/me/operations/marketplace/:id` carecían de `AbortController`. Ante latencia o fluctuación de red móvil tras la firma WebAuthn, la promesa quedaba suspendida sin resolver, dejando la interfaz en estado infinito de confirmación.

@@ -27,6 +27,10 @@ document.addEventListener('DOMContentLoaded', () => {
         recoveringPayment=true;
         try {
             const result=await operationRequest('/marketplace/'+id);
+            if(result.state==='expired'&&result.canRenew===true){
+                sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);
+                showCustomAlert(result.message);return;
+            }
             if(result.authorization){const authorized=await authorizeMarketplace(id);if(authorized)setTimeout(recoverPayment,5000);return;}
             if(result.settled){sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();}
             else if(['failed','conflict'].includes(result.state)){if(result.state==='failed')sessionStorage.removeItem(recoveryKey);showCustomAlert(result.message+' Referencia: '+id);}

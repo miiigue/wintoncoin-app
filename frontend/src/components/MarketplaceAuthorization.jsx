@@ -31,7 +31,7 @@ function Dialog({id,quote,onClose}) {
       const result=await operationRequest('/marketplace/'+id+'/authorize',{signature});
       onClose(result);
     }catch(e){
-      if(submitting){setCheckOnly(true);setMessage('No pudimos confirmar el resultado del envío. Consulta este mismo pago; no lo repitas. Referencia: '+id);}
+      if(submitting){setCheckOnly(true);setMessage((e.status?'El servidor respondió: '+e.message+' ':'No pudimos confirmar el resultado del envío. ')+'Consulta este mismo pago antes de repetirlo. Referencia: '+id);}
       else setMessage(e.message||'No se pudo completar la autorización.');
     }finally{inFlight.current=false;setBusy(false);}
   }

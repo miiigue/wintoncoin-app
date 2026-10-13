@@ -17,7 +17,7 @@ const esbuild=require('esbuild');const {chromium}=require('playwright');
   await assert.rejects(operationRequest('/marketplace/fixture'),e=>e.uncertain===false);
  }finally{global.fetch=originalFetch;global.setTimeout=originalTimer;global.localStorage=originalStorage;}
  const built=await esbuild.build({stdin:{resolveDir:root,loader:'jsx',contents:"import {authorizeMarketplace} from './src/components/MarketplaceAuthorization.jsx';window.openPayment=()=>authorizeMarketplace('fixture').then(r=>window.result=r);"},bundle:true,write:false,plugins:[{name:'fixtures',setup(b){
- b.onLoad({filter:/pinOperations\.js$/},()=>({contents:`const quote={authorization:{domain:{name:'fixture',version:'1',chainId:1,verifyingContract:'0x'+'1'.repeat(40)},types:{Payment:[{name:'amount',type:'uint256'},{name:'feeBps',type:'uint256'},{name:'payee',type:'address'}]},message:{amount:'200',feeBps:'400',payee:'0x'+'2'.repeat(40)}}};export async function operationRequest(p,body){if(body){window.posts++;if(window.failPost)throw Error('timeout');return {state:'pending'};}return quote;}`}));
+ b.onLoad({filter:/pinOperations\.js$/},()=>({contents:`const quote={authorization:{domain:{name:'fixture',version:'1',chainId:1,verifyingContract:'0x'+'1'.repeat(40)},types:{Payment:[{name:'amount',type:'uint256'},{name:'feeBps',type:'uint256'},{name:'payee',type:'address'}]},message:{amount:'200',feeBps:'400',payee:'0x'+'2'.repeat(40)}}};export async function operationRequest(p,body){if(body){window.posts++;if(window.failPost)throw Error('timeout');return {state:'pending'};}if(window.expired)return {state:'expired',canRenew:true,authorization:null};return quote;}`}));
  b.onLoad({filter:/recoverableAccount\.js$/},()=>({contents:"export async function signMarketplace(){window.signs++;if(window.hangSign)return new Promise(r=>window.finishSign=()=>r('synthetic'));return 'synthetic';}"}));
  b.onLoad({filter:/\.css$/},()=>({contents:'',loader:'js'}));
  }}]});
@@ -29,6 +29,7 @@ const esbuild=require('esbuild');const {chromium}=require('playwright');
  await page.getByRole('button',{name:'Cerrar',exact:true}).click();assert.equal(await page.getByRole('dialog').count(),0);
  await start({hangSign:true});await page.getByRole('button',{name:'Confirmar con mi dispositivo',exact:true}).click();await page.getByText('No se completó la firma a tiempo.',{exact:false}).waitFor();await page.evaluate(()=>window.finishSign());await page.waitForTimeout(50);assert.equal(await page.evaluate(()=>window.posts),0);
  await start();await page.getByRole('button',{name:'Confirmar con mi dispositivo',exact:true}).evaluate(b=>{b.click();b.click();});await page.waitForFunction(()=>window.result?.state==='pending');assert.equal(await page.evaluate(()=>window.posts),1);assert.deepEqual(errors,[]);
+ await start();await page.evaluate(()=>window.expired=true);await page.getByRole('button',{name:'Confirmar con mi dispositivo',exact:true}).click();await page.waitForFunction(()=>window.result?.state==='expired');assert.equal(await page.evaluate(()=>window.posts+window.signs),0);
  console.log('PASS: 5 viewer KYC cases; uncertain payment no resubmit, close, late signature no submit, double-click one submit. Synthetic only.');
  }finally{await browser.close();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
