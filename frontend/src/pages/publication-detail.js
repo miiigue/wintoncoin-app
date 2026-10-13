@@ -747,7 +747,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     case 'not_participating':
                     default:
                         if (pub.available_slots > 0 && !pub.is_paused) {
-                            acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb}</button>`;
+                            const kycNotice = pub.requires_kyc_to_accept ? `<div class="kyc-notice-badge" style="background:rgba(234,179,8,0.1);border:1px solid rgba(234,179,8,0.3);color:#fef08a;padding:8px 12px;border-radius:8px;font-size:0.85rem;margin-bottom:10px;text-align:center;">🔒 Esta tarea se liquida en blockchain y requiere verificación de identidad (KYC) aprobada.</div>` : '';
+                            acceptButtonHTML = `${kycNotice}<button class="action-button accept" data-action="accept">${verb}</button>`;
                         } else if (pub.is_paused) {
                             messageHTML = `<div class="status-pending">El autor ha pausado las nuevas solicitudes para esta tarea.</div>`;
                         } else {
@@ -1412,6 +1413,15 @@ Puedes ver los detalles aquí:`;
                             }
                         );
                     });
+                }
+
+                // Interceptar bloqueo por KYC obligatorio para pagos on-chain (Cumplimiento AML / FinTech)
+                if (response.status === 403 && (result.code === 'KYC_REQUIRED_FOR_ONCHAIN_TASKS' || result.requires_kyc)) {
+                    showCustomConfirm(
+                        (result.message || 'Para aceptar tareas con pago en blockchain debes tener tu verificación de identidad (KYC) aprobada.') + '\n\n¿Deseas ir a tu Billetera para completar tu verificación?',
+                        () => { window.location.href = 'wallet.html'; }
+                    );
+                    return null;
                 }
 
                 showCustomAlert(result.message || `Error en el servidor: ${response.status}`);

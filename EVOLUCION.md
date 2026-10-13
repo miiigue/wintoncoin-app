@@ -13,6 +13,35 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-12 — Cumplimiento AML: KYC obligatorio para aceptar tareas con pago en blockchain
+* **Regla de negocio (instrucción de Miguel)**: con el prelanzamiento **desactivado**, un usuario sin KYC aprobado no puede aceptar tareas cuyo pago se liquida en blockchain. Única excepción: tareas creadas por la cuenta de la Plataforma con pago BLUE IOU off-chain (`is_booster_task = true`). Con prelanzamiento activo todo el pago es BLUE IOU off-chain y no se exige KYC.
+* **Backend (`publicationController.js`)**:
+  - `POST /publications/:id/accept`: nueva condición `isBlockchainPayment = !preLaunchMode && !(autorPlataforma && is_booster_task)`. Antes solo se validaba en `category === 'request'` y se eximía cualquier `is_booster_task` (aunque fuese de un tercero); ahora la exención es exclusiva de la Plataforma.
+  - Rechazo: HTTP 403 con `code: 'KYC_REQUIRED_FOR_ONCHAIN_TASKS'` y `requires_kyc: true`. Se registra el evento `publication.accept_blocked_kyc_required` con `pool` **después** del `ROLLBACK` (registrarlo con el `client` de la transacción lo habría borrado).
+  - `GET /publications/active` y `GET /api/publications/:id` exponen `requires_kyc_to_accept` (informativo; la decisión vinculante es la del endpoint de aceptación).
+  - Robustez: `authorResult.rows[0]?.tutor_user_id` evita un 500 si el autor no existe.
+* **Frontend (`publication-detail.js`, legado)**: aviso "🔒 requiere KYC" sobre el botón de aceptar y, ante el 403, confirmación que lleva a `wallet.html` para completar la verificación. Se preserva el interceptor de términos legales.
+* **Verificación**: `publicationKycRule.test.js` (3 casos, incluye aserción de auditoría), `prelaunchPublicationRules.test.js` y `publicationPayment.test.js` → 10/10 PASS; `check-account-security.cjs` 23+8 PASS; `build:demo` código 0.
+* **Pendiente de decisión**: la regla también aplica a donaciones y compras (el que "acepta" es quien paga). Ver nota en el reporte al usuario.
+
+### 2026-10-12 — UI/UX Móvil & Backend: Simplificación Radical del Modal de Seguridad, Eliminación del Reloj, Línea Animada de Progreso y Auto-Avance de Pasos del Relayer
+* **Diagnóstico & Causa Raíz de Fricción en Dispositivos Móviles**:
+  - *Saturación de Mensajes e Inquietud por Reloj/Cronómetro*: El temporizador numérico y las descripciones extensas sobre seguimiento de red generaban confusión y sensación de lentitud o fallo técnico. Se solicitó eliminar por completo el reloj y cualquier referencia a él, manteniendo únicamente la línea animada de progreso que va y viene como indicador limpio de actividad.
+  - *Atasco de Horas en Paso 4 de Activación*: Para los pasos patrocinados que no requieren firma del titular (Paso 0: creación de firmante passkey y Paso 1: despliegue de proxy Safe), el sistema reportaba `requiresSignature: true` al frontend sin suministrar una autorización para firmar. Como consecuencia, el frontend permanecía en espera indefinida sin avanzar los pasos automáticos del relayer. Adicionalmente, el intervalo de consulta periódica de 60 segundos dilataba la percepción de confirmación de bloques en Optimism Sepolia.
+* **Resoluciones Técnicas Implementadas**:
+  - *Frontend (`AccountSecurity.jsx` & `AccountSecurity.css`)*:
+    - Eliminado el reloj rotatorio `⏱️`, dígitos de cronómetro `MM:SS`, cálculo de segundos y textos extensos sobre medición de tiempo.
+    - Preservada exclusivamente la barra animada de progreso de red (`.blockchain-progress-track` con `.blockchain-progress-bar`) visible únicamente mientras la red está trabajando (`activationState === 'waiting'`).
+    - Simplificación radical de mensajes: textos concisos, directos y sin duplicaciones para cada estado (espera, autorización y revisión).
+    - Polling acelerado a 3 segundos (`3000ms`) durante la espera para reflejar de inmediato la confirmación de bloques on-chain.
+  - *Backend (`recoverableAccounts.js`)*:
+    - Implementado auto-avance inmediato en `activationStatus`: si el siguiente paso del plan es del relayer y no requiere interacción del usuario (`!next.userSignature`), el relayer lo firma y despacha a la blockchain automáticamente sin detener el flujo.
+    - `requiresSignature` se reporta como `true` única y exclusivamente cuando el paso demanda la firma criptográfica directa del usuario con passkey/WebAuthn.
+* **Impacto y Verificación**:
+  - Pruebas de integración de backend: 24/24 PASS (`recoverableAccounts.test.js` y `originBoundary.test.js`).
+  - Pruebas de interfaz Playwright: 23/23 interacciones y 8/8 mnemónicas PASS (`check-account-security.cjs`).
+  - Compilación de producción: `build:demo` aprobada con código de salida 0 (104 módulos, 176 recursos precacheados).
+
 ### 2026-10-11 — Rediseño UI/UX Móvil de Landing Page: Botón 'Iniciar Sesión' en Cabecera Superior Derecha y Centrado Óptico de Monedas 3D sin Vacíos
 * **Diagnóstico de Fricción de Experiencia de Usuario (UI/UX Móvil)**:
   - *Inaccesibilidad de Autenticación en Teléfonos Móviles*: La barra de navegación fijada (`.glass-nav`) ocultaba por completo `.nav-links` (`display: none`) en resoluciones móviles (`max-width: 768px`). Esto dejaba únicamente el logotipo a la izquierda sin ningún botón de acción rápida para que usuarios recurrentes puedan iniciar sesión directamente desde su teléfono.

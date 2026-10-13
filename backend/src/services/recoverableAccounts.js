@@ -143,7 +143,11 @@ class RecoverableAccounts {
             }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
         }
         const next=row.payload.plan[row.steps.length];
-        return {...result,next:next?.label,authorization:result.requiresSignature&&next?.userSignature?
+        if(row.state==='prepared'&&next&&!next.userSignature) {
+            try { return await this.activate(userId,id); } catch {}
+        }
+        const needsUserSignature=Boolean(result.requiresSignature&&next?.userSignature);
+        return {...result,requiresSignature:needsUserSignature,next:next?.label,authorization:needsUserSignature?
             await signing.quote(this.pool,this.rpc,this.config,userId,next,{active:false}):null};
     }
     async activate(userId,id,{signature,hash}={}) {

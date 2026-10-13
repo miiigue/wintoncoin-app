@@ -626,6 +626,10 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // AUDITORÍA FINTECH: Garantizar coherencia inmutable entre la consulta del feed y el pago final.
             const publications = visibleRows.map(p => {
                 const { baseCost, multiplierUsed, finalBlueCost, isBoosterTx } = calculatePublicationEffectiveCost(p, preLaunchMode, activeMultiplier);
+                const authorLower = (p.author_username || '').toLowerCase();
+                const isPlatformPub = authorLower === platformUser || authorLower === 'plataforma' || authorLower === 'wintoncoin' || authorLower === 'plataforma wintoncoin';
+                const isOffChainPlatformTask = isPlatformPub && !!p.is_booster_task;
+                const requiresKycToAccept = !preLaunchMode && !isOffChainPlatformTask;
 
                 return {
                     ...p,
@@ -634,6 +638,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     current_stage_name: activeStageName,
                     blue_cost: finalBlueCost,
                     is_booster_tx: isBoosterTx, // Frontend: controla si mostrar desglose de multiplicador
+                    requires_kyc_to_accept: requiresKycToAccept, // Cumplimiento AML: true si el pago liquida on-chain y pre-lanzamiento está inactivo
                     participants: p.participants || [],
                 };
             });
@@ -972,20 +977,24 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 throw { status: 400, message: "Esta publicación de pre-lanzamiento se encuentra en pausa temporalmente mientras la plataforma opera en modo blockchain." };
             }
 
-            // === FRENO KYC FINTECH PARA EL TRABAJADOR (Web3 Single Source of Truth) ===
-            // El Smart Contract exige que el beneficiario (Payee) tenga KYC verificado on-chain.
-            // En Modo Pre-lanzamiento (preLaunchMode == true) o si la publicación es una Tarea de Impulsor (is_booster_task == true),
-            // se exime esta validación para permitir la actividad off-chain en el Libro de Impulsores.
-            // AUDITABILIDAD: Se define la variable 'isBoosterTx' para bifurcar la verificación KYC de forma segura.
-            const isBoosterTx = preLaunchMode || !!pub.is_booster_task;
-            if (pub.category === 'request' && !isBoosterTx) {
+            // === FRENO REGULATORIO FINTECH & AML: EXIGENCIA DE KYC PARA TAREAS ON-CHAIN ===
+            // Regla Canónica de Cumplimiento:
+            // Si el modo pre-lanzamiento está DESACTIVADO y el pago se liquida en la blockchain,
+            // ningún usuario puede aceptar la tarea a menos que tenga su verificación de identidad (KYC) aprobada.
+            // Excepción ÚNICA permitida: Tareas creadas por la plataforma cuyo pago sea BLUE IOU off-chain (Libro de Impulsores).
+            const isPlatformAuthor = isPlatformPub;
+            const isPlatformOffChainBooster = isPlatformAuthor && !!pub.is_booster_task;
+            const isBlockchainPayment = !preLaunchMode && !isPlatformOffChainBooster;
+
+            if (isBlockchainPayment) {
                 let workerKycWallet = acceptor.web3_wallet_address;
 
-                // Si el trabajador es menor de edad, verificamos si usa la wallet de su tutor
+                // Si el trabajador es menor de edad, verificamos si usa la wallet de su tutor legal
                 if (acceptor.is_minor) {
                     if (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor') {
                         await client.query('ROLLBACK');
                         return res.status(403).json({
+                            success: false,
                             message: "Por ser menor de edad, necesitas la autorización de un tutor para aceptar trabajos remunerados. Por favor, agrega un tutor a tu cuenta primero.",
                             requires_tutor: true,
                             is_minor: true
@@ -1000,22 +1009,42 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 if (!workerKycWallet) {
                     await client.query('ROLLBACK');
                     return res.status(403).json({
-                        message: "Seguridad Financiera: Para aceptar tareas remuneradas, debes conectar una Billetera Web3 a tu cuenta.",
-                        requires_wallet: true
+                        success: false,
+                        message: "Seguridad Financiera: Para aceptar tareas remuneradas en blockchain, debes conectar tu Billetera Web3 a tu cuenta.",
+                        requires_wallet: true,
+                        code: 'WALLET_REQUIRED_FOR_ONCHAIN_TASKS'
                     });
                 }
 
                 const Web3BridgeService = require('../services/web3BridgeService');
                 let isWorkerKycVerified = await Web3BridgeService.checkUserKYC(workerKycWallet);
                 if (!isWorkerKycVerified && acceptor.kyc_verified) {
-                    console.log(`[PUB ACCEPT] Fallback activado: KYC on-chain falló o dio false para ${acceptorUsername}, pero trabajador está verificado en la base de datos.`);
+                    console.log(`[PUB ACCEPT] Fallback activado: KYC on-chain no sincronizado para ${acceptorUsername}, pero verificado en base de datos.`);
                     isWorkerKycVerified = true;
                 }
                 if (!isWorkerKycVerified) {
+                    // AUDITORÍA: primero se revierte la transacción y luego se registra el rechazo
+                    // con el pool (fuera de la transacción). Si se registrara con `client` antes del
+                    // ROLLBACK, la fila de auditoría se borraría junto con la transacción.
                     await client.query('ROLLBACK');
+                    try {
+                        await logAuditEvent(pool, req, {
+                            eventType: 'publication.accept_blocked_kyc_required',
+                            actorUsername: acceptorUsername,
+                            targetUsername: pub.author_username,
+                            publicationId: parseInt(id, 10),
+                            category: pub.category,
+                            metadata: { preLaunchMode, isPlatformAuthor, isBoosterTask: !!pub.is_booster_task }
+                        });
+                    } catch (auditErr) {
+                        // Un fallo de auditoría no debe convertir el rechazo en un 500; se reporta en logs.
+                        console.error('[PUB ACCEPT] No se pudo registrar el bloqueo KYC en auditoría:', auditErr.message);
+                    }
                     return res.status(403).json({
-                        message: "Seguridad Financiera: Para aceptar tareas remuneradas y recibir pagos en token BLUE, debes completar tu verificación de identidad (KYC) en tu Billetera Web3.",
-                        requires_kyc: true
+                        success: false,
+                        message: "Seguridad y Cumplimiento: Para aceptar tareas con pago en blockchain debes tener tu verificación de identidad (KYC) aprobada. Solo puedes realizar tareas de la plataforma que pagan en BLUE IOU sin KYC.",
+                        requires_kyc: true,
+                        code: 'KYC_REQUIRED_FOR_ONCHAIN_TASKS'
                     });
                 }
             }
@@ -1099,7 +1128,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // Restricción: No aceptar tareas del menor si eres su tutor (Conflict of Interest)
             if (pub.category === 'request') {
                 const authorResult = await client.query(`SELECT tutor_user_id FROM users WHERE id = $1`, [pub.author_id]);
-                if (authorResult.rows[0].tutor_user_id === acceptor.id) {
+                if (authorResult.rows[0]?.tutor_user_id && authorResult.rows[0].tutor_user_id === acceptor.id) {
                     throw { status: 403, message: "No puedes aceptar solicitudes de tu menor representado por conflicto de intereses financieros." };
                 }
             }
@@ -1913,6 +1942,8 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             publication.current_stage_name = currentMultiplierInfo.stageName || 'Sin etapa activa';
             publication.blue_cost = finalBlueCost;
             publication.is_booster_tx = isBoosterTx; // Frontend: controla si mostrar desglose de multiplicador
+            const isOffChainPlatformTask = isPlatformPub && !!publication.is_booster_task;
+            publication.requires_kyc_to_accept = !preLaunchMode && !isOffChainPlatformTask; // Cumplimiento AML: tareas on-chain requieren KYC fuera de pre-lanzamiento
 
             // --- NUEVO: Lógica de Modal Intersticial (Pre-flight) ---
             if (publication.show_preflight_modal) {
