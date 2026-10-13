@@ -22,19 +22,24 @@ document.addEventListener('DOMContentLoaded', () => {
     const recoveryKey='winton-publication-payment:'+storedUsername+':'+publicationId;
     const donationKey=recoveryKey+':donation';
     let recoveringPayment=false;
-    async function recoverPayment(){
-        const id=sessionStorage.getItem(recoveryKey);if(!id||recoveringPayment)return;
+    async function recoverPayment(manual=false){
+        const id=sessionStorage.getItem(recoveryKey);
+        if(!id)return true;
+        if(recoveringPayment){if(manual)showCustomAlert('Estamos comprobando el pago anterior. Espera a que termine la consulta.');return false;}
         recoveringPayment=true;
         try {
             const result=await operationRequest('/marketplace/'+id);
             if(result.state==='expired'&&result.canRenew===true){
                 sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);
-                showCustomAlert(result.message);return;
+                showCustomAlert(result.message);return true;
             }
             if(result.authorization){const authorized=await authorizeMarketplace(id);if(authorized)setTimeout(recoverPayment,5000);return;}
             if(result.settled){sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();}
             else if(['failed','conflict'].includes(result.state)){if(result.state==='failed')sessionStorage.removeItem(recoveryKey);showCustomAlert(result.message+' Referencia: '+id);}
-            else setTimeout(recoverPayment,5000);
+            else {
+                if(manual)showCustomAlert((result.message||'El pago anterior sigue pendiente de confirmación.')+' Referencia: '+id);
+                setTimeout(recoverPayment,5000);
+            }
         }catch(e){showCustomAlert((e.message||'No se pudo consultar el pago.')+' Conservamos su referencia para consultar nuevamente.');}
         finally{recoveringPayment=false;}
     }
@@ -42,8 +47,8 @@ document.addEventListener('DOMContentLoaded', () => {
     function isVirtualPayment(){return window.currentPublication?.is_booster_task===true || [true,'true'].includes(window.currentPlatformSettings?.pre_launch_mode_enabled);}
     async function payWithConsent(endpoint,body,amount,payee){
         if(isVirtualPayment())return fetchFromServer(endpoint,'POST',body);
-        if(sessionStorage.getItem(recoveryKey)){await recoverPayment();return;}
-        try{return await openPaymentAuthorizationModal(publicationId,payee,{endpoint,body,amount});}catch{showCustomAlert('No se pudo consultar el resumen del pago. Intenta nuevamente más tarde.');}
+        if(sessionStorage.getItem(recoveryKey)&&await recoverPayment(true)!==true)return;
+        try{return await openPaymentAuthorizationModal(publicationId,payee,{endpoint,body,amount});}catch(error){showCustomAlert(error.message||'No se pudo consultar el resumen del pago. Intenta nuevamente más tarde.');}
     }
     let modalDismissed = false; // Flag para evitar que el modal reaparezca al refrescar con acciones
 
@@ -1108,14 +1113,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 return;
             }
-            case 'confirm-payment':
+            case 'confirm-payment': {
+                if(button.disabled)return;
+                const originalLabel=button.innerHTML;
+                button.disabled=true;
+                button.setAttribute('aria-busy','true');
+                button.textContent='Consultando pago…';
                 try {
                     // Abrir modal de consentimiento informado y desglose financiero bancario
                     await payWithConsent(`/publications/${publicationId}/confirm-payment`,{confirmerUsername:storedUsername,workerUsername:userInAction},window.currentPublication?.blue_cost,userInAction);
                 } catch (err) {
                     showCustomAlert("Error al preparar autorización: " + err.message);
+                } finally {
+                    button.disabled=false;
+                    button.removeAttribute('aria-busy');
+                    button.innerHTML=originalLabel;
                 }
                 return;
+            }
             case 'delete':
                 showCustomConfirm('¿Deseas eliminar esta tarea? Esta acción no se puede deshacer.', async () => {
                     await fetchFromServer(`/publications/${publicationId}`, 'DELETE', { deleterUsername: storedUsername });
@@ -1232,41 +1247,15 @@ Puedes ver los detalles aquí:`;
     /**
      * Despliega el modal de consentimiento informado EIP-712 con desglose financiero bancario
      * (monto bruto BLUE con parking, comisión para Tesorería del protocolo y compromiso RED asumido).
-     * Verifica primero si el usuario tiene configurado su PIN de autocustodia; si no, le solicita configurarlo.
+     * Consulta las condiciones vigentes; el servidor verifica la cuenta antes de solicitar la firma.
      */
     async function openPaymentAuthorizationModal(pubId, workerUsername, action=null) {
-        if (!elements.paymentAuthorizationModal) return;
+        if (!elements.paymentAuthorizationModal) throw new Error('No se pudo abrir el resumen. Recarga la página e intenta nuevamente.');
 
-        // 1. Verificación de Autocustodia: Consultar si el usuario ya tiene su PIN configurado
-        if (window.currentUserHasPin === undefined) {
-            try {
-                const token = localStorage.getItem('token') || storedToken;
-                const res = await fetch(`${API_URL}/api/me/pin-status`, {
-                    headers: token ? { 'Authorization': `Bearer ${token}` } : {}
-                });
-                if (res.ok) {
-                    const pinStatus = await res.json();
-                    window.currentUserHasPin = pinStatus?.hasPin === true;
-                }
-            } catch (pinErr) {
-                console.warn('[AUTH PIN] No se pudo verificar estado de PIN:', pinErr.message);
-            }
-        }
-
-        // Si el usuario no tiene PIN configurado, solicitar configurarlo antes de autorizar
-        if (window.currentUserHasPin === false) {
-            openSetupPinModal(() => {
-                openPaymentAuthorizationModal(pubId, workerUsername, action);
-            });
-            return;
-        }
-
+        // La autorización usa la cuenta recuperable y su passkey; no el PIN antiguo.
         const pub = window.currentPublication || {};
-        const platformSettings = window.currentPlatformSettings || {};
-
-        const termsResponse=await fetch(API_URL+'/api/me/operations/marketplace/terms',{credentials:'include',cache:'no-store',headers:storedToken?{Authorization:'Bearer '+storedToken}:{}});
-        const terms=await termsResponse.json();
-        if(!termsResponse.ok||!terms.success){showCustomAlert('No se pudo comprobar la comisión del contrato. Intenta abrir el resumen más tarde.');return;}
+        const terms = await operationRequest('/marketplace/terms');
+        if(!terms.success)throw new Error(terms.message||'No se pudo comprobar la comisión del contrato. Intenta nuevamente.');
         const grossBlue = Number(action?.amount ?? pub.blue_cost);
         const commissionPct = Number(terms.feeBps)/100;
         pendingPaymentAction={...(action||{endpoint:`/publications/${pubId}/confirm-payment`,body:{confirmerUsername:storedUsername,workerUsername}}),expectedFeeBps:terms.feeBps};
@@ -1308,8 +1297,7 @@ Puedes ver los detalles aquí:`;
 
     /**
      * Ejecuta el pago firmado bajo el paradigma de Autocustodia / Billetera Invisible / Account Abstraction.
-     * Envía el PIN de 6 dígitos del usuario para que el servidor descifre la clave efímera en memoria RAM
-     * estrictamente durante la firma criptográfica EIP-712.
+     * Prepara la operación; el dispositivo firma mediante la cuenta recuperable.
      */
     async function executeAuthorizedPayment(pubId, workerUsername) {
         const authorUsername = document.querySelector('.detail-meta strong a')?.innerText || document.querySelector('.detail-meta strong')?.innerText || storedUsername;

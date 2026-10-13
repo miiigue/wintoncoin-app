@@ -11,7 +11,7 @@
     "lint": "eslint src --ext .js",
     "test:wallet": "node scripts/check-wallet-render.cjs",
     "check:react": "node scripts/check-react-references.cjs",
-    "test:account-security": "node scripts/check-account-security.cjs && node scripts/check-marketplace-authorization.cjs",
+    "test:account-security": "node scripts/check-account-security.cjs && node scripts/check-marketplace-authorization.cjs && node scripts/check-publication-payment.cjs",
     "test:pwa": "node scripts/check-pwa-build.cjs"
   },
   "devDependencies": {
