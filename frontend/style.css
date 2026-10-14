@@ -4142,15 +4142,15 @@ body.love-page {
 }
 
 .detail-actions-section {
-    padding: 1.5rem;
-    background-color: var(--background-color);
-    border: 1px solid #2a3b5c;
-    border-radius: 10px;
+    padding: 0.75rem 0;
+    background: transparent;
+    border: none;
+    border-radius: 0;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
 }
 
 .detail-actions-section:empty {
@@ -4160,6 +4160,20 @@ body.love-page {
 .detail-actions-section .action-button {
     width: auto;
     max-width: 300px;
+}
+
+/* Estado de procesamiento on-chain (Confirmando en red...): contraste 100% legible de grado bancario */
+.action-button.confirm:disabled,
+.action-button.confirm.confirming-state {
+    color: #ffffff !important;
+    opacity: 1 !important;
+    -webkit-text-fill-color: #ffffff !important;
+}
+
+.action-button.confirm:disabled span,
+.action-button.confirm.confirming-state span {
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
 }
 
 .detail-participants-section {

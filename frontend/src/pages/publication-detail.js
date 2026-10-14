@@ -28,16 +28,38 @@ document.addEventListener('DOMContentLoaded', () => {
         if (confirmBtn) {
             if (isPending) {
                 confirmBtn.disabled = true;
-                confirmBtn.style.opacity = '0.9';
-                confirmBtn.style.background = 'linear-gradient(135deg, #0284c7, #2563eb)';
+                confirmBtn.classList.add('confirming-state');
+                confirmBtn.style.setProperty('opacity', '1', 'important');
+                confirmBtn.style.setProperty('color', '#ffffff', 'important');
+                confirmBtn.style.setProperty('background', 'linear-gradient(135deg, #0284c7, #2563eb)', 'important');
                 confirmBtn.style.cursor = 'wait';
-                confirmBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-right:6px;"></span> Confirmando en red...';
+                confirmBtn.style.display = 'inline-flex';
+                confirmBtn.style.alignItems = 'center';
+                confirmBtn.style.justifyContent = 'center';
+                confirmBtn.style.gap = '8px';
+                confirmBtn.style.whiteSpace = 'nowrap';
+                confirmBtn.style.padding = '8px 14px';
+                confirmBtn.style.fontWeight = '700';
+                confirmBtn.style.borderRadius = '8px';
+                confirmBtn.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.4)';
+                confirmBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2.5px solid rgba(255,255,255,0.35);border-top-color:#ffffff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></span><span style="color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;font-weight:700;font-size:0.82rem;letter-spacing:0.02em;">Confirmando en red...</span>';
                 confirmBtn.title = messageText || 'La transacción está siendo confirmada en blockchain.';
             } else {
                 confirmBtn.disabled = false;
+                confirmBtn.classList.remove('confirming-state');
                 confirmBtn.style.opacity = '1';
+                confirmBtn.style.color = '';
                 confirmBtn.style.background = '';
                 confirmBtn.style.cursor = 'pointer';
+                confirmBtn.style.display = '';
+                confirmBtn.style.alignItems = '';
+                confirmBtn.style.justifyContent = '';
+                confirmBtn.style.gap = '';
+                confirmBtn.style.whiteSpace = '';
+                confirmBtn.style.padding = '';
+                confirmBtn.style.fontWeight = '';
+                confirmBtn.style.borderRadius = '';
+                confirmBtn.style.boxShadow = '';
                 confirmBtn.innerHTML = 'Confirmar Pago';
                 confirmBtn.title = '';
             }
@@ -424,8 +446,8 @@ document.addEventListener('DOMContentLoaded', () => {
             
             <div class="detail-actions-section">
                 ${duplicateCompleteButtonHTML || ''}
-                ${messageHTML}
                 ${actionHTML}
+                ${messageHTML}
             </div>
 
             ${getParticipantsSectionHTML(pub)}
@@ -598,8 +620,9 @@ document.addEventListener('DOMContentLoaded', () => {
             } else if (p.status === 'completed') {
                 const isPendingRecovery = !!sessionStorage.getItem(recoveryKey);
                 actionButtons = isPendingRecovery ? `
-                    <button class="action-button confirm" data-action="confirm-payment" data-user="${escapeAttr(p.username)}" disabled style="opacity: 0.9; background: linear-gradient(135deg, #0284c7, #2563eb); cursor: wait;" title="La transacción está siendo confirmada en blockchain.">
-                        <span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-right:6px;"></span> Confirmando en red...
+                    <button class="action-button confirm confirming-state" data-action="confirm-payment" data-user="${escapeAttr(p.username)}" disabled style="opacity: 1 !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; background: linear-gradient(135deg, #0284c7, #2563eb) !important; cursor: wait; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); border: none;" title="La transacción está siendo confirmada en blockchain.">
+                        <span class="spinner" style="display:inline-block;width:14px;height:14px;border:2.5px solid rgba(255,255,255,0.35);border-top-color:#ffffff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></span>
+                        <span style="color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;font-weight:700;letter-spacing:0.02em;">Confirmando en red...</span>
                     </button>
                 ` : `
                     <button class="action-button confirm" data-action="confirm-payment" data-user="${escapeAttr(p.username)}">Confirmar Pago</button>
@@ -762,13 +785,16 @@ document.addEventListener('DOMContentLoaded', () => {
                 messageHTML = `<div class="status-pending">Aún no hay solicitudes para esta tarea.</div>`;
             }
 
+            let authorButtons = '';
             if (canManagePause) {
-                actionHTML += `<button class="action-button pause" data-action="toggle-pause">${pub.is_paused ? 'Reanudar Solicitudes' : 'Pausar Solicitudes'}</button>`;
+                authorButtons += `<button class="action-button pause" data-action="toggle-pause" style="margin: 0; padding: 10px 20px; font-weight: 700; border-radius: 8px;">${pub.is_paused ? 'Reanudar Solicitudes' : 'Pausar Solicitudes'}</button>`;
             }
-            actionHTML += `<button class="action-button delete" data-action="delete" ${canDelete ? '' : 'disabled'}>Eliminar Tarea</button>`;
+            authorButtons += `<button class="action-button delete" data-action="delete" ${canDelete ? '' : 'disabled'} style="margin: 0; padding: 10px 20px; font-weight: 700; border-radius: 8px;">Eliminar Tarea</button>`;
+
+            actionHTML = `<div class="author-actions-toolbar" style="display: flex; gap: 12px; justify-content: center; align-items: center; flex-wrap: wrap; width: 100%; margin: 8px 0;">${authorButtons}</div>`;
 
             if (!canDelete) {
-                messageHTML += `<div class="status-info">No puedes eliminar una tarea con participantes activos.</div>`;
+                messageHTML += `<div class="author-status-hint" style="font-size: 0.82rem; color: #94a3b8; background: rgba(148, 163, 184, 0.08); border: 1px solid rgba(148, 163, 184, 0.15); border-radius: 8px; padding: 6px 14px; display: inline-flex; align-items: center; gap: 6px; margin: 4px auto;"><span aria-hidden="true">ℹ️</span> No puedes eliminar una tarea con participantes activos.</div>`;
             }
 
         } else {

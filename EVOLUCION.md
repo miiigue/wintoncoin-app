@@ -13,6 +13,29 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-14 — UI/UX Marketplace: Supresión del Contenedor Negro de Acciones de Autor y Optimización de Contraste y Legibilidad en Botón «Confirmando en red...»
+* **Diagnóstico de Fricción & Causa Raíz**:
+  - *Contenedor Negro Invasivo*: La sección de acciones `.detail-actions-section` poseía un fondo negro oscuro (`var(--background-color)`) y un marco tosco (`border: 1px solid #2a3b5c; padding: 1.5rem;`), creando una caja oscura pesada e innecesaria alrededor de los botones «Pausar Solicitudes» y «Eliminar Tarea». Asimismo, el mensaje «No puedes eliminar una tarea con participantes activos» se posicionaba por encima de los botones como un bloque grisáceo que empujaba hacia abajo los controles principales.
+  - *Ilegibilidad del Botón «Confirmando en red...»*: Al desactivarse el botón (`disabled`), las hojas de estilo del navegador (*User Agent Stylesheet* en WebView móvil) forzaban el texto a un gris atenuado/opaco (`grayText`) sobre el fondo azul gradiente, haciendo que las palabras «Confirmando en red...» fueran casi invisibles. Además, el spinner de 12px quedaba desalineado y el texto saltaba en dos líneas rotas.
+* **Resoluciones Técnicas Implementadas**:
+  - *`frontend/style.css`*:
+    - `.detail-actions-section`: Fondo transparente (`background: transparent; border: none; border-radius: 0; padding: 0.75rem 0;`), eliminando completamente la caja negra y logrando una integración visual limpia y fluida en la vista de detalle.
+    - `.action-button.confirm:disabled`, `.action-button.confirm.confirming-state`: Reglas autoritarias de contraste forzando `color: #ffffff !important;` y `-webkit-text-fill-color: #ffffff !important; opacity: 1 !important;`, garantizando un contraste óptimo (blanco nítido) en cualquier dispositivo o navegador móvil.
+  - *`frontend/src/pages/publication-detail.js`*:
+    - **Barra de Acciones de Autor**: Organización horizontal flexible (`author-actions-toolbar`) con espacio entre botones (`gap: 12px; flex-wrap: wrap;`), situando los controles en primer plano.
+    - **Nota Informativa Sutil**: La restricción de eliminación con participantes activos se trasladó debajo de los botones en una píldora informativa sutil (`background: rgba(148, 163, 184, 0.08); color: #94a3b8; font-size: 0.82rem;`) sin invadir la pantalla.
+    - **Botón «Confirmando en red...» de Alta Fidelidad**: Layout `inline-flex` centrado, `white-space: nowrap`, spinner nítido de 14px con borde de 2.5px y texto blanco destacado con sombra de profundidad.
+* **Archivos Actualizados**:
+  - [`frontend/style.css`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css)
+  - [`frontend/src/pages/publication-detail.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js)
+* **Verificación y Pruebas Automatizadas**:
+  - `npm --prefix frontend run test:account-security` → **6/6 suites PASS (8 checks de respaldo, 23 checks de UI, 5 flujos KYC de visualizador, 7 controladores de pago de Marketplace, validación admin, 7 checks de control de acceso)**.
+  - `npm --prefix frontend run check:react` → **PASS (54 componentes auditados, 0 referencias no declaradas)**.
+  - `npm --prefix frontend run build:demo` → **PASS (Exit code 0 en 27.20s, 104 módulos transformados, 178 activos precacheados)**.
+* **Evidencia**: Commit `c4aa859` en rama `demo`.
+* **Gobernanza y Cumplimiento Protocolar**:
+  - Principio DRY, diseño responsive mobile-first, alto contraste WCAG y experiencia visual de nivel bancario/FinTech.
+
 ### 2026-10-14 — UI/UX Marketplace: Experiencia FinTech de Confirmación de Pago en Vivo, Erradicación de Alertas Obstructivas y Feedback Visual Transaccional
 * **Diagnóstico de Fricción & Causa Raíz**:
   - *Cierre Abrupto de Modal al Firmar*: En `MarketplaceAuthorization.jsx`, el modal de confirmación se cerraba inmediatamente tras despachar la transacción firmada con Passkey al backend.
