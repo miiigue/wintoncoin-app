@@ -13,6 +13,35 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-14 — UX Marketplace: Cupos FOMO de Tareas (Disponibles/Totales) y Rediseño FinTech de Notificaciones con Fecha/Hora y Referencias Web3 Copiables
+* **Diagnóstico de Necesidad & Causa Raíz**:
+  - *Falta de Urgencia/FOMO en Marketplace*: En las tarjetas de publicaciones solo se mostraba el valor plano de cupos restantes (ej. `2 cupos` o `4 cupos`), sin dar visibilidad de cuál era la oferta total original de la tarea. Esto restaba urgencia y tracción comunitaria (FOMO) a los usuarios para postularse rápidamente al no apreciar la velocidad de agotamiento de vacantes.
+  - *Desorganización Visual de Notificaciones y Ausencia de Fecha/Hora*:
+    - En el dropdown desplegable de la campanita de navegación, las notificaciones se mostraban como bloques de texto genéricos sin fecha ni hora de recepción.
+    - En el Centro/Modal de Historial de Notificaciones, los mensajes con referencias on-chain (`Referencia: 0x939ad55c814...`) se imprimían como cadenas de texto crudo sin truncado, rompiendo el ancho en smartphones (360-400px) y dificultando la lectura y la verificación de pagos.
+* **Resoluciones Técnicas Implementadas**:
+  - *Backend (`backend/src/controllers/publicationController.js`)*:
+    - Incorporación de la métrica determinista `total_slots` tanto en `getPublications` (`/publications/active`) como en `getPublicationById` (`/publications/:id`):
+      `total_slots = p.available_slots + COUNT(publication_acceptances WHERE status NOT IN ('rejected', 'cancelled'))`.
+    - Garantía de precisión matemática y contable sin necesidad de alterar el esquema de base de datos ni romper retrocompatibilidad.
+  - *Frontend Feed React (`frontend/src/components/dashboard/PublicationsFeed.jsx`) y Vanilla (`frontend/src/pages/contract-interaction.js`)*:
+    - Formato de vacantes FOMO: `${availableSlots}/${totalSlots} cupos` cuando hay cupos disponibles, y `0/${totalSlots} cupos` si están agotados (manteniendo `Campaña Activa` para causas solidarias).
+  - *Centro de Notificaciones & Dropdown React (`frontend/src/components/dashboard/DashboardHeader.jsx`) y Vanilla (`frontend/src/pages/contract-interaction.js`)*:
+    - **Categorización y Badges FinTech**: Algoritmo `parseNotificationContent` que clasifica automáticamente por intención (Pago Confirmado `💰` / Blockchain verde, Tarea Completada `✅` / azul, Alerta `⚠️` / amarillo, Solicitud `📩` / morado).
+    - **Fecha y Hora Destacada**: Incorporación visible del sello cronológico (`🕒 DD/MM/YYYY, HH:mm`) tanto en el desplegable de la campanita como en cada tarjeta del historial.
+    - **Chip Web3 Monospace con Copia Rápida**: Extracción limpia del hash de referencia (`0x...`) fuera del cuerpo de texto, renderizándolo en una píldora Web3 monospace truncada (`Ref: 0x939ad5...8035`) con botón interactivo `[Copiar]` / `[✓ Copiado]` para portapapeles.
+    - **Tarjetas con Elevación y Glassmorphism**: Fondo `rgba(30, 41, 59, 0.75)`, borde sutil e ícono temático con fondo iluminado para legibilidad premium en pantallas táctiles móviles.
+* **Archivos Modificados**:
+  - [`backend/src/controllers/publicationController.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/src/controllers/publicationController.js)
+  - [`frontend/src/components/dashboard/PublicationsFeed.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/dashboard/PublicationsFeed.jsx)
+  - [`frontend/src/components/dashboard/DashboardHeader.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/dashboard/DashboardHeader.jsx)
+  - [`frontend/src/pages/contract-interaction.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/contract-interaction.js)
+  - [`EVOLUCION.md`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/EVOLUCION.md)
+* **Verificación y Pruebas Automatizadas**:
+  - `npm --prefix frontend run check:react` → **PASS (54 componentes auditados, 0 errores)**.
+  - `npm --prefix frontend run test:account-security` → **6/6 suites PASS**.
+  - `npm --prefix frontend run build:demo` → **PASS (Compilación de Vite exitosa en 30.04s, PWA precache 178 archivos)**.
+
 ### 2026-10-14 — Paridad Visual Milimétrica Vanilla vs React: Apertura Canónica en Billetera al Desactivar Pre-lanzamiento, Restauración de Bandera Beta y Estandarización de Márgenes
 * **Diagnóstico de Discrepancias y Causa Raíz (Vanilla vs React)**:
   - *Apertura de Pestaña Inicial*: En `Dashboard.jsx`, el estado inicial de `activeTab` estaba fijo en `'impulsor'`. A diferencia de Vanilla (`contract-interaction.js` líneas 713-722), que evalúa `pre_launch_mode_enabled`: si está inactivo (`false`), abre de forma directa en `'billetera'` (o la preferencia previa del usuario en `localStorage`) mostrando los balances on-chain de Liquidez y Compromiso RED, y visibiliza la barra selectora de pestañas (`walletTabsNav.style.display = 'flex'`).

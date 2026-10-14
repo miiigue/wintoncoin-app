@@ -31,6 +31,7 @@ export default function DashboardHeader({
   const [historyModalOpen, setHistoryModalOpen] = useState(false);
   const [historyItems, setHistoryItems] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [copiedHash, setCopiedHash] = useState(null);
 
   const profileRef = useRef(null);
   const notifRef = useRef(null);
@@ -71,26 +72,85 @@ export default function DashboardHeader({
     }
   };
 
-  // Helper para asignar icono según el contenido del mensaje
-  const getNotificationIcon = (msg = '') => {
-    const lower = msg.toLowerCase();
-    if (lower.includes('aprobada') || lower.includes('aprobado') || lower.includes('🎉') || lower.includes('✅')) return '✅';
-    if (lower.includes('rechazada') || lower.includes('error') || lower.includes('⚠️') || lower.includes('❌')) return '⚠️';
-    if (lower.includes('pagada') || lower.includes('acreditado') || lower.includes('ganado') || lower.includes('💰')) return '💰';
-    if (lower.includes('solicitud') || lower.includes('📩') || lower.includes('participar')) return '📩';
-    return '🔔';
+  // Helper para clasificar y separar metadatos de notificaciones (mensaje, hash de blockchain, badge)
+  const parseNotificationContent = (rawMsg = '') => {
+    let title = 'Notificación';
+    let badge = 'Info';
+    let badgeColor = '#38bdf8';
+    let badgeBg = 'rgba(56, 189, 248, 0.12)';
+    let icon = '🔔';
+    let txHash = null;
+    let cleanMessage = rawMsg;
+
+    // Extraer referencia de transacción si existe
+    const refMatch = rawMsg.match(/Referencia:\s*(0x[a-fA-F0-9]+)/i);
+    if (refMatch) {
+      txHash = refMatch[1];
+      cleanMessage = rawMsg.replace(/Referencia:\s*0x[a-fA-F0-9]+/i, '').trim();
+      cleanMessage = cleanMessage.replace(/\.\s*$/, '.');
+    }
+
+    const lower = rawMsg.toLowerCase();
+    if (lower.includes('pago') || lower.includes('pagad') || lower.includes('acreditad') || lower.includes('ganad') || lower.includes('💰')) {
+      title = 'Pago Confirmado';
+      badge = 'Blockchain';
+      badgeColor = '#10b981';
+      badgeBg = 'rgba(16, 185, 129, 0.15)';
+      icon = '💰';
+    } else if (lower.includes('aprobada') || lower.includes('aprobado') || lower.includes('culminada') || lower.includes('completada') || lower.includes('✅') || lower.includes('🎉')) {
+      title = 'Tarea Completada';
+      badge = 'Completada';
+      badgeColor = '#3b82f6';
+      badgeBg = 'rgba(59, 130, 246, 0.15)';
+      icon = '✅';
+    } else if (lower.includes('rechazad') || lower.includes('error') || lower.includes('cancelad') || lower.includes('⚠️') || lower.includes('❌')) {
+      title = 'Aviso';
+      badge = 'Alerta';
+      badgeColor = '#f59e0b';
+      badgeBg = 'rgba(245, 158, 11, 0.15)';
+      icon = '⚠️';
+    } else if (lower.includes('solicitud') || lower.includes('participar') || lower.includes('📩')) {
+      title = 'Solicitud de Tarea';
+      badge = 'Marketplace';
+      badgeColor = '#8b5cf6';
+      badgeBg = 'rgba(139, 92, 246, 0.15)';
+      icon = '📩';
+    }
+
+    return { title, badge, badgeColor, badgeBg, icon, txHash, cleanMessage };
   };
 
-  // Helper para formatear fechas de notificaciones con tolerancia a fallos en WebView
-  const formatDateSafe = (dateVal) => {
+  // Helper para formatear fechas de notificaciones con fecha y hora completa
+  const formatDateTime = (dateVal) => {
     if (!dateVal) return '';
     try {
       const d = new Date(dateVal);
       if (isNaN(d.getTime())) return '';
-      return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const dateStr = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${dateStr}, ${timeStr}`;
     } catch (_) {
       return '';
     }
+  };
+
+  // Copia rápida de hash de blockchain al portapapeles
+  const handleCopyHash = async (hash, e) => {
+    e.stopPropagation();
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(hash);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = hash;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+      }
+      setCopiedHash(hash);
+      setTimeout(() => setCopiedHash(null), 2000);
+    } catch (_) {}
   };
 
   return (
@@ -282,42 +342,136 @@ export default function DashboardHeader({
               </div>
 
               {notifications.length === 0 ? (
-                <p style={{ margin: '16px 0', textAlign: 'center', color: '#94a3b8', fontSize: '0.85rem' }}>
-                  No tienes notificaciones nuevas
-                </p>
+                <div style={{ padding: '24px 16px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '2rem', marginBottom: '8px' }}>🔔</div>
+                  <p style={{ margin: 0, color: '#94a3b8', fontSize: '0.85rem' }}>
+                    No tienes notificaciones pendientes
+                  </p>
+                </div>
               ) : (
-                notifications.map((n, i) => (
-                  <div key={n.id || i} className="notification-item">
-                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.4, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
-                      <span style={{ marginRight: '6px' }}>{getNotificationIcon(n.message)}</span>
-                      {n.message || n.body}
-                    </p>
-                    {n.created_at && (
-                      <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '4px' }}>
-                        {formatDateSafe(n.created_at)}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '10px' }}>
+                  {notifications.map((n, i) => {
+                    const parsed = parseNotificationContent(n.message || n.body || '');
+                    const dateFormatted = formatDateTime(n.created_at);
+                    return (
+                      <div
+                        key={n.id || i}
+                        style={{
+                          background: 'rgba(30, 41, 59, 0.75)',
+                          border: '1px solid rgba(255, 255, 255, 0.08)',
+                          borderRadius: '12px',
+                          padding: '12px 14px',
+                          position: 'relative',
+                          display: 'flex',
+                          gap: '12px',
+                          alignItems: 'flex-start',
+                          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)'
+                        }}
+                      >
+                        {/* Ícono de evento con fondo iluminado */}
+                        <div
+                          style={{
+                            width: '36px',
+                            height: '36px',
+                            borderRadius: '10px',
+                            background: parsed.badgeBg,
+                            border: `1px solid ${parsed.badgeColor}33`,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '1.1rem',
+                            flexShrink: 0
+                          }}
+                        >
+                          {parsed.icon}
+                        </div>
+
+                        {/* Contenido principal */}
+                        <div style={{ flex: 1, minWidth: 0, paddingRight: '18px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '3px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: parsed.badgeColor, background: parsed.badgeBg, padding: '2px 8px', borderRadius: '4px' }}>
+                              {parsed.badge}
+                            </span>
+                            {dateFormatted && (
+                              <span style={{ fontSize: '0.72rem', color: '#94a3b8', fontWeight: 500 }}>
+                                🕒 {dateFormatted}
+                              </span>
+                            )}
+                          </div>
+
+                          <p style={{ margin: '4px 0 0 0', fontSize: '0.86rem', color: '#f1f5f9', lineHeight: 1.35, wordBreak: 'break-word' }}>
+                            {parsed.cleanMessage}
+                          </p>
+
+                          {parsed.txHash && (
+                            <div
+                              style={{
+                                marginTop: '6px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '6px',
+                                background: 'rgba(0, 0, 0, 0.35)',
+                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                padding: '3px 8px',
+                                borderRadius: '6px',
+                                fontSize: '0.72rem',
+                                color: '#94a3b8',
+                                fontFamily: 'monospace'
+                              }}
+                            >
+                              <span>🔗 {parsed.txHash.slice(0, 8)}...{parsed.txHash.slice(-6)}</span>
+                              <button
+                                type="button"
+                                onClick={(e) => handleCopyHash(parsed.txHash, e)}
+                                style={{
+                                  background: 'none',
+                                  border: 'none',
+                                  color: copiedHash === parsed.txHash ? '#10b981' : '#38bdf8',
+                                  cursor: 'pointer',
+                                  padding: 0,
+                                  fontSize: '0.72rem',
+                                  fontWeight: 600
+                                }}
+                                title="Copiar referencia de blockchain"
+                              >
+                                {copiedHash === parsed.txHash ? '¡Copiado!' : 'Copiar'}
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Botón de descarte */}
+                        <button
+                          type="button"
+                          aria-label="Descartar notificación"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onDismissNotification) onDismissNotification(n.id);
+                          }}
+                          style={{
+                            position: 'absolute',
+                            top: '8px',
+                            right: '8px',
+                            background: 'none',
+                            border: 'none',
+                            color: '#94a3b8',
+                            fontSize: '18px',
+                            cursor: 'pointer',
+                            lineHeight: 1,
+                            padding: '4px',
+                            borderRadius: '4px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                          title="Descartar"
+                        >
+                          &times;
+                        </button>
                       </div>
-                    )}
-                    <span
-                      className="notification-dismiss"
-                      role="button"
-                      tabIndex={0}
-                      aria-label="Descartar notificación"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (onDismissNotification) onDismissNotification(n.id);
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.stopPropagation();
-                          if (onDismissNotification) onDismissNotification(n.id);
-                        }
-                      }}
-                      title="Descartar"
-                    >
-                      &times;
-                    </span>
-                  </div>
-                ))
+                    );
+                  })}
+                </div>
               )}
             </div>
           )}
@@ -352,37 +506,108 @@ export default function DashboardHeader({
             <div style={{ padding: '16px 20px', overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
               {loadingHistory ? (
                 <div style={{ textAlign: 'center', padding: '30px 0', color: '#94a3b8' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>⏳</div>
                   Cargando historial...
                 </div>
               ) : historyItems.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '30px 0', color: '#94a3b8' }}>
+                  <div style={{ fontSize: '1.5rem', marginBottom: '8px' }}>📭</div>
                   Aún no tienes notificaciones en tu historial.
                 </div>
               ) : (
-                historyItems.map((item, idx) => (
-                  <div
-                    key={item.id || idx}
-                    style={{
-                      background: item.is_read ? 'rgba(255, 255, 255, 0.02)' : 'rgba(56, 189, 248, 0.05)',
-                      border: item.is_read ? '1px solid rgba(255, 255, 255, 0.05)' : '1px solid rgba(56, 189, 248, 0.2)',
-                      borderRadius: '10px',
-                      padding: '12px',
-                      display: 'flex',
-                      alignItems: 'flex-start',
-                      gap: '10px'
-                    }}
-                  >
-                    <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>{getNotificationIcon(item.message)}</span>
-                    <div style={{ flex: 1 }}>
-                      <p style={{ margin: 0, color: '#e2e8f0', fontSize: '0.85rem', lineHeight: 1.4 }}>
-                        {item.message}
-                      </p>
-                      <span style={{ fontSize: '0.72rem', color: '#64748b', marginTop: '4px', display: 'block' }}>
-                        {new Date(item.created_at).toLocaleString('es-ES')}
-                      </span>
+                historyItems.map((item, idx) => {
+                  const parsed = parseNotificationContent(item.message || item.body || '');
+                  const dateFormatted = formatDateTime(item.created_at);
+                  return (
+                    <div
+                      key={item.id || idx}
+                      style={{
+                        background: item.is_read ? 'rgba(30, 41, 59, 0.45)' : 'rgba(30, 41, 59, 0.85)',
+                        border: item.is_read ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(56, 189, 248, 0.25)',
+                        borderRadius: '12px',
+                        padding: '14px 16px',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '12px',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+                      }}
+                    >
+                      {/* Ícono de evento */}
+                      <div
+                        style={{
+                          width: '38px',
+                          height: '38px',
+                          borderRadius: '10px',
+                          background: parsed.badgeBg,
+                          border: `1px solid ${parsed.badgeColor}33`,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '1.15rem',
+                          flexShrink: 0
+                        }}
+                      >
+                        {parsed.icon}
+                      </div>
+
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        {/* Cabecera del ítem */}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '6px' }}>
+                          <span style={{ fontSize: '0.72rem', fontWeight: 700, color: parsed.badgeColor, background: parsed.badgeBg, padding: '2px 8px', borderRadius: '4px' }}>
+                            {parsed.badge}
+                          </span>
+                          {dateFormatted && (
+                            <span style={{ fontSize: '0.75rem', color: '#94a3b8', fontWeight: 500 }}>
+                              🕒 {dateFormatted}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Mensaje limpio */}
+                        <p style={{ margin: '4px 0 0 0', color: '#f1f5f9', fontSize: '0.88rem', lineHeight: 1.4, wordBreak: 'break-word' }}>
+                          {parsed.cleanMessage}
+                        </p>
+
+                        {/* Referencia Web3 si existe */}
+                        {parsed.txHash && (
+                          <div
+                            style={{
+                              marginTop: '8px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '8px',
+                              background: 'rgba(0, 0, 0, 0.4)',
+                              border: '1px solid rgba(255, 255, 255, 0.08)',
+                              padding: '4px 10px',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              color: '#cbd5e1',
+                              fontFamily: 'monospace'
+                            }}
+                          >
+                            <span>Ref: {parsed.txHash.slice(0, 10)}...{parsed.txHash.slice(-8)}</span>
+                            <button
+                              type="button"
+                              onClick={(e) => handleCopyHash(parsed.txHash, e)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: copiedHash === parsed.txHash ? '#10b981' : '#38bdf8',
+                                cursor: 'pointer',
+                                padding: 0,
+                                fontSize: '0.75rem',
+                                fontWeight: 600
+                              }}
+                              title="Copiar hash de referencia"
+                            >
+                              {copiedHash === parsed.txHash ? '✓ Copiado' : 'Copiar'}
+                            </button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                ))
+                  );
+                })
               )}
             </div>
 

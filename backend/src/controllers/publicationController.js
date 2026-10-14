@@ -447,7 +447,14 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         const sql = `
                 SELECT
             p.id, p.title, p.description, p.blue_cost, p.base_blue_cost, p.created_at, p.status, p.category,
-            p.is_booster_task, p.is_sell_post, p.available_slots, p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
+            p.is_booster_task, p.is_sell_post, p.available_slots,
+            (p.available_slots + COALESCE((
+                SELECT COUNT(*)::int
+                FROM publication_acceptances pa_count
+                WHERE pa_count.publication_id = p.id
+                AND pa_count.status NOT IN ('rejected', 'cancelled')
+            ), 0)) as total_slots,
+            p.expires_at, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
             p.goal_amount, p.current_amount, p.image_urls, p.requires_evidence,
                     u.username as author_username,
             u.average_rating as author_average_rating,
@@ -1843,7 +1850,14 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const query = `
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.base_blue_cost, p.status, p.created_at, p.is_paused, p.is_booster_task,
-                p.is_sell_post, p.available_slots, p.category, p.expires_at,
+                p.is_sell_post, p.available_slots,
+                (p.available_slots + COALESCE((
+                    SELECT COUNT(*)::int
+                    FROM publication_acceptances pa_count
+                    WHERE pa_count.publication_id = p.id
+                    AND pa_count.status NOT IN ('rejected', 'cancelled')
+                ), 0)) as total_slots,
+                p.category, p.expires_at,
                 p.is_quick_sale, p.target_username, p.form_fields, p.show_preflight_modal,
                 p.goal_amount, p.current_amount, p.beneficiary_referral_code,
                 p.image_urls, p.requires_evidence,

@@ -1597,10 +1597,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         else if (isDonation) ribbonClass = 'donation-ribbon';
         else if (pub.is_sell_post) ribbonClass = 'sell-ribbon';
 
-        const slotsClass = pub.available_slots > 0 ? 'available' : 'full';
+        const totalSlots = parseInt(pub.total_slots, 10) || parseInt(pub.available_slots, 10) || 1;
+        const availableSlots = parseInt(pub.available_slots, 10) || 0;
+        const slotsClass = availableSlots > 0 ? 'available' : 'full';
         const slotsText = isDonation
             ? 'Campaña Activa'
-            : (pub.available_slots > 0 ? `${pub.available_slots} cupos` : 'Cupos agotados');
+            : (availableSlots > 0
+                ? `${availableSlots}/${totalSlots} cupos`
+                : `0/${totalSlots} cupos`);
 
         const expirationInfo = getExpirationStatusHTML(pub);
 
@@ -2061,6 +2065,95 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Close menus when clicking outside
 
 
+    // Helpers de enriquecimiento de notificaciones FinTech / Web3
+    function parseNotificationContent(rawMsg) {
+        if (!rawMsg) return { title: 'Notificación', badge: 'Info', badgeColor: '#38bdf8', badgeBg: 'rgba(56, 189, 248, 0.12)', icon: '🔔', txHash: null, cleanMessage: '' };
+        
+        let title = 'Notificación';
+        let badge = 'Info';
+        let badgeColor = '#38bdf8';
+        let badgeBg = 'rgba(56, 189, 248, 0.12)';
+        let icon = '🔔';
+        let txHash = null;
+        let cleanMessage = rawMsg;
+
+        const refMatch = rawMsg.match(/Referencia:\s*(0x[a-fA-F0-9]+)/i);
+        if (refMatch) {
+            txHash = refMatch[1];
+            cleanMessage = rawMsg.replace(/Referencia:\s*0x[a-fA-F0-9]+/i, '').trim();
+            cleanMessage = cleanMessage.replace(/\.\s*$/, '.');
+        }
+
+        const lower = rawMsg.toLowerCase();
+        if (lower.includes('pago') || lower.includes('pagad') || lower.includes('acreditad') || lower.includes('ganad') || lower.includes('💰')) {
+            title = 'Pago Confirmado';
+            badge = 'Blockchain';
+            badgeColor = '#10b981';
+            badgeBg = 'rgba(16, 185, 129, 0.15)';
+            icon = '💰';
+        } else if (lower.includes('aprobada') || lower.includes('aprobado') || lower.includes('culminada') || lower.includes('completada') || lower.includes('✅') || lower.includes('🎉')) {
+            title = 'Tarea Completada';
+            badge = 'Completada';
+            badgeColor = '#3b82f6';
+            badgeBg = 'rgba(59, 130, 246, 0.15)';
+            icon = '✅';
+        } else if (lower.includes('rechazad') || lower.includes('error') || lower.includes('cancelad') || lower.includes('⚠️') || lower.includes('❌')) {
+            title = 'Aviso';
+            badge = 'Alerta';
+            badgeColor = '#f59e0b';
+            badgeBg = 'rgba(245, 158, 11, 0.15)';
+            icon = '⚠️';
+        } else if (lower.includes('solicitud') || lower.includes('participar') || lower.includes('📩')) {
+            title = 'Solicitud de Tarea';
+            badge = 'Marketplace';
+            badgeColor = '#8b5cf6';
+            badgeBg = 'rgba(139, 92, 246, 0.15)';
+            icon = '📩';
+        }
+
+        return { title, badge, badgeColor, badgeBg, icon, txHash, cleanMessage };
+    }
+
+    function formatNotificationDateTime(dateVal) {
+        if (!dateVal) return '';
+        try {
+            const d = new Date(dateVal);
+            if (isNaN(d.getTime())) return '';
+            const dateStr = d.toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' });
+            const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            return `${dateStr}, ${timeStr}`;
+        } catch (_) {
+            return '';
+        }
+    }
+
+    window.copyNotiHash = async function(hash, btnId) {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(hash);
+            } else {
+                const ta = document.createElement('textarea');
+                ta.value = hash;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            }
+            const btn = document.getElementById(btnId);
+            if (btn) {
+                const prev = btn.innerText;
+                btn.innerText = '✓ Copiado';
+                btn.style.color = '#10b981';
+                setTimeout(() => {
+                    btn.innerText = prev;
+                    btn.style.color = '#38bdf8';
+                }, 2000);
+            }
+        } catch (e) {
+            console.error('Error al copiar hash:', e);
+        }
+    };
+
     // --- Notifications ---
     async function fetchNotifications() {
         try {
@@ -2082,7 +2175,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="notification-header-actions">
                         <button class="noti-action-link" onclick="window.openNotificationHistory()">Ver historial</button>
                     </div>
-                    <div class="no-notifications">No tienes notificaciones nuevas.</div>
+                    <div class="no-notifications" style="padding: 20px; text-align: center; color: #94a3b8;">
+                        <div style="font-size: 1.8rem; margin-bottom: 6px;">🔔</div>
+                        No tienes notificaciones pendientes
+                    </div>
                 `;
             } else {
                 // CABECERA CON ACCIONES (ARRIBA)
@@ -2097,14 +2193,53 @@ document.addEventListener('DOMContentLoaded', async () => {
                 `;
                 dropdown.appendChild(header);
 
-                // LISTA DE NOTIFICACIONES
-                notifications.forEach(notification => {
+                // LISTA DE NOTIFICACIONES CON FECHA/HORA Y FORMATO FINTECH
+                notifications.forEach((notification, idx) => {
+                    const parsed = parseNotificationContent(notification.message || '');
+                    const dateFormatted = formatNotificationDateTime(notification.created_at);
+                    const hashBtnId = `btn-copy-notif-${notification.id || idx}`;
+
                     const item = document.createElement('div');
                     item.className = 'notification-item';
                     item.dataset.id = notification.id;
+                    item.style.position = 'relative';
+                    item.style.display = 'flex';
+                    item.style.gap = '12px';
+                    item.style.alignItems = 'flex-start';
+                    item.style.padding = '12px 14px';
+                    item.style.borderRadius = '12px';
+                    item.style.margin = '6px 8px';
+                    item.style.background = 'rgba(30, 41, 59, 0.75)';
+                    item.style.border = '1px solid rgba(255, 255, 255, 0.08)';
+
+                    let txChipHTML = '';
+                    if (parsed.txHash) {
+                        const shortHash = `${parsed.txHash.slice(0, 8)}...${parsed.txHash.slice(-6)}`;
+                        txChipHTML = `
+                            <div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 6px; background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 255, 255, 0.06); padding: 3px 8px; border-radius: 6px; font-size: 0.72rem; color: #94a3b8; font-family: monospace;">
+                                <span>🔗 ${shortHash}</span>
+                                <button id="${hashBtnId}" type="button" onclick="event.stopPropagation(); window.copyNotiHash('${parsed.txHash}', '${hashBtnId}')" style="background: none; border: none; color: #38bdf8; cursor: pointer; padding: 0; font-size: 0.72rem; font-weight: 600;">Copiar</button>
+                            </div>
+                        `;
+                    }
+
                     item.innerHTML = `
-                        <p>${escapeHtml(notification.message)}</p>
-                        <span class="notification-dismiss" data-id="${notification.id}" title="Descartar">&times;</span>
+                        <div style="width: 36px; height: 36px; border-radius: 10px; background: ${parsed.badgeBg}; border: 1px solid ${parsed.badgeColor}33; display: flex; align-items: center; justify-content: center; font-size: 1.1rem; flex-shrink: 0;">
+                            ${parsed.icon}
+                        </div>
+                        <div style="flex: 1; min-width: 0; padding-right: 18px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 3px; flex-wrap: wrap;">
+                                <span style="font-size: 0.72rem; font-weight: 700; color: ${parsed.badgeColor}; background: ${parsed.badgeBg}; padding: 2px 8px; border-radius: 4px;">
+                                    ${parsed.badge}
+                                </span>
+                                ${dateFormatted ? `<span style="font-size: 0.72rem; color: #94a3b8; font-weight: 500;">🕒 ${dateFormatted}</span>` : ''}
+                            </div>
+                            <p style="margin: 4px 0 0 0; font-size: 0.86rem; color: #f1f5f9; line-height: 1.35; word-break: break-word;">
+                                ${escapeHtml(parsed.cleanMessage)}
+                            </p>
+                            ${txChipHTML}
+                        </div>
+                        <span class="notification-dismiss" data-id="${notification.id}" title="Descartar" style="position: absolute; top: 10px; right: 10px; cursor: pointer; font-size: 1.1rem; color: #64748b; line-height: 1;">&times;</span>
                     `;
                     dropdown.appendChild(item);
                 });
@@ -2157,7 +2292,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     <div class="notification-header-actions">
                         <button class="noti-action-link" onclick="window.openNotificationHistory()">Ver historial</button>
                     </div>
-                    <div class="no-notifications">No tienes notificaciones nuevas.</div>
+                    <div class="no-notifications" style="padding: 20px; text-align: center; color: #94a3b8;">No tienes notificaciones nuevas.</div>
                 `;
                 updateNotificationBadge(0);
             }
@@ -2197,35 +2332,40 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         let itemsHTML = '';
         if (history.length === 0) {
-            itemsHTML = '<p class="empty-history">Aún no tienes notificaciones en tu historial.</p>';
+            itemsHTML = '<p class="empty-history" style="text-align: center; padding: 30px; color: #94a3b8;">Aún no tienes notificaciones en tu historial.</p>';
         } else {
-            itemsHTML = history.map(noti => {
-                const date = new Date(noti.created_at).toLocaleString();
-                let icon = '🔔'; // Default
-                let statusClass = '';
+            itemsHTML = history.map((noti, idx) => {
+                const parsed = parseNotificationContent(noti.message || '');
+                const dateFormatted = formatNotificationDateTime(noti.created_at);
+                const hashBtnId = `btn-copy-history-${noti.id || idx}`;
 
-                // Detección inteligente de iconos por contenido
-                const msg = noti.message.toLowerCase();
-                if (msg.includes('aprobada') || msg.includes('has sido aprobado') || msg.includes('🎉') || msg.includes('✅')) {
-                    icon = '✅';
-                    statusClass = 'noti-success';
-                } else if (msg.includes('rechazada') || msg.includes('error') || msg.includes('⚠️') || msg.includes('❌')) {
-                    icon = '⚠️';
-                    statusClass = 'noti-warning';
-                } else if (msg.includes('pagada') || msg.includes('acreditado') || msg.includes('ganado') || msg.includes('💰')) {
-                    icon = '💰';
-                    statusClass = 'noti-money';
-                } else if (msg.includes('quiere participar') || msg.includes('solicitud') || msg.includes('📩')) {
-                    icon = '📩';
-                    statusClass = 'noti-request';
+                let txChipHTML = '';
+                if (parsed.txHash) {
+                    const shortHash = `${parsed.txHash.slice(0, 10)}...${parsed.txHash.slice(-8)}`;
+                    txChipHTML = `
+                        <div style="margin-top: 8px; display: inline-flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.4); border: 1px solid rgba(255, 255, 255, 0.08); padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; color: #cbd5e1; font-family: monospace;">
+                            <span>Ref: ${shortHash}</span>
+                            <button id="${hashBtnId}" type="button" onclick="event.stopPropagation(); window.copyNotiHash('${parsed.txHash}', '${hashBtnId}')" style="background: none; border: none; color: #38bdf8; cursor: pointer; padding: 0; font-size: 0.75rem; font-weight: 600;">Copiar</button>
+                        </div>
+                    `;
                 }
 
                 return `
-                    <div class="history-noti-item ${noti.is_read ? 'is-read' : 'is-unread'} ${statusClass}">
-                        <div class="history-noti-icon">${icon}</div>
-                        <div class="history-noti-content">
-                            <p>${escapeHtml(noti.message)}</p>
-                            <span class="history-noti-date">${date}</span>
+                    <div class="history-noti-item ${noti.is_read ? 'is-read' : 'is-unread'}" style="background: ${noti.is_read ? 'rgba(30, 41, 59, 0.45)' : 'rgba(30, 41, 59, 0.85)'}; border: ${noti.is_read ? '1px solid rgba(255, 255, 255, 0.06)' : '1px solid rgba(56, 189, 248, 0.25)'}; border-radius: 12px; padding: 14px 16px; display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);">
+                        <div style="width: 38px; height: 38px; border-radius: 10px; background: ${parsed.badgeBg}; border: 1px solid ${parsed.badgeColor}33; display: flex; align-items: center; justify-content: center; font-size: 1.15rem; flex-shrink: 0;">
+                            ${parsed.icon}
+                        </div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; flex-wrap: wrap; gap: 6px;">
+                                <span style="font-size: 0.72rem; font-weight: 700; color: ${parsed.badgeColor}; background: ${parsed.badgeBg}; padding: 2px 8px; border-radius: 4px;">
+                                    ${parsed.badge}
+                                </span>
+                                ${dateFormatted ? `<span style="font-size: 0.75rem; color: #94a3b8; font-weight: 500;">🕒 ${dateFormatted}</span>` : ''}
+                            </div>
+                            <p style="margin: 4px 0 0 0; color: #f1f5f9; fontSize: 0.88rem; line-height: 1.4; word-break: break-word;">
+                                ${escapeHtml(parsed.cleanMessage)}
+                            </p>
+                            ${txChipHTML}
                         </div>
                     </div>
                 `;
@@ -2233,18 +2373,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         modal.innerHTML = `
-            <div class="custom-modal-content history-modal">
-                <div class="custom-modal-header">
-                    <h2>Historial de Notificaciones</h2>
-                    <span class="custom-modal-close" onclick="document.getElementById('notificationHistoryModal').remove()">&times;</span>
+            <div class="custom-modal-content history-modal" style="max-width: 520px; width: 92%; max-height: 85vh; display: flex; flex-direction: column; background: #0f172a; border: 1px solid #334155; border-radius: 16px; overflow: hidden; box-shadow: 0 20px 40px rgba(0,0,0,0.5);">
+                <div class="custom-modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 16px 20px; border-bottom: 1px solid #1e293b;">
+                    <h2 style="margin: 0; font-size: 1.1rem; color: #fff; font-weight: 700;">📜 Historial de Notificaciones</h2>
+                    <span class="custom-modal-close" onclick="document.getElementById('notificationHistoryModal').remove()" style="cursor: pointer; font-size: 1.4rem; color: #94a3b8;">&times;</span>
                 </div>
-                <div class="custom-modal-body history-body">
+                <div class="custom-modal-body history-body" style="padding: 16px 20px; overflow-y: auto; flex: 1;">
                     <div class="history-list">
                         ${itemsHTML}
                     </div>
                 </div>
-                <div class="custom-modal-footer">
-                    <button class="action-button-admin secondary" onclick="document.getElementById('notificationHistoryModal').remove()">Cerrar</button>
+                <div class="custom-modal-footer" style="padding: 12px 20px; border-top: 1px solid #1e293b; display: flex; justify-content: flex-end;">
+                    <button class="action-button-admin secondary" onclick="document.getElementById('notificationHistoryModal').remove()" style="padding: 8px 18px; border-radius: 8px; background: #334155; color: #fff; border: none; cursor: pointer; font-weight: 600;">Cerrar</button>
                 </div>
             </div>
         `;

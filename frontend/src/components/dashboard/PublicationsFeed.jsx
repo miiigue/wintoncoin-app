@@ -447,10 +447,14 @@ export default function PublicationsFeed({
             else if (isDonation) ribbonClass = 'donation-ribbon';
             else if (pub.is_sell_post) ribbonClass = 'sell-ribbon';
 
-            const slotsClass = (pub.available_slots > 0) ? 'available' : 'full';
+            const totalSlots = parseInt(pub.total_slots, 10) || parseInt(pub.available_slots, 10) || 1;
+            const availableSlots = parseInt(pub.available_slots, 10) || 0;
+            const slotsClass = (availableSlots > 0) ? 'available' : 'full';
             const slotsText = isDonation
               ? 'Campaña Activa'
-              : (pub.available_slots > 0 ? `${pub.available_slots} cupos` : 'Cupos agotados');
+              : (availableSlots > 0
+                  ? `${availableSlots}/${totalSlots} cupos`
+                  : `0/${totalSlots} cupos`);
 
             const hasImage = pub.image_urls && pub.image_urls.length > 0;
             const isHiddenView = activeFilter === 'hidden';
