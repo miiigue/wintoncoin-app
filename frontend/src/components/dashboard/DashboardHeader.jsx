@@ -215,21 +215,67 @@ export default function DashboardHeader({
             )}
           </div>
 
-          {/* Dropdown de Notificaciones */}
+          {/* Dropdown de Notificaciones con Scroll Vertical y Máxima Altura */}
           {notifOpen && (
-            <div className="dropdown-content" id="notificationDropdown" style={{ display: 'block' }}>
-              {/* Acciones de Cabecera: Limpiar y Ver Historial */}
-              <div className="notification-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div
+              className="dropdown-content"
+              id="notificationDropdown"
+              style={{
+                display: 'block',
+                width: 'min(calc(100vw - 24px), 380px)',
+                maxWidth: 'calc(100vw - 24px)',
+                maxHeight: '75vh',
+                overflowY: 'auto',
+                overflowX: 'hidden',
+                right: 0,
+                boxSizing: 'border-box',
+                WebkitOverflowScrolling: 'touch'
+              }}
+            >
+              {/* Acciones de Cabecera Sticky: Limpiar y Ver Historial */}
+              <div
+                className="notification-footer"
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  position: 'sticky',
+                  top: 0,
+                  zIndex: 10,
+                  backgroundColor: '#0f172a',
+                  borderBottom: '1px solid #2a3b5c'
+                }}
+              >
                 <strong style={{ fontSize: '0.9rem', color: '#fff' }}>Notificaciones</strong>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.75rem' }}>
                   {notifications.length > 0 && (
-                    <span className="notification-footer-link" style={{ cursor: 'pointer' }}
-                      onClick={() => onClearNotifications && onClearNotifications()}>
+                    <span
+                      className="notification-footer-link"
+                      style={{ cursor: 'pointer' }}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() => onClearNotifications && onClearNotifications()}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          onClearNotifications && onClearNotifications();
+                        }
+                      }}
+                    >
                       Limpiar
                     </span>
                   )}
-                  <span className="notification-footer-link" style={{ cursor: 'pointer' }}
-                    onClick={handleOpenHistory}>
+                  <span
+                    className="notification-footer-link"
+                    style={{ cursor: 'pointer' }}
+                    role="button"
+                    tabIndex={0}
+                    onClick={handleOpenHistory}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        handleOpenHistory();
+                      }
+                    }}
+                  >
                     Ver historial
                   </span>
                 </div>
@@ -242,7 +288,7 @@ export default function DashboardHeader({
               ) : (
                 notifications.map((n, i) => (
                   <div key={n.id || i} className="notification-item">
-                    <p>
+                    <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: 1.4, wordBreak: 'break-word', overflowWrap: 'anywhere' }}>
                       <span style={{ marginRight: '6px' }}>{getNotificationIcon(n.message)}</span>
                       {n.message || n.body}
                     </p>
@@ -253,9 +299,18 @@ export default function DashboardHeader({
                     )}
                     <span
                       className="notification-dismiss"
+                      role="button"
+                      tabIndex={0}
+                      aria-label="Descartar notificación"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (onDismissNotification) onDismissNotification(n.id);
+                      }}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.stopPropagation();
+                          if (onDismissNotification) onDismissNotification(n.id);
+                        }
                       }}
                       title="Descartar"
                     >

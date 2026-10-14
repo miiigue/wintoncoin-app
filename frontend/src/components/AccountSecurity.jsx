@@ -92,7 +92,15 @@ export default function AccountSecurity({onActivated, hideWhenActive = false}) {
       setMigrating(Boolean(result.migration));
       if(result.success){
         const current=await refresh();
-        if(current?.account?.state==='active'){setActivationState('confirmed');onActivated?.();}
+        if(current?.account?.state==='active'){
+          setActivationState('confirmed');
+          if (current?.configuration?.chainId && current.account.address) {
+            try {
+              localStorage.setItem('winton_activation_celebrate:'+current.configuration.chainId+':'+current.account.address.toLowerCase(), 'true');
+            } catch {}
+          }
+          onActivated?.();
+        }
         return;
       }
       if(['failed','conflict','abandoned'].includes(result.state)){
@@ -118,14 +126,82 @@ export default function AccountSecurity({onActivated, hideWhenActive = false}) {
   }, [operation?.operationId,sessionExpired,activationState]);
 
   const isActive=context?.account?.state==='active';
-  const successKey=isActive&&context?.configuration?.chainId&&context.account.address
-    ? 'winton_activation_success_dismissed:'+context.configuration.chainId+':'+context.account.address.toLowerCase():null;
+  const accountAddress = context?.account?.address?.toLowerCase();
+  const chainId = context?.configuration?.chainId;
+  const successKey=isActive&&chainId&&accountAddress
+    ? 'winton_activation_success_dismissed:'+chainId+':'+accountAddress:null;
+  const celebrateKey=isActive&&chainId&&accountAddress
+    ? 'winton_activation_celebrate:'+chainId+':'+accountAddress:null;
+
   const [dismissedKey,setDismissedKey]=useState(null);
-  useEffect(()=>{try{setDismissedKey(successKey&&localStorage.getItem(successKey)==='true'?successKey:null);}catch{setDismissedKey(null);}},[successKey]);
+  const [isCelebrateStored,setIsCelebrateStored]=useState(false);
+
+  useEffect(()=>{
+    try{
+      setDismissedKey(successKey&&localStorage.getItem(successKey)==='true'?successKey:null);
+      setIsCelebrateStored(Boolean(celebrateKey&&localStorage.getItem(celebrateKey)==='true'));
+    }catch{
+      setDismissedKey(null);
+      setIsCelebrateStored(false);
+    }
+  },[successKey,celebrateKey]);
+
   const dismissedSuccess=successKey&&dismissedKey===successKey;
+  // La celebración de activación está pendiente si acaba de confirmarse en vivo o si quedó registrada en localStorage sin ser descartada
+  const isCelebrationPending = Boolean(!dismissedSuccess && (activationState === 'confirmed' || isCelebrateStored));
   const currentStep = isActive ? 4 : operation ? 4 : stage === 'device' ? 3 : (stage === 'check' || stage === 'resume' || stage === 'discard') ? 2 : 1;
 
-  if (isActive && hideWhenActive) return <PersonalRecovery context={context} onRecovered={refresh} alertsOnly />;
+  // Callback auditado para descartar la tarjeta de activación exitosa y persistir en localStorage
+  function handleDismissSuccess() {
+    if (successKey) {
+      setDismissedKey(successKey);
+      try {
+        localStorage.setItem(successKey, 'true');
+        if (celebrateKey) {
+          localStorage.removeItem(celebrateKey);
+          setIsCelebrateStored(false);
+        }
+      } catch (err) {
+        console.warn('[AccountSecurity] No se pudo guardar preferencia en localStorage:', err);
+      }
+    }
+  }
+
+  // Subcomponente puro y modular: Tarjeta de Felicitación de Activación Exitosa (Principio DRY)
+  function renderSuccessCard() {
+    return (
+      <div className="activation-success-card" role="status" aria-live="polite">
+        <div className="activation-success-content">
+          <span className="activation-success-icon" aria-hidden="true">🎉</span>
+          <div>
+            <strong>¡Felicidades! Tu billetera está activa</strong>
+            <p>Tu billetera ya tiene protección de autocustodia y respaldo configurado.</p>
+          </div>
+        </div>
+        <button
+          type="button"
+          className="activation-dismiss-btn"
+          onClick={handleDismissSuccess}
+        >
+          Entendido
+        </button>
+      </div>
+    );
+  }
+
+  // Si la cuenta está activa y hideWhenActive está activado (como en la Billetera):
+  // Solo mostramos la tarjeta si hay una celebración de activación pendiente de confirmar por el usuario.
+  if (isActive && hideWhenActive) {
+    if (isCelebrationPending) {
+      return (
+        <section id="account-security" className="account-security account-security-active" aria-labelledby="account-security-title">
+          {renderSuccessCard()}
+          <PersonalRecovery context={context} onRecovered={refresh} alertsOnly />
+        </section>
+      );
+    }
+    return <PersonalRecovery context={context} onRecovered={refresh} alertsOnly />;
+  }
 
   return <section id="account-security" className={`account-security ${isActive ? 'account-security-active' : ''}`} aria-labelledby="account-security-title">
     <h2 id="account-security-title">Seguridad y recuperación</h2>
@@ -207,21 +283,8 @@ export default function AccountSecurity({onActivated, hideWhenActive = false}) {
         </button>
       </div>
     )}
-    {isActive&&!dismissedSuccess&&(
-      <div className="activation-success-card">
-        <div className="activation-success-content">
-          <span className="activation-success-icon" aria-hidden="true">🎉</span>
-          <div>
-            <strong>¡Felicidades! Tu billetera está activa</strong>
-            {/* Mensaje de confirmación claro y profesional: autocustodia y respaldo activo */}
-            <p>Tu billetera ya tiene protección de autocustodia y respaldo configurado.</p>
-          </div>
-        </div>
-        <button type="button" className="activation-dismiss-btn" onClick={()=>{
-          if(successKey){setDismissedKey(successKey);try{localStorage.setItem(successKey,'true');}catch{}}
-        }}>Entendido</button>
-      </div>
-    )}
+    {/* Tarjeta de Felicitación de Activación Exitosa: visible hasta que el usuario la descarte explícitamente */}
+    {isActive && !dismissedSuccess && renderSuccessCard()}
     {isActive&&(
       <div className="security-active-clean-wrapper">
         <PersonalRecovery context={context} onRecovered={refresh}/>

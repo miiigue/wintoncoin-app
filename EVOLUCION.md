@@ -13,6 +13,36 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-14 — UI/UX Dashboard & Billetera: Resolución de Desbordamiento en Notificaciones Móviles por Hashes Blockchain, Persistencia de Activación Exitosa y Accesibilidad WCAG 2.5.3
+* **Diagnóstico de Fricción & Causa Raíz**:
+  - *Corte Lateral Izquierdo en Panel de Notificaciones*: La emisión de notificaciones con referencias de transacciones blockchain de 64 caracteres sin espacios (`Referencia: 592fb99c4de3...`) forzaba al navegador a calcular un ancho intrínseco superior a los 500px para el dropdown `#notificationDropdown`. Al estar posicionado con `position: absolute; right: 0;`, el contenedor se expandía más allá del borde izquierdo de pantallas móviles (375px-390px), expulsando fuera de la pantalla el título «Notificaciones» y los primeros 120px de cada notificación.
+  - *Desaparición Prematura del Mensaje de Billetera Activa*: En `AccountSecurity.jsx`, la bandera `hideWhenActive={true}` configurada en `Wallet.jsx` provocaba una salida temprana incondicional (`if (isActive && hideWhenActive) return ...`), impidiendo que los usuarios que reabrieran la aplicación horas o días después pudieran ver la confirmación verde «¡Felicidades! Tu billetera está activa».
+* **Resoluciones Implementadas**:
+  - *`frontend/style.css`*:
+    - Confinamiento estricto de `#notificationDropdown` a `width: 380px; max-width: calc(100vw - 24px); box-sizing: border-box; overflow-x: hidden;`.
+    - En pantallas móviles (`@media (max-width: 600px)`): ancho adaptativo `calc(100vw - 20px)` y anclaje seguro `right: -8px`.
+    - Inyección de `overflow-wrap: anywhere; word-break: break-word; white-space: normal;` en todos los párrafos `#notificationDropdown .notification-item p`, garantizando que hashes y cadenas largas salten de línea sin deformar el ancho del contenedor.
+  - *`frontend/src/components/dashboard/DashboardHeader.jsx`*:
+    - Estilos defensivos inline `width: min(calc(100vw - 24px), 380px)`, `boxSizing: border-box` y `wordBreak: break-word` para máxima resiliencia en React SPA.
+    - Cabecera sticky en el dropdown para mantener accesibles los botones de "Limpiar" y "Ver historial".
+    - Accesibilidad de grado bancario en el botón de descarte (`role="button"`, `tabIndex={0}`, eventos `onKeyDown` de teclado para Enter/Space).
+  - *`frontend/src/components/AccountSecurity.jsx`*:
+    - Máquina de estados de ciclo de vida de activación persistente: registro de bandera `winton_activation_celebrate:${chainId}:${address}` al confirmar la activación de la cuenta.
+    - Persistencia en `Wallet.jsx` (`hideWhenActive={true}`): la tarjeta verde («¡Felicidades! Tu billetera está activa») permanece visible de forma perenne ante recargas, cierres de sesión o reinicios de la PWA hasta que el usuario presione voluntariamente el botón «Entendido», sin interferir con la vista limpia de saldos en cuentas preexistentes.
+    - Alineación estricta con **WCAG 2.1 Criterio 2.5.3 (Label in Name)**: el botón «Entendido» utiliza su texto visual como Accessible Name unificado en el Accessibility Tree, garantizando compatibilidad total con lectores de pantalla y herramientas de control por voz.
+    - Principio DRY: reutilización del bloque modular `renderSuccessCard()` tanto en la vista completa como en el modo encapsulado de Billetera.
+* **Archivos Actualizados**:
+  - [`frontend/src/components/AccountSecurity.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/AccountSecurity.jsx)
+  - [`frontend/style.css`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css)
+  - [`frontend/src/components/dashboard/DashboardHeader.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/dashboard/DashboardHeader.jsx)
+* **Verificación y Pruebas Automatizadas**:
+  - `npm --prefix frontend run test:account-security` → **5/5 suites PASS (8 checks de respaldo, 23 checks de interacción, 5 flujos KYC de visualizador, 7 escenarios de pago de publicación, validaciones de estatus admin con timeout)**.
+  - `npm --prefix frontend run check:react` → **PASS (54 componentes analizados, 0 referencias no declaradas)**.
+  - `npm --prefix frontend run build:demo` → **PASS (Exit code 0 en 25.97s, 104 módulos transformados, Service Worker generado con 176 activos PWA precacheados)**.
+* **Evidencia**: Commit `9fb24cd` en rama `demo`.
+* **Gobernanza y Cumplimiento Protocolar**:
+  - Zero-Trust, diseño responsive mobile-first, lenguaje amigable y sin tecnicismos para usuarios comunes, apego absoluto al principio de COMPROMISO RED.
+
 ### 2026-10-13 — Backend & Frontend: Respaldo RPC Automático (Failover) con Inmutabilidad Criptográfica y Timeout Protector para Pagos y Administración
 * **Diagnóstico & Causa Raíz (Timeouts en Resumen de Pagos y 503 en Admin Web3)**:
   - Las peticiones de consulta on-chain en el backend dependían de un único endpoint RPC primario (`OPTIMISM_RPC_URL`) sin timeout estricto ni conmutación ante fallos.

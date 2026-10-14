@@ -2680,6 +2680,14 @@ hr {
     /* Oculto por defecto, se muestra con JS */
 }
 
+#notificationDropdown {
+    width: 380px;
+    max-width: calc(100vw - 24px);
+    right: 0;
+    box-sizing: border-box;
+    overflow-x: hidden;
+}
+
 #notificationDropdown .notification-item {
     padding: 12px 16px;
     padding-right: 35px;
@@ -2688,6 +2696,9 @@ hr {
     position: relative;
     cursor: default;
     /* El contenedor ya no es clickeable */
+    box-sizing: border-box;
+    word-break: break-word;
+    overflow-wrap: anywhere;
 }
 
 #notificationDropdown .notification-item:last-child {
@@ -2698,6 +2709,17 @@ hr {
     margin: 0;
     font-size: 0.9rem;
     line-height: 1.4;
+    word-break: break-word;
+    overflow-wrap: anywhere;
+    white-space: normal;
+}
+
+@media (max-width: 600px) {
+    #notificationDropdown {
+        width: calc(100vw - 20px) !important;
+        max-width: calc(100vw - 20px) !important;
+        right: -8px !important;
+    }
 }
 
 .notification-dismiss {
