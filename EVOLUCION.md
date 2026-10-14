@@ -40,7 +40,8 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 * **Verificación y Pruebas Automatizadas**:
   - `npm --prefix frontend run check:react` → **PASS (54 componentes auditados, 0 errores)**.
   - `npm --prefix frontend run test:account-security` → **6/6 suites PASS**.
-  - `npm --prefix frontend run build:demo` → **PASS (Compilación de Vite exitosa en 30.04s, PWA precache 178 archivos)**.
+  - `npm --prefix frontend run build:demo` → **PASS (Compilación de Vite exitosa en 22.25s, PWA precache 178 archivos)**.
+* **Evidencia**: Commit `6ff9ba6` en rama `demo`.
 
 ### 2026-10-14 — Paridad Visual Milimétrica Vanilla vs React: Apertura Canónica en Billetera al Desactivar Pre-lanzamiento, Restauración de Bandera Beta y Estandarización de Márgenes
 * **Diagnóstico de Discrepancias y Causa Raíz (Vanilla vs React)**:
