@@ -1269,13 +1269,19 @@ Puedes ver los detalles aquí:`;
             day: 'numeric'
         });
 
-        if (elements.authModalTaskTitle) elements.authModalTaskTitle.textContent = pub.title || 'Liquidación de Tarea';
+        // Helper bancario/FinTech para montos tabulares limpios y profesionales sin superíndices partidos
+        const formatPlainAmount = (val) => {
+            const num = Number(val) || 0;
+            return num.toLocaleString('es-ES', { minimumFractionDigits: 4, maximumFractionDigits: 4 });
+        };
+
+        if (elements.authModalTaskTitle) elements.authModalTaskTitle.textContent = pub.title || 'Autorización de Tarea';
         if (elements.authModalWorker) elements.authModalWorker.textContent = `@${workerUsername}`;
-        if (elements.authModalGrossAmount) elements.authModalGrossAmount.innerHTML = `${formatBalance(grossBlue)} BLUE`;
-        if (elements.authModalCommissionLabel) elements.authModalCommissionLabel.textContent = `Comisión Plataforma (${commissionPct}%):`;
-        if (elements.authModalCommissionAmount) elements.authModalCommissionAmount.innerHTML = `+ ${formatBalance(commissionAmount)} BLUE`;
-        if (elements.authModalTotalRed) elements.authModalTotalRed.innerHTML = `${formatBalance(totalRed)} RED`;
-        if (elements.authModalDueDate) elements.authModalDueDate.textContent = `${dueDate} · estimado: ${debtCycleDays} días desde su confirmación`;
+        if (elements.authModalGrossAmount) elements.authModalGrossAmount.textContent = `${formatPlainAmount(grossBlue)} BLUE`;
+        if (elements.authModalCommissionLabel) elements.authModalCommissionLabel.textContent = `Comisión (${commissionPct}%):`;
+        if (elements.authModalCommissionAmount) elements.authModalCommissionAmount.textContent = `+ ${formatPlainAmount(commissionAmount)} BLUE`;
+        if (elements.authModalTotalRed) elements.authModalTotalRed.textContent = `${formatPlainAmount(totalRed)} RED`;
+        if (elements.authModalDueDate) elements.authModalDueDate.textContent = `${dueDate} (${debtCycleDays} días tras confirmación)`;
 
         if (elements.authModalPinInput) {
             elements.authModalPinInput.value = '';

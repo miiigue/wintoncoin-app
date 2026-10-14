@@ -13,6 +13,35 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-14 — UI/UX Marketplace: Rediseño Estilo FinTech/Bancario del Modal «Autorización de Pago», Desglose Tabular sin Decimales Rotos y Claridad Terminológica de Compromiso RED
+* **Diagnóstico de Fricción & Causa Raíz**:
+  - *Título y Jerga Compleja*: El modal utilizaba «Autorización y Liquidación de Pago», un término excesivamente técnico para usuarios comunes.
+  - *Desalineación y Decimales Partidos*: Los montos se renderizaban a través de `formatBalance()`, el cual inyectaba `<span class="decimal-part">` configurado en CSS como superíndice (`vertical-align: super; font-size: 0.7em !important;`). Al concatenar la divisa (`BLUE` o `RED`), los decimales quedaban elevados y la divisa caía a la línea base o forzaba saltos de línea antiestéticos.
+  - *Etiquetas Obsoletas y Desbordamiento en Móviles*: La etiqueta «Total Compromiso RED que Asumes:» ocupaba demasiado ancho horizontal, forzando un quiebre de línea en pantallas móviles de 360-390px. Asimismo, figuraban términos redundantes como «Monto Bruto» y «Comisión Plataforma».
+* **Resoluciones Técnicas Implementadas**:
+  - *`frontend/publication-detail.html`*:
+    - Actualización del título a «🔐 Autorización de pago».
+    - Sustitución de etiquetas por terminología limpia y profesional:
+      * «Monto (acredita con parking):» (eliminada la palabra «Bruto»).
+      * «Comisión (4%):» (eliminada la palabra «Plataforma»).
+      * «Compromiso RED asumido:» (remplazando la frase larga anterior).
+    - Tarjeta resumen con diseño bancario/recibo FinTech (`rgba(30, 41, 59, 0.5)`, borde sutil y números tabulares `font-variant-numeric: tabular-nums`).
+    - Confinamiento horizontal y protección con `white-space: nowrap` en montos e importes para evitar desbordamientos.
+    - Simplificación de la fecha de vencimiento a una sola mención limpia: «Fecha Límite de Vencimiento: [Fecha] ([Días] días tras confirmación)».
+  - *`frontend/src/pages/publication-detail.js`*:
+    - Creación del formateador monetario institucional `formatPlainAmount(val)` que preserva la alineación horizontal estándar de la moneda y los decimales sin superíndices partidos.
+    - Sincronización dinámica de etiquetas de comisión y vencimiento.
+* **Archivos Actualizados**:
+  - [`frontend/publication-detail.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/publication-detail.html)
+  - [`frontend/src/pages/publication-detail.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/publication-detail.js)
+* **Verificación y Pruebas Automatizadas**:
+  - `npm --prefix frontend run test:account-security` → **5/5 suites PASS (8 checks de respaldo, 23 checks de interacción, 5 flujos KYC de visualizador, 7 controladores de pago de Marketplace, validación admin)**.
+  - `npm --prefix frontend run check:react` → **PASS (54 componentes analizados, 0 referencias no declaradas)**.
+  - `npm --prefix frontend run build:demo` → **PASS (Exit code 0 en 26.55s, 104 módulos transformados, 176 activos precacheados)**.
+* **Evidencia**: Commit `5d142bf` en rama `demo`.
+* **Gobernanza y Cumplimiento Protocolar**:
+  - Apego estricto a la terminología de COMPROMISO RED, Zero-Trust, diseño mobile-first y estándares visuales FinTech de nivel bancario.
+
 ### 2026-10-14 — UI/UX Dashboard & Billetera: Resolución de Desbordamiento en Notificaciones Móviles por Hashes Blockchain, Persistencia de Activación Exitosa y Accesibilidad WCAG 2.5.3
 * **Diagnóstico de Fricción & Causa Raíz**:
   - *Corte Lateral Izquierdo en Panel de Notificaciones*: La emisión de notificaciones con referencias de transacciones blockchain de 64 caracteres sin espacios (`Referencia: 592fb99c4de3...`) forzaba al navegador a calcular un ancho intrínseco superior a los 500px para el dropdown `#notificationDropdown`. Al estar posicionado con `position: absolute; right: 0;`, el contenedor se expandía más allá del borde izquierdo de pantallas móviles (375px-390px), expulsando fuera de la pantalla el título «Notificaciones» y los primeros 120px de cada notificación.
