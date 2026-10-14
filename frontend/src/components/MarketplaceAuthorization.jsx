@@ -36,10 +36,35 @@ function Dialog({id,quote,onClose}) {
     }finally{inFlight.current=false;setBusy(false);}
   }
   return <div className="operation-backdrop"><section className="operation-dialog" role="dialog" aria-modal="true" aria-labelledby="marketplace-sign-title">
-    <h2 id="marketplace-sign-title">Confirmar pago</h2>
-    {a&&<><p>Importe: {formatUnits(a.amount,6)} BLUE</p><p>Comisión: {formatUnits(BigInt(a.amount)*BigInt(a.feeBps)/10000n,6)} BLUE</p><p>Destino: <span className="operation-address">{a.payee}</span></p></>}
-    <p>El protocolo aplica tus saldos y las reglas de compromisos RED. Nunca escribas tu frase de recuperación para pagar.</p>
-    <p role="status">{message}</p><button disabled={busy} onClick={()=>onClose(null)}>Cerrar</button><button disabled={busy||!a} onClick={confirm}>{busy?'Comprobando…':checkOnly?'Consultar estado del pago':'Confirmar con mi dispositivo'}</button>
+    <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}>
+      <span style={{fontSize:'1.5rem'}}>{checkOnly?'⏳':'🔐'}</span>
+      <h2 id="marketplace-sign-title" style={{margin:0,fontSize:'1.3rem'}}>{checkOnly?'Procesando confirmación':'Confirmar pago'}</h2>
+    </div>
+    {a&&<div style={{background:'rgba(255,255,255,0.05)',padding:'12px 14px',borderRadius:'10px',marginBottom:'14px',border:'1px solid rgba(255,255,255,0.08)'}}>
+      <p style={{margin:'4px 0'}}><strong>Importe:</strong> {formatUnits(a.amount,6)} BLUE</p>
+      <p style={{margin:'4px 0'}}><strong>Comisión:</strong> {formatUnits(BigInt(a.amount)*BigInt(a.feeBps)/10000n,6)} BLUE</p>
+      <p style={{margin:'4px 0',fontSize:'0.85rem',color:'#94a3b8'}}><strong>Destino:</strong> <span className="operation-address" style={{color:'#38bdf8'}}>{a.payee}</span></p>
+    </div>}
+    <p style={{fontSize:'0.85rem',color:'#94a3b8',marginBottom:'14px',lineHeight:'1.4'}}>
+      El protocolo aplica tus saldos y las reglas de compromisos RED. Nunca compartas tu frase de recuperación.
+    </p>
+    <div style={{
+      background: checkOnly ? 'rgba(56, 189, 248, 0.12)' : 'rgba(255, 255, 255, 0.05)',
+      border: checkOnly ? '1px solid rgba(56, 189, 248, 0.3)' : '1px solid rgba(255, 255, 255, 0.1)',
+      borderRadius: '10px',
+      padding: '12px 14px',
+      marginBottom: '16px',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '12px'
+    }}>
+      {busy && <span className="spinner" style={{display:'inline-block',width:'18px',height:'18px',border:'2px solid #38bdf8',borderTopColor:'transparent',borderRadius:'50%',animation:'spin 1s linear infinite',flexShrink:0}}></span>}
+      <p role="status" style={{margin:0,fontSize:'0.9rem',color:checkOnly?'#38bdf8':'#f1f5f9',lineHeight:'1.4'}}>{message}</p>
+    </div>
+    <div style={{display:'flex',gap:'10px',justifyContent:'flex-end'}}>
+      <button disabled={busy} onClick={()=>onClose(null)} style={{background:'transparent',border:'1px solid #64748b',color:'#cbd5e1'}}>Cerrar</button>
+      <button disabled={busy||!a} onClick={confirm}>{busy?'Comprobando…':checkOnly?'Consultar estado del pago':'Confirmar con mi dispositivo'}</button>
+    </div>
   </section></div>;
 }
 export async function authorizeMarketplace(id){

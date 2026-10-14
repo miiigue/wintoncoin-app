@@ -22,28 +22,78 @@ document.addEventListener('DOMContentLoaded', () => {
     const recoveryKey='winton-publication-payment:'+storedUsername+':'+publicationId;
     const donationKey=recoveryKey+':donation';
     let recoveringPayment=false;
+    function updatePendingPaymentUI(isPending, messageText = '') {
+        if (typeof document === 'undefined') return;
+        const confirmBtn = document.querySelector('button[data-action="confirm-payment"]');
+        if (confirmBtn) {
+            if (isPending) {
+                confirmBtn.disabled = true;
+                confirmBtn.style.opacity = '0.9';
+                confirmBtn.style.background = 'linear-gradient(135deg, #0284c7, #2563eb)';
+                confirmBtn.style.cursor = 'wait';
+                confirmBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-right:6px;"></span> Confirmando en red...';
+                confirmBtn.title = messageText || 'La transacción está siendo confirmada en blockchain.';
+            } else {
+                confirmBtn.disabled = false;
+                confirmBtn.style.opacity = '1';
+                confirmBtn.style.background = '';
+                confirmBtn.style.cursor = 'pointer';
+                confirmBtn.innerHTML = 'Confirmar Pago';
+                confirmBtn.title = '';
+            }
+        }
+    }
+
     async function recoverPayment(manual=false){
         const id=sessionStorage.getItem(recoveryKey);
-        if(!id)return true;
-        if(recoveringPayment){if(manual)showCustomAlert('Estamos comprobando el pago anterior. Espera a que termine la consulta.');return false;}
+        if(!id){
+            updatePendingPaymentUI(false);
+            return true;
+        }
+        if(recoveringPayment){
+            if(manual)showCustomAlert('Estamos comprobando el pago anterior. Espera a que termine la consulta.');
+            return false;
+        }
         recoveringPayment=true;
+        updatePendingPaymentUI(true);
         try {
             const result=await operationRequest('/marketplace/'+id);
             if(result.state==='expired'&&result.canRenew===true){
                 sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);
+                updatePendingPaymentUI(false);
                 showCustomAlert(result.message);return true;
             }
-            if(result.authorization){const authorized=await authorizeMarketplace(id);if(authorized)setTimeout(recoverPayment,5000);return;}
-            if(result.settled){sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();}
-            else if(['failed','conflict'].includes(result.state)){if(result.state==='failed')sessionStorage.removeItem(recoveryKey);showCustomAlert(result.message+' Referencia: '+id);}
-            else {
-                if(manual)showCustomAlert((result.message||'El pago anterior sigue pendiente de confirmación.')+' Referencia: '+id);
-                setTimeout(recoverPayment,5000);
+            if(result.authorization){
+                const authorized=await authorizeMarketplace(id);
+                if(authorized){
+                    updatePendingPaymentUI(true, 'Autorización recibida. Confirmando en red...');
+                    setTimeout(recoverPayment,3000);
+                }
+                return;
             }
-        }catch(e){showCustomAlert((e.message||'No se pudo consultar el pago.')+' Conservamos su referencia para consultar nuevamente.');}
+            if(result.settled){
+                sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);
+                updatePendingPaymentUI(false);
+                showCustomAlert(result.message || '¡Pago confirmado y registrado con éxito!');
+                await initializePage();
+                return true;
+            }
+            else if(['failed','conflict'].includes(result.state)){
+                if(result.state==='failed')sessionStorage.removeItem(recoveryKey);
+                updatePendingPaymentUI(false);
+                showCustomAlert(result.message+' Referencia: '+id);
+            }
+            else {
+                updatePendingPaymentUI(true, (result.message||'El pago sigue en proceso de confirmación en la red.'));
+                if(manual)showCustomAlert((result.message||'El pago anterior sigue pendiente de confirmación en blockchain.')+' Referencia: '+id);
+                setTimeout(recoverPayment,4000);
+            }
+        }catch(e){
+            if(manual)showCustomAlert((e.message||'No se pudo consultar el pago.')+' Conservamos su referencia para consultar nuevamente.');
+        }
         finally{recoveringPayment=false;}
     }
-    setTimeout(recoverPayment,1000);
+    setTimeout(recoverPayment,800);
     function isVirtualPayment(){return window.currentPublication?.is_booster_task===true || [true,'true'].includes(window.currentPlatformSettings?.pre_launch_mode_enabled);}
     async function payWithConsent(endpoint,body,amount,payee){
         if(isVirtualPayment())return fetchFromServer(endpoint,'POST',body);
@@ -546,7 +596,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
             } else if (p.status === 'completed') {
-                actionButtons = `
+                const isPendingRecovery = !!sessionStorage.getItem(recoveryKey);
+                actionButtons = isPendingRecovery ? `
+                    <button class="action-button confirm" data-action="confirm-payment" data-user="${escapeAttr(p.username)}" disabled style="opacity: 0.9; background: linear-gradient(135deg, #0284c7, #2563eb); cursor: wait;" title="La transacción está siendo confirmada en blockchain.">
+                        <span class="spinner" style="display:inline-block;width:12px;height:12px;border:2px solid #fff;border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin-right:6px;"></span> Confirmando en red...
+                    </button>
+                ` : `
                     <button class="action-button confirm" data-action="confirm-payment" data-user="${escapeAttr(p.username)}">Confirmar Pago</button>
                 `;
             }

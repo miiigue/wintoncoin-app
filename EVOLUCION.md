@@ -13,6 +13,28 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-14 — UI/UX Marketplace: Experiencia FinTech de Confirmación de Pago en Vivo, Erradicación de Alertas Obstructivas y Feedback Visual Transaccional
+* **Diagnóstico de Fricción & Causa Raíz**:
+  - *Cierre Abrupto de Modal al Firmar*: En `MarketplaceAuthorization.jsx`, el modal de confirmación se cerraba inmediatamente tras despachar la transacción firmada con Passkey al backend.
+  - *Alertas Flotantes Obstructivas*: El frontend emitía modales de alerta genéricos (`showCustomAlert`) exigiendo clics repetitivos de «Cerrar» mientras la transacción se confirmaba en la red.
+  - *Incertidumbre en la Interfaz*: Tras cerrar la alerta, el botón permanecía como «Confirmar Pago», provocando que el usuario volviera a pulsarlo repetidamente sin saber si su pago ya había sido recibido o si estaba en curso.
+* **Resoluciones Técnicas Implementadas**:
+  - *`frontend/src/components/MarketplaceAuthorization.jsx`*:
+    - **Máquina de Estados de Confirmación Visible**: El modal no desaparece de golpe; transiciona fluidamente al estado `checkOnly` con el título «⏳ Procesando confirmación».
+    - Contenedor con spinner reactivo y mensaje de estado en tiempo real (`rgba(56, 189, 248, 0.12)` y borde cyan) que explica claramente el progreso del envío y la consulta on-chain.
+  - *`frontend/src/pages/publication-detail.js`*:
+    - **Indicador Dinámico en la Lista de Participantes**: Creación de `updatePendingPaymentUI(isPending, messageText)`. Mientras el pago se confirma en blockchain, el botón «Confirmar Pago» se desactiva, cambia su estilo a un gradiente activo con spinner giratorio y muestra el texto `⏳ Confirmando en red...`, impidiendo doble clic accidental o confusión.
+    - **Polling Silencioso No Invasivo**: `recoverPayment` consulta el estado de la operación cada 3-4 segundos sin interrumpir al usuario con alertas emergentes.
+    - **Transición Automática a «Pagado»**: Al conciliarse la liquidación (`settled: true`), el badge cambia automáticamente a `Pagado`, se actualiza la página y se despliega el flujo de calificación al trabajador.
+    - **Salvaguarda de Compatibilidad**: Protección con `typeof document !== 'undefined'` para ejecuciones en entornos Node/VM de pruebas unitarias.
+* **Verificación y Pruebas Automatizadas**:
+  - `npm --prefix frontend run test:account-security` → **5/5 suites PASS (8 checks de respaldo, 23 checks de interacción, 5 flujos KYC de visualizador, 7 escenarios de controlador de pago de publicaciones, validación de status admin)**.
+  - `npm --prefix frontend run check:react` → **PASS (54 componentes revisados, 0 referencias no declaradas)**.
+  - `npm --prefix frontend run build:demo` → **PASS (Exit code 0 en 24.50s, 104 módulos transformados, 178 activos precacheados)**.
+  - `git diff --check` → **Limpio (0 advertencias)**.
+* **Gobernanza y Cumplimiento Protocolar**:
+  - Estándar UX de nivel bancario/FinTech (Revolut/Binance/Stripe), Zero-Trust, terminología obligatoria de Compromiso RED y sin hardcoded secrets.
+
 ### 2026-10-14 — Marketplace & Publicaciones: Verificación KYC On-Chain Obligatoria para Creación (CODEX-153) y Guardianes de Acceso Anticipado UX (CODEX-154)
 * **Diagnóstico & Causa Raíz**:
   - *Vulnerabilidad de Creación sin Identidad*: Las rutas de publicación legadas (`/publish`) solo verificaban KYC si la publicación era de tipo solicitud (`!isSellPost`) y permitían la creación en etapas de prelanzamiento sin validación de identidad. Las ventas rápidas (`/api/quick-sale`) y donaciones carecían de comprobación on-chain estricta, lo que permitía a usuarios sin KYC aprobado registrar ofertas en el marketplace.
