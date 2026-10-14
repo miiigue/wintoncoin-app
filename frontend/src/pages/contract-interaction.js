@@ -1,3 +1,5 @@
+import {installPublicationEntryGuards} from '../modules/publicationAccess.js';
+installPublicationEntryGuards();
 /**
  * Contract Interaction (Dashboard) Page Module
  * Main dashboard for authenticated users - publications, balances, notifications

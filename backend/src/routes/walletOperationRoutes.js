@@ -18,6 +18,17 @@ const run=fn=>async(req,res)=>{
     try {const result=await fn(req);res.status(result.success?200:202).json(result);}
     catch(e){res.status(e.status || 503).json({success:false,accepted:e.status===202,message:e.status?e.message:'No se pudo comprobar la operación. Consulta su estado antes de repetirla.',operationId:e.operationId,fundingOperationId:e.fundingOperationId});}
 };
+router.get('/publication-access',async(req,res)=>{
+ try{
+  const result=await require('../config/db').query('SELECT web3_wallet_address FROM users WHERE id = $1',[req.user.userId]);
+  if(!result.rows[0])return res.status(404).json({message:'No se encontró tu cuenta.'});
+  await require('../services/publicationKyc').requirePublicationKyc(result.rows[0]);
+  return res.json({success:true,approved:true});
+ }catch(error){
+  if(error.code==='PUBLICATION_KYC_REQUIRED')return res.json({success:true,approved:false,message:error.message});
+  return res.status(error.status||503).json({success:false,message:'No pudimos comprobar tu verificación de identidad. Intenta nuevamente.'});
+ }
+});
 router.get('/marketplace/terms',run(async()=>({success:true,...await require('../services/marketplacePayments').service().terms()})));
 router.get('/marketplace/:id',run(req=>{
  if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});

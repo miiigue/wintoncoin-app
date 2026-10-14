@@ -273,10 +273,11 @@ async function createPlatformPublication(req, res) {
     }
 
     try {
-        const userResult = await pool.query(`SELECT id FROM users WHERE username = $1`, [platformUsername]);
+        const userResult = await pool.query(`SELECT id, web3_wallet_address FROM users WHERE username = $1`, [platformUsername]);
         if (userResult.rowCount === 0) {
             return res.status(500).json({ message: "Error crítico: El usuario de la plataforma no se encuentra." });
         }
+        await require('../../services/publicationKyc').requirePublicationKyc(userResult.rows[0]);
         const authorId = userResult.rows[0].id;
 
         const sanitizedFormFields = _sanitizeFormFields(formFields);
@@ -354,7 +355,7 @@ async function createPlatformPublication(req, res) {
 
     } catch (error) {
         console.error("[AdminPublicationsController] Error al crear publicación de la plataforma:", error);
-        return res.status(500).json({ message: "Error interno del servidor." });
+        return res.status(error.status || 500).json({ code:error.code, requires_kyc:error.requires_kyc===true, message:error.status ? error.message : "Error interno del servidor." });
     }
 }
 

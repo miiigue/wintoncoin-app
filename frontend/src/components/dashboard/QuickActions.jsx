@@ -1,4 +1,5 @@
-import React from 'react';
+import React, {useEffect} from 'react';
+import {installPublicationEntryGuards} from '../../modules/publicationAccess.js';
 import { Link } from 'react-router-dom';
 
 /**
@@ -16,6 +17,7 @@ export default function QuickActions({
   onOpenQuickSale,
   isPreLaunch = false,
 }) {
+  useEffect(()=>installPublicationEntryGuards(),[]);
   return (
     <div
       className="main-actions-container"

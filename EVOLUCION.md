@@ -13,6 +13,34 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-14 — Marketplace & Publicaciones: Verificación KYC On-Chain Obligatoria para Creación (CODEX-153) y Guardianes de Acceso Anticipado UX (CODEX-154)
+* **Diagnóstico & Causa Raíz**:
+  - *Vulnerabilidad de Creación sin Identidad*: Las rutas de publicación legadas (`/publish`) solo verificaban KYC si la publicación era de tipo solicitud (`!isSellPost`) y permitían la creación en etapas de prelanzamiento sin validación de identidad. Las ventas rápidas (`/api/quick-sale`) y donaciones carecían de comprobación on-chain estricta, lo que permitía a usuarios sin KYC aprobado registrar ofertas en el marketplace.
+  - *Falsa Dependencia SQL*: El backend utilizaba campos booleanos legados (`users.kyc_verified`) que podían desalinearse del estado criptográfico real en `CoreProtocol.sol`.
+  - *Fricción de Usuario*: Los usuarios completaban extensos formularios de publicación para luego recibir un error de rechazo recién en el envío final (`POST`), o eran sorprendidos por errores genéricos.
+* **Resoluciones Técnicas Implementadas**:
+  - *`backend/src/services/publicationKyc.js` (Nuevo)*:
+    - Función guardiana centralizada `requirePublicationKyc(authorWallet, beneficiaryWallet)` que consulta irrevocablemente a la blockchain mediante `checkUserKYCStrict()`.
+    - Cero Confianza en la base de datos: el booleano SQL `kyc_verified` es ignorado si la blockchain devuelve `false`.
+    - Diferenciación limpia entre rechazo de identidad (HTTP 403 `PUBLICATION_KYC_REQUIRED` con `requires_kyc: true`) y fallo de red/nodo (HTTP 503 `BLOCKCHAIN_UNAVAILABLE`), evitando falsos rechazos ante interrupciones de RPC.
+    - Protección de donaciones: verificación atómica tanto del autor como del beneficiario cuando difieren.
+  - *Controladores Backend (`publicationController.js` & `adminPublicationsController.js`)*:
+    - Integración estricta de `requirePublicationKyc` antes de ejecutar cualquier `INSERT` en la base de datos para solicitudes, ventas, donaciones, ventas rápidas y publicaciones administrativas. Sin excepciones de prelanzamiento.
+  - *`backend/src/routes/walletOperationRoutes.js` (Endpoint UX)*:
+    - Ruta autenticada `GET /api/me/operations/publication-access` que extrae la identidad del titular mediante la sesión JWT autenticada (`req.user.userId`), protegida con cabecera bancaria `Cache-Control: no-store`.
+  - *Frontend (`publicationAccess.js`, `publish.js`, `contract-interaction.js` & `QuickActions.jsx`)*:
+    - Intercepción previa de todos los puntos de entrada («Crear publicación», «Venta rápida», botones en Dashboard React y enlaces HTML legados).
+    - Despliegue de modal informativo con diseño amigable y enlace directo hacia `wallet.html` («Verificar mi identidad») si la identidad no está aprobada.
+    - Acceso directo protegido: si el usuario navega directamente a la URL `/publish.html`, el formulario se mantiene oculto e inhabilitado hasta que se confirme la verificación on-chain, con opción de reintento en vivo.
+    - Compartición de peticiones concurrentes y caché volátil de 15 segundos en memoria para máxima velocidad sin saturar el backend.
+* **Verificación y Pruebas Automatizadas**:
+  - Backend: `npm test -- backend/__tests__/publicationKyc.test.js backend/__tests__/publicationAccess.test.js` → **2 suites PASS (13/13 tests)**.
+  - Frontend Playwright: `node frontend/scripts/check-publication-access.cjs` → **PASS**.
+  - Frontend Build: `npm run build:demo` → **Código 0 en 27.24s** (178 activos precacheados en el Service Worker PWA).
+  - Git Diff: `git diff --check` → **Limpio (0 advertencias)**.
+* **Gobernanza y Cumplimiento Protocolar**:
+  - Cumplimiento estricto de SOC 2, Zero-Trust (On-Chain First), AML/KYC regulatorio en transmisión de valor y salvaguarda de contratos inteligentes.
+
 ### 2026-10-14 — UI/UX Marketplace: Rediseño Estilo FinTech/Bancario del Modal «Autorización de Pago», Desglose Tabular sin Decimales Rotos y Claridad Terminológica de Compromiso RED
 * **Diagnóstico de Fricción & Causa Raíz**:
   - *Título y Jerga Compleja*: El modal utilizaba «Autorización y Liquidación de Pago», un término excesivamente técnico para usuarios comunes.

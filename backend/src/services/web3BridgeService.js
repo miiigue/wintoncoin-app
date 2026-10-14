@@ -368,6 +368,11 @@ class Web3BridgeService {
         return require('./durableAdministration').execute(this,this._getProtocol(),'setUserBenefits',[wallet,level,ethers.parseUnits(String(margin),6)]);
     }
 
+    async checkUserKYCStrict(walletAddress) {
+        if (!PROTOCOL_ADDRESS || !walletAddress) return false;
+        return this._getProtocol().isKYCVerified(walletAddress);
+    }
+
     async checkUserKYC(walletAddress) {
         if (!PROTOCOL_ADDRESS || !walletAddress) return false;
         try {

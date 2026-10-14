@@ -1,0 +1,28 @@
+'use strict';
+jest.mock('../src/services/notificationService',()=>({}));
+jest.mock('../src/services/publicationService',()=>({}));
+jest.mock('../src/services/web3BridgeService',()=>({checkUserKYCStrict:jest.fn()}));
+const bridge=require('../src/services/web3BridgeService');
+const {requirePublicationKyc}=require('../src/services/publicationKyc');
+const register=require('../src/controllers/publicationController');
+const wallet='0x1111111111111111111111111111111111111111';
+afterEach(()=>jest.clearAllMocks());
+test('approved blockchain identity passes',async()=>{await expect(requirePublicationKyc({web3_wallet_address:wallet},async()=>true)).resolves.toBeUndefined();});
+test('SQL approval cannot override on-chain rejection',async()=>{await expect(requirePublicationKyc({web3_wallet_address:wallet,kyc_verified:true},async()=>false)).rejects.toMatchObject({status:403,requires_kyc:true});});
+test('missing wallet blocks without calling RPC',async()=>{const verify=jest.fn();await expect(requirePublicationKyc({},verify)).rejects.toMatchObject({status:403});expect(verify).not.toHaveBeenCalled();});
+test('unavailable blockchain fails closed as 503, not false KYC rejection',async()=>{await expect(requirePublicationKyc({web3_wallet_address:wallet},async()=>{throw Error('offline');})).rejects.toMatchObject({status:503,code:'KYC_CHECK_UNAVAILABLE'});});
+test.each(['request','sell','donation','quick','prelaunch','beneficiary'])('unverified creator cannot insert %s even with SQL approval',async(type)=>{
+ bridge.checkUserKYCStrict.mockResolvedValue(false);
+ if(type==='beneficiary')bridge.checkUserKYCStrict.mockResolvedValueOnce(true).mockResolvedValueOnce(false);
+ const routes={};const router=new Proxy({},{get:(_,method)=>(url,...handlers)=>{routes[method+url]=handlers.at(-1);}});
+ const settings=['allow_request_publications','allow_sell_publications','allow_donation_publications','allow_quick_sale_publications'].map(setting_key=>({setting_key,setting_value:'true'}));
+ settings.push({setting_key:'pre_launch_mode_enabled',setting_value:type==='prelaunch'?'true':'false'});
+ const client={release:jest.fn(),query:jest.fn(async sql=>{if(sql.includes('FROM app_settings'))return {rows:settings};if(sql.includes('FROM users WHERE referral_code'))return {rowCount:1,rows:[{id:2,web3_wallet_address:wallet,referral_code:'FIXTURE'}]};if(sql.includes('FROM users WHERE username'))return {rowCount:1,rows:[{id:1,web3_wallet_address:wallet,kyc_verified:true}]};return {rows:[],rowCount:0};})};
+ register(router,{connect:async()=>client},()=>()=>{},()=>{},()=>{});
+ const req={body:{authorUsername:type==='prelaunch'?'Plataforma WintonCoin':'fixture',beneficiaryReferralCode:'FIXTURE',title:'test',description:'test',publicationType:type==='prelaunch'?'sell':type==='beneficiary'?'donation':type,blueCost:1,blueSell:1,goalAmount:1,amount:1,availableSlots:1}};
+ const res={status:jest.fn().mockReturnThis(),json:jest.fn()};
+ const key=type==='quick'?Object.keys(routes).find(k=>k.startsWith('post')&&k.includes('quick')&&!k.includes(':')):'post/publish';
+ expect(key).toBeDefined();await routes[key](req,res);
+ expect(res.status).toHaveBeenCalledWith(403);expect(res.json).toHaveBeenCalledWith(expect.objectContaining({requires_kyc:true}));
+ expect(client.query.mock.calls.some(([sql])=>sql.includes('INSERT INTO publications'))).toBe(false);
+});

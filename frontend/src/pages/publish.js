@@ -1,3 +1,4 @@
+import {protectPublicationForm} from '../modules/publicationAccess.js';
 /**
  * Publish Page Module
  * Handles creating new publications (request, sell, donation)
@@ -5,13 +6,14 @@
 
 import { getApiUrl, showCustomAlert, handleSessionExpired } from '../modules/index.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     // --- API and State ---
     const API_URL = getApiUrl();
     const storedUsername = localStorage.getItem('username');
 
     // --- DOM Elements ---
     const publishForm = document.getElementById('publishForm');
+    await protectPublicationForm(publishForm);
     const costWrapper = document.getElementById('cost-wrapper');
     const sellWrapper = document.getElementById('sell-wrapper');
     const repeatWrapper = document.getElementById('repeat-wrapper');

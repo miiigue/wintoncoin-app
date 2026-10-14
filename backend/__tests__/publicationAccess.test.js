@@ -1,0 +1,10 @@
+jest.mock('../src/middleware/authMiddleware',()=>({authenticateToken:(req,res,next)=>{req.user={userId:42};next();}}));
+jest.mock('../src/middleware/adminSession',()=>({trustedOrigin:()=>true}));
+jest.mock('../src/services/walletOperations',()=>({WalletOperations:class{}}));
+jest.mock('../src/config/db',()=>({query:jest.fn()}));
+jest.mock('../src/services/web3BridgeService',()=>({checkUserKYCStrict:jest.fn()}));
+const express=require('express'),request=require('supertest');const db=require('../src/config/db'),bridge=require('../src/services/web3BridgeService');
+const app=express();app.use('/ops',require('../src/routes/walletOperationRoutes'));
+beforeEach(()=>{db.query.mockResolvedValue({rows:[{web3_wallet_address:'0x1111111111111111111111111111111111111111'}]});});
+test.each([true,false])('access checks authenticated account and returns approval %s',async approved=>{bridge.checkUserKYCStrict.mockResolvedValue(approved);const r=await request(app).get('/ops/publication-access?userId=999');expect(r.status).toBe(200);expect(r.body.approved).toBe(approved);expect(db.query).toHaveBeenLastCalledWith(expect.any(String),[42]);expect(r.headers['cache-control']).toBe('no-store');});
+test('unavailable chain returns unknown error, not rejection',async()=>{bridge.checkUserKYCStrict.mockRejectedValue(Error('offline'));const r=await request(app).get('/ops/publication-access');expect(r.status).toBe(503);expect(r.body.approved).toBeUndefined();});

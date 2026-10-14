@@ -1,3 +1,4 @@
+const {requirePublicationKyc}=require('../services/publicationKyc');
 // ============================================================================
 // src/controllers/publicationController.js
 // ============================================================================
@@ -100,7 +101,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     throw { status: 400, message: "El código de referido del beneficiario es requerido para campañas de donación." };
                 }
                 const cleanRefCode = beneficiaryReferralCode.trim().toUpperCase();
-                const beneficiaryRes = await client.query('SELECT id, username FROM users WHERE referral_code = $1', [cleanRefCode]);
+                const beneficiaryRes = await client.query('SELECT id, username, referral_code, web3_wallet_address FROM users WHERE referral_code = $1', [cleanRefCode]);
                 if (beneficiaryRes.rowCount === 0) {
                     throw { status: 400, message: "El código de referido del beneficiario no es válido o no está registrado." };
                 }
@@ -211,7 +212,6 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const author = userResult.rows[0];
             const authorId = author.id;
 
-            let kycWallet = author.web3_wallet_address;
 
             // Verificar si es menor sin tutor
             if (author.is_minor) {
@@ -223,30 +223,13 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                         is_minor: true
                     });
                 }
-                const tutorResult = await client.query(`SELECT web3_wallet_address FROM users WHERE id = $1`, [author.tutor_user_id]);
-                if (tutorResult.rowCount > 0) {
-                    kycWallet = tutorResult.rows[0].web3_wallet_address;
-                }
+
             }
 
-            // === FRENO KYC FINTECH (Web3 Single Source of Truth) ===
-            // Validar KYC en la Blockchain antes de permitir publicaciones de gasto.
-            // En Modo Pre-lanzamiento (pre_launch_mode_enabled == 'true'), se exime esta validación para permitir la actividad off-chain en el Libro de Impulsores.
-            if (!isSellPost && settings.pre_launch_mode_enabled !== 'true') { 
-                const Web3BridgeService = require('../services/web3BridgeService');
-                let isKycVerified = await Web3BridgeService.checkUserKYC(kycWallet);
-                if (!isKycVerified && author.kyc_verified) {
-                    console.log(`[PUB CREATION] Fallback activado: KYC on-chain falló o dio false para ${authorUsername}, pero usuario está verificado en la base de datos.`);
-                    isKycVerified = true;
-                }
-                if (!isKycVerified) {
-                    await client.query('ROLLBACK');
-                    return res.status(403).json({
-                        message: "Seguridad Financiera: Para publicar tareas y emitir pagos en token BLUE, debes completar tu verificación de identidad (KYC) en tu Billetera Web3.",
-                        requires_kyc: true
-                    });
-                }
-            }
+            // Toda publicación exige KYC del autor, incluidas ventas y donaciones.
+            // Una aprobación SQL o la identidad del tutor no sustituye la de su billetera.
+            await requirePublicationKyc(author);
+            if (beneficiaryUser) await requirePublicationKyc(beneficiaryUser);
 
             // --- NUEVO: Lógica para calcular la fecha de expiración ---
             let expiresAt = null;
@@ -405,7 +388,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK');
             console.error("Error al guardar la publicación:", error);
-            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error interno del servidor." });
+            res.status(error.status || 500).json({ requires_kyc:error.requires_kyc===true,code:error.code,operationId:error.operationId,state:error.state,message: error.message || "Error interno del servidor." });
         } finally {
             client.release();
         }
@@ -689,10 +672,11 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const sanitizedTitle = title.replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
             // 2. Verificar que el autor existe y obtener su ID
-            const authorResult = await client.query('SELECT id FROM users WHERE username = $1', [authorUsername]);
+            const authorResult = await client.query('SELECT id, web3_wallet_address FROM users WHERE username = $1', [authorUsername]);
             if (authorResult.rowCount === 0) {
                 throw { status: 404, message: 'El usuario autor no existe.' };
             }
+            await requirePublicationKyc(authorResult.rows[0]);
             const authorId = authorResult.rows[0].id;
 
             // 3. (OPCIONAL) Verificar que el comprador objetivo existe, si se especificó
@@ -754,7 +738,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
         } catch (error) {
             await client.query('ROLLBACK').catch(() => {});
             console.error('Error al crear la Venta Rápida:', error);
-            res.status(error.status || 500).json({ code:error.code,operationId:error.operationId,state:error.state,message: error.message || 'Error interno del servidor.' });
+            res.status(error.status || 500).json({ requires_kyc:error.requires_kyc===true,code:error.code,operationId:error.operationId,state:error.state,message: error.message || 'Error interno del servidor.' });
         } finally {
             client.release();
         }
@@ -1017,11 +1001,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 }
 
                 const Web3BridgeService = require('../services/web3BridgeService');
-                let isWorkerKycVerified = await Web3BridgeService.checkUserKYC(workerKycWallet);
-                if (!isWorkerKycVerified && acceptor.kyc_verified) {
-                    console.log(`[PUB ACCEPT] Fallback activado: KYC on-chain no sincronizado para ${acceptorUsername}, pero verificado en base de datos.`);
-                    isWorkerKycVerified = true;
-                }
+                const isWorkerKycVerified = await Web3BridgeService.checkUserKYCStrict(workerKycWallet);
                 if (!isWorkerKycVerified) {
                     // AUDITORÍA: primero se revierte la transacción y luego se registra el rechazo
                     // con el pool (fuera de la transacción). Si se registrara con `client` antes del
