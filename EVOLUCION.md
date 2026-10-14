@@ -13,6 +13,35 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-14 — Paridad Visual Milimétrica Vanilla vs React: Apertura Canónica en Billetera al Desactivar Pre-lanzamiento, Restauración de Bandera Beta y Estandarización de Márgenes
+* **Diagnóstico de Discrepancias y Causa Raíz (Vanilla vs React)**:
+  - *Apertura de Pestaña Inicial*: En `Dashboard.jsx`, el estado inicial de `activeTab` estaba fijo en `'impulsor'`. A diferencia de Vanilla (`contract-interaction.js` líneas 713-722), que evalúa `pre_launch_mode_enabled`: si está inactivo (`false`), abre de forma directa en `'billetera'` (o la preferencia previa del usuario en `localStorage`) mostrando los balances on-chain de Liquidez y Compromiso RED, y visibiliza la barra selectora de pestañas (`walletTabsNav.style.display = 'flex'`).
+  - *Bandera Diagonal de Pre-lanzamiento / Versión Beta Inexistente*: En `Dashboard.jsx`, el elemento `.pre-launch-ribbon` estaba envuelto erróneamente en la condición reactiva `{isPreLaunch && ...}`. Dado que en el entorno Demo la configuración `pre_launch_mode_enabled` está en `false`, la condición se evaluaba falsa y React removía por completo la bandera del DOM. En Vanilla (`contract_interaction.html` línea 388), la bandera beta está presente de forma incondicional en el contenedor principal como indicador canónico de la fase de desarrollo/lanzamiento (14-2-2027).
+  - *Discrepancia de Márgenes y Acciones*: En `QuickActions.jsx`, existían estilos inline (`padding: 12px 6px; gap: 10px; border-radius: 12px;`) que sobreescribían las reglas de `style.css`. Además, el botón «⚡ Venta Rápida» ignoraba la configuración `allow_quick_sale_publications`, mostrándose siempre y reduciendo el ancho del botón «Crear Nueva Publicación». En Vanilla, al estar deshabilitado dicho setting, el botón principal toma el 100% del ancho del contenedor con `flex: 1`. Asimismo, `<QuickActions>` se encontraba fuera de `.publications-section`.
+* **Resoluciones Técnicas Implementadas**:
+  - *`frontend/src/pages/Dashboard.jsx`*:
+    - Sincronización de `activeTab` con `pre_launch_mode_enabled`: cuando pre-lanzamiento está desactivado (`false`), asigna automáticamente `'billetera'` (respetando `walletActiveTab` si existe), idéntico a Vanilla.
+    - Persistencia local del cambio de pestaña mediante `handleTabChange` (`localStorage.setItem('walletActiveTab', tab)`).
+    - Renderizado incondicional de la bandera diagonal `.pre-launch-ribbon` con tooltip interactivo de explicación beta.
+    - Paso de `isPreLaunch` y `allowQuickSale` a los componentes hijos y reubicación de `<QuickActions>` dentro de `<div id="publications-feed-section" className="publications-section">`.
+  - *`frontend/src/components/dashboard/WalletTabs.jsx`*:
+    - Recepción de la prop `isPreLaunch`: si el pre-lanzamiento está activo se oculta el selector `.wallet-tabs-nav` (`display: 'none'`); si está desactivado se despliega con `display: 'flex'` permitiendo navegar entre «Impulsor» y «Billetera».
+    - Estandarización del label a `TU COMPROMISO` para paridad tipográfica y de estilo estricta con la versión Vanilla.
+  - *`frontend/src/components/dashboard/QuickActions.jsx`*:
+    - Erradicación de estilos inline y retorno a las clases maestras de `style.css` (`.main-actions-container`, `.button-link.primary-action`, `.button-link.secondary-action`).
+    - Evaluación de `allowQuickSale`: si está inactivo, solo se renderiza «Crear Nueva Publicación» ocupando el 100% del ancho en pantalla.
+  - *`frontend/style.css`*:
+    - Inclusión de `margin: 0 auto;` en `.interaction-container` y en `@media (max-width: 768px)` para `.container.interaction-container` (`margin: 0 auto !important;`), asegurando un centrado perfecto y márgenes laterales idénticos en dispositivos móviles.
+* **Archivos Modificados**:
+  - [`frontend/src/pages/Dashboard.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Dashboard.jsx)
+  - [`frontend/src/components/dashboard/WalletTabs.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/dashboard/WalletTabs.jsx)
+  - [`frontend/src/components/dashboard/QuickActions.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/dashboard/QuickActions.jsx)
+  - [`frontend/style.css`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/style.css)
+* **Verificación y Pruebas Automatizadas**:
+  - `npm --prefix frontend run check:react` → **PASS (54 componentes auditados, 0 referencias no declaradas)**.
+  - `npm --prefix frontend run test:account-security` → **6/6 suites PASS (Validación de respaldos, UI, KYC, pagos marketplace y control de acceso)**.
+  - `npm --prefix frontend run build:demo` → **PASS (Exit code 0 en 39.39s, 104 módulos transformados, 178 activos precacheados en Service Worker PWA)**.
+
 ### 2026-10-14 — UI/UX Marketplace: Supresión del Contenedor Negro de Acciones de Autor y Optimización de Contraste y Legibilidad en Botón «Confirmando en red...»
 * **Diagnóstico de Fricción & Causa Raíz**:
   - *Contenedor Negro Invasivo*: La sección de acciones `.detail-actions-section` poseía un fondo negro oscuro (`var(--background-color)`) y un marco tosco (`border: 1px solid #2a3b5c; padding: 1.5rem;`), creando una caja oscura pesada e innecesaria alrededor de los botones «Pausar Solicitudes» y «Eliminar Tarea». Asimismo, el mensaje «No puedes eliminar una tarea con participantes activos» se posicionaba por encima de los botones como un bloque grisáceo que empujaba hacia abajo los controles principales.

@@ -16,37 +16,20 @@ export default function QuickActions({
   onOpenCreatePublication,
   onOpenQuickSale,
   isPreLaunch = false,
+  allowQuickSale = true,
 }) {
-  useEffect(()=>installPublicationEntryGuards(),[]);
+  useEffect(() => installPublicationEntryGuards(), []);
+
+  // En Vanilla (contract-interaction.js línea 535):
+  // quickSaleBtn.style.display = (settings.allow_quick_sale_publications === false || (settings.pre_launch_mode_enabled && !isPlatform)) ? 'none' : 'inline-flex';
+  const showQuickSale = allowQuickSale && !isPreLaunch;
+
   return (
-    <div
-      className="main-actions-container"
-      style={{
-        display: 'flex',
-        flexDirection: 'row',
-        gap: '10px',
-        justifyContent: 'center',
-        alignItems: 'stretch',
-        width: '100%',
-        margin: '0 auto 1.5rem auto'
-      }}
-    >
+    <div className="main-actions-container">
       <a
         href="#"
         id="openPublicationModalBtn"
         className="button-link primary-action"
-        style={{
-          flex: 1,
-          minWidth: 0,
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          textAlign: 'center',
-          padding: '12px 6px',
-          fontSize: '0.92rem',
-          lineHeight: '1.25',
-          borderRadius: '12px'
-        }}
         onClick={(e) => {
           e.preventDefault();
           if (onOpenCreatePublication) onOpenCreatePublication();
@@ -54,23 +37,11 @@ export default function QuickActions({
       >
         Crear Nueva Publicación
       </a>
-      {!isPreLaunch && (
+      {showQuickSale && (
         <a
           href="#"
           id="openQuickSaleModalBtn"
           className="button-link secondary-action"
-          style={{
-            flex: 1,
-            minWidth: 0,
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            textAlign: 'center',
-            padding: '12px 6px',
-            fontSize: '0.92rem',
-            lineHeight: '1.25',
-            borderRadius: '12px'
-          }}
           onClick={(e) => {
             e.preventDefault();
             if (onOpenQuickSale) onOpenQuickSale();

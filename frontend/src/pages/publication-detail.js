@@ -22,100 +22,74 @@ document.addEventListener('DOMContentLoaded', () => {
     const recoveryKey='winton-publication-payment:'+storedUsername+':'+publicationId;
     const donationKey=recoveryKey+':donation';
     let recoveringPayment=false;
-    function updatePendingPaymentUI(isPending, messageText = '') {
-        if (typeof document === 'undefined') return;
-        const confirmBtn = document.querySelector('button[data-action="confirm-payment"]');
-        if (confirmBtn) {
-            if (isPending) {
-                confirmBtn.disabled = true;
-                confirmBtn.classList.add('confirming-state');
-                confirmBtn.style.setProperty('opacity', '1', 'important');
-                confirmBtn.style.setProperty('color', '#ffffff', 'important');
-                confirmBtn.style.setProperty('background', 'linear-gradient(135deg, #0284c7, #2563eb)', 'important');
-                confirmBtn.style.cursor = 'wait';
-                confirmBtn.style.display = 'inline-flex';
-                confirmBtn.style.alignItems = 'center';
-                confirmBtn.style.justifyContent = 'center';
-                confirmBtn.style.gap = '8px';
-                confirmBtn.style.whiteSpace = 'nowrap';
-                confirmBtn.style.padding = '8px 14px';
-                confirmBtn.style.fontWeight = '700';
-                confirmBtn.style.borderRadius = '8px';
-                confirmBtn.style.boxShadow = '0 4px 12px rgba(2, 132, 199, 0.4)';
-                confirmBtn.innerHTML = '<span class="spinner" style="display:inline-block;width:14px;height:14px;border:2.5px solid rgba(255,255,255,0.35);border-top-color:#ffffff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></span><span style="color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;font-weight:700;font-size:0.82rem;letter-spacing:0.02em;">Confirmando en red...</span>';
-                confirmBtn.title = messageText || 'La transacción está siendo confirmada en blockchain.';
-            } else {
-                confirmBtn.disabled = false;
-                confirmBtn.classList.remove('confirming-state');
-                confirmBtn.style.opacity = '1';
-                confirmBtn.style.color = '';
-                confirmBtn.style.background = '';
-                confirmBtn.style.cursor = 'pointer';
-                confirmBtn.style.display = '';
-                confirmBtn.style.alignItems = '';
-                confirmBtn.style.justifyContent = '';
-                confirmBtn.style.gap = '';
-                confirmBtn.style.whiteSpace = '';
-                confirmBtn.style.padding = '';
-                confirmBtn.style.fontWeight = '';
-                confirmBtn.style.borderRadius = '';
-                confirmBtn.style.boxShadow = '';
-                confirmBtn.innerHTML = 'Confirmar Pago';
-                confirmBtn.title = '';
-            }
-        }
+    let recoveryTimer=null;
+    const recipientKey=recoveryKey+':recipient';
+    function scheduleRecovery(){
+        clearTimeout(recoveryTimer);
+        recoveryTimer=setTimeout(()=>{if(typeof document!=='undefined'&&document.hidden){scheduleRecovery();return;}recoverPayment(false);},10000);
     }
-
+    function clearRecovery(){
+        clearTimeout(recoveryTimer);
+        sessionStorage.removeItem(recoveryKey);
+        sessionStorage.removeItem(recipientKey);
+        sessionStorage.removeItem(donationKey);
+    }
+    function updatePendingPaymentUI(){
+        if(typeof document==='undefined')return;
+        const id=sessionStorage.getItem(recoveryKey);
+        const recipient=sessionStorage.getItem(recipientKey);
+        document.querySelectorAll('button[data-action="confirm-payment"]').forEach(button=>{
+            button.disabled=recoveringPayment;
+            button.textContent=recoveringPayment?'Consultando pago…':id?'Consultar pago pendiente':'Confirmar Pago';
+            button.title=id?(recipient?'Hay un pago pendiente para @'+recipient+'. Consulta su estado antes de iniciar otro.':'Hay un pago anterior pendiente. Consulta su estado antes de iniciar otro.') : '';
+            button.classList.toggle('confirming-state',Boolean(id));
+        });
+    }
     async function recoverPayment(manual=false){
         const id=sessionStorage.getItem(recoveryKey);
-        if(!id){
-            updatePendingPaymentUI(false);
-            return true;
-        }
+        if(!id){updatePendingPaymentUI();return true;}
         if(recoveringPayment){
             if(manual)showCustomAlert('Estamos comprobando el pago anterior. Espera a que termine la consulta.');
             return false;
         }
-        recoveringPayment=true;
-        updatePendingPaymentUI(true);
-        try {
-            const result=await operationRequest('/marketplace/'+id);
-            if(result.state==='expired'&&result.canRenew===true){
-                sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);
-                updatePendingPaymentUI(false);
-                showCustomAlert(result.message);return true;
-            }
+        clearTimeout(recoveryTimer);
+        recoveringPayment=true;updatePendingPaymentUI();
+        try{
+            let result=await operationRequest('/marketplace/'+id);
             if(result.authorization){
-                const authorized=await authorizeMarketplace(id);
-                if(authorized){
-                    updatePendingPaymentUI(true, 'Autorización recibida. Confirmando en red...');
-                    setTimeout(recoverPayment,3000);
-                }
-                return;
+                if(!manual){if(sessionStorage.getItem('winton-marketplace-submitted:'+id))scheduleRecovery();return false;} // No background signature prompts.
+                const recipient=sessionStorage.getItem(recipientKey);
+                result=await authorizeMarketplace(id,{recipient});
+                if(!result){if(sessionStorage.getItem('winton-marketplace-submitted:'+id))scheduleRecovery();return false;} // Closing keeps the operation available to resume.
             }
             if(result.settled){
-                sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);
-                updatePendingPaymentUI(false);
-                showCustomAlert(result.message || '¡Pago confirmado y registrado con éxito!');
+                clearRecovery();
+                showCustomAlert(result.message||'Pago confirmado y registrado con éxito.');
                 await initializePage();
+                return false; // A completed payment must never open a new payment summary.
+            }
+            if(result.state==='expired'&&result.canRenew===true){
+                clearRecovery();
+                if(manual)showCustomAlert(result.message||'El resumen venció sin enviarse. Puedes preparar uno nuevo.');
                 return true;
             }
-            else if(['failed','conflict'].includes(result.state)){
-                if(result.state==='failed')sessionStorage.removeItem(recoveryKey);
-                updatePendingPaymentUI(false);
-                showCustomAlert(result.message+' Referencia: '+id);
+            if(result.state==='failed'){
+                clearRecovery();
+                showCustomAlert((result.message||'El pago no se completó.')+' Referencia: '+id);
+                return false;
             }
-            else {
-                updatePendingPaymentUI(true, (result.message||'El pago sigue en proceso de confirmación en la red.'));
-                if(manual)showCustomAlert((result.message||'El pago anterior sigue pendiente de confirmación en blockchain.')+' Referencia: '+id);
-                setTimeout(recoverPayment,4000);
+            if(result.state==='conflict'){
+                if(manual)showCustomAlert((result.message||'El pago requiere revisión.')+' Referencia: '+id);
+                return false;
             }
-        }catch(e){
-            if(manual)showCustomAlert((e.message||'No se pudo consultar el pago.')+' Conservamos su referencia para consultar nuevamente.');
-        }
-        finally{recoveringPayment=false;}
+            if(manual)showCustomAlert((result.message||'El pago anterior sigue pendiente de confirmación.')+' Referencia: '+id);
+            scheduleRecovery();return false;
+        }catch(error){
+            if(manual)showCustomAlert((error.message||'No se pudo consultar el pago.')+' Conservamos su referencia. Puedes volver a consultar; no necesitas enviarlo otra vez.');
+            scheduleRecovery();return false;
+        }finally{recoveringPayment=false;updatePendingPaymentUI();}
     }
-    setTimeout(recoverPayment,800);
+    setTimeout(()=>recoverPayment(false),800);
     function isVirtualPayment(){return window.currentPublication?.is_booster_task===true || [true,'true'].includes(window.currentPlatformSettings?.pre_launch_mode_enabled);}
     async function payWithConsent(endpoint,body,amount,payee){
         if(isVirtualPayment())return fetchFromServer(endpoint,'POST',body);
@@ -618,14 +592,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                 }
             } else if (p.status === 'completed') {
-                const isPendingRecovery = !!sessionStorage.getItem(recoveryKey);
-                actionButtons = isPendingRecovery ? `
-                    <button class="action-button confirm confirming-state" data-action="confirm-payment" data-user="${escapeAttr(p.username)}" disabled style="opacity: 1 !important; color: #ffffff !important; -webkit-text-fill-color: #ffffff !important; background: linear-gradient(135deg, #0284c7, #2563eb) !important; cursor: wait; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 14px; border-radius: 8px; font-weight: 700; font-size: 0.82rem; white-space: nowrap; box-shadow: 0 4px 12px rgba(2, 132, 199, 0.4); border: none;" title="La transacción está siendo confirmada en blockchain.">
-                        <span class="spinner" style="display:inline-block;width:14px;height:14px;border:2.5px solid rgba(255,255,255,0.35);border-top-color:#ffffff;border-radius:50%;animation:spin 0.8s linear infinite;flex-shrink:0;"></span>
-                        <span style="color:#ffffff !important;-webkit-text-fill-color:#ffffff !important;font-weight:700;letter-spacing:0.02em;">Confirmando en red...</span>
-                    </button>
-                ` : `
-                    <button class="action-button confirm" data-action="confirm-payment" data-user="${escapeAttr(p.username)}">Confirmar Pago</button>
+                actionButtons = `
+                    <button class="action-button confirm" data-action="confirm-payment" data-user="${escapeAttr(p.username)}">${sessionStorage.getItem(recoveryKey)?'Consultar pago pendiente':'Confirmar Pago'}</button>
                 `;
             }
 
@@ -1209,6 +1177,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     button.disabled=false;
                     button.removeAttribute('aria-busy');
                     button.innerHTML=originalLabel;
+                    updatePendingPaymentUI();
                 }
                 return;
             }
@@ -1475,10 +1444,15 @@ Puedes ver los detalles aquí:`;
             }
 
             if(result.code==='PAYMENT_PENDING'){
-                sessionStorage.setItem(recoveryKey,result.operationId);closePaymentAuthModal();await authorizeMarketplace(result.operationId);setTimeout(recoverPayment,1000);return {...result,pending:true};
+                sessionStorage.setItem(recoveryKey,result.operationId);
+                const recipient=body?.workerUsername||window.currentPublication?.author_username;
+                if(recipient)sessionStorage.setItem(recipientKey,recipient);
+                closePaymentAuthModal();
+                await recoverPayment(true);
+                return {...result,pending:true};
             }
             if(result.code==='PAYMENT_SETTLED'){
-                sessionStorage.removeItem(recoveryKey);sessionStorage.removeItem(donationKey);showCustomAlert(result.message);await initializePage();return {success:true};
+                clearRecovery();showCustomAlert(result.message);await initializePage();return {success:true};
             }
             if (!response.ok) {
                 // [SEGURIDAD FINTECH] Interceptar sesión expirada (401)

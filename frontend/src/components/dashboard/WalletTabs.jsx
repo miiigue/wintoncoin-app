@@ -38,6 +38,7 @@ function renderBalanceWithDecimals(value) {
 export default function WalletTabs({
   activeTab = 'impulsor',
   onTabChange,
+  isPreLaunch = false,
   boosterBalance = '0',
   liquidBlue = '0.0000',
   parkingBlue = '0.0000',
@@ -118,7 +119,7 @@ export default function WalletTabs({
   return (
     <div className="wallet-tabs-container">
       {/* Selector de Pestañas (Impulsor vs Billetera) - Clases legacy de style.css */}
-      <div className="wallet-tabs-nav">
+      <div className="wallet-tabs-nav" style={{ display: isPreLaunch ? 'none' : 'flex' }}>
         <button
           type="button"
           className={`wallet-tab-btn ${activeTab === 'impulsor' ? 'active' : ''}`}
@@ -331,7 +332,7 @@ export default function WalletTabs({
                       data-tooltip-id="tooltip-saldo-red-label"
                       onClick={(e) => toggleTooltip('tooltip-saldo-red-label', e)}
                     >
-                      Tu compromiso
+                      TU COMPROMISO
                     </span>
                   </span>
 

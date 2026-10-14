@@ -1,14 +1,35 @@
-import React,{useState,useRef} from 'react';
+import React,{useState,useRef,useEffect} from 'react';
 import {createRoot} from 'react-dom/client';
 import {formatUnits,TypedDataEncoder} from 'ethers';
 import {operationRequest} from '../modules/pinOperations.js';
 import {signMarketplace} from '../modules/recoverableAccount.js';
 import './OperationAuthorization.css';
-function Dialog({id,quote,onClose}) {
+function Dialog({id,quote,onClose,recipient}) {
   const [busy,setBusy]=useState(false),[message,setMessage]=useState('Revisa el pago antes de confirmarlo en tu dispositivo.');
   const a=quote.authorization?.message;
   const inFlight=useRef(false);
-  const [checkOnly,setCheckOnly]=useState(false);
+  const submittedKey='winton-marketplace-submitted:'+id;
+  const [checkOnly,setCheckOnly]=useState(()=>sessionStorage.getItem(submittedKey)==='true');
+  const terminal=result=>result.settled||result.state==='failed'||result.state==='conflict'||(result.state==='expired'&&result.canRenew===true);
+  function present(result){
+    if(terminal(result)){sessionStorage.removeItem(submittedKey);onClose(result);return;}
+    setMessage(result.message||'El pago sigue pendiente. Consultamos su estado sin volver a enviarlo.');
+  }
+  useEffect(()=>{
+    if(!checkOnly)return;
+    let cancelled=false,timer;
+    const poll=async()=>{
+      if(!inFlight.current&&!document.hidden){
+        inFlight.current=true;
+        try{const result=await operationRequest('/marketplace/'+id);if(!cancelled)present(result);}
+        catch{if(!cancelled)setMessage('No pudimos actualizar el estado. Conservamos el pago y volveremos a consultar.');}
+        finally{inFlight.current=false;}
+      }
+      if(!cancelled)timer=setTimeout(poll,10000);
+    };
+    timer=setTimeout(poll,10000);
+    return ()=>{cancelled=true;clearTimeout(timer);};
+  },[checkOnly,id]);
   async function confirm(){
     if(inFlight.current)return;
     inFlight.current=true;setBusy(true);
@@ -16,8 +37,8 @@ function Dialog({id,quote,onClose}) {
     try {
       setMessage('Consultando el estado de este pago…');
       const fresh=await operationRequest('/marketplace/'+id);
-      if(!fresh.authorization){onClose(fresh);return;}
-      if(checkOnly){setMessage('Todavía no se confirmó el resultado del envío. Conservamos la referencia; consulta de nuevo sin crear otro pago.');return;}
+      if(terminal(fresh)){present(fresh);return;}
+      if(checkOnly||!fresh.authorization){setCheckOnly(true);present(fresh);return;}
       const digest=x=>TypedDataEncoder.hash(x.domain,x.types,x.message);
       if(digest(fresh.authorization)!==digest(quote.authorization))throw new Error('El pago cambió. Cierra y abre nuevamente el resumen.');
       setMessage('Confirma el pago con la seguridad de tu dispositivo…');
@@ -26,10 +47,11 @@ function Dialog({id,quote,onClose}) {
       try {
         signature=await Promise.race([signMarketplace(fresh.authorization),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('No se completó la firma a tiempo. No enviamos este intento de pago. Cierra la ventana de seguridad del dispositivo antes de reintentar.')),90000);})]);
       } finally {clearTimeout(timer);}
+      sessionStorage.setItem(submittedKey,'true');
       submitting=true;setCheckOnly(true);
       setMessage('Firma recibida. Enviando la autorización y comprobando el resultado…');
       const result=await operationRequest('/marketplace/'+id+'/authorize',{signature});
-      onClose(result);
+      present(result);
     }catch(e){
       if(submitting){setCheckOnly(true);setMessage((e.status?'El servidor respondió: '+e.message+' ':'No pudimos confirmar el resultado del envío. ')+'Consulta este mismo pago antes de repetirlo. Referencia: '+id);}
       else setMessage(e.message||'No se pudo completar la autorización.');
@@ -40,6 +62,7 @@ function Dialog({id,quote,onClose}) {
       <span style={{fontSize:'1.5rem'}}>{checkOnly?'⏳':'🔐'}</span>
       <h2 id="marketplace-sign-title" style={{margin:0,fontSize:'1.3rem'}}>{checkOnly?'Procesando confirmación':'Confirmar pago'}</h2>
     </div>
+    {recipient&&<p>Pago pendiente para @{recipient}</p>}
     {a&&<div style={{background:'rgba(255,255,255,0.05)',padding:'12px 14px',borderRadius:'10px',marginBottom:'14px',border:'1px solid rgba(255,255,255,0.08)'}}>
       <p style={{margin:'4px 0'}}><strong>Importe:</strong> {formatUnits(a.amount,6)} BLUE</p>
       <p style={{margin:'4px 0'}}><strong>Comisión:</strong> {formatUnits(BigInt(a.amount)*BigInt(a.feeBps)/10000n,6)} BLUE</p>
@@ -63,15 +86,15 @@ function Dialog({id,quote,onClose}) {
     </div>
     <div style={{display:'flex',gap:'10px',justifyContent:'flex-end'}}>
       <button disabled={busy} onClick={()=>onClose(null)} style={{background:'transparent',border:'1px solid #64748b',color:'#cbd5e1'}}>Cerrar</button>
-      <button disabled={busy||!a} onClick={confirm}>{busy?'Comprobando…':checkOnly?'Consultar estado del pago':'Confirmar con mi dispositivo'}</button>
+      <button disabled={busy||(!a&&!checkOnly)} onClick={confirm}>{busy?'Comprobando…':checkOnly?'Consultar estado del pago':'Confirmar con mi dispositivo'}</button>
     </div>
   </section></div>;
 }
-export async function authorizeMarketplace(id){
+export async function authorizeMarketplace(id,{recipient}={}){
   const quote=await operationRequest('/marketplace/'+id);
   if(!quote.authorization)return quote;
   return new Promise(resolve=>{
     const container=document.createElement('div');document.body.appendChild(container);const root=createRoot(container);
-    root.render(<Dialog id={id} quote={quote} onClose={result=>{root.unmount();container.remove();resolve(result);}}/>);
+    root.render(<Dialog id={id} quote={quote} recipient={recipient} onClose={result=>{root.unmount();container.remove();resolve(result);}}/>);
   });
 }

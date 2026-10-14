@@ -36,7 +36,8 @@ export default function Dashboard() {
   const [token] = useState(() => localStorage.getItem('token'));
 
   // Estados Financieros
-  const [activeTab, setActiveTab] = useState('impulsor');
+  const [activeTab, setActiveTab] = useState(() => localStorage.getItem('walletActiveTab') || 'billetera');
+  const [platformSettings, setPlatformSettings] = useState(null);
   const [boosterBalance, setBoosterBalance] = useState('0');
   const [liquidBlue, setLiquidBlue] = useState('0.0000');
   const [parkingBlue, setParkingBlue] = useState('0.0000');
@@ -356,11 +357,24 @@ export default function Dashboard() {
   const fetchAppConfigAndStatus = useCallback(async () => {
     try {
       const API_URL = getApiUrl();
-      // Verificación de Pre-Lanzamiento
+      // Verificación de Pre-Lanzamiento y Paridad Canónica con Vanilla
       const setRes = await fetch(`${API_URL}/api/platform-settings`);
       if (setRes.ok) {
         const sData = await setRes.json();
-        setIsPreLaunch(sData.pre_launch_mode_enabled === true);
+        const preLaunchActive = sData.pre_launch_mode_enabled === true;
+        setIsPreLaunch(preLaunchActive);
+        setPlatformSettings(sData);
+
+        // Canónico con Vanilla (contract-interaction.js líneas 713-722):
+        // Si pre-lanzamiento está activo -> 'impulsor'
+        // Si pre-lanzamiento está DESACTIVADO -> 'billetera' (o preferencia del usuario en localStorage)
+        setActiveTab(prev => {
+          if (preLaunchActive) {
+            return 'impulsor';
+          }
+          const savedTab = localStorage.getItem('walletActiveTab');
+          return savedTab || 'billetera';
+        });
       }
 
       // Verificación de Momentum
@@ -439,6 +453,12 @@ export default function Dashboard() {
     };
   }, [fetchUserBalances, fetchSosCase, fetchPublications, fetchNotifications, checkLegalCompliance, fetchAppConfigAndStatus, username]);
 
+  // Manejo de cambio de pestaña con persistencia local
+  const handleTabChange = (newTab) => {
+    setActiveTab(newTab);
+    localStorage.setItem('walletActiveTab', newTab);
+  };
+
   // Manejo de Cierre de Sesión Seguro
   const handleLogout = () => {
     localStorage.removeItem('token');
@@ -465,40 +485,38 @@ export default function Dashboard() {
       {/* Contenedor principal: las clases .container .interaction-container ya tienen
           max-width, padding, border-radius, box-shadow y centrado definidos en style.css */}
       <div className="container interaction-container">
-        {/* Banda diagonal de Pre-lanzamiento (pre-launch-ribbon legacy) */}
-        {isPreLaunch && (
-          <div className="pre-launch-ribbon">
-            <span className="pre-launch-text">
-              <span className="ribbon-shine-overlay"></span>
-              <span
-                className="ribbon-text-content info-text-clickable"
-                role="button"
-                tabIndex={0}
-                aria-label="Información sobre el estado de pre-lanzamiento"
-                data-tooltip-id="tooltip-prelaunch"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPrelaunchTooltip(prev => !prev);
-                }}
-              >
-                Pre-lanzamiento<br />
-                <span className="ribbon-subtext">VERSION BETA</span>
-              </span>
-            </span>
-            <div
-              id="tooltip-prelaunch"
-              className={`info-tooltip prelaunch-tooltip ${showPrelaunchTooltip ? 'show' : ''}`}
-              role="tooltip"
-              aria-hidden={!showPrelaunchTooltip}
-              onClick={(e) => e.stopPropagation()}
+        {/* Banda diagonal de Pre-lanzamiento (pre-launch-ribbon legacy) - Siempre visible como en Vanilla */}
+        <div className="pre-launch-ribbon">
+          <span className="pre-launch-text">
+            <span className="ribbon-shine-overlay"></span>
+            <span
+              className="ribbon-text-content info-text-clickable"
+              role="button"
+              tabIndex={0}
+              aria-label="Información sobre el estado de pre-lanzamiento"
+              data-tooltip-id="tooltip-prelaunch"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowPrelaunchTooltip(prev => !prev);
+              }}
             >
-              <p>
-                Estás en fase de pre-lanzamiento. Las recompensas en BLUE IOU se registran en el Perfil de Impulsor y los
-                saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.
-              </p>
-            </div>
+              Pre-lanzamiento<br />
+              <span className="ribbon-subtext">VERSION BETA</span>
+            </span>
+          </span>
+          <div
+            id="tooltip-prelaunch"
+            className={`info-tooltip prelaunch-tooltip ${showPrelaunchTooltip ? 'show' : ''}`}
+            role="tooltip"
+            aria-hidden={!showPrelaunchTooltip}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p>
+              Estás en fase de pre-lanzamiento. Las recompensas en BLUE IOU se registran en el Perfil de Impulsor y los
+              saldos en la billetera principal se mantienen en cero hasta el lanzamiento oficial.
+            </p>
           </div>
-        )}
+        </div>
 
         {/* Logotipo y Título de Marca usando clases legacy */}
         <div className="main-title-container">
@@ -513,7 +531,8 @@ export default function Dashboard() {
         {/* 2. Tarjeta de Saldos y Compromisos (Impulsor vs Billetera) con Cuentas Regresivas */}
         <WalletTabs
           activeTab={activeTab}
-          onTabChange={setActiveTab}
+          onTabChange={handleTabChange}
+          isPreLaunch={isPreLaunch}
           boosterBalance={boosterBalance}
           liquidBlue={liquidBlue}
           parkingBlue={parkingBlue}
@@ -530,15 +549,16 @@ export default function Dashboard() {
         {/* 3. Tarjeta Promocional de Referidos con Web Share API y Campañas Dinámicas */}
         <ReferralPromoCard username={username} />
 
-        {/* 4. Botones de Acción Rápida */}
-        <QuickActions
-          onOpenCreatePublication={() => setPublicationTypeModalOpen(true)}
-          onOpenQuickSale={() => setQuickSaleModalOpen(true)}
-          isPreLaunch={isPreLaunch}
-        />
-
-        {/* 5. Feed de Publicaciones del Marketplace (publications-section legacy) */}
+        {/* 4. Feed de Publicaciones del Marketplace (publications-section legacy) */}
         <div id="publications-feed-section" className="publications-section">
+          {/* Botones de Acción Rápida (Crear Nueva Publicación / Venta Rápida) con paridad de márgenes y settings */}
+          <QuickActions
+            onOpenCreatePublication={() => setPublicationTypeModalOpen(true)}
+            onOpenQuickSale={() => setQuickSaleModalOpen(true)}
+            isPreLaunch={isPreLaunch}
+            allowQuickSale={platformSettings?.allow_quick_sale_publications !== false}
+          />
+
           <PublicationsFeed
             publications={publications}
             isLoading={isLoadingPublications}

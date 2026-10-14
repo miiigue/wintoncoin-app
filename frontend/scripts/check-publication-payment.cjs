@@ -6,7 +6,7 @@ const modal=source.slice(source.indexOf('    async function openPaymentAuthoriza
 function fixture(){
  const storage=new Map(),alerts=[],requests=[];
  const button={dataset:{action:'confirm-payment',user:'worker'},innerHTML:'Confirmar Pago',disabled:false,setAttribute(){},removeAttribute(){}};
- const context={storedUsername:'payer',publicationId:'50',sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},window:{currentPublication:{blue_cost:'0.0002',title:'fixture'},currentUserHasPin:false},elements:{paymentAuthorizationModal:{style:{display:'none'}},authModalConfirmBtn:{}},setTimeout(){},showCustomAlert:m=>alerts.push(m),formatBalance:String,initializePage:async()=>{},authorizeMarketplace:async()=>{},operationRequest:async p=>{requests.push(p);return {success:true,feeBps:400,durationSeconds:2592000};}};
+ const context={storedUsername:'payer',publicationId:'50',sessionStorage:{getItem:k=>storage.get(k),setItem:(k,v)=>storage.set(k,v),removeItem:k=>storage.delete(k)},window:{currentPublication:{blue_cost:'0.0002',title:'fixture'},currentUserHasPin:false},elements:{paymentAuthorizationModal:{style:{display:'none'}},authModalConfirmBtn:{}},setTimeout(){},clearTimeout(){},showCustomAlert:m=>alerts.push(m),formatBalance:String,initializePage:async()=>{},authorizeMarketplace:async()=>{},operationRequest:async p=>{requests.push(p);return {success:true,feeBps:400,durationSeconds:2592000};}};
  vm.createContext(context);vm.runInContext(recovery+handler+modal,context);
  return {context,storage,alerts,requests,button,click:()=>context.handleActionClick({target:{closest:()=>button}}),key:'winton-publication-payment:payer:50'};
 }
