@@ -29,7 +29,7 @@ jest.mock('../src/services/boosterService', () => ({
 }));
 
 jest.mock('../src/services/web3BridgeService', () => ({
-    checkUserKYC: jest.fn().mockImplementation((wallet) => {
+    checkUserKYCStrict: jest.fn().mockImplementation((wallet) => {
         if (wallet === '0xKYC_VERIFIED_WALLET') return Promise.resolve(true);
         return Promise.resolve(false);
     })
@@ -174,7 +174,7 @@ describe('Regla Regulatoria KYC para Aceptación de Tareas On-Chain', () => {
             .send({ acceptorUsername: 'usuario_sin_kyc' });
 
         // No debe ser bloqueado por KYC; debe proceder
-        expect(res.statusCode).not.toBe(403);
+        expect(res.statusCode).toBe(200);
     });
 
     test('3. Éxito: Usuario con KYC aprobado puede aceptar tarea on-chain', async () => {
@@ -227,6 +227,6 @@ describe('Regla Regulatoria KYC para Aceptación de Tareas On-Chain', () => {
             .post('/publications/30/accept')
             .send({ acceptorUsername: 'usuario_con_kyc' });
 
-        expect(res.statusCode).not.toBe(403);
+        expect(res.statusCode).toBe(200);
     });
 });

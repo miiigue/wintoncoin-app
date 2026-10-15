@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const recoveryKey='winton-publication-payment:'+storedUsername+':'+publicationId;
     const donationKey=recoveryKey+':donation';
     let recoveringPayment=false;
+    let preparingPayment=false;
     let recoveryTimer=null;
     const recipientKey=recoveryKey+':recipient';
     function scheduleRecovery(){
@@ -38,12 +39,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if(typeof document==='undefined')return;
         const id=sessionStorage.getItem(recoveryKey);
         const recipient=sessionStorage.getItem(recipientKey);
-        document.querySelectorAll('button[data-action="confirm-payment"]').forEach(button=>{
-            button.disabled=recoveringPayment;
-            button.textContent=recoveringPayment?'Consultando pago…':id?'Consultar pago pendiente':'Confirmar Pago';
+        document.querySelectorAll('button[data-action="confirm-payment"], button[data-sale-payment]').forEach(button=>{
+            button.disabled=recoveringPayment||preparingPayment;
+            button.setAttribute('aria-busy',String(button.disabled));
+            button.textContent=recoveringPayment?'Consultando pago…':preparingPayment?'Preparando pago…':id?'Consultar pago pendiente':button.hasAttribute('data-sale-payment')?'Ya recibí mi compra · Revisar pago':'Confirmar Pago';
             button.title=id?(recipient?'Hay un pago pendiente para @'+recipient+'. Consulta su estado antes de iniciar otro.':'Hay un pago anterior pendiente. Consulta su estado antes de iniciar otro.') : '';
             button.classList.toggle('confirming-state',Boolean(id));
         });
+        document.querySelectorAll('[data-sale-payment-status]').forEach(note=>{
+            note.textContent=recoveringPayment?'Estamos consultando tu pago. No necesitas volver a autorizarlo.':preparingPayment?'Estamos preparando el resumen para que revises el importe antes de autorizar.':id?'Tu compra tiene un pago pendiente de resolver. Consulta su estado; todavía no lo damos por completado.':'Tu compra está aprobada. Cuando recibas el producto o servicio, revisa el pago y autorízalo con tu dispositivo.';
+        });
+        if(window.currentPublication?.is_sell_post)document.querySelectorAll('button[data-action="desist"]').forEach(button=>{button.disabled=Boolean(id)||recoveringPayment||preparingPayment;button.title=id?'Primero debe resolverse el pago pendiente.':'';});
     }
     async function recoverPayment(manual=false){
         const id=sessionStorage.getItem(recoveryKey);
@@ -92,9 +98,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(()=>recoverPayment(false),800);
     function isVirtualPayment(){return window.currentPublication?.is_booster_task===true || [true,'true'].includes(window.currentPlatformSettings?.pre_launch_mode_enabled);}
     async function payWithConsent(endpoint,body,amount,payee){
+        if(preparingPayment)return;
         if(isVirtualPayment())return fetchFromServer(endpoint,'POST',body);
         if(sessionStorage.getItem(recoveryKey)&&await recoverPayment(true)!==true)return;
+        preparingPayment=true;updatePendingPaymentUI();
         try{return await openPaymentAuthorizationModal(publicationId,payee,{endpoint,body,amount});}catch(error){showCustomAlert(error.message||'No se pudo consultar el resumen del pago. Intenta nuevamente más tarde.');}
+        finally{preparingPayment=false;updatePendingPaymentUI();}
     }
     let modalDismissed = false; // Flag para evitar que el modal reaparezca al refrescar con acciones
 
@@ -427,6 +436,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ${getParticipantsSectionHTML(pub)}
         `;
         elements.content.innerHTML = publicationHTML;
+        updatePendingPaymentUI();
     }
 
     function splitDescriptionWithSteps(description) {
@@ -791,26 +801,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         actionHTML = `<button class="action-button desist" data-action="desist" style="background-color: #4b5563; color: white;">Retirar solicitud</button>`;
                         break;
                     case 'approved': {
-                        const completeLabel = pub.is_sell_post ? 'He Recibido, Pagar' : 'He culminado';
+                        const completeLabel = pub.is_sell_post ? 'Ya recibí mi compra · Revisar pago' : 'He culminado';
                         acceptButtonHTML = `
                             <div class="detail-primary-actions">
-                                <span class="detail-primary-note">¡Has sido aprobado! Ahora puedes proceder a realizar la tarea.</span>
+                                <span class="detail-primary-note" ${pub.is_sell_post ? 'data-sale-payment-status role="status"' : ''}>${pub.is_sell_post ? 'Tu compra está aprobada. Cuando recibas el producto o servicio, revisa el pago y autorízalo con tu dispositivo.' : '¡Has sido aprobado! Ahora puedes proceder a realizar la tarea.'}</span>
                                 <div style="display: flex; gap: 12px; margin-top: 12px; flex-wrap: wrap;">
-                                    <button class="action-button complete" data-action="complete" style="flex: 1; min-width: 150px;">${completeLabel}</button>
-                                    <button class="action-button desist" data-action="desist" style="flex: 1; min-width: 150px; background-color: #ef4444; color: white;">Abandonar tarea</button>
+                                    <button class="action-button complete" data-action="complete" ${pub.is_sell_post ? 'data-sale-payment' : ''} style="flex: 1; min-width: 150px;">${completeLabel}</button>
+                                    <button class="action-button desist" data-action="desist" style="flex: 1; min-width: 150px; background-color: #ef4444; color: white;">${pub.is_sell_post ? 'Cancelar compra' : 'Abandonar tarea'}</button>
                                 </div>
                             </div>
                         `;
-                        duplicateCompleteButtonHTML = `<button class="action-button complete" data-action="complete">${completeLabel}</button>`;
+                        duplicateCompleteButtonHTML = `<button class="action-button complete" data-action="complete" ${pub.is_sell_post ? 'data-sale-payment' : ''}>${completeLabel}</button>`;
                         break;
                     }
                     case 'completed':
                         messageHTML = `<p class="action-message status-pending">Has marcado la tarea como ${action}. Esperando confirmación final del autor.</p>`;
                         break;
                     case 'confirmed_paid':
-                        // No se muestra mensaje — el usuario ya completó el flujo y no necesita feedback redundante
-                        if (pub.available_slots > 0) {
+                        if(pub.is_sell_post)messageHTML='<p class="status-accepted" role="status">Pago completado. Tu compra quedó registrada.</p>';
+                        if (pub.acceptance_eligibility?.allowed === true) {
                             acceptButtonHTML = `<button class="action-button accept" data-action="accept">${verb} de nuevo</button>`;
+                        } else if (pub.acceptance_eligibility?.message) {
+                            messageHTML += `<p class="action-message">${escapeHtml(pub.acceptance_eligibility.message)}</p>`;
                         }
                         break;
                     case 'not_participating':
@@ -1050,7 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     async function handleActionClick(event) {
         const button = event.target.closest('[data-action]');
-        if (!button) return;
+        if (!button || button.disabled) return;
 
         const action = button.dataset.action;
         const userInAction = button.dataset.user;
@@ -1114,6 +1126,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 body = { approverUsername: storedUsername, userToApprove: userInAction };
                 break;
             case 'complete':
+                if(window.currentPublication?.is_sell_post&&sessionStorage.getItem(recoveryKey)){await recoverPayment(true);return;}
                 // Recopilar respuestas del formulario si existen
                 const formResponses = collectFormResponses();
                 
@@ -1152,8 +1165,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
                 return;
             case 'desist': {
+                if(window.currentPublication?.is_sell_post&&sessionStorage.getItem(recoveryKey)){showCustomAlert('Primero consulta el pago pendiente antes de cancelar la compra.');return;}
                 const isPending = button && button.textContent.toLowerCase().includes('solicitud');
-                const confirmMsg = isPending 
+                const confirmMsg = window.currentPublication?.is_sell_post ? '¿Deseas cancelar esta compra? Se cancelará tu solicitud, no un pago ya enviado.' : isPending
                     ? '¿Deseas retirar tu solicitud para esta tarea? Tu postulación será eliminada y el cupo quedará libre para otros postulantes.'
                     : '¿Deseas abandonar esta tarea? Tu participación se cancelará y el cupo se liberará de inmediato para otros ayudantes.';
                 showCustomConfirm(confirmMsg, async () => {

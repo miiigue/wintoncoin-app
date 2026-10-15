@@ -1,3 +1,4 @@
+const {publicationEligibility}=require('../services/publicationEligibility');
 const {requirePublicationKyc}=require('../services/publicationKyc');
 // ============================================================================
 // src/controllers/publicationController.js
@@ -539,7 +540,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                                 WHERE pa_cool.publication_id = p.id
                                   AND pa_cool.acceptor_username = $1
                                   AND pa_cool.status = 'confirmed_paid'
-                                  AND pa_cool.created_at > NOW() - (p.repeat_cooldown_hours * INTERVAL '1 hour')
+                                  AND (pa_cool.paid_recorded_at IS NULL OR pa_cool.paid_recorded_at > NOW() - (p.repeat_cooldown_hours * INTERVAL '1 hour'))
                             )
                             -- Solo aplicar cooldown si NO ha alcanzado el máximo (ese caso ya se cubre arriba)
                             AND (
@@ -1120,71 +1121,12 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 }
             }
 
-            // Validación de Repetición Profesional
-            // Se obtiene el historial completo de aceptaciones del usuario para esta publicación,
-            // incluyendo created_at para poder validar el período de cooldown entre repeticiones.
-            const prevAcceptances = await client.query(
-                `SELECT status, created_at FROM publication_acceptances WHERE publication_id = $1 AND acceptor_username = $2 ORDER BY created_at DESC`,
+            const previous = await client.query(
+                'SELECT status, paid_recorded_at FROM publication_acceptances WHERE publication_id=$1 AND acceptor_username=$2',
                 [id, acceptorUsername]
             );
-
-            if (prevAcceptances.rows.length > 0) {
-                const statuses = prevAcceptances.rows.map(r => r.status);
-
-                // 1. Hard Reject: Si fue rechazado, no puede volver a intentar.
-                if (statuses.includes('rejected')) {
-                    throw { status: 403, message: "Tu solicitud fue rechazada anteriormente y no puedes volver a intentarlo." };
-                }
-
-                // 2. Active Check: Si tiene una solicitud en proceso, no puede crear otra.
-                const activeStatuses = ['pending_approval', 'approved', 'completed'];
-                if (statuses.some(s => activeStatuses.includes(s))) {
-                    throw { status: 409, message: "Ya tienes una solicitud activa para esta publicación." };
-                }
-
-                // 3. Max Repeat Check: Si la publicación no permite repetición, bloquear.
-                const confirmedCount = statuses.filter(s => s === 'confirmed_paid').length;
-                if (!pub.allow_repeat_participation && confirmedCount >= 1) {
-                    throw { status: 409, message: "Esta publicación no permite participaciones repetidas." };
-                }
-
-                // 4. Max Repeat Limit: Si alcanzó el máximo de repeticiones, bloquear.
-                if (pub.allow_repeat_participation && confirmedCount >= pub.max_repeat_per_user) {
-                    throw { status: 409, message: `Has alcanzado el límite de ${pub.max_repeat_per_user} participaciones para esta tarea.` };
-                }
-
-                // 5. COOLDOWN CHECK: Verificar que ha pasado suficiente tiempo desde
-                //    la última participación completada antes de permitir otra repetición.
-                //    Esto previene abuso de tareas repetibles con un intervalo mínimo obligatorio.
-                //    Ej: Si cooldown = 24h, el usuario no puede volver a aceptar hasta 24h después
-                //    de haber completado la tarea anterior.
-                if (pub.allow_repeat_participation && confirmedCount > 0 && pub.repeat_cooldown_hours > 0) {
-                    // Obtener la fecha de la última participación completada (confirmed_paid)
-                    const lastConfirmedRow = prevAcceptances.rows.find(r => r.status === 'confirmed_paid');
-                    if (lastConfirmedRow) {
-                        const lastCompletedAt = new Date(lastConfirmedRow.created_at);
-                        const cooldownMs = pub.repeat_cooldown_hours * 60 * 60 * 1000; // Convertir horas a milisegundos
-                        const timeSinceLastMs = Date.now() - lastCompletedAt.getTime();
-
-                        if (timeSinceLastMs < cooldownMs) {
-                            // Calcular tiempo restante para mostrar mensaje informativo al usuario
-                            const remainingMs = cooldownMs - timeSinceLastMs;
-                            const remainingHours = Math.floor(remainingMs / (60 * 60 * 1000));
-                            const remainingMinutes = Math.ceil((remainingMs % (60 * 60 * 1000)) / (60 * 1000));
-
-                            // Formatear el tiempo restante de forma legible
-                            let timeStr = '';
-                            if (remainingHours > 0) timeStr += `${remainingHours}h `;
-                            timeStr += `${remainingMinutes}min`;
-
-                            throw {
-                                status: 429,
-                                message: `Debes esperar ${timeStr} antes de volver a participar en esta tarea.`
-                            };
-                        }
-                    }
-                }
-            }
+            const eligibility = publicationEligibility(pub, previous.rows);
+            if (!eligibility.allowed) throw eligibility;
 
             // Restricción para menores en ventas (Generación de deuda)
             if (pub.category === 'sell' && acceptor.is_minor && (!acceptor.tutor_user_id || acceptor.account_status === 'pending_tutor')) {
@@ -1850,7 +1792,7 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             const query = `
             SELECT
                 p.id, p.title, p.description, p.blue_cost, p.base_blue_cost, p.status, p.created_at, p.is_paused, p.is_booster_task,
-                p.is_sell_post, p.available_slots,
+                p.is_sell_post, p.available_slots, p.allow_repeat_participation, p.max_repeat_per_user, p.repeat_cooldown_hours,
                 (p.available_slots + COALESCE((
                     SELECT COUNT(*)::int
                     FROM publication_acceptances pa_count
@@ -1924,6 +1866,12 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 publication.status = 'paused';
                 publication.pause_reason = 'prelaunch_disabled';
             }
+
+            const userHistory = await client.query(
+                'SELECT status, paid_recorded_at FROM publication_acceptances WHERE publication_id=$1 AND acceptor_username=$2',
+                [id, requestingUser]
+            );
+            publication.acceptance_eligibility = publicationEligibility(publication, userHistory.rows);
 
             // --- Multiplicador dinámico vigente ---
             const boosterService = require('../services/boosterService');

@@ -5,15 +5,16 @@ import {operationRequest} from '../modules/pinOperations.js';
 import {signMarketplace} from '../modules/recoverableAccount.js';
 import './OperationAuthorization.css';
 function Dialog({id,quote,onClose,recipient}) {
-  const [busy,setBusy]=useState(false),[message,setMessage]=useState('Revisa el pago antes de confirmarlo en tu dispositivo.');
+  const [busy,setBusy]=useState(false),[message,setMessage]=useState(()=>sessionStorage.getItem('winton-marketplace-submitted:'+id)==='true'?'Estamos consultando la operación que ya autorizaste. No necesitas volver a firmar.':'Revisa el pago antes de confirmarlo en tu dispositivo.');
   const a=quote.authorization?.message;
   const inFlight=useRef(false);
   const submittedKey='winton-marketplace-submitted:'+id;
   const [checkOnly,setCheckOnly]=useState(()=>sessionStorage.getItem(submittedKey)==='true');
+  const [phase,setPhase]=useState(()=>sessionStorage.getItem(submittedKey)==='true'?'pending':'review');
   const terminal=result=>result.settled||result.state==='failed'||result.state==='conflict'||(result.state==='expired'&&result.canRenew===true);
   function present(result){
     if(terminal(result)){sessionStorage.removeItem(submittedKey);onClose(result);return;}
-    setMessage(result.message||'El pago sigue pendiente. Consultamos su estado sin volver a enviarlo.');
+    setPhase('pending');setMessage(result.message||'El pago sigue pendiente. Consultamos su estado sin volver a enviarlo.');
   }
   useEffect(()=>{
     if(!checkOnly)return;
@@ -35,34 +36,40 @@ function Dialog({id,quote,onClose,recipient}) {
     inFlight.current=true;setBusy(true);
     let submitting=false;
     try {
-      setMessage('Consultando el estado de este pago…');
+      setPhase('checking');setMessage('Consultando el estado de este pago…');
       const fresh=await operationRequest('/marketplace/'+id);
       if(terminal(fresh)){present(fresh);return;}
       if(checkOnly||!fresh.authorization){setCheckOnly(true);present(fresh);return;}
       const digest=x=>TypedDataEncoder.hash(x.domain,x.types,x.message);
       if(digest(fresh.authorization)!==digest(quote.authorization))throw new Error('El pago cambió. Cierra y abre nuevamente el resumen.');
-      setMessage('Confirma el pago con la seguridad de tu dispositivo…');
+      setPhase('signing');setMessage('Confirma el pago con la seguridad de tu dispositivo…');
       let timer;
       let signature;
       try {
         signature=await Promise.race([signMarketplace(fresh.authorization),new Promise((_,reject)=>{timer=setTimeout(()=>reject(new Error('No se completó la firma a tiempo. No enviamos este intento de pago. Cierra la ventana de seguridad del dispositivo antes de reintentar.')),90000);})]);
       } finally {clearTimeout(timer);}
       sessionStorage.setItem(submittedKey,'true');
-      submitting=true;setCheckOnly(true);
+      submitting=true;setCheckOnly(true);setPhase('sending');
       setMessage('Firma recibida. Enviando la autorización y comprobando el resultado…');
       const result=await operationRequest('/marketplace/'+id+'/authorize',{signature});
       present(result);
     }catch(e){
       if(submitting){setCheckOnly(true);setMessage((e.status?'El servidor respondió: '+e.message+' ':'No pudimos confirmar el resultado del envío. ')+'Consulta este mismo pago antes de repetirlo. Referencia: '+id);}
       else setMessage(e.message||'No se pudo completar la autorización.');
-    }finally{inFlight.current=false;setBusy(false);}
+    }finally{inFlight.current=false;setBusy(false);setPhase('idle');}
   }
   return <div className="operation-backdrop"><section className="operation-dialog" role="dialog" aria-modal="true" aria-labelledby="marketplace-sign-title">
     <div style={{display:'flex',alignItems:'center',gap:'10px',marginBottom:'12px'}}>
       <span style={{fontSize:'1.5rem'}}>{checkOnly?'⏳':'🔐'}</span>
       <h2 id="marketplace-sign-title" style={{margin:0,fontSize:'1.3rem'}}>{checkOnly?'Procesando confirmación':'Confirmar pago'}</h2>
     </div>
-    {recipient&&<p>Pago pendiente para @{recipient}</p>}
+    {recipient&&<p>Destinatario: @{recipient}</p>}
+    <ol aria-label="Etapas del pago" style={{fontSize:'0.9rem',lineHeight:1.6,paddingLeft:'22px'}}>
+      <li>Revisa el importe y la comisión</li>
+      <li aria-current={phase==='signing'?'step':undefined}>Autoriza con tu dispositivo</li>
+      <li aria-current={checkOnly?'step':undefined}>Espera la confirmación del pago</li>
+    </ol>
+    {checkOnly&&<p role="status">El resultado aún no está confirmado. Consultamos automáticamente mientras esta ventana esté visible. Cerrar no cancela el pago; podrás consultar la misma operación.</p>}
     {a&&<div style={{background:'rgba(255,255,255,0.05)',padding:'12px 14px',borderRadius:'10px',marginBottom:'14px',border:'1px solid rgba(255,255,255,0.08)'}}>
       <p style={{margin:'4px 0'}}><strong>Importe:</strong> {formatUnits(a.amount,6)} BLUE</p>
       <p style={{margin:'4px 0'}}><strong>Comisión:</strong> {formatUnits(BigInt(a.amount)*BigInt(a.feeBps)/10000n,6)} BLUE</p>
@@ -86,7 +93,7 @@ function Dialog({id,quote,onClose,recipient}) {
     </div>
     <div style={{display:'flex',gap:'10px',justifyContent:'flex-end'}}>
       <button disabled={busy} onClick={()=>onClose(null)} style={{background:'transparent',border:'1px solid #64748b',color:'#cbd5e1'}}>Cerrar</button>
-      <button disabled={busy||(!a&&!checkOnly)} onClick={confirm}>{busy?'Comprobando…':checkOnly?'Consultar estado del pago':'Confirmar con mi dispositivo'}</button>
+      <button disabled={busy||(!a&&!checkOnly)} onClick={confirm}>{busy?(phase==='signing'?'Esperando tu dispositivo…':phase==='sending'?'Enviando autorización…':'Consultando pago…'):checkOnly?'Consultar estado del pago':'Confirmar con mi dispositivo'}</button>
     </div>
   </section></div>;
 }
