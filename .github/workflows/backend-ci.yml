@@ -61,6 +61,7 @@ jobs:
           NODE_ENV: test
           IS_DEMO_ENV: 'true'
         run: |
+          node backend/scripts/prepare_test_database.js
           node verify_all_backend_imports.js
           node frontend/src/modules/tableSort.test.js
           npm run test:unit
