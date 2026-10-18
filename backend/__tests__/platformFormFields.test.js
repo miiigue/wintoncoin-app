@@ -41,6 +41,8 @@ jest.mock('pg', () => {
 });
 
 const { app, startServer } = require('../server');
+// Form parsing uses an explicitly verified fixture; KYC rejection is covered in publicationKyc.test.js.
+jest.spyOn(require('../src/services/web3BridgeService'), 'checkUserKYCStrict').mockResolvedValue(true);
 
 // Interceptar el middleware JWT directo en runtime si es posible, o asegurarnos de devolver rows válidos en las consultas middleware.
 const { Pool } = require('pg');
@@ -69,7 +71,7 @@ describe('Admin Form Fields Processor Tests', () => {
     it('1. POST /api/admin/platform/create-publication - Debe aceptar e insertar formFields (legacy strings → objetos tipados)', async () => {
         // Configuramos la respuesta simulada de la BD
         // 1. Verificación del usuario plataforma
-        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100 }] });
+        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100, web3_wallet_address: '0x1111111111111111111111111111111111111111' }] });
 
         // 2. Consulta de configuración máxima de imágenes
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ setting_value: '3' }] });
@@ -124,7 +126,7 @@ describe('Admin Form Fields Processor Tests', () => {
 
     it('2. POST /api/admin/platform/create-publication - Debe aceptar formFields con tipos mixtos (text/textarea)', async () => {
         // 1. Verificación del usuario plataforma
-        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100 }] });
+        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100, web3_wallet_address: '0x1111111111111111111111111111111111111111' }] });
         // 2. Consulta de configuración máxima de imágenes
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ setting_value: '3' }] });
         // 3. Consulta del multiplicador activo (boosterService)
@@ -170,7 +172,7 @@ describe('Admin Form Fields Processor Tests', () => {
 
     it('3. POST /api/admin/platform/create-publication - Debe rechazar tipos no autorizados (seguridad)', async () => {
         // 1. Verificación del usuario plataforma
-        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100 }] });
+        mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ id: 100, web3_wallet_address: '0x1111111111111111111111111111111111111111' }] });
         // 2. Consulta de configuración máxima de imágenes
         mockPool.query.mockResolvedValueOnce({ rowCount: 1, rows: [{ setting_value: '3' }] });
         // 3. Consulta del multiplicador activo (boosterService)

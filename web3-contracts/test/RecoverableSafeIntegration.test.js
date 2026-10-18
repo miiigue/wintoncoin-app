@@ -28,6 +28,16 @@ describe('Integración real: Safe 1.4.1 y contratos Winton',function(){
   expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
   expect(await f.red.balanceOf(f.owner.address)).eq(0);
  });
+ it('pago mixto Safe real consume BLUE firmado y crea solo el RED residual',async()=>{
+  const f=await loadFixture(safeFixture);await f.pay(f.carol,{address:f.account},14n*U);await f.core.setCommissionBps(400);
+  const q=await f.core.quoteMixedPayment(f.account,20n*U);
+  const a={payer:f.account,payee:f.bob.address,amount:20n*U,feeBps:400,blueAmount:q.blueAmount,redAmount:q.redAmount,duration:q.duration,nonce:0,deadline:(await ethers.provider.getBlock('latest')).timestamp+900,agreementHash:ethers.id('safe-mixed')};
+  const types={MixedPayment:['payer:address','payee:address','amount:uint256','feeBps:uint256','blueAmount:uint256','redAmount:uint256','duration:uint256','nonce:uint256','deadline:uint256','agreementHash:bytes32'].map(s=>{const [name,type]=s.split(':');return {name,type}})};
+  const digest=ethers.TypedDataEncoder.hash({name:'WintonCore',version:'4',chainId:1337,verifyingContract:f.core.target},types,a);
+  const signature=await f.owner.signTypedData({chainId:1337,verifyingContract:f.account},{SafeMessage:[{name:'message',type:'bytes'}]},{message:digest});
+  await f.core.connect(f.relayer).processAuthorizedMixedPayment(a,signature);
+  expect(await f.red.balanceOf(f.account)).eq(6_800_000n);expect(await f.blue.balanceOf(f.account)).eq(0);expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+ });
  it('no acepta cambiar destinatario ni reutilizar una autorización',async()=>{
   const f=await loadFixture(safeFixture),signature=await f.signature();
   await expect(f.core.connect(f.relayer).processAuthorizedPayment({...f.auth,payee:f.carol.address},signature)).revertedWith('Protocol: Invalid payer signature');

@@ -30,7 +30,7 @@ module.exports = {
       url: process.env.OPTIMISM_SEPOLIA_RPC_URL || process.env.ALCHEMY_API_URL || "https://sepolia.optimism.io",
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
       chainId: 11155420,
-      gas: 5000000
+      gas: 6000000 // Core con pago mixto: 5.16M medidos; margen de ejecución en testnet.
     }
   },
   etherscan: {

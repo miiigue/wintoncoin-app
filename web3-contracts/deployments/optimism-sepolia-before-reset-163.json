@@ -1,0 +1,27 @@
+{
+  "network": "optimismSepolia",
+  "chainId": "11155420",
+  "deployedAt": "2026-09-30T04:27:18.650Z",
+  "deployer": "0x7d2C6c16EDe986a8bea0204A9824b4C264256C77",
+  "relayer": "0x78992e52508B4094Eb487c0540FB1E25C397E1F5",
+  "contracts": {
+    "USDT": "0xA558A97CdD986a2f342684a8E89EAea4F01F28F3",
+    "BlueToken": "0xb92CF4E5899C6D9622674729d24b34fa60094532",
+    "RedToken": "0x88C726c1745b7a04b1f597FF985954aA3F995b18",
+    "ProtocolTreasury": "0x0962E79b66e2F17F4069f1E7C2A6f3ad37914cE8",
+    "CollateralVault": "0x978818Cf3EBcF7Fe19734FD79B3630CdC8B6553A",
+    "CoreProtocol": "0x62d01182bc61208F8b938742263B671F21cA5379",
+    "FifoExchange": "0xE1d61b500069E84E9ad2963A1c366F1E910A6246"
+  },
+  "startBlocks": {
+    "FifoExchange": 49469937
+  },
+  "deploymentTransactions": {
+    "BlueToken": "0x6b899f72ef912a308ae12dc0bbd4b3ea54ef9e69c2fe0e49d07250f9f3efa952",
+    "RedToken": "0xa3f12997d7ebfa873c3693786929c889f512f419eb15f4da823a7dcb4206d8e7",
+    "ProtocolTreasury": "0xc3ebdd1772a905e44887667a77897a81c46f880bbb3ca55a654484cecf53e163",
+    "CollateralVault": "0x4aa46500bfeb8090978597bf5f79271c257374699ca86ffdd4fdea6294ba7329",
+    "CoreProtocol": "0x6dfc289f537883d51fb67a1d94af43f6b2a6a6edc4bc1275a8384903ec97a7f3",
+    "FifoExchange": "0x31524bb0708dc09deeb10908f6be3c2da4113674a53f8fce09fa961449d54c5d"
+  }
+}

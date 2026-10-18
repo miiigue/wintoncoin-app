@@ -12,6 +12,7 @@
  */
 
 const { configuration, validate } = require('../src/services/chainDeployment');
+const currentManifest = require('../../web3-contracts/deployment-manifest-v4.json');
 
 describe('Aislamiento de Red y Selección de Manifiesto (chainDeployment.js)', () => {
     test('1. Entorno de Test / Desarrollo resuelve localmente (chainId 31337)', () => {
@@ -37,9 +38,9 @@ describe('Aislamiento de Red y Selección de Manifiesto (chainDeployment.js)', (
         const config = configuration(demoEnv);
         expect(config.chainId).toBe('11155420');
         // Direcciones verificadas de la suite V4
-        expect(config.contracts.BlueToken).toBe('0xb92CF4E5899C6D9622674729d24b34fa60094532');
-        expect(config.contracts.RedToken).toBe('0x88C726c1745b7a04b1f597FF985954aA3F995b18');
-        expect(config.contracts.FifoExchange).toBe('0xE1d61b500069E84E9ad2963A1c366F1E910A6246');
+        expect(config.contracts.BlueToken).toBe(currentManifest.contracts.BlueToken);
+        expect(config.contracts.RedToken).toBe(currentManifest.contracts.RedToken);
+        expect(config.contracts.FifoExchange).toBe(currentManifest.contracts.FifoExchange);
     });
 
     test('3. Rechazo de configuración con dirección de contrato no registrada en Demo', () => {

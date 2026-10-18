@@ -8,6 +8,9 @@ const {randomUUID}=require('crypto');
 const safeExecution=require('./safeExecution');
 const safePolicy=require('./safeAccountPolicy');
 const abi=[
+ 'function quoteMixedPayment(address payer,uint256 amount) view returns(uint256 fee,uint256 blueAmount,uint256 redAmount,uint256 duration)',
+ 'function processAuthorizedMixedPayment((address payer,address payee,uint256 amount,uint256 feeBps,uint256 blueAmount,uint256 redAmount,uint256 duration,uint256 nonce,uint256 deadline,bytes32 agreementHash) auth,bytes signature)',
+ 'event PaymentFunding(address indexed payer,address indexed payee,uint256 blueConsumed,uint256 redCreated)',
  'function treasury() view returns(address)',
  'function isKYCVerified(address) view returns(bool)',
  'function paymentNonces(address) view returns(uint256)',
@@ -19,6 +22,7 @@ const abi=[
 ];
 const {assertTreasuryReady}=require('./marketplacePreflight');
 const types={Payment:['payer:address','payee:address','amount:uint256','feeBps:uint256','nonce:uint256','deadline:uint256','agreementHash:bytes32'].map(s=>{const [name,type]=s.split(':');return {name,type};})};
+const mixedTypes={MixedPayment:['payer:address','payee:address','amount:uint256','feeBps:uint256','blueAmount:uint256','redAmount:uint256','duration:uint256','nonce:uint256','deadline:uint256','agreementHash:bytes32'].map(s=>{const [name,type]=s.split(':');return {name,type};})};
 const uuid=s=>/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(s||'');
 
 class MarketplacePayments {
@@ -80,7 +84,9 @@ class MarketplacePayments {
     const [nonce,feeBps,block]=await Promise.all([core.paymentNonces(payload.payerWallet),core.commissionBps(),this.rpc.getBlock('latest')]);
     if(String(feeBps)!==String(p.expectedFeeBps))throw error('La comisión cambió. Revisa el pago.',409);
     await assertTreasuryReady(core,amount,feeBps);
-    const authorization={payer:payload.payerWallet,payee:payload.payeeWallet,amount:amount.toString(),feeBps:feeBps.toString(),nonce:nonce.toString(),deadline:block.timestamp+900,agreementHash:hash(key)};
+    const quote=await core.quoteMixedPayment(payload.payerWallet,amount);
+    if(quote.fee!==amount*feeBps/10000n)throw error('Las condiciones cambiaron. Solicita un nuevo resumen.',409);
+    const authorization={payer:payload.payerWallet,payee:payload.payeeWallet,amount:amount.toString(),feeBps:feeBps.toString(),blueAmount:quote.blueAmount.toString(),redAmount:quote.redAmount.toString(),duration:quote.duration.toString(),nonce:nonce.toString(),deadline:block.timestamp+900,agreementHash:hash(key)};
     await this.journalPool.query('UPDATE chain_operations SET payload=payload||$2::jsonb WHERE id=$1',[row.id,JSON.stringify({authorization})]);
    }
    const result=await this.status(payer.id,row.id);
@@ -107,7 +113,7 @@ class MarketplacePayments {
      if(!publication||hash(JSON.stringify(publication))!==p.publicationSnapshot)throw error('La publicación cambió. Solicita un nuevo resumen.');
      const participants=(await client.query('SELECT account_status FROM users WHERE id IN ($1,$2)',[p.payerId,p.payeeId])).rows;
      if(participants.length!==2||participants.some(u=>u.account_status!=='active'))throw error('Participante no habilitado.',403);
-     const call={to:p.core,value:'0',data:new Interface(abi).encodeFunctionData('processAuthorizedPayment',[p.authorization,signature]),label:'Pago autorizado por el usuario'};
+     const call={to:p.core,value:'0',data:new Interface(abi).encodeFunctionData(p.authorization.blueAmount!==undefined?'processAuthorizedMixedPayment':'processAuthorizedPayment',[p.authorization,signature]),label:'Pago autorizado por el usuario'};
      await this.rpc.call({...call,from:safeExecution.relayer().address});
      const step=await safeExecution.sponsoredStep(this.journalPool,this.rpc,this.config.chainId,userId,fresh,call);
      await client.query('COMMIT');return [step];
@@ -125,7 +131,7 @@ class MarketplacePayments {
    if(require('./marketplaceExpiry').canRenewUnsentPayment(row,block?.timestamp,settled))return {...publicResult(row),state:'expired',authorization:null,success:false,settled:false,canRenew:true,message:'El resumen de este pago venció sin registrar un envío. Vuelve a pulsar Confirmar pago en la publicación para revisar un resumen actualizado y autorizarlo.'};
   }
   if(row.state==='prepared'&&row.payload.authorization)await assertTreasuryReady(new Contract(row.payload.core,abi,this.rpc),row.payload.authorization.amount,row.payload.authorization.feeBps);
-  return {...publicResult(row),authorization:row.state==='prepared'?{domain:{name:'WintonCore',version:'4',chainId:this.config.chainId,verifyingContract:row.payload.core},types,primaryType:'Payment',message:row.payload.authorization}:null,success:settled,settled,message:settled?'Pago confirmado y registrado.':row.state==='failed'?'El contrato rechazó este intento. Puedes abrir el resumen y autorizar otro intento en tu dispositivo.':row.state==='conflict'?'El pago necesita revisión. Conserva esta referencia; no se enviará un pago nuevo automáticamente.':'Pago registrado. Espera la confirmación y actualización de la publicación; no repitas el pago.'};
+  return {...publicResult(row),authorization:row.state==='prepared'?{domain:{name:'WintonCore',version:'4',chainId:this.config.chainId,verifyingContract:row.payload.core},types:row.payload.authorization.blueAmount!==undefined?mixedTypes:types,primaryType:row.payload.authorization.blueAmount!==undefined?'MixedPayment':'Payment',message:row.payload.authorization}:null,success:settled,settled,message:settled?'Pago confirmado y registrado.':row.state==='failed'?'El contrato rechazó este intento. Puedes abrir el resumen y autorizar otro intento en tu dispositivo.':row.state==='conflict'?'El pago necesita revisión. Conserva esta referencia; no se enviará un pago nuevo automáticamente.':'Pago registrado. Espera la confirmación y actualización de la publicación; no repitas el pago.'};
  }
  async close(){if(!this.options.journalPool)await this.journalPool.end();}
  async settle(operationId) {
@@ -142,6 +148,10 @@ class MarketplacePayments {
    if(payments.length!==1)throw error('No se encontró un único pago comprobable.');
    const e=payments[0].args;
    if(e.payer.toLowerCase()!==p.payerWallet||e.payee.toLowerCase()!==p.payeeWallet||e.netAmount!==parseUnits(p.amount,6))throw error('El resultado no corresponde al pago registrado.');
+   if(p.authorization.blueAmount!==undefined){
+    const funding=events.filter(x=>x?.name==='PaymentFunding');
+    if(funding.length!==1||funding[0].args.payer.toLowerCase()!==p.payerWallet||funding[0].args.payee.toLowerCase()!==p.payeeWallet||funding[0].args.blueConsumed!==BigInt(p.authorization.blueAmount)||funding[0].args.redCreated!==BigInt(p.authorization.redAmount))throw error('El desglose confirmado requiere conciliación.');
+   }
    await client.query('BEGIN');
    try {
     const publication=(await client.query('SELECT * FROM publications WHERE id=$1 FOR UPDATE',[p.publicationId])).rows[0];
@@ -156,7 +166,7 @@ class MarketplacePayments {
     } else await client.query("UPDATE publications SET status='completed',available_slots=0 WHERE id=$1",[p.publicationId]);
     // Amounts come from the receipt. Never recreate balances, parking or RED
     // maturities using wall-clock time or mutable database settings.
-    const sent=await client.query("INSERT INTO transactions(user_id,type,description,blue_change,red_change,related_publication_id,platform_fee_blue,tx_hash) VALUES($1,'payment_sent',$2,0,$3,$4,$5,$6) RETURNING id",[p.payerId,'Pago confirmado: '+publication.title,formatUnits(e.netAmount+e.fee,6),p.publicationId,formatUnits(e.fee,6),receipt.hash]);
+    const sent=await client.query("INSERT INTO transactions(user_id,type,description,blue_change,red_change,related_publication_id,platform_fee_blue,tx_hash) VALUES($1,'payment_sent',$2,$3,$4,$5,$6,$7) RETURNING id",[p.payerId,'Pago confirmado: '+publication.title,formatUnits(-BigInt(p.authorization.blueAmount||0),6),formatUnits(p.authorization.redAmount!==undefined?BigInt(p.authorization.redAmount):e.netAmount+e.fee,6),p.publicationId,formatUnits(e.fee,6),receipt.hash]);
     await client.query("INSERT INTO transactions(user_id,type,description,blue_change,red_change,related_publication_id,tx_hash) VALUES($1,'payment_received',$2,$3,0,$4,$5)",[p.payeeId,'Pago recibido: '+publication.title,p.amount,p.publicationId,receipt.hash]);
     for(const amort of events.filter(event=>event?.name==='DebtAmortized')){
      const address=amort.args.user.toLowerCase(),userId=address===p.payerWallet?p.payerId:address===p.payeeWallet?p.payeeId:null;

@@ -1,27 +1,38 @@
 {
-  "network": "optimismSepolia",
   "chainId": "11155420",
-  "deployedAt": "2026-09-30T04:27:18.650Z",
+  "network": "optimismSepolia",
+  "deployedAt": "2026-10-17T23:47:07.924Z",
   "deployer": "0x7d2C6c16EDe986a8bea0204A9824b4C264256C77",
   "relayer": "0x78992e52508B4094Eb487c0540FB1E25C397E1F5",
   "contracts": {
-    "USDT": "0xA558A97CdD986a2f342684a8E89EAea4F01F28F3",
-    "BlueToken": "0xb92CF4E5899C6D9622674729d24b34fa60094532",
-    "RedToken": "0x88C726c1745b7a04b1f597FF985954aA3F995b18",
-    "ProtocolTreasury": "0x0962E79b66e2F17F4069f1E7C2A6f3ad37914cE8",
-    "CollateralVault": "0x978818Cf3EBcF7Fe19734FD79B3630CdC8B6553A",
-    "CoreProtocol": "0x62d01182bc61208F8b938742263B671F21cA5379",
-    "FifoExchange": "0xE1d61b500069E84E9ad2963A1c366F1E910A6246"
+    "BlueToken": "0xDDD703CB06C491cB2bC778eaE2A5a9B4e2F32B2D",
+    "RedToken": "0xf1eB634808D71F3e2376966e1D78D935B752944C",
+    "ProtocolTreasury": "0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2",
+    "CollateralVault": "0x8683B546f8Ad6AD625f225FE50b1C49BCe1B3797",
+    "CoreProtocol": "0x5Ec1034640b3360AfFc04c8AA674A8Ba4b1a0274",
+    "FifoExchange": "0xbf61470F69A80CA839c663908f31DA69361A4054",
+    "USDT": "0x69aa5df5063714a2e9F6ED256043780a3753C431"
   },
   "startBlocks": {
-    "FifoExchange": 49469937
+    "FifoExchange": 50239091
   },
   "deploymentTransactions": {
-    "BlueToken": "0x6b899f72ef912a308ae12dc0bbd4b3ea54ef9e69c2fe0e49d07250f9f3efa952",
-    "RedToken": "0xa3f12997d7ebfa873c3693786929c889f512f419eb15f4da823a7dcb4206d8e7",
-    "ProtocolTreasury": "0xc3ebdd1772a905e44887667a77897a81c46f880bbb3ca55a654484cecf53e163",
-    "CollateralVault": "0x4aa46500bfeb8090978597bf5f79271c257374699ca86ffdd4fdea6294ba7329",
-    "CoreProtocol": "0x6dfc289f537883d51fb67a1d94af43f6b2a6a6edc4bc1275a8384903ec97a7f3",
-    "FifoExchange": "0x31524bb0708dc09deeb10908f6be3c2da4113674a53f8fce09fa961449d54c5d"
-  }
+    "BlueToken": "0xd77c45a550e927a78d02c0b493fbfc5c5ad8af49587a2a2aa74507037d7eab11",
+    "RedToken": "0xc935489c6d2d14f8636fe670ebc001e521c5881c895c9e4c2adc0914b8599c5a",
+    "ProtocolTreasury": "0x8de553a7ac113cffbe4f55503844767cec7d945672d62b9d3c7b540da552c1d0",
+    "CollateralVault": "0x1b799ac412a83ff4b60b87ce568dc63ed182799d05dd4ab93bf568e978c00d98",
+    "CoreProtocol": "0x6d5fe6e98ac52cb1642fa23ac471d053e1ccf544357b0e4baad543191e140f1b",
+    "FifoExchange": "0xff15aa54612182b8be2935a6876e22ceef29cdae703b15d0ae1c6644810bf629",
+    "USDT": "0x452908580b71862146252ef216f1cd4fb297a44d7efcd298706cc30973b0555e"
+  },
+  "codeHashes": {
+    "BlueToken": "0xb5b5449017845677c3c93aea6e341abe30670f73a4ab7a434529b9d4b7efbb48",
+    "RedToken": "0x1afd8bdd0c5665a25329d9a757fab42f950a8297ff19a82b8fb54acaa43d8391",
+    "ProtocolTreasury": "0xb77ba7fb6291e1217ffda1d2a4accbba3c91a9708f0ffa89aadf78540bc1243b",
+    "CollateralVault": "0x308d3c099ed70082aaf0e8e6d50bbfeafbb32dd5d499490cd3a586b93058b2d8",
+    "CoreProtocol": "0xe2aa5f7717bc29efcb73eb89b916fef6e5ffdb38d4b8d4925d5e81198943e5f4",
+    "FifoExchange": "0xdf8b59e21decde6102b0ec8e90b21ff2375fcea2646035d1f312fe517a22a72e",
+    "USDT": "0xefc419a5b3b0ef842e4568215532bbc374eee04c6225c835c9ba3b4352829202"
+  },
+  "sourcePlanHash": "0xed29252828819de956c0a0031ed24a4e148db2f9dcb73f3d0c3a6165c5bb9cf8"
 }

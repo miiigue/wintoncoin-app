@@ -1433,25 +1433,13 @@ async function initializeDatabase() {
         const platformUsername = process.env.PLATFORM_USERNAME || 'Plataforma WintonCoin';
         const platformPassword = process.env.PLATFORM_USER_PASSWORD;
 
-        if (!platformPassword) {
-            console.warn(`
-                *****************************************************************
-                * ADVERTENCIA DE SEGURIDAD:                                     *
-                * La contraseña para el usuario de la plataforma no está        *
-                * configurada. Por favor, añade PLATFORM_USER_PASSWORD a tu     *
-                * archivo .env con una contraseña segura y reinicia el servidor.*
-                * Se usará una contraseña temporal insegura.                    *
-                *****************************************************************
-            `);
-        }
-        const securePassword = platformPassword || 'temporal_insegura_cambiar_urgente';
-
         const userExists = await client.query('SELECT id, email FROM users WHERE username = $1', [platformUsername]);
         const officialEmail = 'accounting@wintoncoin.com';
 
         if (userExists.rowCount === 0) {
+            if (!platformPassword) throw new Error('Configura PLATFORM_USER_PASSWORD antes de inicializar una base vacía. No se crean credenciales predeterminadas.');
             console.log(`Creando el usuario del sistema '${platformUsername}'...`);
-            const passwordHash = await bcrypt.hash(securePassword, saltRounds);
+            const passwordHash = await bcrypt.hash(platformPassword, saltRounds);
 
             // Create a safe, unique identifier from the username to avoid conflicts.
             const uniqueIdentifier = platformUsername.toLowerCase().replace(/\s+/g, '-');

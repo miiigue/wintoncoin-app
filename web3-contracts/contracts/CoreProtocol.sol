@@ -487,6 +487,60 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     );
     mapping(address => uint256) public paymentNonces;
 
+    struct MixedPaymentAuthorization {
+        address payer;
+        address payee;
+        uint256 amount;
+        uint256 feeBps;
+        uint256 blueAmount;
+        uint256 redAmount;
+        uint256 duration;
+        uint256 nonce;
+        uint256 deadline;
+        bytes32 agreementHash;
+    }
+    bytes32 public constant MIXED_PAYMENT_TYPEHASH = keccak256(
+        "MixedPayment(address payer,address payee,uint256 amount,uint256 feeBps,uint256 blueAmount,uint256 redAmount,uint256 duration,uint256 nonce,uint256 deadline,bytes32 agreementHash)"
+    );
+    event PaymentFunding(address indexed payer, address indexed payee, uint256 blueConsumed, uint256 redCreated);
+
+    /// @notice Simulates mandatory overdue settlement before quoting spendable BLUE.
+    /// BLUE held by the Exchange is not part of the payer's token balance.
+    function quoteMixedPayment(address payer, uint256 amount)
+        external view returns (uint256 fee, uint256 blueAmount, uint256 redAmount, uint256 duration)
+    {
+        require(amount > 0 && amount <= maxTransactionAmount, "Protocol: Invalid payment amount");
+        uint256 balance = blueToken.balanceOf(payer);
+        uint256 matured = getMaturedDebt(payer);
+        require(matured <= balance, "Protocol: Payer has overdue commitments");
+        fee = amount * commissionBps / BPS_DENOMINATOR;
+        uint256 total = amount + fee;
+        uint256 spendable = balance - matured;
+        blueAmount = spendable < total ? spendable : total;
+        redAmount = total - blueAmount;
+        uint256 debtAfterSettlement = redToken.balanceOf(payer) - matured;
+        uint256 coverage = creditLimits[payer] + ICollateralVault(vault).userCollateral(payer);
+        uint256 capacity = coverage > debtAfterSettlement ? coverage - debtAfterSettlement : 0;
+        require(redAmount <= capacity, "Protocol: Insufficient credit capacity");
+        duration = COMMITMENT_DURATION;
+    }
+
+    /// @notice Exact split, fees and duration are signed; a relayer cannot substitute funding.
+    function processAuthorizedMixedPayment(MixedPaymentAuthorization calldata auth, bytes calldata signature)
+        external nonReentrant whenNotPaused
+    {
+        require(block.timestamp <= auth.deadline, "Protocol: Payment authorization expired");
+        require(auth.feeBps == commissionBps, "Protocol: Commission changed");
+        require(auth.duration == COMMITMENT_DURATION, "Protocol: Duration changed");
+        require(auth.nonce == paymentNonces[auth.payer], "Protocol: Invalid payment nonce");
+        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(MIXED_PAYMENT_TYPEHASH, auth)));
+        require(_validSignature(auth.payer, digest, signature), "Protocol: Invalid payer signature");
+        require(auth.blueAmount + auth.redAmount == auth.amount + auth.amount * auth.feeBps / BPS_DENOMINATOR,
+            "Protocol: Invalid funding split");
+        paymentNonces[auth.payer]++;
+        _processPaymentWithBlue(auth.payer, auth.payee, auth.amount, auth.blueAmount);
+    }
+
     function processPayment(address payer, address payee, uint256 amount)
         external nonReentrant whenNotPaused
     {
@@ -523,6 +577,10 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         return ok && result.length >= 32 && abi.decode(result, (bytes32)) == bytes32(bytes4(0x1626ba7e));
     }
     function _processPayment(address payer, address payee, uint256 grossAmount) internal {
+        _processPaymentWithBlue(payer, payee, grossAmount, 0);
+    }
+
+    function _processPaymentWithBlue(address payer, address payee, uint256 grossAmount, uint256 blueAmount) internal {
         require(isKYCVerified[payer], "Protocol: Payer KYC not verified");
         require(isKYCVerified[payee], "Protocol: Payee KYC not verified");
         _settleMatured(payer);
@@ -536,6 +594,9 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         uint256 fee = (grossAmount * commissionBps) / BPS_DENOMINATOR;
         if (fee > 0) require(isKYCVerified[treasury], "Protocol: Treasury KYC not verified");
         uint256 totalCommitment = grossAmount + fee;
+        require(blueAmount <= totalCommitment, "Protocol: Invalid funding split");
+        if (blueAmount > 0) blueToken.burn(payer, blueAmount);
+        totalCommitment -= blueAmount;
         uint256 availableCapacity = getAvailableCreditCapacity(payer);
         require(totalCommitment <= availableCapacity, "Protocol: Insufficient credit capacity");
 
@@ -543,9 +604,11 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         uint256 netAmount = grossAmount;
 
         // Registro del Lote de Compromiso con Vencimiento Determinista (Agenda)
-        uint256 currentLotId = nextLotId++;
+        uint256 currentLotId;
         uint256 dueAt = block.timestamp + COMMITMENT_DURATION;
 
+        if (totalCommitment > 0) {
+        currentLotId = nextLotId++;
         _userDebtLots[payer].push(DebtLot({
             id: currentLotId,
             amount: totalCommitment,
@@ -560,6 +623,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
 
         // Emisión Dual (Materia-Antimateria)
         redToken.mintCommitment(payer, totalCommitment);
+        }
         blueToken.mintWithParking(payee, netAmount, dueAt);
         if (fee > 0) {
             blueToken.mintWithParking(treasury, fee, dueAt);
@@ -567,6 +631,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
 
         _settleMatured(payee);
         emit PaymentProcessed(payer, payee, netAmount, fee, currentLotId, dueAt);
+        emit PaymentFunding(payer, payee, blueAmount, totalCommitment);
     }
 
     // ========================================================================

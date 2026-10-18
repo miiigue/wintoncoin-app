@@ -73,6 +73,13 @@ function Dialog({id,quote,onClose,recipient}) {
     {a&&<div style={{background:'rgba(255,255,255,0.05)',padding:'12px 14px',borderRadius:'10px',marginBottom:'14px',border:'1px solid rgba(255,255,255,0.08)'}}>
       <p style={{margin:'4px 0'}}><strong>Importe:</strong> {formatUnits(a.amount,6)} BLUE</p>
       <p style={{margin:'4px 0'}}><strong>Comisión:</strong> {formatUnits(BigInt(a.amount)*BigInt(a.feeBps)/10000n,6)} BLUE</p>
+      <p><strong>Total:</strong> {formatUnits(BigInt(a.amount)+BigInt(a.amount)*BigInt(a.feeBps)/10000n,6)} BLUE</p>
+      {a.blueAmount!==undefined&&<>
+        <p><strong>BLUE que utilizarás:</strong> {formatUnits(a.blueAmount,6)} BLUE, incluido parking elegible.</p>
+        <p><strong>Compromiso RED nuevo:</strong> {formatUnits(a.redAmount,6)} RED</p>
+        {BigInt(a.redAmount)>0n&&<p>Plazo del nuevo compromiso: {Number(a.duration)/86400} días desde la confirmación en la cadena.</p>}
+        <p>El BLUE utilizado en esta compra no amortiza también compromisos anteriores. Los vencidos se atienden primero según las reglas del protocolo.</p>
+      </>}
       <p style={{margin:'4px 0',fontSize:'0.85rem',color:'#94a3b8'}}><strong>Destino:</strong> <span className="operation-address" style={{color:'#38bdf8'}}>{a.payee}</span></p>
     </div>}
     <p style={{fontSize:'0.85rem',color:'#94a3b8',marginBottom:'14px',lineHeight:'1.4'}}>
