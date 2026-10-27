@@ -158,4 +158,25 @@ library CommitmentTree {
         require(amount <= t.nodes[t.root].sum, "Ledger: Amount exceeds commitments");
         (t.root,paidMargin) = _consume(t,t.root,amount);
     }
+
+    /// @dev Read-only counterpart of consume using identical fee/margin-first rules.
+    function previewConsumedMargin(Tree storage t, uint256 amount) internal view returns (uint256 paidMargin) {
+        uint256 root = t.root;
+        require(amount <= t.nodes[root].sum, "Ledger: Amount exceeds commitments");
+        while (amount > 0) {
+            Node storage n = t.nodes[root];
+            if (amount == n.sum) return paidMargin + n.marginSum;
+            uint256 leftSum = t.nodes[n.left].sum;
+            if (amount < leftSum) { root = n.left; continue; }
+            paidMargin += t.nodes[n.left].marginSum;
+            amount -= leftSum;
+            if (amount < n.amount) {
+                uint256 paidFee = amount < n.fee ? amount : n.fee;
+                return paidMargin + (paidFee < n.margin ? paidFee : n.margin);
+            }
+            paidMargin += n.margin;
+            amount -= n.amount;
+            root = n.right;
+        }
+    }
 }

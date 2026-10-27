@@ -23,12 +23,14 @@ const ERC20_ABI = [
 
 const VAULT_ABI = [
   "function deposit(uint256 value) external",
+  "function depositAndRepayWithCollateral(uint256 value) external",
   "function withdraw(uint256 value) external",
   "function repayWithCollateral(address user, uint256 value) external",
   "function getFreeCollateral(address user) view returns (uint256)",
   "function userCollateral(address user) view returns (uint256)",
   "function exchangeReserved(address user) view returns (uint256)",
   "function pendingReserve(address user) view returns (uint256)"
+  ,"function automaticExchangeCollateral(address user) view returns (bool)"
 ];
 
 const CORE_ABI = [
@@ -138,6 +140,7 @@ class Web3OnChainService {
         collateralLocked: parseFloat(json.collateralVault?.totalLocked) || 0,
         collateralFree: parseFloat(json.collateralVault?.freeForWithdrawal) || 0,
         collateralReserved: parseFloat(json.collateralVault?.reservedInExchange) || 0,
+        automaticExchangeCollateral: Boolean(json.collateralVault?.automaticAtMaturity),
         baseCreditLimit: parseFloat(json.credit?.baseLimit) || 0,
         availableCapacity: parseFloat(json.credit?.availableCapacity) || 0,
         isKYCVerified: Boolean(json.credit?.isKYCVerified),
@@ -197,6 +200,8 @@ class Web3OnChainService {
   async transferUsdt(amount,destination) {return requestOperation('transfer',{amount:String(amount),destination});}
   async amortizeWithBlue(amount) {return requestOperation('amortize',{amount:String(amount)});}
   async repayWithCollateral(amount) {return requestOperation('repayCollateral',{amount:String(amount)});}
+  async collateralizeUsdtOrder(orderId,amount) {return requestOperation('secureOrder',{orderId:String(orderId),amount:String(amount)});}
+  async setAutomaticExchangeCollateral(enabled) {return requestOperation('autoCollateral',{enabled:Boolean(enabled)});}
   async createSellOrder(amount) {return requestOperation('sell',{amount:String(amount)});}
   async createBuyOrder(amount) {return requestOperation('buy',{amount:String(amount)});}
   async cancelOrder(orderId) {return requestOperation('cancel',{orderId:String(orderId)});}

@@ -118,6 +118,9 @@ async function recordIssue(client, version, user, operation, reason, errorDetail
 async function retryIssue(pool, version, user) {
     return locked(pool, 'credit-policy-jobs', async client => {
         const latest = (await client.query('SELECT id FROM credit_policy_versions ORDER BY id DESC LIMIT 1')).rows[0];
+        const blocked=await client.query(`SELECT 1 FROM credit_policy_issues i JOIN chain_operations o ON o.id=i.operation_id
+          WHERE i.version_id=$1 AND i.user_id=$2 AND o.state IN ('prepared','pending','conflict')`,[version,user]);
+        if(blocked.rowCount)throw Object.assign(new Error('La cuenta ya tiene una operación pendiente o en revisión. Consulta su estado; no se programará otro envío.'),{status:409});
         if (String(latest?.id) !== String(version)) {
             throw Object.assign(new Error('La política fue sustituida; revisa la versión vigente.'), { status: 409 });
         }
@@ -226,14 +229,17 @@ async function tick(pool, scoreService) {
                     op?.state === 'conflict' ? 'CHAIN_CONFLICT' : 'CHAIN_REJECTED',
                     'Operación previa no confirmada'
                 );
-                cursor = job.pending_user_id;
             }
+            cursor = job.pending_user_id;
             await client.query(
                 'UPDATE credit_policy_jobs SET cursor_id = $2, operation_id = NULL, pending_user_id = NULL WHERE version_id = $1',
                 [job.version_id, cursor]
             );
         }
 
+        // Bound the read-only catch-up work; stop immediately on any transaction or failure.
+        const started=Date.now();
+        for(let processed=0;processed<20 && Date.now()-started<5000;processed++){
         // 5. Seleccionar la siguiente cuenta con billetera Web3 registrada
         const user = (await client.query(
             'SELECT id FROM users WHERE id > $1 AND web3_wallet_address IS NOT NULL ORDER BY id LIMIT 1',
@@ -259,11 +265,13 @@ async function tick(pool, scoreService) {
                     'UPDATE credit_policy_jobs SET operation_id = $2, pending_user_id = $3, updated_at = NOW() WHERE version_id = $1',
                     [job.version_id, result.operationId, user.id]
                 );
+                return;
             } else if (result?.skipped) {
                 await client.query(
                     'UPDATE credit_policy_jobs SET cursor_id = $2, updated_at = NOW() WHERE version_id = $1',
                     [job.version_id, user.id]
                 );
+                cursor=user.id;
             } else {
                 throw new Error('NO_RESULT');
             }
@@ -273,6 +281,8 @@ async function tick(pool, scoreService) {
                 'UPDATE credit_policy_jobs SET cursor_id = $2, updated_at = NOW() WHERE version_id = $1',
                 [job.version_id, user.id]
             );
+            return;
+        }
         }
     });
 }

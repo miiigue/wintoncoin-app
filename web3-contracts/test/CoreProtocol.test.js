@@ -27,16 +27,19 @@ describe('Core: consentimiento, paridad, capacidad y vencimientos', function () 
     await expect(f.core.processPayment(f.alice.address,f.bob.address,U)).revertedWith('Protocol: Payer authorization required');
   });
   it('Firma del pagador: dominio, comisión, destinatario y nonce impiden alteración y repetición', async () => {
+    const q=await f.core.quoteMixedPayment(f.alice.address,100n*U);
     const auth = { payer:f.alice.address, payee:f.bob.address, amount:100n*U, feeBps:500,
-      nonce:0, deadline:(await time.latest())+900, agreementHash:ethers.id('trabajo-17') };
-    const types = { Payment: [ ['payer','address'],['payee','address'],['amount','uint256'],['feeBps','uint256'],['nonce','uint256'],['deadline','uint256'],['agreementHash','bytes32'] ].map(([name,type])=>({name,type})) };
-    const domain={name:'WintonCore',version:'4',chainId:(await ethers.provider.getNetwork()).chainId,verifyingContract:f.core.target};
+      blueAmount:q.blueAmount,redAmount:q.redAmount,duration:q.duration,nonce:0, deadline:(await time.latest())+900,
+      agreementHash:ethers.id('trabajo-17'),payerStateHash:await f.core.paymentStateHash(f.alice.address) };
+    const types = { MixedPayment: [ ['payer','address'],['payee','address'],['amount','uint256'],['feeBps','uint256'],['blueAmount','uint256'],['redAmount','uint256'],['duration','uint256'],['nonce','uint256'],['deadline','uint256'],['agreementHash','bytes32'],['payerStateHash','bytes32'] ].map(([name,type])=>({name,type})) };
+    const domain={name:'WintonCore',version:'5',chainId:(await ethers.provider.getNetwork()).chainId,verifyingContract:f.core.target};
     const signature=await f.alice.signTypedData(domain,types,auth);
-    await expect(f.core.connect(f.relayer).processAuthorizedPayment({...auth,payee:f.carol.address},signature)).revertedWith('Protocol: Invalid payer signature');
-    await f.core.connect(f.relayer).processAuthorizedPayment(auth,signature);
-    await expect(f.core.connect(f.relayer).processAuthorizedPayment(auth,signature)).revertedWith('Protocol: Invalid payment nonce');
-    const otherSignature=await f.alice.signTypedData({...domain,chainId:1},types,{...auth,nonce:1});
-    await expect(f.core.connect(f.relayer).processAuthorizedPayment({...auth,nonce:1},otherSignature)).revertedWith('Protocol: Invalid payer signature');
+    await expect(f.core.connect(f.relayer).processAuthorizedMixedPayment({...auth,payee:f.carol.address},signature)).revertedWithCustomError(f.core,'InvalidPayerSignature');
+    await f.core.connect(f.relayer).processAuthorizedMixedPayment(auth,signature);
+    await expect(f.core.connect(f.relayer).processAuthorizedMixedPayment(auth,signature)).revertedWithCustomError(f.core,'InvalidPaymentNonce');
+    const otherAuth={...auth,nonce:1,payerStateHash:await f.core.paymentStateHash(f.alice.address)};
+    const otherSignature=await f.alice.signTypedData({...domain,chainId:1},types,otherAuth);
+    await expect(f.core.connect(f.relayer).processAuthorizedMixedPayment(otherAuth,otherSignature)).revertedWithCustomError(f.core,'InvalidPayerSignature');
   });
   it('KYC, autopago, límites por operación y pausa', async () => {
     await f.core.setKYCStatus(f.bob.address,false);
@@ -56,7 +59,7 @@ describe('Core: consentimiento, paridad, capacidad y vencimientos', function () 
     const next=await f.core.userDebtLots(f.alice.address,1);
     await time.increaseTo(next.dueAt);
     expect(await f.core.isDelinquent(f.alice.address)).eq(true);
-    await expect(f.pay(f.alice,f.bob,U)).revertedWith('Protocol: Payer has overdue commitments');
+    await expect(f.pay(f.alice,f.bob,U)).revertedWithCustomError(f.core,'OverdueCommitments');
   });
   it('El trabajo de un moroso amortiza BLUE/RED; no queda BLUE estacionado frente al vencido', async () => {
     await f.core.setCommissionBps(0); await f.pay(f.alice,f.bob,100n*U);

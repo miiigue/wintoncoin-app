@@ -18,10 +18,10 @@ describe('Integración real BLUE/RED/Vault/FIFO', function () {
       expect(await f.blue.lockedBalanceOf(user.address)).lte(await f.blue.balanceOf(user.address));
     }
   }
-  it('Compra normal también amortiza el vencido, sin acción posterior del comprador', async () => {
+  it('Compra garantizada automática amortiza el vencido, sin acción posterior del comprador', async () => {
     await f.pay(f.alice,f.bob,100n*U); await time.increase(30*86400);
     await f.exchange.connect(f.bob).createBlueOrder(100n*U);
-    await f.exchange.connect(f.alice).createUsdtOrder(100n*U);
+    await f.vault.connect(f.alice).depositAndRepayWithCollateral(100n*U);
     await f.exchange.matchOrders(10,20);
     expect(await f.red.balanceOf(f.alice.address)).eq(0);
     expect(await f.blue.balanceOf(f.alice.address)).eq(0);

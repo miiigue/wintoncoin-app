@@ -8,20 +8,21 @@ const safePolicy=require('./safeAccountPolicy');
 const safeExecution=require('./safeExecution');
 const tokenABI=['function allowance(address,address) view returns(uint256)','function approve(address,uint256) returns(bool)','function transfer(address,uint256) returns(bool)','function balanceOf(address) view returns(uint256)'];
 const coreABI=['function isKYCVerified(address) view returns(bool)','function amortizeWithBlue(uint256)'];
-const vaultABI=['function deposit(uint256)','function withdraw(uint256)','function getFreeCollateral(address) view returns(uint256)','function repayWithCollateral(address,uint256)'];
-const exchangeABI=['function createBlueOrder(uint128)','function createUsdtOrder(uint128)','function cancelOrder(uint64)','function resumeOrder(uint64)','function claimPendingRefunds()'];
-const labels={deposit:'Depositar garantía USDT',withdraw:'Retirar garantía libre',transfer:'Retirar USDT a otra dirección',amortize:'Amortizar compromiso con BLUE',sell:'Vender BLUE',buy:'Comprar BLUE',repayCollateral:'Reservar garantía para amortizar',cancel:'Cancelar orden',resume:'Reactivar orden',claim:'Reclamar devoluciones'};
+const vaultABI=['function deposit(uint256)','function depositAndRepayWithCollateral(uint256)','function withdraw(uint256)','function getFreeCollateral(address) view returns(uint256)','function repayWithCollateral(address,uint256)','function collateralizeUsdtOrder(uint64,uint128)','function setAutomaticExchangeCollateral(bool)','function automaticExchangeCollateral(address) view returns(bool)','function exchangeReserved(address) view returns(uint256)','function pendingReserve(address) view returns(uint256)'];
+const exchangeABI=['function createBlueOrder(uint128)','function createUsdtOrder(uint128)','function cancelOrder(uint64)','function resumeOrder(uint64)','function claimPendingRefunds()','function feeBps() view returns(uint16)'];
+const labels={deposit:'Depositar garantía USDT',withdraw:'Retirar garantía libre',transfer:'Retirar USDT a otra dirección',amortize:'Amortizar compromiso con BLUE',sell:'Vender BLUE',buy:'Comprar BLUE',repayCollateral:'Reservar garantía para amortizar',secureOrder:'Bloquear USDT de una orden como garantía RED',autoCollateral:'Configurar garantía automática al vencimiento',cancel:'Cancelar orden',resume:'Reactivar orden',claim:'Reclamar devoluciones'};
 function normalized(input) {
     if(!Object.hasOwn(labels,input.action))throw error('Operación no admitida.',400);
     const out={action:input.action};
-    if(['deposit','withdraw','transfer','amortize','sell','buy','repayCollateral'].includes(out.action)) {
+    if(['deposit','withdraw','transfer','amortize','sell','buy','repayCollateral','secureOrder'].includes(out.action)) {
         if(typeof input.amount!=='string'||!/^\d{1,12}(\.\d{1,6})?$/.test(input.amount)||parseUnits(input.amount,6)<=0n)throw error('Introduce un importe positivo con hasta seis decimales.',400);
         out.amount=input.amount;
     }
-    if(['cancel','resume'].includes(out.action)) {
+    if(['cancel','resume','secureOrder'].includes(out.action)) {
         if(!/^\d{1,20}$/.test(String(input.orderId))||BigInt(input.orderId)<1n||BigInt(input.orderId)>(1n<<64n)-1n)throw error('Orden inválida.',400);
         out.orderId=String(input.orderId);
     }
+    if(out.action==='autoCollateral')out.enabled=input.enabled===true;
     if(out.action==='transfer') {
         try {out.destination=getAddress(input.destination);}catch {throw error('Dirección de destino inválida.',400);}
         if(/^0x0{40}$/i.test(out.destination))throw error('Destino inválido.',400);
@@ -29,6 +30,15 @@ function normalized(input) {
     return out;
 }
 function call(address,abi,name,args,label) {return {to:address,data:new Interface(abi).encodeFunctionData(name,args),value:'0',label};}
+function splitCollateralizedBuy(amount,redDebt,feeBps,reserved=0n,pending=0n) {
+    for(const value of [amount,redDebt,feeBps,reserved,pending])if(typeof value!=='bigint'||value<0n)throw error('Datos de cobertura inválidos.',400);
+    if(feeBps>=10000n)throw error('Comisión de exchange inválida.',503);
+    if(redDebt===0n)return {secured:0n,ordinary:amount,budget:0n};
+    const budget=redDebt*10000n/(10000n-feeBps),assigned=reserved+pending;
+    const missing=budget>assigned?budget-assigned:0n;
+    const secured=amount<missing?amount:missing;
+    return {secured,ordinary:amount-secured,budget};
+}
 class WalletOperations {
     constructor(pool,rpc=deployment.provider(),config=deployment.configuration(),walletService=require('./walletService'),options={}) {
         this.pool=pool;this.rpc=rpc;this.config=config;this.walletService=walletService;
@@ -49,13 +59,13 @@ class WalletOperations {
         await deployment.validate(this.rpc,this.config);
         if(!await new Contract(c.CoreProtocol,coreABI,this.rpc).isKYCVerified(user.address))throw error('Necesitas KYC aprobado para esta operación.',403);
         const plan=[],amount=p.amount?parseUnits(p.amount,6):null;
-        const approve=async(token,spender)=>{
+        const approve=async(token,spender,value=amount)=>{
             const erc=new Contract(token,tokenABI,this.rpc);
-            if(await erc.balanceOf(user.address)<amount)throw error('Saldo insuficiente.');
+            if(await erc.balanceOf(user.address)<value)throw error('Saldo insuficiente.');
             const allowance=await erc.allowance(user.address,spender);
-            if(allowance<amount) {
+            if(allowance<value) {
                 if(allowance>0n)plan.push(call(token,tokenABI,'approve',[spender,0n],'Restablecer autorización del token'));
-                plan.push(call(token,tokenABI,'approve',[spender,amount],'Autorizar únicamente este importe'));
+                plan.push(call(token,tokenABI,'approve',[spender,value],'Autorizar únicamente este importe'));
             }
         };
         switch(p.action) {
@@ -68,8 +78,34 @@ class WalletOperations {
                 plan.push(call(c.USDT,tokenABI,'transfer',[p.destination,amount],labels.transfer));break;
             case 'amortize':plan.push(call(c.CoreProtocol,coreABI,'amortizeWithBlue',[amount],labels.amortize));break;
             case 'repayCollateral':plan.push(call(c.CollateralVault,vaultABI,'repayWithCollateral',[user.address,amount],labels.repayCollateral));break;
+            case 'secureOrder':plan.push(call(c.CollateralVault,vaultABI,'collateralizeUsdtOrder',[p.orderId,amount],labels.secureOrder));break;
+            case 'autoCollateral':plan.push(call(c.CollateralVault,vaultABI,'setAutomaticExchangeCollateral',[p.enabled],labels.autoCollateral));break;
             case 'sell':await approve(c.BlueToken,c.FifoExchange);plan.push(call(c.FifoExchange,exchangeABI,'createBlueOrder',[amount],labels.sell));break;
-            case 'buy':await approve(c.USDT,c.FifoExchange);plan.push(call(c.FifoExchange,exchangeABI,'createUsdtOrder',[amount],labels.buy));break;
+            case 'buy': {
+                if(await new Contract(c.USDT,tokenABI,this.rpc).balanceOf(user.address)<amount)throw error('Saldo USDT insuficiente.');
+                const redDebt=await new Contract(c.RedToken,tokenABI,this.rpc).balanceOf(user.address);
+                if(redDebt>0n) {
+                    const vault=new Contract(c.CollateralVault,vaultABI,this.rpc),exchange=new Contract(c.FifoExchange,exchangeABI,this.rpc);
+                    const [fee,reserved,pending]=await Promise.all([exchange.feeBps(),vault.exchangeReserved(user.address),vault.pendingReserve(user.address)]);
+                    const {secured,ordinary}=splitCollateralizedBuy(amount,redDebt,BigInt(fee),reserved,pending);
+                    if(secured>0n) {
+                        await approve(c.USDT,c.CollateralVault,secured);
+                        plan.push(call(c.CollateralVault,vaultABI,'depositAndRepayWithCollateral',[secured],'Bloquear USDT como garantía y amortizar RED'));
+                    }
+                    if(ordinary>0n) {
+                        await approve(c.USDT,c.FifoExchange,ordinary);
+                        plan.push(call(c.FifoExchange,exchangeABI,'createUsdtOrder',[ordinary],'Comprar BLUE adicional en FIFO'));
+                    }
+                    p.collateralized=secured>0n;
+                    p.collateralizedAmount=secured.toString();
+                    p.ordinaryAmount=ordinary.toString();
+                } else {
+                    await approve(c.USDT,c.FifoExchange);
+                    plan.push(call(c.FifoExchange,exchangeABI,'createUsdtOrder',[amount],labels.buy));
+                    p.collateralized=false;
+                }
+                break;
+            }
             case 'cancel':case 'resume':plan.push(call(c.FifoExchange,exchangeABI,p.action==='cancel'?'cancelOrder':'resumeOrder',[p.orderId],labels[p.action]));break;
             case 'claim':plan.push(call(c.FifoExchange,exchangeABI,'claimPendingRefunds',[],labels.claim));break;
         }
@@ -111,4 +147,4 @@ class WalletOperations {
             maxNetworkFeeEth:row.payload.maxFeeWei?formatEther(BigInt(row.payload.maxFeeWei)*BigInt(row.payload.planLength||1)):'0'};
     }
 }
-module.exports={WalletOperations,normalized};
+module.exports={WalletOperations,normalized,splitCollateralizedBuy};

@@ -10,6 +10,8 @@ const ABI = [
     'event OrderResumed(uint64 indexed orderId,uint64 oldSequence,uint64 newSequence)',
     'event RefundHeld(address indexed user,uint128 blue,uint128 usdt)',
     'event PendingRefundClaimed(address indexed user,uint128 blue,uint128 usdt)',
+    'event ExchangeOrderCollateralized(address indexed user,uint64 indexed orderId,uint128 amount,bool maturedOnly)',
+    'event ExchangeOrderCollateralReleased(address indexed user,uint64 indexed orderId,uint128 amount)',
     ...['nextOrderId','matchId','totalReservedBlue','totalReservedUsdt','totalPendingRefundBlue','totalPendingRefundUsdt'].map(name => `function ${name}() view returns(${['nextOrderId','matchId'].includes(name)?'uint64':'uint128'})`),
     'function orders(uint64) view returns(uint64 id,uint64 sequenceId,uint128 remainingAmount,address user,uint8 status,uint8 side,uint48 createdAt,uint128 originalAmount,uint128 refundedAmount)',
     'function pendingRefundBlue(address) view returns(uint128)',

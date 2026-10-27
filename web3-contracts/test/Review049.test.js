@@ -78,14 +78,14 @@ describe('Custodia y reanudación: revisión068',()=>{
  });
  it('Reanudar no adelanta a una orden válida y no duplica depósito ni prioridad',async()=>{
   const id=await sell();await f.pay(f.carol,f.other,100n*U);await time.increase(30*86400);await f.exchange.connect(f.other).createBlueOrder(100n*U);const next=await f.exchange.nextOrderId()-1n;
-  await f.exchange.connect(f.carol).createUsdtOrder(10n*U);await f.core.setKYCStatus(f.bob.address,false);await f.exchange.matchOrders(1,30);
+  await f.exchange.connect(f.relayer).createUsdtOrder(10n*U);await f.core.setKYCStatus(f.bob.address,false);await f.exchange.matchOrders(1,30);
   await f.core.setKYCStatus(f.bob.address,true);await f.exchange.connect(f.bob).resumeOrder(id);
-  await expect(f.exchange.connect(f.bob).resumeOrder(id)).revertedWith('Exchange: Order not suspended');
-  await f.exchange.connect(f.carol).createUsdtOrder(100n*U);await f.exchange.matchOrders(10,30);
+  await expect(f.exchange.connect(f.bob).resumeOrder(id)).revertedWithCustomError(f.exchange,'OrderNotSuspended');
+  await f.exchange.connect(f.relayer).createUsdtOrder(100n*U);await f.exchange.matchOrders(10,30);
   expect((await f.exchange.orders(next)).status).eq(3);expect((await f.exchange.orders(id)).remainingAmount).eq(90n*U);expect(await f.exchange.totalDepositedBlue()).eq(200n*U);await invariant();
  });
  it('Nadie puede invocar liquidación interna para eludir FIFO',async()=>{
-  await expect(f.exchange.connect(f.other).executeMatch(1,2,U)).revertedWith('Exchange: Only self');
+  await expect(f.exchange.connect(f.other).executeMatch(1,2,U)).revertedWithCustomError(f.exchange,'Unauthorized');
  });
 });
 

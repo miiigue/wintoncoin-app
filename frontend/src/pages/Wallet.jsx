@@ -19,6 +19,7 @@ import AccountSecurity from '../components/AccountSecurity.jsx';
 import WalletNotice from '../components/WalletNotice.jsx';
 import { displayAmount } from '../modules/financialUnits.js';
 import { getApiUrl } from '../modules/config.js';
+import TokenIcon from '../components/common/TokenIcon.jsx';
 
 // A visual placeholder never becomes an available balance or enables actions.
 const fmt = value => {
@@ -247,10 +248,11 @@ function Wallet() {
             <span className={styles.heroLabel}>Saldo total BLUE</span>
           </div>
           <div className={styles.mainBalance}>
-            <img
-              src="/assets/icons/icon-64x64.png"
-              alt="BLUE"
-              style={{ width: '42px', height: '42px', borderRadius: '50%', objectFit: 'contain', marginRight: '0.65rem' }}
+            <TokenIcon
+              token="BLUE"
+              size={42}
+              withGlow={true}
+              style={{ marginRight: '0.65rem' }}
             />
             <span>
               {fmt(displayTotalBlue)} <span style={{ fontSize: '1.4rem', color: '#94a3b8' }}>BLUE</span>
@@ -358,7 +360,10 @@ function Wallet() {
           </div>
           <div className={styles.creditGrid}>
             <div className={styles.creditBox}>
-              <div className={styles.creditBoxTitle}>Compromiso RED</div>
+              <div className={styles.creditBoxTitle} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <TokenIcon token="RED" size={18} withGlow={true} />
+                <span>Compromiso RED</span>
+              </div>
               <div className={`${styles.creditBoxValue} ${styles.debtColor}`}>
                 {fmt(displayRedDebt)} RED
               </div>

@@ -13,6 +13,104 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-27 — Integración Protocolar V5: Pagos Mixtos Consentidos con Saldo en Parking, Garantía Híbrida de USDT en Exchange y Paridad Dual Inviolable 1:1
+* **Diagnóstico de Necesidad & Arquitectura Económica**:
+  - *Problema Resuelto*: En versiones previas, un usuario con saldo en parking (ej. 14 BLUE) y un límite de compromiso RED residual (ej. 19.84 RED) no podía realizar un pago de 20 BLUE (+ comisión) debido a que `CoreProtocol.sol` evaluaba únicamente el límite base e ignoraba el saldo ya ganado en la plataforma.
+  - *Invariante Dual Universal*: Se consagra y valida a nivel de código EVM que $\text{totalSupply}(BLUE) == \text{totalSupply}(RED)$ se verifica obligatoriamente al final de cada operación monetaria; si existiese un descalce de 1 wei, la transacción revierte en su totalidad.
+  - *Garantía Híbrida sin Doble Custodia*: Se permite que órdenes `USDT_FOR_BLUE` existentes en `FifoExchange.sol` respalden compromisos RED vencidos mediante asignación contable en `CollateralVault.sol`, conservando `orderId`, `sequenceId`, fecha y prioridad FIFO original sin mover físicamente los fondos ni duplicar balances.
+* **Resoluciones Técnicas Implementadas**:
+  - *Contratos Inteligentes (`web3-contracts/contracts/`)*:
+    - `CoreProtocol.sol`: Implementación de la ruta unificada V5 `processAuthorizedMixedPayment` con firma EIP-712 y `payerStateHash`. Quema pareada atómica del BLUE aportado y del RED correspondiente, emitiendo nuevo compromiso RED únicamente por la fracción diferencial no cubierta.
+    - `FifoExchange.sol`: Incorporación de `exchangeCollateralized` y sincronización con `CollateralVault` para salvaguardar reembolsos por KYC y retener importes garantizados en cancelaciones de órdenes. (Compilado en 24.393 bytes, dentro del límite de 24.576).
+    - `CollateralVault.sol`: Módulo `collateralizeUsdtOrder`, `collateralizeMatured` y `protectPendingRefund`. Al vencer un compromiso, quema primero el BLUE en parking y bloquea únicamente el déficit residual en USDT.
+  - *Backend & Servicios de Integración (`backend/src/services/`)*:
+    - `walletOperations.js`: Funciones `splitCollateralizedBuy` y normalizador de autorizaciones voluntarias de garantía.
+    - `exchangeChainReader.js` y `web3BridgeService.js`: Sincronización con eventos V5 de garantía y liquidación.
+  - *Frontend React (`frontend/src/`)*:
+    - `Exchange.jsx`: Panel para autorización voluntaria de garantía y consentimiento `automaticExchangeCollateral` con información de respaldo.
+    - `web3OnChainService.js`: Interfaz con los métodos de garantía de órdenes V5.
+* **Verificación y Pruebas Automatizadas**:
+  - `npx hardhat test`: **37/37 pruebas PASS** (`ExchangeCollateralizationV5.test.js`, `MixedPayment163.test.js`, `CoreProtocol.test.js`, `CollateralVault.test.js`).
+  - `npm --prefix frontend run check:react`: **PASS (55 componentes auditados, 0 referencias no declaradas)**.
+  - `npm --prefix frontend run build:demo`: **PASS (Compilación de producción exitosa en 26.55s, 193 activos PWA precacheados)**.
+
+### 2026-10-27 — Arquitectura Narrativa & Legal FinTech: Erradicación del Léxico Bancario Tradicional y Adopción del Principio «Todos Somos Garantes del Compromiso»
+* **Diagnóstico de Necesidad & Marco Legal Silicon Valley**:
+  - *Desmarque Regulatorio Vital*: En plataformas de finanzas descentralizadas y economía colaborativa, el uso de términos tradicionales como *"financiamiento"* o *"crédito"* genera riesgos de clasificación regulatoria bajo esquemas de captación masiva e intermediación bancaria.
+  - *Reflejo Fiel de la Invariante Smart Contract*: En `CoreProtocol.sol`, la paridad matemática es estricta: $\text{TotalSupply}(BLUE) == \text{TotalSupply}(RED)$. La liquidez no proviene de un banco central ni de intermediarios externos; cada token BLUE nace porque un miembro asumió un compromiso RED y la comunidad entera actúa como garante de dicha confianza.
+* **Resoluciones Técnicas Implementadas**:
+  - *Panel de Billetera React (`frontend/src/components/dashboard/WalletTabs.jsx`)*:
+    - Inclusión de la tarjeta destacada con estilo Glassmorphism y borde cian iluminado: *«Respaldo Comunitario Descentralizado: Aquí no existen intermediarios externos: todos somos garantes y todos somos parte del compromiso que sostiene y da vida a nuestro ecosistema.»*
+  - *Panel de Billetera Vanilla (`frontend/contract_interaction.html`)*:
+    - Paridad total $1:1$ incorporando el mismo banner dentro del contenedor `.wallet-tab-panel#panelBilletera`.
+  - *Flujo de Registro Legal (`frontend/src/pages/Register.jsx`)*:
+    - Actualización del consentimiento del Paso 3 (`termsEconomic`): *«Comprendo que en WintonCoin todos somos garantes y parte del compromiso mutuo: los tokens BLUE y RED sustentan una economía colaborativa donde la comunidad entera es el respaldo.»*
+  - *Guía Educativa (`frontend/como-funciona.html`)*:
+    - Actualización de la tarjeta de Compromiso RED, reforzando que no se trata de una obligación bancaria, sino de un compromiso comunitario garantizado entre pares.
+* **Archivos Modificados**:
+  - [`frontend/src/components/dashboard/WalletTabs.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/dashboard/WalletTabs.jsx)
+  - [`frontend/contract_interaction.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/contract_interaction.html)
+  - [`frontend/src/pages/Register.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Register.jsx)
+  - [`frontend/como-funciona.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/como-funciona.html)
+  - [`EVOLUCION.md`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/EVOLUCION.md)
+* **Verificación y Pruebas Automatizadas**:
+  - `npm --prefix frontend run check:react` → **PASS (55 componentes auditados, 0 referencias no declaradas)**.
+  - `npm --prefix frontend run test:account-security` → **8/8 suites PASS**.
+  - `npm --prefix frontend run build:demo` → **PASS (Compilación de Vite exitosa en 26.86s, PWA precache 193 archivos)**.
+
+### 2026-10-18 — Identidad Visual Oficial: Adopción Definitiva de la Moneda RED (Opción 2-A Perfeccionada con Triple Alineación Izquierda y Paridad Canónica 1:1)
+* **Diagnóstico de Necesidad & Causa Raíz**:
+  - *Armonización del Glifo «R» con el Boceto del Fundador y Rigor Tipográfico*: Se requería afinar el diseño de la Moneda RED para integrar la propuesta conceptual del boceto original (base inferior limpia y recta sin patas sobresalientes, y la división simétrica con barra horizontal media) manteniendo la paridad visual $1:1$ con la Moneda BLUE de titanio/plata cepillada radial y relieve 3D en rojo rubí.
+  - *Corrección de Alineación Geométrica Sub-Píxel*: Se identificó un desfase en el lateral izquierdo donde la barra media y el pie inferior estaban retraídos. Se corrigió para que los tres extremos izquierdos (serif superior $X=288\text{px}$, barra media $X=289\text{px}$ y pie de base $X=293\text{px}$) caigan estrictamente sobre la misma línea de plomo vertical, preservando simultáneamente la extensión completa de la barra horizontal hacia la derecha.
+  - *Consolidación en la Suite de Activos*: Se seleccionó la **Opción 2-A Perfeccionada** como la versión oficial y canónica para todos los activos de la plataforma.
+* **Resoluciones Técnicas Implementadas**:
+  - *Actualización del Pipeline de Generación (`frontend/scripts/generate_red_logos.js`)*:
+    - Se estableció la imagen máster aprobada `red_coin_3_bordes_alineados_transparente.png` como fuente oficial.
+    - Procesamiento automatizado con Sharp aplicando máscara antialiasing circular pura de radio $472\text{px}$ sobre lienzo $1024\times 1024$ con canal alfa transparente.
+    - Regeneración y despliegue de los 15 formatos estandarizados en `frontend/public/assets/icons/`:
+      - `red-logo-high-res.png` ($1024\times 1024$)
+      - Formatos PWA y UI: $512\times 512$, $384\times 384$, $192\times 192$, $180\times 180$ (`apple-touch-icon`), $152\times 152$, $144\times 144$, $128\times 128$, $96\times 96$, $72\times 72$, $64\times 64$, $48\times 48$, $32\times 32$, $16\times 16$ y `red-favicon.ico`.
+  - *Integración Transparente en la Aplicación y Landing Page*:
+    - El componente institucional [`TokenIcon.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/common/TokenIcon.jsx) ya enruta dinámicamente según el tamaño a estos activos actualizados, impactando positivamente en Billetera (`Wallet.jsx`), Exchange (`Exchange.jsx`) y notificaciones sin requerir refactorizaciones de código.
+    - **Moneda Orbitante en Landing Page (`HeroSection.jsx` / `index.html`)**: Se sustituyó directamente el archivo de imagen física `public/assets/images/landing/red_token_logo.png` (y su espejo en `assets/images/landing/`) por la nueva moneda en ultra alta resolución ($1024\times 1024$) con canal alfa transparente, manteniendo exactamente el mismo path, las animaciones CSS 3D (`coin-flip`, `coin-orbit-container`) y los textos («Tu Compromiso») intactos sin tocar una sola línea de lógica ni markup.
+* **Archivos Modificados**:
+  - [`frontend/scripts/generate_red_logos.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/scripts/generate_red_logos.js)
+  - Suite de assets en [`frontend/public/assets/icons/`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/public/assets/icons) (`red-*`)
+  - Asset de landing: `frontend/public/assets/images/landing/red_token_logo.png`
+  - [`evolucion.md`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/evolucion.md)
+* **Verificación y Cumplimiento**:
+  - Medición píxel a píxel confirmada con escaneo RGB (`scanX`): serif superior $X=288$, barra media $X=289$, pie inferior $X=293$.
+  - Generación de iconos finalizada exitosamente con código de salida 0.
+  - Paridad estética y dimensional confirmada en 1:1 con la moneda BLUE orbitante.
+  - Cumplimiento de nomenclatura bancaria/FinTech ("COMPROMISO RED").
+
+### 2026-10-15 — Identidad Visual y Diseño Institucional: Creación de Suite Multi-Formato de Moneda RED (Espejo Canónico de BLUE) y Componente Reutilizable TokenIcon
+* **Diagnóstico de Necesidad & Causa Raíz**:
+  - *Falta de Suite Multi-Formato para la Moneda RED*: Mientras que el activo BLUE contaba con una suite de 15 iconos en diferentes resoluciones (`icon-16x16.png` hasta `logo-high-res.png`), el token RED solo disponía del arte renderizado de la landing (`red_token_logo.png`).
+  - *Necesidad de Cohesión Institucional (Variación 2: Espejo Puro de BLUE)*: Para reforzar visualmente la simetría y paridad $1:1$ entre el activo BLUE y el COMPROMISO RED en Billetera, Exchange, Dashboard y Modales, se requería una moneda RED gemela a la moneda BLUE (disco de titanio/plata cepillada radial con relieve 3D idéntico, y glifo estilizado «R» de RED Token en rojo carmesí/rubí profundo con sombra interior).
+* **Resoluciones Técnicas Implementadas**:
+  - *Generación de Máster y Procesamiento de Máscara Antialiasing con Sharp (`frontend/scripts/generate_red_logos.js`)*:
+    - Generación del máster de alta resolución `red_coin_master` con acabado de disco de plata cepillada y glifo «R» en relieve rojo rubí.
+    - Aplicación de máscara circular matemática pura de radio $472\text{px}$ sobre lienzo de $1024\times 1024$ con recorte alfa transparente sin bordes residuales.
+    - Exportación masiva con filtro Lanczos3 a toda la escala de resoluciones estándar: `1024x1024` (`red-logo-high-res.png`), `512x512`, `384x384`, `192x192`, `180x180` (apple-touch-icon), `152x152`, `144x144`, `128x128`, `96x96`, `72x72`, `64x64`, `48x48`, `32x32`, `16x16` y `.ico`.
+  - *Componente Universal de Marca (`frontend/src/components/common/TokenIcon.jsx`)*:
+    - Componente React optimizado que selecciona dinámicamente la resolución óptima según el tamaño de visualización para reducir carga de memoria y evitar saltos de maquetación (CLS).
+    - Soporte integrado de resplandor neón sutil (`withGlow`) temático para azul y rojo carmesí.
+    - Cumplimiento de accesibilidad con textos alternativos contextuales y lazy loading asíncrono.
+  - *Integración en Vistas Clave*:
+    - **Billetera (`frontend/src/pages/Wallet.jsx`)**: Sustitución de `<img>` plana por `<TokenIcon token="BLUE" size={42} withGlow={true} />` en el balance principal y adición de `<TokenIcon token="RED" size={18} withGlow={true} />` en la tarjeta de Compromiso RED.
+    - **Exchange FIFO (`frontend/src/pages/Exchange.jsx`)**: Unificación del distintivo de paridad con `<TokenIcon token="BLUE" size={16} />` y de la fila de auto-amortización con `<TokenIcon token="RED" size={16} withGlow={true} />`.
+* **Archivos Modificados / Creados**:
+  - [`frontend/scripts/generate_red_logos.js`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/scripts/generate_red_logos.js)
+  - [`frontend/src/components/common/TokenIcon.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/common/TokenIcon.jsx)
+  - [`frontend/src/pages/Wallet.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Wallet.jsx)
+  - [`frontend/src/pages/Exchange.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/pages/Exchange.jsx)
+  - Suite de assets en [`frontend/public/assets/icons/`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/public/assets/icons) (`red-*`)
+  - [`Evolucion.md`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/Evolucion.md)
+* **Verificación y Cumplimiento**:
+  - `check:react` y auditoría de sintaxis y renderizado sin errores.
+  - Apego estricto a las normas de diseño institucional y no uso de la palabra prohibida ("deuda" → "COMPROMISO RED").
+
 ### 2026-10-14 — UX Marketplace: Cupos FOMO de Tareas (Disponibles/Totales) y Rediseño FinTech de Notificaciones con Fecha/Hora y Referencias Web3 Copiables
 * **Diagnóstico de Necesidad & Causa Raíz**:
   - *Falta de Urgencia/FOMO en Marketplace*: En las tarjetas de publicaciones solo se mostraba el valor plano de cupos restantes (ej. `2 cupos` o `4 cupos`), sin dar visibilidad de cuál era la oferta total original de la tarea. Esto restaba urgencia y tracción comunitaria (FOMO) a los usuarios para postularse rápidamente al no apreciar la velocidad de agotamiento de vacantes.

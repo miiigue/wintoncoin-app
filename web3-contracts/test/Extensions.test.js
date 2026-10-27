@@ -56,7 +56,7 @@ describe('Prórrogas por compromiso y beneficios 3/5', function () {
     await f.extend(f.alice);
     expect(await f.core.extensionMarginUsed(f.alice.address)).eq(5n * U);
     expect(await f.core.getAvailableCreditCapacity(f.alice.address)).eq(0);
-    await expect(f.pay(f.alice, f.bob, 1n)).revertedWith('Protocol: Insufficient credit capacity');
+    await expect(f.pay(f.alice, f.bob, 1n)).revertedWithCustomError(f.core,'InsufficientFinalCoverage');
   });
   it('No acumula recargos sobre recargos; máximo dos y reloj real de 15 días', async () => {
     await f.core.setCommissionBps(0); await f.pay(f.alice, f.bob, 100n * U);

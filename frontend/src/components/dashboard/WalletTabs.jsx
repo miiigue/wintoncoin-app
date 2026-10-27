@@ -393,6 +393,63 @@ export default function WalletTabs({
               </div>
             </div>
           </div>
+
+          {/* Banner de Cultura Comunitaria: Todos somos garantes del compromiso */}
+          <div
+            className="community-guarantor-banner"
+            style={{
+              marginTop: '16px',
+              padding: '14px 16px',
+              borderRadius: '12px',
+              background: 'linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%)',
+              border: '1px solid rgba(56, 189, 248, 0.25)',
+              boxShadow: '0 4px 16px rgba(0, 0, 0, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '12px',
+            }}
+          >
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                borderRadius: '10px',
+                background: 'rgba(56, 189, 248, 0.15)',
+                border: '1px solid rgba(56, 189, 248, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: '1.25rem',
+                flexShrink: 0,
+              }}
+            >
+              🤝
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.6px',
+                  color: '#38bdf8',
+                  marginBottom: '2px',
+                }}
+              >
+                Respaldo Comunitario Descentralizado
+              </div>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.84rem',
+                  lineHeight: 1.38,
+                  color: '#e2e8f0',
+                }}
+              >
+                Aquí no existen intermediarios externos: <strong>todos somos garantes y todos somos parte del compromiso</strong> que sostiene y da vida a nuestro ecosistema.
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>

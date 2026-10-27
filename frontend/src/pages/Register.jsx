@@ -852,7 +852,7 @@ function Register() {
                   checked={agreements.termsEconomic}
                   onChange={(e) => setAgreements(a => ({ ...a, termsEconomic: e.target.checked }))}
                 />
-                <span>Comprendo que WintonCoin crea tokens BLUE (activo) y RED (compromiso de reciprocidad) al realizar pagos, y asumo la responsabilidad de mis compromisos.</span>
+                <span>Comprendo que en WintonCoin todos somos garantes y parte del compromiso mutuo: los tokens BLUE y RED sustentan una economía colaborativa donde la comunidad entera es el respaldo.</span>
               </label>
 
               <label className={styles.checkboxContainer}>

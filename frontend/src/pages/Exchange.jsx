@@ -3,7 +3,7 @@
  * [WINTONCOIN] - PANTALLA OFICIAL DEL EXCHANGE FIFO (React SPA 2026)
  * ============================================================================
  * Interfaz oficial conectada 100% on-chain a la Suite V4 en Optimism Sepolia:
- * - Paridad Estricta: 1 BLUE = 1 USDT (Sin intermediarios fiat ni P2P externo).
+ * - Tasa nominal del protocolo: 1 BLUE por 1 USDT, sujeta a liquidez FIFO y comisiones.
  * - Cola FIFO On-Chain: Smart Contract FifoExchange.sol ejecuta en estricto orden de llegada.
  * - Compra Instantánea / Asistida: Compradores adquieren BLUE o liquidan compromisos RED.
  * - Transacciones Reales: Autorizadas con PIN en Optimism Sepolia.
@@ -40,7 +40,6 @@ export default function Exchange() {
   });
 
   const [amountInput, setAmountInput] = useState('');
-  const [autoBurnRed, setAutoBurnRed] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lastTxHash, setLastTxHash] = useState(null);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
@@ -137,15 +136,10 @@ export default function Exchange() {
     try {
       if (!connectedWallet) throw new Error('No se pudo verificar tu billetera.');
 
-      let res;
-      if(autoBurnRed) {
-        await web3OnChainService.depositCollateral(amountInput);
-        try {res=await web3OnChainService.repayWithCollateral(amountInput);}
-        catch(error){throw new Error('El depósito ya fue confirmado en la bóveda. La reserva para amortizar no se completó: '+error.message);}
-      } else res=await web3OnChainService.createBuyOrder(amountInput);
+      const res=await web3OnChainService.createBuyOrder(amountInput);
       setLastTxHash(res.txHash);
 
-      setFeedbackMsg(autoBurnRed?'USDT reservados para amortizar respetando la cola FIFO. El compromiso se amortiza cuando se compre y queme BLUE.':'Orden de compra confirmada. Puede seguir esperando vendedor; crear la orden no significa haber amortizado un compromiso.');
+      setFeedbackMsg(userRedCommitment>0?'La parte necesaria de los USDT quedó bloqueada como garantía para amortizar RED. Cualquier excedente entra como compra ordinaria solo después de cubrir completamente el compromiso.':'Orden de compra confirmada. Puede seguir esperando un vendedor; la tasa es nominal y depende de liquidez FIFO.');
 
       setAmountInput('');
       await syncData();
@@ -185,6 +179,23 @@ export default function Exchange() {
     }
   };
 
+  const handleAutomaticCollateral = async () => {
+    setErrorMsg(null);
+    setFeedbackMsg(null);
+    setIsSubmitting(true);
+    try {
+      const enabled = !onChainState?.automaticExchangeCollateral;
+      const res = await web3OnChainService.setAutomaticExchangeCollateral(enabled);
+      setLastTxHash(res.txHash);
+      setFeedbackMsg(enabled
+        ? 'Autorización registrada: al vencer RED se quemará primero tu BLUE disponible y solo después se bloqueará el USDT necesario que ya esté en el exchange.'
+        : 'Autorización automática desactivada para futuros bloqueos. Las garantías ya afectadas no se liberan por esta acción.');
+      await syncData();
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo actualizar la autorización automática.');
+    } finally { setIsSubmitting(false); }
+  };
+
   const parsedAmount = parseFloat(amountInput) || 0;
   const userBlueAvailable = onChainState ? onChainState.blueUnlocked : 0;
   const userUsdtWallet = onChainState ? onChainState.usdtWalletBalance : 0;
@@ -207,7 +218,7 @@ export default function Exchange() {
           <div className={styles.parityBadge}>
             <span className={styles.pulseDot}></span>
             <img src="/assets/icons/icon-64x64.png" alt="BLUE" style={{ width: '16px', height: '16px', borderRadius: '50%', objectFit: 'contain', verticalAlign: 'middle', marginRight: '4px' }} />
-            <span>1 BLUE = 1.00 USDT</span>
+            <span>Tasa nominal: 1 BLUE por 1 USDT</span>
           </div>
         </div>
 
@@ -413,22 +424,17 @@ export default function Exchange() {
               </div>
             </div>
 
-            {/* Opción inteligente: Auto-Amortizar compromiso RED */}
-            {userRedCommitment > 0 && (
-              <label className={styles.burnCheckboxRow}>
-                <input
-                  type="checkbox"
-                  checked={autoBurnRed}
-                  onChange={(e) => setAutoBurnRed(e.target.checked)}
-                />
-                <div>
-                  <strong>Reservar esta compra para amortizar mi compromiso</strong>
-                  <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
-                    Deposita y reserva USDT en garantía. Cuando llegue el turno FIFO, la compra amortiza tu compromiso de {fmt(userRedCommitment)} RED en CoreProtocol.sol.
-                  </div>
+            <div className={styles.burnCheckboxRow}>
+              <div>
+                <strong>Garantía automática al vencimiento: {onChainState?.automaticExchangeCollateral ? 'autorizada' : 'no autorizada'}</strong>
+                <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
+                  Al vencer RED, una transacción de mantenimiento quema primero el BLUE disponible —incluido parking— y bloquea después únicamente el USDT necesario de tus órdenes activas, sin moverlo dos veces ni cambiar su prioridad FIFO.
                 </div>
-              </label>
-            )}
+                <button type="button" className={styles.cancelBtn} disabled={isSubmitting || !connectedWallet} onClick={handleAutomaticCollateral} style={{ marginTop: '8px' }}>
+                  {onChainState?.automaticExchangeCollateral ? 'Desactivar para futuros bloqueos' : 'Autorizar protección automática'}
+                </button>
+              </div>
+            </div>
 
             {/* Resumen de costos */}
             <div className={styles.rateDetails}>
@@ -456,7 +462,7 @@ export default function Exchange() {
                 ? 'Autorizando operación...'
                 : !connectedWallet
                 ? 'Verificando cuenta…'
-                : autoBurnRed
+                : userRedCommitment > 0
                 ? 'Comprar y Amortizar Compromiso RED'
                 : 'Comprar BLUE en FIFO Exchange'}
             </button>

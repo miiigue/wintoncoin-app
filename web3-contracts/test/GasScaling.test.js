@@ -24,7 +24,7 @@ describe('Medición local de crecimiento por posiciones activas',function(){
   await time.increase(31*86400);
   console.log(JSON.stringify({positions:1000,maturedCollateralViewGas:(await f.core.getRequiredCollateral.estimateGas(f.alice.address)).toString(), cappedMaturedViewGas:(await f.core.getMaturedDebtUpTo.estimateGas(f.alice.address,U)).toString()}));
   const sale=await(await f.exchange.connect(f.bob).createBlueOrder(996n*U)).wait();
-  await f.exchange.connect(f.alice).createUsdtOrder(996n*U);
+  await f.vault.connect(f.alice).depositAndRepayWithCollateral(996n*U);
   // This used to exhaust 16M gas. Require the actual fill and paired burn.
   const beforeDebt=await f.red.balanceOf(f.alice.address);
   const receipt=await(await f.exchange.matchOrders(1,2,{gasLimit:8_000_000})).wait();

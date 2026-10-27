@@ -17,12 +17,14 @@ interface IBlueToken {
     function mintWithParking(address to, uint256 amount, uint256 releaseAt) external;
     function burn(address from, uint256 amount) external;
     function balanceOf(address account) external view returns (uint256);
+    function totalSupply() external view returns (uint256);
 }
 
 interface IRedToken {
     function mintCommitment(address to, uint256 amount) external;
     function burnCommitment(address from, uint256 amount) external;
     function balanceOf(address account) external view returns (uint256);
+    function totalSupply() external view returns (uint256);
 }
 
 interface ICollateralVault {
@@ -49,10 +51,23 @@ interface ICollateralVault {
  * 6. Gobernanza en Dos Pasos (Ownable2Step) y prohibición de renuncia a la administración.
  */
 contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
+    error PaymentStateChanged();
+    error PaymentAccountingMismatch();
+    error InsufficientFinalCoverage();
+    error InvalidPaymentAmount();
+    error PaymentAuthorizationExpired();
+    error CommissionChanged();
+    error DurationChanged();
+    error InvalidPaymentNonce();
+    error InvalidPayerSignature();
+    error OverdueCommitments();
+    error InsufficientBlueBalance();
     using CommitmentTree for CommitmentTree.Tree;
     mapping(address => CommitmentTree.Tree) private _commitments;
     mapping(uint256 => address) private _lotOwner;
     mapping(uint256 => uint256) private _lotIndex;
+    mapping(address => uint256) private _ledgerVersion;
+    string private constant PAYMENT_AUTHORIZATION_VERSION = "5";
 
     // ========================================================================
     // ESTRUCTURAS DE DATOS
@@ -300,11 +315,13 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         lot.dueAt = newDueAt;
         _commitments[msg.sender].remove(lot.id);
         _commitments[msg.sender].insert(lot.id,newDueAt,lot.remainingAmount,record.outstandingFee,record.marginUsed);
+        _ledgerVersion[msg.sender]++;
         if (fee > 0) {
             require(isKYCVerified[extensionFeeRecipient], "Protocol: Extension recipient KYC not verified");
             redToken.mintCommitment(msg.sender, fee);
             blueToken.mintWithParking(extensionFeeRecipient, fee, block.timestamp + COMMITMENT_DURATION);
         }
+        _assertPairedSupply();
         emit CommitmentExtended(msg.sender, lot.id, oldDueAt, newDueAt, fee, margin, record.count);
     }
 
@@ -466,25 +483,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     // PROCESAMIENTO DE PAGOS (EMISIÓN DUAL EQUILIBRADA)
     // ========================================================================
 
-    /**
-     * @notice Procesa un pago originado en el marketplace entre dos partes verificadas.
-     * @dev Ejecuta atómicamente la creación del activo BLUE y el compromiso RED.
-     * @param payer Billetera del pagador (quien adquiere el compromiso RED).
-     * @param payee Billetera del receptor del bien/servicio (quien recibe BLUE líquido).
-     * @param grossAmount Monto bruto de la operación en 6 decimales.
-     */
-    struct PaymentAuthorization {
-        address payer;
-        address payee;
-        uint256 amount;
-        uint256 feeBps;
-        uint256 nonce;
-        uint256 deadline;
-        bytes32 agreementHash;
-    }
-    bytes32 public constant PAYMENT_TYPEHASH = keccak256(
-        "Payment(address payer,address payee,uint256 amount,uint256 feeBps,uint256 nonce,uint256 deadline,bytes32 agreementHash)"
-    );
+    // Nonces shared by every signed mixed payment authorization.
     mapping(address => uint256) public paymentNonces;
 
     struct MixedPaymentAuthorization {
@@ -498,30 +497,57 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         uint256 nonce;
         uint256 deadline;
         bytes32 agreementHash;
+        bytes32 payerStateHash;
     }
     bytes32 public constant MIXED_PAYMENT_TYPEHASH = keccak256(
-        "MixedPayment(address payer,address payee,uint256 amount,uint256 feeBps,uint256 blueAmount,uint256 redAmount,uint256 duration,uint256 nonce,uint256 deadline,bytes32 agreementHash)"
+        "MixedPayment(address payer,address payee,uint256 amount,uint256 feeBps,uint256 blueAmount,uint256 redAmount,uint256 duration,uint256 nonce,uint256 deadline,bytes32 agreementHash,bytes32 payerStateHash)"
     );
     event PaymentFunding(address indexed payer, address indexed payee, uint256 blueConsumed, uint256 redCreated);
+    event PairedPaymentFunding(address indexed payer, address indexed payee, uint256 redIssued, uint256 redAmortized, uint256 netRedIncrease, uint256 finalRedBalance);
+
+    function _paymentCoverage(address user) private view returns (uint256) {
+        return creditLimits[user] + (vault == address(0) ? 0 : ICollateralVault(vault).userCollateral(user));
+    }
+
+    /// @notice Binds a payment signature to every payer value that changes its safe split.
+    function paymentStateHash(address user) public view returns (bytes32) {
+        return keccak256(abi.encode(
+            blueToken.balanceOf(user), redToken.balanceOf(user), _paymentCoverage(user),
+            extensionMarginUsed[user], _ledgerVersion[user],
+            _commitments[user].matured(block.timestamp),
+            _commitments[user].matured(block.timestamp + COMMITMENT_DURATION)
+        ));
+    }
+
+    function _marginAfterPayment(address user, uint256 mandatoryBurn, uint256 blueAmount) private view returns (uint256) {
+        uint256 earlierExisting = _commitments[user].matured(block.timestamp + COMMITMENT_DURATION) - mandatoryBurn;
+        uint256 existingBurn = blueAmount < earlierExisting ? blueAmount : earlierExisting;
+        return extensionMarginUsed[user] - _commitments[user].previewConsumedMargin(mandatoryBurn + existingBurn);
+    }
+
+    function _validatePaymentCapacity(address user, uint256 debt, uint256 netIncrease, uint256 remainingMargin) private view {
+        uint256 coverage = _paymentCoverage(user);
+        uint256 available = coverage > debt ? coverage - debt : 0;
+        if (netIncrease > available) revert InsufficientFinalCoverage();
+        if (!(debt + netIncrease <= coverage + remainingMargin)) revert InsufficientFinalCoverage();
+    }
 
     /// @notice Simulates mandatory overdue settlement before quoting spendable BLUE.
     /// BLUE held by the Exchange is not part of the payer's token balance.
     function quoteMixedPayment(address payer, uint256 amount)
         external view returns (uint256 fee, uint256 blueAmount, uint256 redAmount, uint256 duration)
     {
-        require(amount > 0 && amount <= maxTransactionAmount, "Protocol: Invalid payment amount");
+        if (!(amount > 0 && amount <= maxTransactionAmount)) revert InvalidPaymentAmount();
         uint256 balance = blueToken.balanceOf(payer);
         uint256 matured = getMaturedDebt(payer);
-        require(matured <= balance, "Protocol: Payer has overdue commitments");
+        if (matured > balance) revert OverdueCommitments();
         fee = amount * commissionBps / BPS_DENOMINATOR;
         uint256 total = amount + fee;
         uint256 spendable = balance - matured;
         blueAmount = spendable < total ? spendable : total;
         redAmount = total - blueAmount;
         uint256 debtAfterSettlement = redToken.balanceOf(payer) - matured;
-        uint256 coverage = creditLimits[payer] + ICollateralVault(vault).userCollateral(payer);
-        uint256 capacity = coverage > debtAfterSettlement ? coverage - debtAfterSettlement : 0;
-        require(redAmount <= capacity, "Protocol: Insufficient credit capacity");
+        _validatePaymentCapacity(payer, debtAfterSettlement, redAmount, _marginAfterPayment(payer, matured, blueAmount));
         duration = COMMITMENT_DURATION;
     }
 
@@ -529,14 +555,15 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     function processAuthorizedMixedPayment(MixedPaymentAuthorization calldata auth, bytes calldata signature)
         external nonReentrant whenNotPaused
     {
-        require(block.timestamp <= auth.deadline, "Protocol: Payment authorization expired");
-        require(auth.feeBps == commissionBps, "Protocol: Commission changed");
-        require(auth.duration == COMMITMENT_DURATION, "Protocol: Duration changed");
-        require(auth.nonce == paymentNonces[auth.payer], "Protocol: Invalid payment nonce");
+        if (!(block.timestamp <= auth.deadline)) revert PaymentAuthorizationExpired();
+        if (!(auth.feeBps == commissionBps)) revert CommissionChanged();
+        if (!(auth.duration == COMMITMENT_DURATION)) revert DurationChanged();
+        if (!(auth.nonce == paymentNonces[auth.payer])) revert InvalidPaymentNonce();
+        if (!(auth.payerStateHash == paymentStateHash(auth.payer))) revert PaymentStateChanged();
         bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(MIXED_PAYMENT_TYPEHASH, auth)));
-        require(_validSignature(auth.payer, digest, signature), "Protocol: Invalid payer signature");
-        require(auth.blueAmount + auth.redAmount == auth.amount + auth.amount * auth.feeBps / BPS_DENOMINATOR,
-            "Protocol: Invalid funding split");
+        if (!(_validSignature(auth.payer, digest, signature))) revert InvalidPayerSignature();
+        if (auth.blueAmount + auth.redAmount != auth.amount + auth.amount * auth.feeBps / BPS_DENOMINATOR)
+            revert PaymentAccountingMismatch();
         paymentNonces[auth.payer]++;
         _processPaymentWithBlue(auth.payer, auth.payee, auth.amount, auth.blueAmount);
     }
@@ -548,23 +575,10 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         _processPayment(payer, payee, amount);
     }
 
-    function processAuthorizedPayment(PaymentAuthorization calldata auth, bytes calldata signature)
-        external nonReentrant whenNotPaused
-    {
-        require(block.timestamp <= auth.deadline, "Protocol: Payment authorization expired");
-        require(auth.feeBps == commissionBps, "Protocol: Commission changed");
-        require(auth.nonce == paymentNonces[auth.payer], "Protocol: Invalid payment nonce");
-        bytes32 digest = _hashTypedDataV4(keccak256(abi.encode(PAYMENT_TYPEHASH,
-            auth.payer, auth.payee, auth.amount, auth.feeBps, auth.nonce, auth.deadline, auth.agreementHash)));
-        require(_validSignature(auth.payer, digest, signature), "Protocol: Invalid payer signature");
-        paymentNonces[auth.payer]++;
-        _processPayment(auth.payer, auth.payee, auth.amount);
-    }
-
     function _hashTypedDataV4(bytes32 structHash) private view returns (bytes32) {
         bytes32 domain = keccak256(abi.encode(
             keccak256("EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"),
-            keccak256("WintonCore"), keccak256("4"), block.chainid, address(this)
+            keccak256("WintonCore"), keccak256(bytes(PAYMENT_AUTHORIZATION_VERSION)), block.chainid, address(this)
         ));
         return keccak256(abi.encodePacked(hex"1901", domain, structHash));
     }
@@ -576,6 +590,10 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         (bool ok, bytes memory result) = signer.staticcall(abi.encodeWithSelector(bytes4(0x1626ba7e), digest, signature));
         return ok && result.length >= 32 && abi.decode(result, (bytes32)) == bytes32(bytes4(0x1626ba7e));
     }
+
+    function _assertPairedSupply() private view {
+        if (blueToken.totalSupply() != redToken.totalSupply()) revert PaymentAccountingMismatch();
+    }
     function _processPayment(address payer, address payee, uint256 grossAmount) internal {
         _processPaymentWithBlue(payer, payee, grossAmount, 0);
     }
@@ -584,7 +602,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         require(isKYCVerified[payer], "Protocol: Payer KYC not verified");
         require(isKYCVerified[payee], "Protocol: Payee KYC not verified");
         _settleMatured(payer);
-        require(!isDelinquent(payer), "Protocol: Payer has overdue commitments");
+        if (isDelinquent(payer)) revert OverdueCommitments();
         require(payer != payee, "Protocol: Self payment not permitted");
         require(grossAmount > 0, "Protocol: Gross amount must be greater than zero");
         require(grossAmount <= maxTransactionAmount, "Protocol: Exceeds max transaction limit");
@@ -594,11 +612,11 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         uint256 fee = (grossAmount * commissionBps) / BPS_DENOMINATOR;
         if (fee > 0) require(isKYCVerified[treasury], "Protocol: Treasury KYC not verified");
         uint256 totalCommitment = grossAmount + fee;
-        require(blueAmount <= totalCommitment, "Protocol: Invalid funding split");
-        if (blueAmount > 0) blueToken.burn(payer, blueAmount);
-        totalCommitment -= blueAmount;
-        uint256 availableCapacity = getAvailableCreditCapacity(payer);
-        require(totalCommitment <= availableCapacity, "Protocol: Insufficient credit capacity");
+        if (blueAmount > totalCommitment) revert PaymentAccountingMismatch();
+        if (blueToken.balanceOf(payer) < blueAmount) revert InsufficientBlueBalance();
+        uint256 expectedDebt = redToken.balanceOf(payer) + totalCommitment - blueAmount;
+        uint256 remainingMargin = _marginAfterPayment(payer, 0, blueAmount);
+        _validatePaymentCapacity(payer, redToken.balanceOf(payer), totalCommitment - blueAmount, remainingMargin);
 
         // Cálculo de Comisión y Monto Neto
         uint256 netAmount = grossAmount;
@@ -629,9 +647,21 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
             blueToken.mintWithParking(treasury, fee, dueAt);
         }
 
+        // Every issuance and every burn remains strictly paired 1:1.
+        if (blueAmount > 0) {
+            blueToken.burn(payer, blueAmount);
+            redToken.burnCommitment(payer, blueAmount);
+            _amortizeLotsFifo(payer, blueAmount);
+            emit DebtAmortized(payer, blueAmount, redToken.balanceOf(payer));
+        }
+        if (!(redToken.balanceOf(payer) == expectedDebt && extensionMarginUsed[payer] == remainingMargin)) revert PaymentAccountingMismatch();
+        if (!(expectedDebt <= _paymentCoverage(payer) + extensionMarginUsed[payer])) revert InsufficientFinalCoverage();
+
         _settleMatured(payee);
+        _assertPairedSupply();
         emit PaymentProcessed(payer, payee, netAmount, fee, currentLotId, dueAt);
         emit PaymentFunding(payer, payee, blueAmount, totalCommitment);
+        emit PairedPaymentFunding(payer, payee, totalCommitment, blueAmount, totalCommitment - blueAmount, expectedDebt);
     }
 
     // ========================================================================
@@ -657,6 +687,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         blueToken.burn(user, value);
         redToken.burnCommitment(user, value);
         _amortizeLotsFifo(user, value);
+        _assertPairedSupply();
         emit DebtAmortized(user, value, redToken.balanceOf(user));
     }
     function amortizeWithBlue(uint256 amount) external nonReentrant whenNotPaused {
@@ -671,6 +702,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
 
         // 2. Liquidación contable en lotes FIFO
         _amortizeLotsFifo(msg.sender, amount);
+        _assertPairedSupply();
 
         emit DebtAmortized(msg.sender, amount, redToken.balanceOf(msg.sender));
     }
@@ -691,6 +723,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
 
         // Amortizar en lotes FIFO
         _amortizeLotsFifo(user, amount);
+        _assertPairedSupply();
 
         emit DebtAmortized(user, amount, redToken.balanceOf(user));
     }
@@ -698,11 +731,13 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     function _insertCommitment(address user, uint256 id) private {
         DebtLot storage lot = _userDebtLots[user][_lotIndex[id]];
         _commitments[user].insert(id,lot.dueAt,lot.remainingAmount,0,0);
+        _ledgerVersion[user]++;
     }
     /// @dev Paid ranges are detached atomically; public history resolves their
     /// remaining balance through the active ledger instead of stale storage.
     function _amortizeLotsFifo(address user, uint256 amount) internal {
         extensionMarginUsed[user] -= _commitments[user].consume(amount);
+        _ledgerVersion[user]++;
     }
 
     function getMaturedDebtUpTo(address user, uint256 maxNeeded) public view returns (uint256) {

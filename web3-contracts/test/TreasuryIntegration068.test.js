@@ -16,7 +16,7 @@ describe('Tesorería real: bonos, comisiones y ciclos',()=>{
  });
  it('Falta capacidad para la comisión: revierte todo sin consumir el bono',async()=>{
   await f.core.setCommissionBps(500);await f.core.setCreditLimit(f.treasury.target,100n*U);await root(100n*U);
-  await expect(f.treasury.connect(f.bob).claimBoosterReward(100n*U,[])).revertedWith('Protocol: Insufficient credit capacity');
+  await expect(f.treasury.connect(f.bob).claimBoosterReward(100n*U,[])).revertedWithCustomError(f.core,'InsufficientFinalCoverage');
   expect(await f.treasury.hasClaimed(f.bob.address)).eq(false);expect(await f.blue.balanceOf(f.treasury.target)).eq(100n*U);expect(await f.red.balanceOf(f.treasury.target)).eq(0);
  });
  it('Fondos insuficientes no consumen el derecho de reclamo',async()=>{

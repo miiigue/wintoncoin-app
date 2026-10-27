@@ -128,12 +128,9 @@ const contractAdmin = require('../middleware/contractAdministration');
 router.use('/web3', verifyAdminToken, contractAdmin.guard);
 router.get('/web3/recovery-status', async(req,res)=>{
     try {
-        const pool=require('../config/db');
-        const jobs=await pool.query('SELECT * FROM credit_policy_jobs ORDER BY version_id DESC LIMIT 5');
-        const operations=await pool.query("SELECT o.id,o.kind,o.state,o.error_code,o.created_at FROM chain_operations o LEFT JOIN marketplace_payment_settlements s ON s.operation_id=o.id WHERE o.state IN ('pending','conflict','failed') OR (o.kind='marketplace' AND o.state='confirmed' AND s.operation_id IS NULL) ORDER BY o.created_at DESC LIMIT 25");
-        const issues=await pool.query("SELECT i.*,u.username FROM credit_policy_issues i LEFT JOIN users u ON u.id=i.user_id WHERE i.status<>'resolved' ORDER BY i.version_id DESC,i.updated_at LIMIT 50");
-        res.json({success:true,jobs:jobs.rows,operations:operations.rows,issues:issues.rows});
-    } catch{res.status(503).json({success:false,message:'No se pudo consultar la recuperación.'});}
+        res.set('Cache-Control','no-store');
+        res.json(await require('../services/creditRecoveryStatus').readRecoveryStatus(require('../config/db'),req.query));
+    } catch(e){res.status(e.status||503).json({success:false,message:e.status?e.message:'No se pudo consultar la recuperación.'});}
 });
 router.post('/web3/credit-policy/retry',contractAdmin.resolveUser,async(req,res)=>{
     if(!/^[1-9]\d*$/.test(String(req.body.versionId)))return res.status(400).json({message:'Versión inválida.'});

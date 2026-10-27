@@ -100,3 +100,16 @@ A nivel de Smart Contracts en Capa 2 (Optimism Sepolia / Base / Arbitrum), la au
 
 - **Clasificación No-Custodia:** Tanto con el PIN de 6 dígitos como con Passkeys biométricas, WintonCoin califica legalmente como un proveedor de software puramente no-custodio. La empresa no tiene la capacidad unilateral de mover fondos de usuarios, eliminando los requerimientos de custodia fiduciaria bancaria tradicionales bajo el régimen MiCA (UE) y FinCEN (EE.UU.).
 - **Trazabilidad de Sesión:** Cada autorización biométrica generará un evento auditable en `audit_logs` con `authenticator_attachment: 'platform'`, `user_verification: 'required'` y el identificador de la credencial usada.
+
+
+## Pendiente 2026-10-15: política RED escalable y pagos mixtos (CODEX-161)
+
+Estado: propuesta pendiente de diseño, validación y migración; no desplegada. Mantener las mejoras sin redeploy de CODEX-160. No retirar aún el worker actual.
+
+- Calcular política RED efectiva en contrato al operar, sin actualizar todos los usuarios por cambio global ni depender del inicio de sesión. Preservar trinquete solo de base general, bonificaciones, halving de mora, recuperación y derechos de cuentas inactivas con snapshots/anclas verificables. Prototipo experimental no apto aún para producción.
+- Agregados incrementales administrativos, índices/paginación y pruebas de carga; los COUNT por versión actuales no acreditan escala de miles de millones.
+- Si se necesita nueva suite para pagos mixtos BLUE+RED, integrar este rediseño en la misma evolución, con módulos y pruebas separados. Core actual cobra toda operación como RED; burn BLUE ya admite parking pero no selecciona exclusivamente lotes bloqueados.
+- Ajustar firmas y desglose consentido, eventos/conciliación, Tesorería (evitar doble amortización), gas por fragmentación y controles existentes. No confundir conservación de supply con solvencia o paridad de mercado.
+- Antes de despliegue: comprobar suite realmente instalada y dependencias bloqueadas; inventario y ensayo de migración conservando fondos, deudas/lotes, garantías, órdenes y autorizaciones. No asumir Demo vacía ni cambiar solamente dirección Core.
+
+Detalle y condiciones de aceptación: puente-agentes/PARA_ANTIGRAVITY.md, CODEX-161, respuesta a ANTIGRAVITY-138.

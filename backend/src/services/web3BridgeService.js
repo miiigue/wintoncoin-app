@@ -85,13 +85,14 @@ class Web3BridgeService {
             "function COMMITMENT_DURATION() view returns (uint256)",
             "function setCommitmentDuration(uint256 duration)",
             "function paymentNonces(address) view returns (uint256)",
-            "function processAuthorizedPayment((address payer, address payee, uint256 amount, uint256 feeBps, uint256 nonce, uint256 deadline, bytes32 agreementHash) auth, bytes signature)",
+            "function processAuthorizedMixedPayment((address payer,address payee,uint256 amount,uint256 feeBps,uint256 blueAmount,uint256 redAmount,uint256 duration,uint256 nonce,uint256 deadline,bytes32 agreementHash,bytes32 payerStateHash) auth,bytes signature)",
             "event PaymentProcessed(address indexed payer, address indexed payee, uint256 netAmount, uint256 fee, uint256 lotId, uint256 dueAt)",
             "event DebtAmortized(address indexed user, uint256 amountAmortized, uint256 remainingTotalDebt)"
         ];
 
         this.vaultAbi = [
             "function deposit(uint256 value)",
+            "function depositAndRepayWithCollateral(uint256 value)",
             "function withdraw(uint256 value)",
             "function repayWithCollateral(address user, uint256 value)",
             "function liquidateDelinquent(address user, uint256 value)",
@@ -100,6 +101,9 @@ class Web3BridgeService {
             "function getFreeCollateral(address user) view returns (uint256)",
             "function exchangeReserved(address) view returns (uint256)",
             "function pendingReserve(address) view returns (uint256)",
+            "function automaticExchangeCollateral(address) view returns (bool)",
+            "function collateralizeUsdtOrder(uint64 id, uint128 value)",
+            "function setAutomaticExchangeCollateral(bool enabled)",
             "function paused() view returns (bool)",
             "function pause()",
             "function unpause()",
@@ -334,14 +338,14 @@ class Web3BridgeService {
             const core = this._getProtocol().connect(runner), vault = this._getVault().connect(runner);
             const options = {};
             const token = address => this._getERC20(address).connect(runner);
-            const [blue, red, collateral, free, capacity, required, delinquent, kyc, base, count, level, margin, used, reserved, pending, usdt, blueLocked] = await Promise.all([
+            const [blue, red, collateral, free, capacity, required, delinquent, kyc, base, count, level, margin, used, reserved, pending, automatic, usdt, blueLocked] = await Promise.all([
                 token(BLUE_ADDRESS).balanceOf(walletAddress, options), token(RED_ADDRESS).balanceOf(walletAddress, options),
                 vault.userCollateral(walletAddress, options), vault.getFreeCollateral(walletAddress, options),
                 core.getAvailableCreditCapacity(walletAddress, options), core.getRequiredCollateral(walletAddress, options),
                 core.isDelinquent(walletAddress, options), core.isKYCVerified(walletAddress, options), core.creditLimits(walletAddress, options),
                 core.getUserDebtLotsCount(walletAddress, options), core.userLevels(walletAddress, options),
                 core.extensionMarginLimits(walletAddress, options), core.extensionMarginUsed(walletAddress, options),
-                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options), token(USDT_ADDRESS).balanceOf(walletAddress, options),
+                vault.exchangeReserved(walletAddress, options), vault.pendingReserve(walletAddress, options), vault.automaticExchangeCollateral(walletAddress, options), token(USDT_ADDRESS).balanceOf(walletAddress, options),
                 new ethers.Contract(BLUE_ADDRESS,["function lockedBalanceOf(address) view returns(uint256)"],runner).lockedBalanceOf(walletAddress,options)
             ]);
             const length = Number(count), stop = Math.min(offset + limit, length);
@@ -350,7 +354,7 @@ class Web3BridgeService {
             return { success: true, wallet: walletAddress, blockNumber: block.number, blockHash:block.hash, chainId:config.chainId, finality,
                 usdtWalletBalance: ethers.formatUnits(usdt,6), blueBalance: ethers.formatUnits(blue,6), blueLocked: ethers.formatUnits(blueLocked,6), blueAvailable: ethers.formatUnits(blue-blueLocked,6), redCommitment: ethers.formatUnits(red,6),
                 collateralVault: { totalLocked: ethers.formatUnits(collateral,6), freeForWithdrawal: ethers.formatUnits(free,6),
-                    reservedInExchange: ethers.formatUnits(reserved,6), pendingReserve: ethers.formatUnits(pending,6) },
+                    reservedInExchange: ethers.formatUnits(reserved,6), pendingReserve: ethers.formatUnits(pending,6), automaticAtMaturity: automatic },
                 credit: { baseLimit: ethers.formatUnits(base,6), availableCapacity: ethers.formatUnits(capacity,6),
                     requiredCollateral: ethers.formatUnits(required,6), isDelinquent: delinquent, isKYCVerified: kyc,
                     level: Number(level), extensionMarginLimit: ethers.formatUnits(margin,6), extensionMarginUsed: ethers.formatUnits(used,6) },
@@ -401,7 +405,7 @@ class Web3BridgeService {
         if (!this._isReady()) return null;
 
         try {
-            console.log(`[WEB3 BRIDGE] Sincronizando pago V4: ${payerUsername} → ${payeeUsername} (${amountBlue} BLUE)`);
+            console.log(`[WEB3 BRIDGE] Sincronizando pago V5: ${payerUsername} → ${payeeUsername} (${amountBlue} BLUE)`);
             const protocol = this._getProtocol();
             const grossUnits = ethers.parseUnits(amountBlue.toString(), 6);
 
@@ -416,10 +420,11 @@ class Web3BridgeService {
                 protocol.getAvailableCreditCapacity(payerWalletAddress)
             ]);
             if (!payerKyc || !payeeKyc || !treasuryKyc) throw new Error('KYC no aprobado para los participantes del pago');
-            const requiredCapacity = grossUnits + grossUnits * BigInt(authorization.feeBps) / 10000n;
+            if (authorization.redAmount === undefined || !authorization.payerStateHash) throw new Error('Se requiere autorización de pago V5');
+            const requiredCapacity = BigInt(authorization.redAmount);
             if (capacity < requiredCapacity) throw new Error('Límite RED insuficiente para importe y comisión');
 
-            return require('./durableRelayer').execute(this,protocol,'processAuthorizedPayment',[authorization,signature],{deduplicate:true});
+            return require('./durableRelayer').execute(this,protocol,'processAuthorizedMixedPayment',[authorization,signature],{deduplicate:true});
         } catch (error) {
             console.error('[WEB3 BRIDGE] ❌ Error al sincronizar pago:', error.message);
             throw error;

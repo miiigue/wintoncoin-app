@@ -695,12 +695,14 @@ cron.schedule('*/5 * * * *', async () => {
 
 if (process.env.NODE_ENV !== 'test') {
     cron.schedule('*/20 * * * * *', async()=>{
-        try {
-            await require('./src/services/durableAdministration').reconcile();
-            await require('./src/services/marketplacePayments').service().sweep();
-            await require('./src/services/creditPolicyJobs').tick(pool,require('./src/services/creditScoringService'));
+        const tasks=[
+            ['administration',()=>require('./src/services/durableAdministration').reconcile()],
+            ['marketplace',()=>require('./src/services/marketplacePayments').service().sweep()],
+            ['credit-policy',()=>require('./src/services/creditPolicyJobs').tick(pool,require('./src/services/creditScoringService'))]
+        ];
+        for(const [name,run] of tasks){
+            try{await run();}catch{console.warn(`[CHAIN RECOVERY] ${name}: ciclo pendiente; se conserva el registro para reintentar.`);}
         }
-        catch { console.warn('[CHAIN RECOVERY] No se pudo completar el ciclo; se conserva el registro para reintentar.'); }
     });
     startServer();
 }

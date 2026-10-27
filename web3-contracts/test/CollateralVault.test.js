@@ -38,6 +38,26 @@ describe('Vault: garantía real, reservas FIFO y retiro solicitado', function ()
     expect(await f.vault.getFreeCollateral(f.alice.address)).eq(0);
     await expect(f.vault.connect(f.alice).withdraw(U)).revertedWith('Vault: Requested amount exceeds free collateral');
   });
+  it('Con RED, una compra ordinaria se rechaza y el depósito-reserva atómico queda bloqueado', async () => {
+    await f.pay(f.alice,f.bob,100n*U);
+    await expect(f.exchange.connect(f.alice).createUsdtOrder(100n*U))
+      .revertedWithCustomError(f.exchange, 'RedRequiresCollateral');
+    await f.vault.connect(f.alice).depositAndRepayWithCollateral(100n*U);
+    expect(await f.vault.userCollateral(f.alice.address)).eq(100n*U);
+    expect(await f.vault.exchangeReserved(f.alice.address)).eq(100n*U);
+    expect(await f.vault.getFreeCollateral(f.alice.address)).eq(0);
+    await expect(f.vault.connect(f.alice).withdraw(U))
+      .revertedWith('Vault: Requested amount exceeds free collateral');
+    expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+  });
+  it('Después de cubrir todo el RED, permite una orden ordinaria solo por el excedente', async () => {
+    await f.pay(f.alice,f.bob,100n*U);
+    await f.vault.connect(f.alice).depositAndRepayWithCollateral(100n*U);
+    await f.exchange.connect(f.alice).createUsdtOrder(50n*U);
+    expect(await f.vault.exchangeReserved(f.alice.address)).eq(100n*U);
+    expect(await f.exchange.totalReservedUsdt()).eq(150n*U);
+    expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+  });
   it('Cancelación retorna al Vault sin retirar garantía exigida por otros compromisos', async () => {
     await f.core.setCreditLimit(f.alice.address,100n*U);
     await f.vault.connect(f.alice).deposit(100n*U); await f.pay(f.alice,f.bob,200n*U);
