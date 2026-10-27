@@ -29,10 +29,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - *Frontend React (`frontend/src/`)*:
     - `Exchange.jsx`: Panel para autorización voluntaria de garantía y consentimiento `automaticExchangeCollateral` con información de respaldo.
     - `web3OnChainService.js`: Interfaz con los métodos de garantía de órdenes V5.
+* **Despliegue On-Chain Oficial (Optimism Sepolia - Chain ID 11155420)**:
+  - `CoreProtocol`: `0x103C502611008dAf8B0488E99486e46CCB00F41b` (Función `processAuthorizedMixedPayment` selector `0x97f0027c` validada activa).
+  - `FifoExchange`: `0xE229ca0F66fA7b56130B81BadcfcB028C85c4917` (Bloque inicial: `50667758`, Tx: `0x7264fa1ffde2c6bff5dda5524e6f624b7c65e7e00b958f83233311400c1854ea`).
+  - `CollateralVault`: `0xF970332060f1DB1475Fe2DAF1b5dfd89111c1A2B`.
+  - `ProtocolTreasury`: `0x0723B1943Cb4EcDFcDD842B517006A076F281238`.
+  - `BlueToken`: `0x376ee519eFFB06FBF1Bcb31a406507E41A817923` (6 decimales).
+  - `RedToken`: `0x0C14088080C96204eb24D60Fb852bCd272954865` (6 decimales).
+  - `USDT`: `0xF9913A351735862dF6AC9a927DE1e3aD871faf6E` (MockERC20, 6 decimales).
+  - Validación con `chainDeployment.validate()`: **PASS (100% de enlaces bidireccionales y decimales confirmados en Optimism Sepolia)**.
 * **Verificación y Pruebas Automatizadas**:
   - `npx hardhat test`: **37/37 pruebas PASS** (`ExchangeCollateralizationV5.test.js`, `MixedPayment163.test.js`, `CoreProtocol.test.js`, `CollateralVault.test.js`).
   - `npm --prefix frontend run check:react`: **PASS (55 componentes auditados, 0 referencias no declaradas)**.
-  - `npm --prefix frontend run build:demo`: **PASS (Compilación de producción exitosa en 26.55s, 193 activos PWA precacheados)**.
+  - `npm --prefix frontend run build:demo`: **PASS (Compilación de producción exitosa en 27.03s, 193 activos PWA precacheados con nuevo manifiesto)**.
 
 ### 2026-10-27 — Arquitectura Narrativa & Legal FinTech: Erradicación del Léxico Bancario Tradicional y Adopción del Principio «Todos Somos Garantes del Compromiso»
 * **Diagnóstico de Necesidad & Marco Legal Silicon Valley**:

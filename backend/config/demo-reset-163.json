@@ -1,7 +1,7 @@
 {
   "epoch": "CODEX-163",
   "chainId": "11155420",
-  "core": "0x5Ec1034640b3360AfFc04c8AA674A8Ba4b1a0274",
+  "core": "0x103C502611008dAf8B0488E99486e46CCB00F41b",
   "settings": {
     "pre_launch_mode_enabled": "false",
     "red_credit_referral": "4",

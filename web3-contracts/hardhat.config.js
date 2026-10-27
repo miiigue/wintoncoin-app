@@ -27,7 +27,7 @@ module.exports = {
     },
     // Entorno de Staging/Demo: Optimism Sepolia (Testnet Pública)
     optimismSepolia: {
-      url: process.env.OPTIMISM_SEPOLIA_RPC_URL || process.env.ALCHEMY_API_URL || "https://sepolia.optimism.io",
+      url: process.env.OPTIMISM_SEPOLIA_RPC_URL || "https://sepolia.optimism.io",
       accounts: process.env.DEPLOYER_PRIVATE_KEY ? [process.env.DEPLOYER_PRIVATE_KEY] : [],
       chainId: 11155420,
       gas: 6000000 // Core con pago mixto: 5.16M medidos; margen de ejecución en testnet.
