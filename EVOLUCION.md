@@ -13,6 +13,15 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-28 — Ensayo General de Conciliación On-Chain V4 a V5: Verificación Criptográfica en Bloque Finalizado 50676496
+* **Diagnóstico & Ensayo de Producción**:
+  - *Metodología Híbrida de Cero Confianza*: Con el fin de adquirir la experiencia operativa requerida para futuras transiciones en Mainnet y descartar saldos huérfanos, se ejecutó `audit_v5_migration_readonly.js` de solo lectura contra Optimism Sepolia en el bloque finalizado `50676496` (hash `0x33df...`).
+* **Resultados Auditados On-Chain**:
+  - *Suministro y Actividad en V4*: `blueSupply = 0`, `redSupply = 0`, `totalCollateralLocked = 0`, `totalExchangeReserved = 0` y `nextOrderId = 1`. Se demostró que al operar en Modo Pre-lanzamiento en Demo, no existen fondos ni compromisos bloqueados en los contratos anteriores.
+  - *Compatibilidad Funcional*: Se confirmó la ausencia de `automaticExchangeCollateral` en la suite previa y la activación de KYC en la nueva tesorería `0x0723...` en V5.
+  - *Archivo Generado*: Se generó y archivó el reporte en [`docs/AUDITORIA_CONCILIACION_V5_DEMO.md`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/docs/AUDITORIA_CONCILIACION_V5_DEMO.md) y [`backend/scripts/v5-audit-demo-report.json`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/scripts/v5-audit-demo-report.json).
+* **Veredicto**: V5 listo para el corte limpio a nivel de configuración sin riesgo de orfandad de saldos.
+
 ### 2026-10-27 — Integración y Gating de Seguridad para Suite V5: Gating por Época, Keeper Durable de USDT y Consentimiento Legal Versionado
 * **Diagnóstico & Causa Raíz de Bloqueo**:
   - *Inmutabilidad y Suministros Iniciales*: Los contratos V5 desplegados en Optimism Sepolia (`CoreProtocol` `0x103C...`, `FifoExchange` `0xE229...`, `CollateralVault` `0xF970...`) son inmutables y carecen de proxies. Nacen con balances $BLUE = 0$ y $RED = 0$. Cambiar el servidor de Render directamente a V5 provocaría que los usuarios activos con saldos en la suite V4 perdieran acceso a sus balances u órdenes.

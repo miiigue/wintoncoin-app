@@ -1,0 +1,419 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-10-28T03:07:14.836Z",
+  "chainId": "11155420",
+  "blockNumber": 50676496,
+  "blockHash": "0x33df355bcba64a8ca41f1fa6a0755efa3bcfdde81f8185b0fe55f178c1702e97",
+  "mode": "READ_ONLY_DRY_RUN_FAIL_CLOSED",
+  "ready": false,
+  "blockers": [
+    {
+      "severity": "BLOCKER",
+      "code": "INCOMPLETE_READ",
+      "scope": "sourceSuite.users.0x7d2C6c16EDe986a8bea0204A9824b4C264256C77.automaticExchangeCollateral",
+      "detail": "missing revert data"
+    },
+    {
+      "severity": "BLOCKER",
+      "code": "INCOMPLETE_READ",
+      "scope": "sourceSuite.users.0x78992e52508B4094Eb487c0540FB1E25C397E1F5.automaticExchangeCollateral",
+      "detail": "missing revert data"
+    },
+    {
+      "severity": "BLOCKER",
+      "code": "INCOMPLETE_READ",
+      "scope": "sourceSuite.users.0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2.automaticExchangeCollateral",
+      "detail": "missing revert data"
+    },
+    {
+      "severity": "BLOCKER",
+      "code": "INCOMPLETE_READ",
+      "scope": "sourceSuite.users.0x0723B1943Cb4EcDFcDD842B517006A076F281238.automaticExchangeCollateral",
+      "detail": "missing revert data"
+    },
+    {
+      "severity": "BLOCKER",
+      "code": "INCOMPLETE_READ",
+      "scope": "sourceSuite.users.0x0000000000000000000000000000000000000001.automaticExchangeCollateral",
+      "detail": "missing revert data"
+    }
+  ],
+  "warnings": [],
+  "proposedActions": [
+    {
+      "type": "REVIEW_ADMINISTRATIVE_REPLAY",
+      "wallet": "0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2",
+      "field": "kyc",
+      "sourceValue": true,
+      "destinationValue": false,
+      "intendedValue": true,
+      "setter": "setKYCStatus",
+      "requiresOwnerApproval": true,
+      "requiresSourceEvidence": true
+    },
+    {
+      "type": "REVIEW_ADMINISTRATIVE_REPLAY",
+      "wallet": "0x0723B1943Cb4EcDFcDD842B517006A076F281238",
+      "field": "kyc",
+      "sourceValue": false,
+      "destinationValue": true,
+      "intendedValue": false,
+      "setter": "setKYCStatus",
+      "requiresOwnerApproval": true,
+      "requiresSourceEvidence": true
+    }
+  ],
+  "migrationPhases": [
+    {
+      "order": 1,
+      "name": "Congelar altas económicas",
+      "condition": "Pausar nuevas operaciones en la suite fuente con aprobación humana y registrar bloque de corte"
+    },
+    {
+      "order": 2,
+      "name": "Liquidar estado no importable",
+      "condition": "Órdenes, refunds, reservas, parking y lotes RED deben resolverse en origen o requerir un contrato migrador auditado"
+    },
+    {
+      "order": 3,
+      "name": "Repetir configuración administrativa",
+      "condition": "Preparar setKYCStatus/setCreditLimit/setUserBenefits; no ejecutar desde este ensayo"
+    },
+    {
+      "order": 4,
+      "name": "Conciliar invariante pareada",
+      "condition": "Cada emisión/quema de migración debe ser BLUE=RED 1:1 en la misma operación; igualdad neta posterior no basta"
+    },
+    {
+      "order": 5,
+      "name": "Reaceptar consentimiento",
+      "condition": "La autorización de garantía automática debe ser explícita, versionada y referir a la suite destino"
+    },
+    {
+      "order": 6,
+      "name": "Repetir inventario fijado",
+      "condition": "Ejecutar este lector en un bloque finalizado posterior al corte; cero lecturas incompletas y cero bloqueos"
+    }
+  ],
+  "snapshots": {
+    "source": {
+      "label": "sourceSuite",
+      "contracts": {
+        "CoreProtocol": "0x5Ec1034640b3360AfFc04c8AA674A8Ba4b1a0274",
+        "CollateralVault": "0x8683B546f8Ad6AD625f225FE50b1C49BCe1B3797",
+        "FifoExchange": "0xbf61470F69A80CA839c663908f31DA69361A4054",
+        "BlueToken": "0xDDD703CB06C491cB2bC778eaE2A5a9B4e2F32B2D",
+        "RedToken": "0xf1eB634808D71F3e2376966e1D78D935B752944C",
+        "USDT": "0x69aa5df5063714a2e9F6ED256043780a3753C431"
+      },
+      "globals": {
+        "blueSupply": "0",
+        "redSupply": "0",
+        "blueDecimals": "6",
+        "redDecimals": "6",
+        "usdtDecimals": "6",
+        "vaultCollateralTokenBalance": "0",
+        "exchangeUsdtTokenBalance": "0",
+        "exchangeBlueTokenBalance": "0",
+        "totalCollateralLocked": "0",
+        "totalExchangeReserved": "0",
+        "totalReservedBlue": "0",
+        "totalReservedUsdt": "0",
+        "accumulatedFeesBlue": "0",
+        "accumulatedFeesUsdt": "0",
+        "totalPendingRefundBlue": "0",
+        "totalPendingRefundUsdt": "0",
+        "nextOrderId": "1"
+      },
+      "users": [
+        {
+          "address": "0x7d2C6c16EDe986a8bea0204A9824b4C264256C77",
+          "kyc": false,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": null,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        },
+        {
+          "address": "0x78992e52508B4094Eb487c0540FB1E25C397E1F5",
+          "kyc": false,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": null,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        },
+        {
+          "address": "0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2",
+          "kyc": true,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": null,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        },
+        {
+          "address": "0x0723B1943Cb4EcDFcDD842B517006A076F281238",
+          "kyc": false,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": null,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        },
+        {
+          "address": "0x0000000000000000000000000000000000000001",
+          "kyc": false,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": null,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        }
+      ],
+      "orders": [],
+      "readErrors": [
+        {
+          "path": "sourceSuite.users.0x7d2C6c16EDe986a8bea0204A9824b4C264256C77.automaticExchangeCollateral",
+          "error": "missing revert data"
+        },
+        {
+          "path": "sourceSuite.users.0x78992e52508B4094Eb487c0540FB1E25C397E1F5.automaticExchangeCollateral",
+          "error": "missing revert data"
+        },
+        {
+          "path": "sourceSuite.users.0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2.automaticExchangeCollateral",
+          "error": "missing revert data"
+        },
+        {
+          "path": "sourceSuite.users.0x0723B1943Cb4EcDFcDD842B517006A076F281238.automaticExchangeCollateral",
+          "error": "missing revert data"
+        },
+        {
+          "path": "sourceSuite.users.0x0000000000000000000000000000000000000001.automaticExchangeCollateral",
+          "error": "missing revert data"
+        }
+      ]
+    },
+    "destination": {
+      "label": "destinationSuite",
+      "contracts": {
+        "CoreProtocol": "0x103C502611008dAf8B0488E99486e46CCB00F41b",
+        "CollateralVault": "0xF970332060f1DB1475Fe2DAF1b5dfd89111c1A2B",
+        "FifoExchange": "0xE229ca0F66fA7b56130B81BadcfcB028C85c4917",
+        "BlueToken": "0x376ee519eFFB06FBF1Bcb31a406507E41A817923",
+        "RedToken": "0x0C14088080C96204eb24D60Fb852bCd272954865",
+        "USDT": "0xF9913A351735862dF6AC9a927DE1e3aD871faf6E"
+      },
+      "globals": {
+        "blueSupply": "0",
+        "redSupply": "0",
+        "blueDecimals": "6",
+        "redDecimals": "6",
+        "usdtDecimals": "6",
+        "vaultCollateralTokenBalance": "0",
+        "exchangeUsdtTokenBalance": "0",
+        "exchangeBlueTokenBalance": "0",
+        "totalCollateralLocked": "0",
+        "totalExchangeReserved": "0",
+        "totalReservedBlue": "0",
+        "totalReservedUsdt": "0",
+        "accumulatedFeesBlue": "0",
+        "accumulatedFeesUsdt": "0",
+        "totalPendingRefundBlue": "0",
+        "totalPendingRefundUsdt": "0",
+        "nextOrderId": "1"
+      },
+      "users": [
+        {
+          "address": "0x7d2C6c16EDe986a8bea0204A9824b4C264256C77",
+          "kyc": false,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": false,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        },
+        {
+          "address": "0x78992e52508B4094Eb487c0540FB1E25C397E1F5",
+          "kyc": false,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": false,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        },
+        {
+          "address": "0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2",
+          "kyc": false,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": false,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        },
+        {
+          "address": "0x0723B1943Cb4EcDFcDD842B517006A076F281238",
+          "kyc": true,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": false,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        },
+        {
+          "address": "0x0000000000000000000000000000000000000001",
+          "kyc": false,
+          "creditLimit": "0",
+          "level": "0",
+          "extensionMarginLimit": "0",
+          "extensionMarginUsed": "0",
+          "paymentNonce": "0",
+          "blueBalance": "0",
+          "blueLocked": "0",
+          "redBalance": "0",
+          "usdtBalance": "0",
+          "collateral": "0",
+          "exchangeReserved": "0",
+          "pendingReserve": "0",
+          "activeAmortizationOrder": "0",
+          "pendingMaturedOnly": false,
+          "automaticExchangeCollateral": false,
+          "pendingRefundBlue": "0",
+          "pendingRefundUsdt": "0",
+          "parkingLots": [],
+          "debtLots": []
+        }
+      ],
+      "orders": [],
+      "readErrors": []
+    }
+  }
+}

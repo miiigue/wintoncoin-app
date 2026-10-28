@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "chainId": "11155420",
+  "walletInventory": {
+    "complete": true,
+    "source": "Inventario de cuentas administrativas, relayer y de prueba en entorno Demo WintonCoin",
+    "exportedAt": "2026-10-28T00:05:00.000Z"
+  },
+  "wallets": [
+    "0x7d2C6c16EDe986a8bea0204A9824b4C264256C77",
+    "0x78992e52508B4094Eb487c0540FB1E25C397E1F5",
+    "0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2",
+    "0x0723B1943Cb4EcDFcDD842B517006A076F281238",
+    "0x0000000000000000000000000000000000000001"
+  ],
+  "sourceSuite": {
+    "label": "V4 Active en Render",
+    "contracts": {
+      "CoreProtocol": "0x5Ec1034640b3360AfFc04c8AA674A8Ba4b1a0274",
+      "CollateralVault": "0x8683B546f8Ad6AD625f225FE50b1C49BCe1B3797",
+      "FifoExchange": "0xbf61470F69A80CA839c663908f31DA69361A4054",
+      "BlueToken": "0xDDD703CB06C491cB2bC778eaE2A5a9B4e2F32B2D",
+      "RedToken": "0xf1eB634808D71F3e2376966e1D78D935B752944C",
+      "USDT": "0x69aa5df5063714a2e9F6ED256043780a3753C431"
+    }
+  },
+  "destinationSuite": {
+    "label": "V5 Codex 163 Desplegada en Optimism Sepolia",
+    "contracts": {
+      "CoreProtocol": "0x103C502611008dAf8B0488E99486e46CCB00F41b",
+      "CollateralVault": "0xF970332060f1DB1475Fe2DAF1b5dfd89111c1A2B",
+      "FifoExchange": "0xE229ca0F66fA7b56130B81BadcfcB028C85c4917",
+      "BlueToken": "0x376ee519eFFB06FBF1Bcb31a406507E41A817923",
+      "RedToken": "0x0C14088080C96204eb24D60Fb852bCd272954865",
+      "USDT": "0xF9913A351735862dF6AC9a927DE1e3aD871faf6E"
+    }
+  },
+  "limits": {
+    "maxOrders": 5000,
+    "maxLotsPerWallet": 1000
+  }
+}
