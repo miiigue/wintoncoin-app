@@ -13,16 +13,30 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-27 — Integración y Gating de Seguridad para Suite V5: Gating por Época, Keeper Durable de USDT y Consentimiento Legal Versionado
+* **Diagnóstico & Causa Raíz de Bloqueo**:
+  - *Inmutabilidad y Suministros Iniciales*: Los contratos V5 desplegados en Optimism Sepolia (`CoreProtocol` `0x103C...`, `FifoExchange` `0xE229...`, `CollateralVault` `0xF970...`) son inmutables y carecen de proxies. Nacen con balances $BLUE = 0$ y $RED = 0$. Cambiar el servidor de Render directamente a V5 provocaría que los usuarios activos con saldos en la suite V4 perdieran acceso a sus balances u órdenes.
+  - *Automatismos y Cumplimiento Normativo*: El protocolo requería que la garantía de órdenes USDT ante compromisos RED vencidos estuviera respaldada por un consentimiento legal expreso con hash SHA-256 (no solo un switch on-chain) y que el indexador persistiera de manera auditable `exchangeCollateralized`.
+* **Soluciones Técnicas Integradas (Commits de Codex `f1d1ad7`, `740611e`, `5085a78`)**:
+  - *Gating de Despliegue por Época (`v5MigrationReadiness.js`)*: Por defecto, el backend opera bajo `V4_ACTIVE`. Para activar V5 se exige la variable explícita `WINTON_DEPLOYMENT_EPOCH=V5_CODEX_163`. Se implementó el script transaccional `apply_v5_demo_settings.js` y la auditoría de solo lectura `audit_v5_migration_readonly.js`.
+  - *Keeper Durable e Indexador de Garantía (`chainMaintenance.js`, Migración 125)*: El keeper ejecuta `collateralizeMatured` respetando el orden FIFO, verificando doblemente autorización on-chain y consentimiento legal vigente antes de cada ejecución, y persistiendo `exchangeCollateralized` en base de datos.
+  - *Consentimiento Legal Versionado (`exchangeCollateralConsent.js`, Migración 126, `Exchange.jsx`)*: Se generó el documento legal versionado con hash criptográfico y modal de aceptación obligatoria antes de autorizar la garantía de órdenes USDT en el Exchange.
+* **Verificación y Pruebas**:
+  - 5 suites de backend V5: **20/20 PASS** (`v5MigrationReadiness`, `exchangeCollateralConsent`, `exchangeCollateralProjection`, `applyV5DemoSettings`, `demoCleanDeploymentMigration`).
+  - Hardhat: **37/37 PASS** (`ExchangeCollateralizationV5`, `MixedPayment163`, `CoreProtocol`, `CollateralVault`).
+  - Frontend: `npm --prefix frontend run check:react` (55 componentes, 0 referencias sueltas) y `npm --prefix frontend run build:demo` (**PASS en 19.15s**).
+* **Evidencia**: Commits `f1d1ad7`, `740611e`, `5085a78`.
+
 ### 2026-10-27 — Landing Page: Cultura de Garantes Comunitarios, Depuración de Términos P2P/Bancarios y Corrección de Visualización de Ilustración en Pantallas de Escritorio
 * **Diagnóstico de Necesidad & Fricción Visual**:
   - *Depuración Terminológica en Landing*: En sintonía con las directrices de desmarque bancario y enfoque FinTech puro, se requería suprimir referencias redundantes como *"Plataforma P2P Descentralizada"*, *"Sin bancos, sin intereses, solo colaboración real"*, *"Conexiones P2P directas"* y *"Sin distinciones"*.
-  - *Integración del Principio Rector Comunitario*: Se incorporó en la sección Comunidad el banner con diseño Glassmorphism y relieve visual: *«Aquí la comunidad es el respaldo. Todos somos garantes y todos somos parte del compromiso que sostiene y da vida a nuestro ecosistema.»*
+  - *Integración del Principio Rector Comunitario*: Se incorporó en la sección Comunidad el punto unificado con la lista: *«🛡️ Todos somos garantes del compromiso de todos»*, preservando la simetría y armonía estética de la sección sin bloques ni recuadros que descuadren la composición visual.
   - *Reenfoque de Propuesta de Valor en Pasos*: Se modificó el encabezado del flujo a *«Es como tener el Poder de un Banco en tus manos»*, suprimiendo la alusión *"Olvídate del dinero FIAT"*.
   - *Causa Raíz de Visualización de Imagen en PC*: En `landing.css`, la clase `.integrity-visual-container img` no contaba con reglas explícitas de ancho (`width: 100%`, `max-width: 480px`) para resolución de escritorio (solo existía una regla dentro de `@media (max-width: 992px)`). Esto provocaba que en ciertos navegadores y monitores de alta resolución la imagen del escudo de integridad se colapsara o no se apreciara con nitidez frente al timeline derecho.
 * **Resoluciones Técnicas Implementadas**:
   - *`frontend/index.html`*:
     - Actualización del Hero: insignia cambiada a *«Ecosistema Colaborativo»* y eliminación de frase sobre bancos/intereses.
-    - Sección Comunidad: inserción de la tarjeta destacada de respaldo comunitario y limpieza de ítems de la lista.
+    - Sección Comunidad: integración orgánica del punto *«🛡️ Todos somos garantes del compromiso de todos»* dentro de la lista simétrica y eliminación de cajas o iconos invasivos.
     - Sección Pasos: ajuste a *«Es como tener el Poder de un Banco en tus manos»*.
   - *Componentes React (`frontend/src/components/landing/`)*:
     - Sincronización $1:1$ en `HeroSection.jsx`, `CommunitySection.jsx` y `StepsSection.jsx`.
