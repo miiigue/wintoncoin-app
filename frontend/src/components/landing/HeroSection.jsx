@@ -16,7 +16,7 @@ function HeroSection() {
       <div className="container">
         <div className="hero-content">
           <div className="badge-new">
-            <span className="pulse"></span> Plataforma P2P Descentralizada
+            <span className="pulse"></span> Ecosistema Colaborativo
           </div>
           <h1 className="hero-title">
             ¿Necesitas ayuda y <span className="gradient-text">no tienes dinero?</span>
@@ -25,7 +25,6 @@ function HeroSection() {
             En WintonCoin, tu capacidad de cumplir promesas es tu moneda.
             Solicita servicios y paga con <span className="text-blue">BLUE</span> sin necesidad de dinero,
             respaldando el intercambio con tu <span className="text-red">Compromiso (RED)</span>.
-            Sin bancos, sin intereses, solo colaboración real.
           </p>
           <div className="cta-group">
             <Link to="/login" className="btn-primary">

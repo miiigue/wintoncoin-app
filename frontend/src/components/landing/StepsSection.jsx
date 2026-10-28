@@ -13,10 +13,10 @@ function StepsSection() {
       <div className="container">
         <div className="section-header">
           <h2>
-            El Poder de un Banco <br />
+            Es como tener el Poder de un Banco <br />
             <span className="text-blue">en tus manos</span>
           </h2>
-          <p>Olvídate del dinero FIAT. Aquí emites tu propia moneda al momento de pagar.</p>
+          <p>Aquí emites tu propia moneda al momento de pagar.</p>
         </div>
 
         <div className="steps-grid">

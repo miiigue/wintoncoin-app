@@ -13,6 +13,34 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-27 — Landing Page: Cultura de Garantes Comunitarios, Depuración de Términos P2P/Bancarios y Corrección de Visualización de Ilustración en Pantallas de Escritorio
+* **Diagnóstico de Necesidad & Fricción Visual**:
+  - *Depuración Terminológica en Landing*: En sintonía con las directrices de desmarque bancario y enfoque FinTech puro, se requería suprimir referencias redundantes como *"Plataforma P2P Descentralizada"*, *"Sin bancos, sin intereses, solo colaboración real"*, *"Conexiones P2P directas"* y *"Sin distinciones"*.
+  - *Integración del Principio Rector Comunitario*: Se incorporó en la sección Comunidad el banner con diseño Glassmorphism y relieve visual: *«Aquí la comunidad es el respaldo. Todos somos garantes y todos somos parte del compromiso que sostiene y da vida a nuestro ecosistema.»*
+  - *Reenfoque de Propuesta de Valor en Pasos*: Se modificó el encabezado del flujo a *«Es como tener el Poder de un Banco en tus manos»*, suprimiendo la alusión *"Olvídate del dinero FIAT"*.
+  - *Causa Raíz de Visualización de Imagen en PC*: En `landing.css`, la clase `.integrity-visual-container img` no contaba con reglas explícitas de ancho (`width: 100%`, `max-width: 480px`) para resolución de escritorio (solo existía una regla dentro de `@media (max-width: 992px)`). Esto provocaba que en ciertos navegadores y monitores de alta resolución la imagen del escudo de integridad se colapsara o no se apreciara con nitidez frente al timeline derecho.
+* **Resoluciones Técnicas Implementadas**:
+  - *`frontend/index.html`*:
+    - Actualización del Hero: insignia cambiada a *«Ecosistema Colaborativo»* y eliminación de frase sobre bancos/intereses.
+    - Sección Comunidad: inserción de la tarjeta destacada de respaldo comunitario y limpieza de ítems de la lista.
+    - Sección Pasos: ajuste a *«Es como tener el Poder de un Banco en tus manos»*.
+  - *Componentes React (`frontend/src/components/landing/`)*:
+    - Sincronización $1:1$ en `HeroSection.jsx`, `CommunitySection.jsx` y `StepsSection.jsx`.
+  - *`frontend/landing.css`*:
+    - Definición autoritaria para `.integrity-visual-container img`: `width: 100%; max-width: 480px; height: auto; object-fit: contain; border-radius: 16px; filter: drop-shadow(0 15px 35px rgba(6, 182, 212, 0.25));`, garantizando nitidez y proporciones perfectas en laptops, monitores de escritorio y dispositivos móviles.
+* **Archivos Modificados**:
+  - [`frontend/index.html`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/index.html)
+  - [`frontend/src/components/landing/HeroSection.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/landing/HeroSection.jsx)
+  - [`frontend/src/components/landing/CommunitySection.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/landing/CommunitySection.jsx)
+  - [`frontend/src/components/landing/StepsSection.jsx`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/src/components/landing/StepsSection.jsx)
+  - [`frontend/landing.css`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/frontend/landing.css)
+  - [`EVOLUCION.md`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/EVOLUCION.md)
+* **Verificación y Pruebas Automatizadas**:
+  - `npm --prefix frontend run check:react` → **PASS**.
+  - `npm --prefix frontend run test:account-security` → **8/8 suites PASS**.
+  - `npm --prefix frontend run build:demo` → **PASS**.
+* **Evidencia**: Commit `87dacba` en rama `demo`.
+
 ### 2026-10-27 — Integración Protocolar V5: Pagos Mixtos Consentidos con Saldo en Parking, Garantía Híbrida de USDT en Exchange y Paridad Dual Inviolable 1:1
 * **Diagnóstico de Necesidad & Arquitectura Económica**:
   - *Problema Resuelto*: En versiones previas, un usuario con saldo en parking (ej. 14 BLUE) y un límite de compromiso RED residual (ej. 19.84 RED) no podía realizar un pago de 20 BLUE (+ comisión) debido a que `CoreProtocol.sol` evaluaba únicamente el límite base e ignoraba el saldo ya ganado en la plataforma.
