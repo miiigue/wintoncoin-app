@@ -8,7 +8,7 @@
 
 import { ethers, BrowserProvider, JsonRpcProvider, Contract, parseUnits, formatUnits } from 'ethers';
 import { getApiUrl } from './config.js';
-import {requestOperation} from './pinOperations.js';
+import {requestOperation,operationRequest} from './pinOperations.js';
 
 // Direcciones oficiales de la Suite V4 en Optimism Sepolia
 export const CONTRACT_ADDRESSES = {}
@@ -202,6 +202,11 @@ class Web3OnChainService {
   async repayWithCollateral(amount) {return requestOperation('repayCollateral',{amount:String(amount)});}
   async collateralizeUsdtOrder(orderId,amount) {return requestOperation('secureOrder',{orderId:String(orderId),amount:String(amount)});}
   async setAutomaticExchangeCollateral(enabled) {return requestOperation('autoCollateral',{enabled:Boolean(enabled)});}
+  async getAutomaticCollateralConsent() {return operationRequest('/automatic-collateral-consent');}
+  async acceptAutomaticCollateralConsent(document,walletAddress) {
+    return operationRequest('/automatic-collateral-consent/accept',{version:document.version,contentHash:document.contentHash,walletAddress});
+  }
+  async revokeAutomaticCollateralConsent() {return operationRequest('/automatic-collateral-consent/revoke',{});}
   async createSellOrder(amount) {return requestOperation('sell',{amount:String(amount)});}
   async createBuyOrder(amount) {return requestOperation('buy',{amount:String(amount)});}
   async cancelOrder(orderId) {return requestOperation('cancel',{orderId:String(orderId)});}

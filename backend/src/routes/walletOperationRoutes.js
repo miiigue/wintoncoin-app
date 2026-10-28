@@ -7,6 +7,8 @@ const {WalletOperations}=require('../services/walletOperations');
 const router=express.Router();
 let instance;
 const service=()=>instance ||= new WalletOperations(require('../config/db'));
+const consent=require('../services/exchangeCollateralConsent');
+const pool=require('../config/db');
 const idValid=id=>/^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(id);
 router.use(authenticateToken,(req,res,next)=>{
     res.set('Cache-Control','no-store');
@@ -30,6 +32,17 @@ router.get('/publication-access',async(req,res)=>{
  }
 });
 router.get('/marketplace/terms',run(async()=>({success:true,...await require('../services/marketplacePayments').service().terms()})));
+router.get('/automatic-collateral-consent',run(async req=>({success:true,...await consent.getStatus(pool,req.user.userId)})));
+router.post('/automatic-collateral-consent/accept',limit,run(async req=>{
+    const client=await pool.connect();
+    try{return {success:true,...await consent.accept(client,req.user.userId,req.body,req)};}
+    finally{client.release();}
+}));
+router.post('/automatic-collateral-consent/revoke',limit,run(async req=>{
+    const client=await pool.connect();
+    try{return {success:true,...await consent.revoke(client,req.user.userId,req)};}
+    finally{client.release();}
+}));
 router.get('/marketplace/:id',run(req=>{
  if(!idValid(req.params.id))throw Object.assign(new Error('Referencia inválida.'),{status:400});
  return require('../services/marketplacePayments').service().status(req.user.userId,req.params.id);

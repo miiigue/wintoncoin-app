@@ -42,6 +42,7 @@ function splitCollateralizedBuy(amount,redDebt,feeBps,reserved=0n,pending=0n) {
 class WalletOperations {
     constructor(pool,rpc=deployment.provider(),config=deployment.configuration(),walletService=require('./walletService'),options={}) {
         this.pool=pool;this.rpc=rpc;this.config=config;this.walletService=walletService;
+        this.consentService=options.consentService||require('./exchangeCollateralConsent');
         this.store=new ChainOperationStore(pool,rpc,options);
     }
     async identity(userId) {
@@ -56,6 +57,7 @@ class WalletOperations {
     }
     async prepare(userId,input) {
         const p=normalized(input),user=await this.identity(userId),c=this.config.contracts;
+        if(p.action==='autoCollateral'&&p.enabled)await this.consentService.assertCurrentConsent(this.pool,userId,user.address);
         await deployment.validate(this.rpc,this.config);
         if(!await new Contract(c.CoreProtocol,coreABI,this.rpc).isKYCVerified(user.address))throw error('Necesitas KYC aprobado para esta operación.',403);
         const plan=[],amount=p.amount?parseUnits(p.amount,6):null;
@@ -124,6 +126,8 @@ class WalletOperations {
             if(row.payload.account!==user.address.toLowerCase()||row.payload.fingerprint!==this.config.fingerprint)throw error('La cuenta o el despliegue cambió.');
             if(!row.steps.length && row.payload.expiresAt<Date.now())throw error('La autorización venció. Consulta el estado antes de preparar otra operación.');
             await deployment.validate(this.rpc,this.config);
+            if(row.kind==='autoCollateral'&&row.payload.enabled===true)
+                await this.consentService.assertCurrentConsent(client,userId,user.address);
             if(!await new Contract(this.config.contracts.CoreProtocol,coreABI,this.rpc).isKYCVerified(user.address))throw error('Tu KYC no está aprobado.',403);
             const config=safePolicy.configuration();
             if(String(config.chainId)!==this.config.chainId)throw error('Red de cuenta incorrecta.');

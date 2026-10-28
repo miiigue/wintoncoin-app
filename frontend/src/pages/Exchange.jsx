@@ -44,6 +44,9 @@ export default function Exchange() {
   const [lastTxHash, setLastTxHash] = useState(null);
   const [feedbackMsg, setFeedbackMsg] = useState(null);
   const [errorMsg, setErrorMsg] = useState(null);
+  const [collateralConsent, setCollateralConsent] = useState(null);
+  const [consentModalOpen, setConsentModalOpen] = useState(false);
+  const [consentChecked, setConsentChecked] = useState(false);
 
   // Sincronización continua de datos On-Chain y de la Cola FIFO
   const syncData = async () => {
@@ -77,6 +80,10 @@ export default function Exchange() {
           setOnChainState(userState);
           setExchangeSnapshot(snapshot);
         } catch { setOnChainState(null); setExchangeSnapshot(null); setConnectedWallet(null); }
+      })(),
+      (async () => {
+        try { setCollateralConsent(await web3OnChainService.getAutomaticCollateralConsent()); }
+        catch { setCollateralConsent(null); }
       })()
     ]);
   };
@@ -182,18 +189,56 @@ export default function Exchange() {
   const handleAutomaticCollateral = async () => {
     setErrorMsg(null);
     setFeedbackMsg(null);
-    setIsSubmitting(true);
     try {
       const enabled = !onChainState?.automaticExchangeCollateral;
-      const res = await web3OnChainService.setAutomaticExchangeCollateral(enabled);
+      if (enabled) {
+        const status = await web3OnChainService.getAutomaticCollateralConsent();
+        setCollateralConsent(status);
+        setConsentChecked(false);
+        setConsentModalOpen(true);
+        return;
+      }
+      setIsSubmitting(true);
+      const res = await web3OnChainService.setAutomaticExchangeCollateral(false);
       setLastTxHash(res.txHash);
-      setFeedbackMsg(enabled
-        ? 'Autorización registrada: al vencer RED se quemará primero tu BLUE disponible y solo después se bloqueará el USDT necesario que ya esté en el exchange.'
-        : 'Autorización automática desactivada para futuros bloqueos. Las garantías ya afectadas no se liberan por esta acción.');
+      try {
+        await web3OnChainService.revokeAutomaticCollateralConsent();
+        setFeedbackMsg('La autorización on-chain quedó desactivada y la revocación fue registrada para futuras afectaciones. Las garantías ya bloqueadas no se liberan por esta acción.');
+      } catch {
+        setFeedbackMsg('La autorización on-chain quedó desactivada. No se pudo registrar todavía la revocación legal; usa “Revocar consentimiento registrado” para completar ese registro.');
+      }
       await syncData();
     } catch (err) {
       setErrorMsg(err.message || 'No se pudo actualizar la autorización automática.');
     } finally { setIsSubmitting(false); }
+  };
+
+  const confirmAutomaticCollateralConsent = async () => {
+    if (!consentChecked || !collateralConsent?.document || !connectedWallet) return;
+    setErrorMsg(null);
+    setFeedbackMsg(null);
+    setIsSubmitting(true);
+    try {
+      await web3OnChainService.acceptAutomaticCollateralConsent(collateralConsent.document, connectedWallet);
+      const res = await web3OnChainService.setAutomaticExchangeCollateral(true);
+      setLastTxHash(res.txHash);
+      setConsentModalOpen(false);
+      setFeedbackMsg('Consentimiento vigente y autorización on-chain registrados. Al vencer RED, se aplica primero BLUE y solo el faltante elegible puede bloquear USDT del Exchange.');
+      await syncData();
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo completar la autorización específica.');
+    } finally { setIsSubmitting(false); }
+  };
+
+  const revokeInactiveConsent = async () => {
+    setErrorMsg(null);
+    setIsSubmitting(true);
+    try {
+      await web3OnChainService.revokeAutomaticCollateralConsent();
+      setFeedbackMsg('Consentimiento revocado para futuras activaciones. No se modificaron garantías ya bloqueadas ni operaciones confirmadas.');
+      await syncData();
+    } catch (err) { setErrorMsg(err.message || 'No se pudo registrar la revocación.'); }
+    finally { setIsSubmitting(false); }
   };
 
   const parsedAmount = parseFloat(amountInput) || 0;
@@ -433,6 +478,11 @@ export default function Exchange() {
                 <button type="button" className={styles.cancelBtn} disabled={isSubmitting || !connectedWallet} onClick={handleAutomaticCollateral} style={{ marginTop: '8px' }}>
                   {onChainState?.automaticExchangeCollateral ? 'Desactivar para futuros bloqueos' : 'Autorizar protección automática'}
                 </button>
+                {!onChainState?.automaticExchangeCollateral && collateralConsent?.accepted && (
+                  <button type="button" className={styles.cancelBtn} disabled={isSubmitting} onClick={revokeInactiveConsent} style={{ marginTop: '8px', marginLeft: '8px' }}>
+                    Revocar consentimiento registrado
+                  </button>
+                )}
               </div>
             </div>
 
@@ -466,6 +516,30 @@ export default function Exchange() {
                 ? 'Comprar y Amortizar Compromiso RED'
                 : 'Comprar BLUE en FIFO Exchange'}
             </button>
+          </div>
+        )}
+
+        {consentModalOpen && collateralConsent?.document && (
+          <div role="dialog" aria-modal="true" aria-labelledby="automatic-collateral-consent-title" style={{position:'fixed',inset:0,zIndex:1000,background:'rgba(2,6,23,.88)',display:'grid',placeItems:'center',padding:'1rem'}}>
+            <div style={{width:'min(760px,100%)',maxHeight:'90vh',overflowY:'auto',background:'#0f172a',border:'1px solid rgba(56,189,248,.45)',borderRadius:'16px',padding:'1.25rem',color:'#e2e8f0'}}>
+              <h2 id="automatic-collateral-consent-title" style={{marginTop:0}}>Autorización específica de garantía automática</h2>
+              <p style={{fontSize:'.84rem',color:'#94a3b8'}}>
+                Versión {collateralConsent.document.version} · Hash {collateralConsent.document.contentHash.slice(0,12)}… · Billetera {shortAddress(collateralConsent.walletAddress)}
+              </p>
+              <div style={{whiteSpace:'pre-wrap',lineHeight:1.55,fontSize:'.9rem',background:'rgba(15,23,42,.65)',border:'1px solid rgba(148,163,184,.25)',borderRadius:'10px',padding:'1rem'}}>
+                {collateralConsent.document.content}
+              </div>
+              <label style={{display:'flex',gap:'.65rem',alignItems:'flex-start',marginTop:'1rem',fontWeight:600}}>
+                <input type="checkbox" checked={consentChecked} onChange={event=>setConsentChecked(event.target.checked)} />
+                <span>Leí el monto limitado, la comisión variable, el bloqueo de USDT, la actuación del keeper, la revocación prospectiva, los riesgos y la jurisdicción descritos. Acepto esta versión para la billetera indicada.</span>
+              </label>
+              <div style={{display:'flex',justifyContent:'flex-end',gap:'.75rem',marginTop:'1rem',flexWrap:'wrap'}}>
+                <button type="button" className={styles.cancelBtn} disabled={isSubmitting} onClick={()=>setConsentModalOpen(false)}>Cancelar</button>
+                <button type="button" className={styles.actionBtn} disabled={isSubmitting||!consentChecked} onClick={confirmAutomaticCollateralConsent} style={{width:'auto',padding:'.7rem 1rem'}}>
+                  {isSubmitting?'Registrando y autorizando…':'Aceptar y continuar a la firma on-chain'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
