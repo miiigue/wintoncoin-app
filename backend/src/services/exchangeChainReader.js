@@ -16,7 +16,8 @@ const ABI = [
     'function orders(uint64) view returns(uint64 id,uint64 sequenceId,uint128 remainingAmount,address user,uint8 status,uint8 side,uint48 createdAt,uint128 originalAmount,uint128 refundedAmount)',
     'function pendingRefundBlue(address) view returns(uint128)',
     'function pendingRefundUsdt(address) view returns(uint128)',
-    'function isAmortizationOrder(uint64) view returns(bool)'
+    'function isAmortizationOrder(uint64) view returns(bool)',
+    'function exchangeCollateralized(uint64) view returns(uint128)'
 ];
 const iface = new Interface(ABI);
 const topics = iface.fragments.filter(f => f.type === 'event').map(f => f.topicHash);
@@ -31,9 +32,12 @@ function identityFromEnv(env = process.env) {
     if (chainId === '0') fail('INVALID_CONFIG');
     if (chainId === '11155420') {
         const selected=require('./chainDeployment').configuration(env);
-        const old=require('../../../web3-contracts/deployments/optimism-sepolia-legacy-2026-09-25.json');
-        if(env.EXCHANGE_INDEXER_ADDRESS && ![old.contracts.FifoExchange,selected.contracts.FifoExchange].some(x=>x.toLowerCase()===address(env.EXCHANGE_INDEXER_ADDRESS)))fail('INVALID_CONFIG');
-        return {chainId,exchange:selected.contracts.FifoExchange.toLowerCase()};
+        if(selected.chainId!==chainId)fail('INVALID_CONFIG');
+        if(env.EXCHANGE_INDEXER_ADDRESS && selected.contracts.FifoExchange.toLowerCase()!==address(env.EXCHANGE_INDEXER_ADDRESS))fail('INVALID_CONFIG');
+        const startBlock=Number(selected.startBlocks?.FifoExchange);
+        if(!Number.isSafeInteger(startBlock)||startBlock<1)fail('INVALID_CONFIG');
+        return {chainId,exchange:selected.contracts.FifoExchange.toLowerCase(),epoch:selected.epoch,startBlock,
+            supportsExchangeCollateral:selected.epoch==='V5_CODEX_163'};
     }
     const exchange = address(env.EXCHANGE_INDEXER_ADDRESS);
     if (/^0x0{40}$/.test(exchange)) fail('INVALID_CONFIG');
@@ -41,13 +45,9 @@ function identityFromEnv(env = process.env) {
 }
 function configFromEnv(env = process.env) {
     const identity = identityFromEnv(env);
-    let startBlock = Number(uint(env.EXCHANGE_INDEXER_START_BLOCK));
-    if(identity.chainId==='11155420') {
-        const current=require('../../../web3-contracts/deployment-manifest-v4.json');
-        const old=require('../../../web3-contracts/deployments/optimism-sepolia-legacy-2026-09-25.json');
-        if(![old.startBlocks.FifoExchange,current.startBlocks.FifoExchange].includes(startBlock))fail('INVALID_CONFIG');
-        startBlock=current.startBlocks.FifoExchange;
-    }
+    const configuredStart=env.EXCHANGE_INDEXER_START_BLOCK===undefined?undefined:Number(uint(env.EXCHANGE_INDEXER_START_BLOCK));
+    if(identity.chainId==='11155420'&&configuredStart!==undefined&&configuredStart!==identity.startBlock)fail('INVALID_CONFIG');
+    const startBlock=identity.chainId==='11155420'?identity.startBlock:configuredStart;
     const finality = env.EXCHANGE_INDEXER_FINALITY || 'finalized';
     if (startBlock < 1 || !/^(finalized|confirmations:[1-9][0-9]{0,5})$/.test(finality)) fail('INVALID_CONFIG');
     const readInt = (key, fallback, min, max) => {
@@ -106,6 +106,7 @@ class ExchangeChainReader {
     }
     async order(id, hash) { return this.call('orders', [id], hash); }
     async isAmortization(id, hash) { return (await this.call('isAmortizationOrder', [id], hash))[0]; }
+    async exchangeCollateralized(id, hash) { return (await this.call('exchangeCollateralized', [id], hash))[0]; }
     async refunds(wallet, hash) {
         const blue = (await this.call('pendingRefundBlue', [wallet], hash))[0];
         const usdt = (await this.call('pendingRefundUsdt', [wallet], hash))[0];

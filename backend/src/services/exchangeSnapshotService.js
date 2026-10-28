@@ -27,7 +27,7 @@ async function readExchangeSnapshot(pool, identity, wallet, { after = '0', limit
         };
         // Incomplete/stale projections never masquerade as a zero balance.
         if (result.usable) {
-            const orders = (await client.query(`SELECT order_id,sequence_id,side,status,is_amortization,original_amount,remaining_amount,refunded_amount,
+            const orders = (await client.query(`SELECT order_id,sequence_id,side,status,is_amortization,original_amount,remaining_amount,refunded_amount,exchange_collateralized,
                 created_at_chain,suspend_reason,block_number,block_hash FROM web3_exchange_order_snapshots
                 WHERE chain_id=$1 AND exchange_address=$2 AND wallet_address=$3 AND order_id>$4
                 ORDER BY order_id LIMIT $5`, [...key, wallet, after, limit + 1])).rows;
@@ -58,7 +58,7 @@ async function readExchangeQueue(pool, identity, { limit = 50, maxAgeSeconds = 1
         if (result.usable) {
             const orders = [];
             for (const side of ['SELL_BLUE', 'BUY_BLUE']) {
-                orders.push(...(await client.query(`SELECT order_id,sequence_id,wallet_address,side,status,original_amount,remaining_amount,created_at_chain
+                orders.push(...(await client.query(`SELECT order_id,sequence_id,wallet_address,side,status,original_amount,remaining_amount,exchange_collateralized,created_at_chain
                     FROM web3_exchange_order_snapshots WHERE chain_id=$1 AND exchange_address=$2 AND side=$3
                     AND status IN ('OPEN','PARTIALLY_FILLED') ORDER BY sequence_id LIMIT $4`, [...key, side, limit])).rows);
             }

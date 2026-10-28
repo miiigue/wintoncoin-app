@@ -106,7 +106,9 @@ class ExchangeIndexer {
             if (o.id.toString() !== id || !STATUSES[Number(o.status)] || !SIDES[Number(o.side)]) fail('INVALID_ORDER');
             const wallet = address(o.user);
             const isAmortization = await this.chain.isAmortization(id, end.hash);
-            wallets.add(wallet); snapshots.push({ id, o, wallet, isAmortization });
+            const collateralized = this.config.supportsExchangeCollateral ? await this.chain.exchangeCollateralized(id, end.hash) : 0n;
+            if (collateralized < 0n || collateralized > o.remainingAmount) fail('INVALID_EXCHANGE_COLLATERAL');
+            wallets.add(wallet); snapshots.push({ id, o, wallet, isAmortization, collateralized });
         }
         const balances = [];
         for (const wallet of wallets) balances.push({ wallet, ...await this.chain.refunds(wallet, end.hash) });
@@ -136,7 +138,7 @@ class ExchangeIndexer {
                         e.name, tokens(e.args.blue), tokens(e.args.usdt)]);
                 }
             }
-            for (const { id, o, wallet, isAmortization } of data.snapshots) {
+            for (const { id, o, wallet, isAmortization, collateralized } of data.snapshots) {
                 let reason = 0;
                 if (Number(o.status) === 5) {
                     const latest = await client.query(`SELECT suspend_reason FROM web3_exchange_logs WHERE ${scope}
@@ -146,14 +148,16 @@ class ExchangeIndexer {
                 }
                 await client.query(`INSERT INTO web3_exchange_order_snapshots
                     (chain_id,exchange_address,order_id,sequence_id,wallet_address,side,status,original_amount,remaining_amount,
-                    refunded_amount,created_at_chain,suspend_reason,block_number,block_hash,is_amortization)
-                    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+                    refunded_amount,created_at_chain,suspend_reason,block_number,block_hash,is_amortization,exchange_collateralized)
+                    VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
                     ON CONFLICT(chain_id,exchange_address,order_id) DO UPDATE SET
                     sequence_id=EXCLUDED.sequence_id,wallet_address=EXCLUDED.wallet_address,side=EXCLUDED.side,status=EXCLUDED.status,
                     original_amount=EXCLUDED.original_amount,remaining_amount=EXCLUDED.remaining_amount,refunded_amount=EXCLUDED.refunded_amount,
-                    created_at_chain=EXCLUDED.created_at_chain,suspend_reason=EXCLUDED.suspend_reason,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash,is_amortization=EXCLUDED.is_amortization`,
+                    created_at_chain=EXCLUDED.created_at_chain,suspend_reason=EXCLUDED.suspend_reason,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash,
+                    is_amortization=EXCLUDED.is_amortization,exchange_collateralized=EXCLUDED.exchange_collateralized`,
                 [...this.key, id, o.sequenceId.toString(), wallet, SIDES[Number(o.side)], STATUSES[Number(o.status)],
-                    tokens(o.originalAmount), tokens(o.remainingAmount), tokens(o.refundedAmount), o.createdAt.toString(), reason, end.number, end.hash, isAmortization]);
+                    tokens(o.originalAmount), tokens(o.remainingAmount), tokens(o.refundedAmount), o.createdAt.toString(), reason, end.number, end.hash,
+                    isAmortization, tokens(collateralized)]);
             }
             for (const b of data.balances) {
                 for (const [token, amount] of [['BLUE', b.blue], ['USDT', b.usdt]]) {
@@ -173,6 +177,20 @@ class ExchangeIndexer {
                 status=$6,last_checked_at=clock_timestamp(),last_success_at=clock_timestamp(),error_code=NULL WHERE ${scope}`,
             [...this.key, end.number, end.hash, target.number, end.number === target.number ? 'ready' : 'syncing']);
         });
+    }
+    async auditCollateral(client, target, limit = 50) {
+        if (!this.config.supportsExchangeCollateral) return;
+        const sync = (await client.query(`SELECT collateral_audit_order_id FROM web3_exchange_sync WHERE ${scope}`, this.key)).rows[0];
+        const after = sync?.collateral_audit_order_id ?? '0';
+        const rows = (await client.query(`SELECT order_id,exchange_collateralized FROM web3_exchange_order_snapshots
+            WHERE ${scope} AND order_id>$3 ORDER BY order_id LIMIT $4`, [...this.key, after, limit])).rows;
+        for (const row of rows) {
+            const actual = await this.chain.exchangeCollateralized(row.order_id, target.hash);
+            if (tokens(actual) !== row.exchange_collateralized) fail('EXCHANGE_COLLATERAL_MISMATCH');
+        }
+        await this.canonical(target);
+        const cursor = rows.length < limit ? '0' : rows.at(-1).order_id;
+        await client.query(`UPDATE web3_exchange_sync SET collateral_audit_order_id=$3 WHERE ${scope}`, [...this.key, cursor]);
     }
     async tick() {
         const client = await this.pool.connect();
@@ -200,6 +218,7 @@ class ExchangeIndexer {
             }
             if (Number(cursor.cursor_block) === target.number) {
                 await reconcileExchange(client, this.chain, this.key, target.hash);
+                await this.auditCollateral(client, target);
                 await this.canonical(target);
                 await client.query(`UPDATE web3_exchange_sync SET status='ready',last_checked_at=clock_timestamp(),
                     target_block=$3,error_code=NULL WHERE ${scope}`, [...this.key, target.number]);

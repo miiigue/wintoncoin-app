@@ -18,6 +18,7 @@ async function isolatedDb(port) {
         await require('../../migrations/109_web3_suite_v4_contracts_and_governance').up(client);
         await require('../../migrations/111_repair_web3_refund_provenance').up(client);
         await require('../../migrations/112_exchange_indexer').up(client);
+        await require('../../migrations/125_exchange_collateralized_projection').up(client);
         await client.query('COMMIT');
     } catch (error) { await client.query('ROLLBACK'); setupError = error; }
     finally { client.release(); }
