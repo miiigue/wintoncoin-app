@@ -13,6 +13,7 @@
 
 const { configuration, validate } = require('../src/services/chainDeployment');
 const currentManifest = require('../../web3-contracts/deployment-manifest-v4.json');
+const activeBeforeV5 = require('../../web3-contracts/deployments/optimism-sepolia-active-before-v5-2026-10-27.json');
 
 describe('Aislamiento de Red y Selección de Manifiesto (chainDeployment.js)', () => {
     test('1. Entorno de Test / Desarrollo resuelve localmente (chainId 31337)', () => {
@@ -28,7 +29,7 @@ describe('Aislamiento de Red y Selección de Manifiesto (chainDeployment.js)', (
         expect(config.contracts.FifoExchange).toBeDefined();
     });
 
-    test('2. Entorno Demo (11155420) carga el manifiesto indivisible V4 de Optimism Sepolia', () => {
+    test('2. Entorno Demo conserva por defecto la suite activa anterior a V5', () => {
         const demoEnv = {
             NODE_ENV: 'production',
             WINTON_CHAIN_ID: '11155420',
@@ -37,10 +38,24 @@ describe('Aislamiento de Red y Selección de Manifiesto (chainDeployment.js)', (
 
         const config = configuration(demoEnv);
         expect(config.chainId).toBe('11155420');
-        // Direcciones verificadas de la suite V4
-        expect(config.contracts.BlueToken).toBe(currentManifest.contracts.BlueToken);
-        expect(config.contracts.RedToken).toBe(currentManifest.contracts.RedToken);
+        expect(config.epoch).toBe('V4_ACTIVE');
+        expect(config.contracts.BlueToken).toBe(activeBeforeV5.contracts.BlueToken);
+        expect(config.contracts.RedToken).toBe(activeBeforeV5.contracts.RedToken);
+        expect(config.contracts.FifoExchange).toBe(activeBeforeV5.contracts.FifoExchange);
+        expect(config.startBlocks.FifoExchange).toBe(activeBeforeV5.startBlocks.FifoExchange);
+    });
+
+    test('2b. V5 solo se selecciona con una época explícita', () => {
+        const config = configuration({NODE_ENV:'production',WINTON_CHAIN_ID:'11155420',WINTON_DEPLOYMENT_EPOCH:'V5_CODEX_163'});
+        expect(config.epoch).toBe('V5_CODEX_163');
+        expect(config.contracts.CoreProtocol).toBe(currentManifest.contracts.CoreProtocol);
         expect(config.contracts.FifoExchange).toBe(currentManifest.contracts.FifoExchange);
+        expect(config.startBlocks.FifoExchange).toBe(currentManifest.startBlocks.FifoExchange);
+    });
+
+    test('2c. Rechaza una época desconocida sin elegir contratos por aproximación', () => {
+        expect(()=>configuration({NODE_ENV:'production',WINTON_CHAIN_ID:'11155420',WINTON_DEPLOYMENT_EPOCH:'V6_INEXISTENTE'}))
+            .toThrow(/Época de despliegue Demo no registrada/);
     });
 
     test('3. Rechazo de configuración con dirección de contrato no registrada en Demo', () => {
@@ -51,7 +66,12 @@ describe('Aislamiento de Red y Selección de Manifiesto (chainDeployment.js)', (
         };
 
         expect(() => configuration(corruptedEnv))
-            .toThrow(/no pertenece a un despliegue registrado/);
+            .toThrow(/no pertenece a la época Demo seleccionada/);
+    });
+
+    test('3b. Rechaza mezclar una dirección V5 dentro de la época V4 activa', () => {
+        expect(()=>configuration({NODE_ENV:'production',WINTON_CHAIN_ID:'11155420',CORE_PROTOCOL_ADDRESS:currentManifest.contracts.CoreProtocol}))
+            .toThrow(/no pertenece a la época Demo seleccionada/);
     });
 
     test('4. Escenario Peligroso: validate() rechaza si el RPC conectado tiene un chainId distinto al configurado', async () => {

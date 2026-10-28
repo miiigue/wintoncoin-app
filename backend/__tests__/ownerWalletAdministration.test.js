@@ -4,20 +4,25 @@ const deployment=require('../src/services/chainDeployment');
 const indexer=require('../src/services/exchangeChainReader');
 const {ChainOperationStore}=require('../src/services/chainOperationStore');
 const current=require('../../web3-contracts/deployment-manifest-v4.json');
-const legacy=require('../../web3-contracts/deployments/optimism-sepolia-legacy-2026-09-25.json');
+const active=require('../../web3-contracts/deployments/optimism-sepolia-active-before-v5-2026-10-27.json');
 
 const contracts=current.contracts;
 const method=(plan,name)=>new Interface([`function ${name}(${name==='setCommissionBps'?'uint256':name==='setCommitmentDuration'?'uint256':'address,uint256'})`]).parseTransaction({data:plan.data});
 
-test('Demo usa toda la suite nueva aunque las variables apunten a la antigua',()=>{
-  const env={WINTON_CHAIN_ID:current.chainId,CORE_PROTOCOL_ADDRESS:legacy.contracts.CoreProtocol,
-    FIFO_EXCHANGE_ADDRESS:legacy.contracts.FifoExchange,EXCHANGE_INDEXER_CHAIN_ID:current.chainId,
-    EXCHANGE_INDEXER_ADDRESS:legacy.contracts.FifoExchange,
-    EXCHANGE_INDEXER_START_BLOCK:String(legacy.startBlocks.FifoExchange)};
-  expect(deployment.configuration(env).contracts).toEqual(current.contracts);
-  expect(indexer.configFromEnv(env).exchange).toBe(current.contracts.FifoExchange.toLowerCase());
-  expect(indexer.configFromEnv(env).startBlock).toBe(current.startBlocks.FifoExchange);
-  expect(()=>deployment.configuration({...env,CORE_PROTOCOL_ADDRESS:'0x0000000000000000000000000000000000000001'})).toThrow();
+test('Demo conserva la suite activa y solo cambia completa a V5 con época explícita',()=>{
+  const activeEnv={WINTON_CHAIN_ID:current.chainId,CORE_PROTOCOL_ADDRESS:active.contracts.CoreProtocol,
+    FIFO_EXCHANGE_ADDRESS:active.contracts.FifoExchange,EXCHANGE_INDEXER_CHAIN_ID:current.chainId,
+    EXCHANGE_INDEXER_ADDRESS:active.contracts.FifoExchange,
+    EXCHANGE_INDEXER_START_BLOCK:String(active.startBlocks.FifoExchange)};
+  expect(deployment.configuration(activeEnv).contracts).toEqual(active.contracts);
+  expect(indexer.configFromEnv(activeEnv)).toMatchObject({exchange:active.contracts.FifoExchange.toLowerCase(),startBlock:active.startBlocks.FifoExchange,epoch:'V4_ACTIVE'});
+  expect(()=>deployment.configuration({...activeEnv,CORE_PROTOCOL_ADDRESS:current.contracts.CoreProtocol})).toThrow();
+  const v5Env={WINTON_CHAIN_ID:current.chainId,WINTON_DEPLOYMENT_EPOCH:'V5_CODEX_163',
+    CORE_PROTOCOL_ADDRESS:current.contracts.CoreProtocol,FIFO_EXCHANGE_ADDRESS:current.contracts.FifoExchange,
+    EXCHANGE_INDEXER_CHAIN_ID:current.chainId,EXCHANGE_INDEXER_ADDRESS:current.contracts.FifoExchange,
+    EXCHANGE_INDEXER_START_BLOCK:String(current.startBlocks.FifoExchange)};
+  expect(deployment.configuration(v5Env).contracts).toEqual(current.contracts);
+  expect(indexer.configFromEnv(v5Env)).toMatchObject({exchange:current.contracts.FifoExchange.toLowerCase(),startBlock:current.startBlocks.FifoExchange,epoch:'V5_CODEX_163',supportsExchangeCollateral:true});
 });
 
 test('solo genera acciones admitidas, en unidades correctas y con comisión cero',()=>{

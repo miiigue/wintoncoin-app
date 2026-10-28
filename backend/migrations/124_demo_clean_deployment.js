@@ -2,6 +2,7 @@
 const fs=require('fs'),path=require('path');
 async function up(client){
  if(process.env.IS_DEMO_ENV!=='true')return;
+ if(process.env.WINTON_DEPLOYMENT_EPOCH!=='V5_CODEX_163')return;
  const config=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../config/demo-reset-163.json'),'utf8'));
  const manifest=JSON.parse(fs.readFileSync(path.resolve(__dirname,'../../web3-contracts/deployment-manifest-v4.json'),'utf8'));
  if(config.epoch!=='CODEX-163'||config.chainId!=='11155420'||String(manifest.chainId)!==config.chainId||manifest.contracts.CoreProtocol.toLowerCase()!==config.core.toLowerCase())throw Error('Configuración de reinicio demo no corresponde a la suite activa.');

@@ -3,25 +3,35 @@ const {readFileSync}=require('fs');
 const path=require('path');
 const {Contract, getAddress, keccak256, toUtf8Bytes}=require('ethers');
 const keys={CoreProtocol:'CORE_PROTOCOL_ADDRESS',CollateralVault:'COLLATERAL_VAULT_ADDRESS',FifoExchange:'FIFO_EXCHANGE_ADDRESS',BlueToken:'BLUE_TOKEN_ADDRESS',RedToken:'RED_TOKEN_ADDRESS',USDT:'USDT_TOKEN_ADDRESS',ProtocolTreasury:'PROTOCOL_TREASURY_ADDRESS'};
+const demoEpochs={
+    V4_ACTIVE:'optimism-sepolia-active-before-v5-2026-10-27.json',
+    V5_CODEX_163:null
+};
+function readJson(relative){return JSON.parse(readFileSync(path.resolve(__dirname,relative),'utf8'));}
 function configuration(env=process.env) {
-    const manifest=JSON.parse(readFileSync(path.resolve(__dirname,'../../../web3-contracts/deployment-manifest-v4.json'),'utf8'));
+    const currentManifest=readJson('../../../web3-contracts/deployment-manifest-v4.json');
     const isDev = env.NODE_ENV === 'development' || env.NODE_ENV === 'test' || /127\.0\.0\.1|localhost/.test(env.OPTIMISM_RPC_URL || '');
-    const chainId=String(env.WINTON_CHAIN_ID || (isDev ? '31337' : manifest.chainId));
+    const chainId=String(env.WINTON_CHAIN_ID || (isDev ? '31337' : currentManifest.chainId));
     if(!/^[1-9]\d*$/.test(chainId)) throw new Error('Red no configurada.');
-    const demo=chainId==='11155420' && manifest.chainId==='11155420';
-    const legacy=demo?JSON.parse(readFileSync(path.resolve(__dirname,'../../../web3-contracts/deployments/optimism-sepolia-legacy-2026-09-25.json'),'utf8')):null;
+    const demo=chainId==='11155420' && currentManifest.chainId==='11155420';
+    const epoch=demo?(env.WINTON_DEPLOYMENT_EPOCH || 'V4_ACTIVE'):'LOCAL_OR_CUSTOM';
+    if(demo&&!Object.prototype.hasOwnProperty.call(demoEpochs,epoch))throw new Error('Época de despliegue Demo no registrada.');
+    const manifest=demo&&demoEpochs[epoch]
+        ?readJson('../../../web3-contracts/deployments/'+demoEpochs[epoch])
+        :currentManifest;
+    if(demo&&String(manifest.chainId)!==chainId)throw new Error('La época seleccionada no corresponde a la red Demo.');
     const contracts={};
     for(const [key,variable] of Object.entries(keys)) {
         const configured=env[variable] || (key==='CoreProtocol'?env.WINTON_PROTOCOL_ADDRESS:key==='ProtocolTreasury'?env.WINTON_TREASURY_ADDRESS:undefined);
-        if(demo && configured && ![manifest.contracts[key],legacy.contracts[key]].some(x=>x.toLowerCase()===getAddress(configured).toLowerCase()))
-            throw new Error('La dirección '+key+' no pertenece a un despliegue registrado.');
-        // The versioned Demo manifest is one indivisible suite. Older variables
-        // may still exist on the host, but cannot create a mixed deployment.
+        if(demo && configured && manifest.contracts[key].toLowerCase()!==getAddress(configured).toLowerCase())
+            throw new Error('La dirección '+key+' no pertenece a la época Demo seleccionada.');
+        // Cada época Demo es una suite indivisible. Las variables del host solo
+        // pueden confirmar esa suite; nunca pueden mezclar contratos entre épocas.
         contracts[key]=getAddress(demo?manifest.contracts[key]:(configured || manifest.contracts[key]));
         if(/^0x0{40}$/i.test(contracts[key]))throw new Error('Contrato no configurado: '+key);
     }
-    const fingerprint=keccak256(toUtf8Bytes(JSON.stringify({chainId,contracts})));
-    return {chainId,contracts,fingerprint};
+    const fingerprint=keccak256(toUtf8Bytes(JSON.stringify({chainId,epoch,contracts})));
+    return {chainId,epoch,contracts,startBlocks:manifest.startBlocks||{},fingerprint};
 }
 function provider() {
     const {ChainRpcProvider,endpoints}=require('./chainRpcProvider');
