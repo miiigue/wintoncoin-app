@@ -28,16 +28,20 @@ function uint(value, max = BigInt(Number.MAX_SAFE_INTEGER)) {
     return BigInt(value);
 }
 function identityFromEnv(env = process.env) {
-    const chainId = uint(env.EXCHANGE_INDEXER_CHAIN_ID || env.WINTON_CHAIN_ID, (1n << 256n) - 1n).toString();
+    const selected = env.WINTON_DEPLOYMENT_EPOCH
+        ? require('./chainDeployment').configuration(env)
+        : null;
+    const configuredChainId = env.EXCHANGE_INDEXER_CHAIN_ID || env.WINTON_CHAIN_ID || selected?.chainId;
+    const chainId = uint(configuredChainId, (1n << 256n) - 1n).toString();
     if (chainId === '0') fail('INVALID_CONFIG');
     if (chainId === '11155420') {
-        const selected=require('./chainDeployment').configuration(env);
-        if(selected.chainId!==chainId)fail('INVALID_CONFIG');
-        if(env.EXCHANGE_INDEXER_ADDRESS && selected.contracts.FifoExchange.toLowerCase()!==address(env.EXCHANGE_INDEXER_ADDRESS))fail('INVALID_CONFIG');
-        const startBlock=Number(selected.startBlocks?.FifoExchange);
+        const deployment=selected || require('./chainDeployment').configuration(env);
+        if(deployment.chainId!==chainId)fail('INVALID_CONFIG');
+        if(env.EXCHANGE_INDEXER_ADDRESS && deployment.contracts.FifoExchange.toLowerCase()!==address(env.EXCHANGE_INDEXER_ADDRESS))fail('INVALID_CONFIG');
+        const startBlock=Number(deployment.startBlocks?.FifoExchange);
         if(!Number.isSafeInteger(startBlock)||startBlock<1)fail('INVALID_CONFIG');
-        return {chainId,exchange:selected.contracts.FifoExchange.toLowerCase(),epoch:selected.epoch,startBlock,
-            supportsExchangeCollateral:selected.epoch==='V5_CODEX_163'};
+        return {chainId,exchange:deployment.contracts.FifoExchange.toLowerCase(),epoch:deployment.epoch,startBlock,
+            supportsExchangeCollateral:deployment.epoch==='V5_CODEX_163'};
     }
     const exchange = address(env.EXCHANGE_INDEXER_ADDRESS);
     if (/^0x0{40}$/.test(exchange)) fail('INVALID_CONFIG');

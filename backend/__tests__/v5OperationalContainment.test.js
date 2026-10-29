@@ -58,7 +58,7 @@ describe('contención operativa V5', () => {
 
     test('el indexador Demo deriva Exchange y bloque de la época sin overrides heredados', () => {
         const config = configFromEnv({
-            NODE_ENV: 'production', WINTON_CHAIN_ID: '11155420', WINTON_DEPLOYMENT_EPOCH: 'V5_CODEX_163',
+            NODE_ENV: 'production', WINTON_DEPLOYMENT_EPOCH: 'V5_CODEX_163',
             OPTIMISM_RPC_URL: 'https://sepolia.optimism.io'
         });
         expect(config).toMatchObject({
