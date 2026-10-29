@@ -1,61 +1,60 @@
-# Reporte de Auditoría y Ensayo de Conciliación: Transición V4 a V5 (Demo)
+# Auditoría de conciliación V4 a V5 — evidencia histórica no aprobada
 
-**Fecha de Ejecución:** 2026-10-28 03:07:14 UTC  
-**Red:** Optimism Sepolia (Chain ID: `11155420`)  
-**Bloque Finalizado Inspeccionado:** `50676496`  
-**Hash de Bloque:** `0x33df355bcba64a8ca41f1fa6a0755efa3bcfdde81f8185b0fe55f178c1702e97`  
-**Herramienta:** `backend/scripts/audit_v5_migration_readonly.js`  
-**Modo:** `READ_ONLY_DRY_RUN_FAIL_CLOSED` (Solo lectura, Cero Confianza)
+Fecha del ensayo original: 2026-10-28 03:07:14 UTC
 
----
+Red: Optimism Sepolia (`11155420`)
 
-## 1. Objetivo del Ensayo
-Ejecutar el protocolo formal de auditoría y conciliación de migración para evaluar el estado on-chain de la suite activa previa (`V4_ACTIVE`) frente a la nueva suite verificada (`V5_CODEX_163`), verificando si existen compromisos RED, tokens BLUE, parking, órdenes o fondos en custodia que requieran migración activa antes del corte.
+Bloque finalizado: `50676496`
 
----
+Hash: `0x33df355bcba64a8ca41f1fa6a0755efa3bcfdde81f8185b0fe55f178c1702e97`
 
-## 2. Direcciones Auditadas
+Modo: `READ_ONLY_DRY_RUN_FAIL_CLOSED`
 
-### Suite Fuente (V4 Active en Render)
-- **CoreProtocol:** `0x5Ec1034640b3360AfFc04c8AA674A8Ba4b1a0274`
-- **CollateralVault:** `0x8683B546f8Ad6AD625f225FE50b1C49BCe1B3797`
-- **FifoExchange:** `0xbf61470F69A80CA839c663908f31DA69361A4054`
-- **BlueToken:** `0xDDD703CB06C491cB2bC778eaE2A5a9B4e2F32B2D`
-- **RedToken:** `0xf1eB634808D71F3e2376966e1D78D935B752944C`
-- **USDT:** `0x69aa5df5063714a2e9F6ED256043780a3753C431`
-- **ProtocolTreasury:** `0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2`
+## Veredicto fiel al archivo fuente
 
-### Suite Destino (V5 Codex 163 Desplegada)
-- **CoreProtocol:** `0x103C502611008dAf8B0488E99486e46CCB00F41b`
-- **CollateralVault:** `0xF970332060f1DB1475Fe2DAF1b5dfd89111c1A2B`
-- **FifoExchange:** `0xE229ca0F66fA7b56130B81BadcfcB028C85c4917`
-- **BlueToken:** `0x376ee519eFFB06FBF1Bcb31a406507E41A817923`
-- **RedToken:** `0x0C14088080C96204eb24D60Fb852bCd272954865`
-- **USDT:** `0xF9913A351735862dF6AC9a927DE1e3aD871faf6E`
-- **ProtocolTreasury:** `0x0723B1943Cb4EcDFcDD842B517006A076F281238`
+El archivo `backend/scripts/v5-audit-demo-report.json` contiene `ready: false` y cinco bloqueos `INCOMPLETE_READ`. Por tanto, este ensayo histórico **no aprobó el corte ni certificó una migración completa**.
 
----
+La causa de esos cinco bloqueos fue consultar `automaticExchangeCollateral` en la bóveda V4, que no implementa esa capacidad. El lector corregido exige declarar las capacidades de cada suite y omite solamente las consultas marcadas explícitamente como inexistentes. Cualquier otra lectura fallida continúa bloqueando la salida.
 
-## 3. Hallazgos On-Chain Verificados
+## Evidencia que sí aporta el ensayo
 
-1. **Invariante y Suministro en Suite V4**:
-   - `blueSupply`: `0`
-   - `redSupply`: `0`
-   - `totalCollateralLocked`: `0`
-   - `totalExchangeReserved`: `0`
-   - `nextOrderId`: `1` (Cero órdenes creadas)
-   - **Conclusión**: Como la plataforma operó bajo Modo Pre-lanzamiento en Demo, las actividades de usuarios y Boosters se registraron en base de datos sin originar compromisos ni emisiones en la blockchain. **No existen fondos, lotes ni órdenes huérfanas en la suite V4**.
+En el bloque fijado, las lecturas globales de V4 indicaron:
 
-2. **Diferencias Estructurales Detectadas**:
-   - La suite V4 carece del método `automaticExchangeCollateral` (generando `missing revert data` al consultarlo en el Vault antiguo), lo que demuestra que la V5 incluye capacidades funcionales superiores y necesarias.
-   - En V5, la nueva tesorería `0x0723...` ya cuenta con `kyc: true` en el CoreProtocol.
+- `blueSupply = 0`;
+- `redSupply = 0`;
+- `totalCollateralLocked = 0`;
+- `totalExchangeReserved = 0`;
+- `nextOrderId = 1`;
+- saldos y reservas globales del Exchange en cero.
 
-3. **Veredicto de Migración**:
-   - No se requiere ningún rescate ni transporte manual de tokens desde V4.
-   - La suite V5 inicia en paridad estricta $BLUE = RED = 0$, lista para operar limpiamente con el keeper de mantenimiento y el consentimiento legal de afectación de órdenes.
+Esto aporta evidencia fuerte de que no había tokens, custodia ni órdenes on-chain que transportar en ese bloque. No demuestra por sí solo que el estado administrativo estuviera vacío: KYC, límites, niveles y nonces son mappings que requieren una lista exhaustiva de billeteras.
 
----
+## Limitación del inventario original
 
-## 4. Archivo Fuente del Reporte
-El dump JSON detallado de todos los getters y snapshots por billetera y variable global se encuentra archivado en:  
-[`backend/scripts/v5-audit-demo-report.json`](file:///c:/Users/migue/OneDrive/Escritorio/WINTONCOIN/smart-contract/backend/scripts/v5-audit-demo-report.json).
+La configuración histórica declaró `walletInventory.complete: true` con solo cinco direcciones y sin una exportación verificable de PostgreSQL. Esa declaración manual ya no es aceptada.
+
+El flujo corregido requiere dos pasos:
+
+1. Construir el inventario desde un snapshot PostgreSQL `REPEATABLE READ READ ONLY`. El generador une `users.web3_wallet_address` con órdenes, refunds, snapshots, consentimientos, lotes y acciones observados por los indexadores, además de relayer, owner y tesorerías declarados explícitamente:
+
+   `node backend/scripts/build_v5_audit_inventory.js --config backend/scripts/v5-audit-demo-run.json --output <inventario-generado.json>`
+
+2. Ejecutar la auditoría on-chain usando exclusivamente el inventario generado:
+
+   `node backend/scripts/audit_v5_migration_readonly.js --config <inventario-generado.json> --output <reporte-nuevo.json>`
+
+El inventario generado no contiene nombres, correos, teléfonos ni IDs internos de usuario. Conserva direcciones públicas de billetera, conteos agregados, fecha, huella de las consultas y SHA-256 del conjunto ordenado. Las direcciones son identificadores seudónimos y pueden considerarse datos personales cuando sean vinculables; el archivo debe protegerse con acceso mínimo y retención definida. La salida se crea con exclusión para impedir sobrescribir evidencia anterior.
+
+## Criterio de aprobación
+
+Un reporte posterior solo puede considerarse apto para revisión cuando cumpla simultáneamente:
+
+- `ready: true`;
+- cero `blockers` y cero lecturas incompletas;
+- inventario PostgreSQL conciliado, sin direcciones inválidas o duplicadas;
+- capacidades V4/V5 explícitas;
+- bloque finalizado y hash registrados;
+- diferencias administrativas revisadas por una persona autorizada;
+- pruebas E2E y plan de rollback documentados por separado.
+
+Las pruebas técnicas no constituyen certificación legal, bancaria, SOC 2 ni garantía absoluta de seguridad.

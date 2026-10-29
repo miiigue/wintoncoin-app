@@ -13,6 +13,13 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-29 — Contención operativa V5, reparación del indexador y evidencia reproducible
+* **Contención por defecto**: V5 queda en modo de solo lectura salvo que se habilite explícitamente con el fingerprint exacto del despliegue y el indexador confirme estado `ready`, sin errores y reciente. Las pausas de emergencia siguen disponibles; el desbloqueo queda impedido mientras exista contención.
+* **Indexador alineado con la época**: el backend deriva dirección y bloque inicial del Exchange desde `V5_CODEX_163`, evitando depender de variables V4 retiradas y permitiendo recuperar la cola del Exchange tras el despliegue.
+* **Auditoría verificable**: el inventario de migración se construye desde una instantánea PostgreSQL de solo lectura, incorpora fuentes operativas además de usuarios, registra hashes y rechaza evidencia incompleta, duplicada o marcada manualmente como completa.
+* **Dependencias del proceso real de Render**: se actualizaron las dependencias raíz usadas por `npm install` y `node server.js`; `npm audit --omit=dev --audit-level=high` confirma cero vulnerabilidades altas o críticas. Permanecen cinco hallazgos bajos/moderados cuya corrección propuesta requiere cambios mayores y debe evaluarse separadamente.
+* **Verificación local integrada**: 136/136 módulos cargaron; 58 suites y 417 pruebas pasaron. Esta evidencia técnica no equivale a certificación SOC 2 ni a dictamen de cumplimiento legal.
+
 ### 2026-10-28 — Activación Oficial de Suite V5 en Render y Remediación de Vulnerabilidades de Producción (npm audit)
 * **Diagnóstico & Resolución Operativa en Render**:
   - *Despliegue y Purga de Variables Heredadas*: Se eliminaron en Render las variables individuales heredadas que forzaban direcciones de la suite V4 y se fijó `WINTON_DEPLOYMENT_EPOCH = V5_CODEX_163`.
@@ -22,7 +29,7 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
   - Se ajustó la configuración de pruebas en `package.json` ignorando los ejecutores nativos de node para garantizar la ejecución limpia de Jest.
 * **Verificación de Pruebas**:
   - Suite V5 de backend: **20/20 PASS** (`v5MigrationReadiness`, `applyV5DemoSettings`, `exchangeCollateralConsent`, `exchangeCollateralProjection`, `demoCleanDeploymentMigration`).
-* **Veredicto**: Suite V5 100% activa en producción Demo y dependencias de producción blindadas bajo estándares SOC 2.
+* **Veredicto corregido**: V5 quedó activa en Demo, pero esa activación no acreditó por sí sola preparación operativa completa, certificación SOC 2 ni cumplimiento legal. La contención y la evidencia adicional del 2026-10-29 fueron necesarias antes de autorizar escrituras económicas.
 
 ### 2026-10-28 — Ensayo General de Conciliación On-Chain V4 a V5: Verificación Criptográfica en Bloque Finalizado 50676496
 * **Diagnóstico & Ensayo de Producción**:

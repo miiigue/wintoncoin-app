@@ -1,6 +1,11 @@
 'use strict';
 
-const { reconcileSnapshots, validateConfig } = require('../src/services/v5MigrationReadiness');
+const {
+  INVENTORY_SOURCE_KIND,
+  reconcileSnapshots,
+  validateConfig,
+  walletSetDigest,
+} = require('../src/services/v5MigrationReadiness');
 
 const addresses = {
   CoreProtocol: '0x0000000000000000000000000000000000000011',
@@ -54,6 +59,33 @@ function snapshot(label, userOverrides = {}, globalOverrides = {}, orderOverride
   };
 }
 
+function validConfig() {
+  const wallets = ['0x0000000000000000000000000000000000000001'];
+  return {
+    schemaVersion: 1,
+    chainId: '11155420',
+    walletInventory: {
+      complete: true,
+      sourceKind: INVENTORY_SOURCE_KIND,
+      exportedAt: '2026-10-28T00:00:00.000Z',
+      recordCount: 1,
+      databaseTotalUsers: 1,
+      databaseRowsWithWallet: 1,
+      databaseRowsWithoutWallet: 0,
+      databaseUniqueWallets: 1,
+      databaseObservedWalletRows: 1,
+      databaseUniqueObservedWallets: 1,
+      databaseSourceCounts: { users: 1 },
+      operationalWalletCount: 0,
+      querySha256: 'a'.repeat(64),
+      addressSetSha256: walletSetDigest(wallets),
+    },
+    wallets,
+    sourceSuite: { epoch: 'V4_ACTIVE', contracts: addresses, capabilities: { automaticExchangeCollateral: false, exchangeCollateralized: false } },
+    destinationSuite: { epoch: 'V5_CODEX_163', contracts: addresses, capabilities: { automaticExchangeCollateral: true, exchangeCollateralized: true } },
+  };
+}
+
 describe('conciliación V5 de solo lectura', () => {
   test('falla cerrado si el inventario de billeteras no está atestado como completo', () => {
     const config = {
@@ -67,10 +99,43 @@ describe('conciliación V5 de solo lectura', () => {
     expect(validateConfig(config)).toContainEqual(expect.stringContaining('walletInventory.complete'));
   });
 
+  test('no acepta complete=true autodeclarado sin procedencia, conteos ni huellas', () => {
+    const config = validConfig();
+    config.walletInventory = { complete: true };
+    expect(validateConfig(config)).toEqual(expect.arrayContaining([
+      expect.stringContaining('sourceKind'),
+      expect.stringContaining('recordCount'),
+      expect.stringContaining('querySha256'),
+      expect.stringContaining('addressSetSha256'),
+    ]));
+  });
+
+  test('acepta un inventario PostgreSQL conciliado y capacidades explícitas por suite', () => {
+    expect(validateConfig(validConfig())).toEqual([]);
+  });
+
+  test('rechaza una huella de billeteras alterada o capacidades implícitas', () => {
+    const config = validConfig();
+    config.walletInventory.addressSetSha256 = 'b'.repeat(64);
+    delete config.sourceSuite.capabilities.exchangeCollateralized;
+    expect(validateConfig(config)).toEqual(expect.arrayContaining([
+      expect.stringContaining('addressSetSha256 no coincide'),
+      expect.stringContaining('sourceSuite.capabilities.exchangeCollateralized'),
+    ]));
+  });
+
+  test('no permite declarar como ausente una capacidad registrada para la época V5', () => {
+    const config = validConfig();
+    config.destinationSuite.capabilities.automaticExchangeCollateral = false;
+    expect(validateConfig(config)).toContainEqual(expect.stringContaining('no coincide con V5_CODEX_163'));
+  });
+
   test('considera listo solamente el estado vacío, pareado, solvente y completamente legible', () => {
-    const result = reconcileSnapshots(snapshot('source'), snapshot('destination'), { chainId: '11155420', blockNumber: 1 });
+    const inventory = { complete: true, addressSetSha256: 'a'.repeat(64) };
+    const result = reconcileSnapshots(snapshot('source'), snapshot('destination'), { chainId: '11155420', blockNumber: 1, walletInventory: inventory });
     expect(result.ready).toBe(true);
     expect(result.blockers).toEqual([]);
+    expect(result.walletInventory).toBe(inventory);
   });
 
   test('bloquea una fuente con supply BLUE/RED desigual', () => {

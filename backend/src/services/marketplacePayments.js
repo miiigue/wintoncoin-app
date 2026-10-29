@@ -36,6 +36,7 @@ class MarketplacePayments {
  }
  async terms(){await deployment.validate(this.rpc,this.config);const c=new Contract(this.config.contracts.CoreProtocol,abi,this.rpc);return {feeBps:String(await c.commissionBps()),durationSeconds:String(await c.COMMITMENT_DURATION())};}
  async begin(client,p,pin) {
+  await require('./economicWriteGate').assertOperational({pool:this.pool,config:this.config,operation:'marketplace_begin'});
   if(!/^[1-9]\d*$/.test(String(p.publicationId))||!/^\d{1,12}(\.\d{1,6})?$/.test(String(p.amount)))throw error('Publicación o importe inválido.',400);
   if(p.acceptanceId&&!/^[1-9]\d*$/.test(String(p.acceptanceId)))throw error('Participación inválida.',400);
   const publicationSnapshot=(await client.query('SELECT * FROM publications WHERE id=$1 FOR UPDATE',[p.publicationId])).rows[0];
@@ -96,6 +97,7 @@ class MarketplacePayments {
   }
  }
  async authorize(userId,operationId,signature) {
+  await require('./economicWriteGate').assertOperational({pool:this.pool,config:this.config,operation:'marketplace_authorize'});
   const row=await this.store.get(operationId);
   if(row.kind!=='marketplace'||row.payload.payerId!==userId)throw error('Pago no encontrado.',404);
   if(typeof signature!=='string'||!/^0x(?:[0-9a-f]{2}){65,16384}$/i.test(signature))throw error('Autorización inválida.',400);

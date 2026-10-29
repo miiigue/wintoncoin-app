@@ -1,5 +1,6 @@
 'use strict';
 
+const { createHash } = require('crypto');
 const { Contract, getAddress, isAddress } = require('ethers');
 
 const REQUIRED_CONTRACTS = Object.freeze([
@@ -62,6 +63,16 @@ const ABIS = Object.freeze({
 });
 
 const ZERO = '0';
+const INVENTORY_SOURCE_KIND = 'postgres_users_plus_explicit_operational';
+const KNOWN_EPOCH_CAPABILITIES = Object.freeze({
+  V4_ACTIVE: Object.freeze({ automaticExchangeCollateral: false, exchangeCollateralized: false }),
+  V5_CODEX_163: Object.freeze({ automaticExchangeCollateral: true, exchangeCollateralized: true }),
+});
+
+function walletSetDigest(wallets) {
+  const canonical = wallets.map(getAddress).map((wallet) => wallet.toLowerCase()).sort();
+  return createHash('sha256').update(JSON.stringify(canonical)).digest('hex');
+}
 
 function normalize(value) {
   if (typeof value === 'bigint') return value.toString();
@@ -85,9 +96,6 @@ function validateConfig(config) {
   const errors = [];
   if (!config || config.schemaVersion !== 1) errors.push('schemaVersion debe ser 1');
   if (!config || !/^\d+$/.test(String(config.chainId || ''))) errors.push('chainId es obligatorio');
-  if (!config || !config.walletInventory || config.walletInventory.complete !== true) {
-    errors.push('walletInventory.complete debe ser true; los mappings no se pueden descubrir de forma exhaustiva por RPC');
-  }
   if (!config || !Array.isArray(config.wallets) || config.wallets.length === 0) {
     errors.push('wallets debe contener al menos una dirección');
   }
@@ -100,6 +108,44 @@ function validateConfig(config) {
       seen.add(canonical);
     }
   }
+  const inventory = config && config.walletInventory;
+  if (!inventory || inventory.complete !== true) {
+    errors.push('walletInventory.complete debe ser true y proceder de una exportación PostgreSQL verificable; los mappings no se descubren por RPC');
+  } else {
+    if (inventory.sourceKind !== INVENTORY_SOURCE_KIND) errors.push(`walletInventory.sourceKind debe ser ${INVENTORY_SOURCE_KIND}`);
+    if (!Number.isSafeInteger(inventory.recordCount) || inventory.recordCount !== seen.size) {
+      errors.push('walletInventory.recordCount debe coincidir con la cantidad de billeteras únicas');
+    }
+    for (const field of ['databaseTotalUsers', 'databaseRowsWithWallet', 'databaseRowsWithoutWallet', 'databaseUniqueWallets', 'databaseObservedWalletRows', 'databaseUniqueObservedWallets', 'operationalWalletCount']) {
+      if (!Number.isSafeInteger(inventory[field]) || inventory[field] < 0) errors.push(`walletInventory.${field} debe ser un entero no negativo`);
+    }
+    if (Number.isSafeInteger(inventory.databaseTotalUsers)
+      && Number.isSafeInteger(inventory.databaseRowsWithWallet)
+      && Number.isSafeInteger(inventory.databaseRowsWithoutWallet)
+      && inventory.databaseRowsWithWallet + inventory.databaseRowsWithoutWallet !== inventory.databaseTotalUsers) {
+      errors.push('walletInventory: los conteos PostgreSQL no concilian');
+    }
+    if (Number.isSafeInteger(inventory.databaseRowsWithWallet)
+      && Number.isSafeInteger(inventory.databaseUniqueWallets)
+      && inventory.databaseRowsWithWallet !== inventory.databaseUniqueWallets) {
+      errors.push('walletInventory: existen billeteras PostgreSQL duplicadas o no conciliadas');
+    }
+    if (Number.isSafeInteger(inventory.databaseObservedWalletRows)
+      && Number.isSafeInteger(inventory.databaseUniqueObservedWallets)
+      && inventory.databaseUniqueObservedWallets > inventory.databaseObservedWalletRows) {
+      errors.push('walletInventory: el inventario observado no concilia');
+    }
+    if (!inventory.databaseSourceCounts || typeof inventory.databaseSourceCounts !== 'object' || Array.isArray(inventory.databaseSourceCounts)) {
+      errors.push('walletInventory.databaseSourceCounts es obligatorio');
+    } else if (Number.isSafeInteger(inventory.databaseObservedWalletRows)) {
+      const sourceTotal = Object.values(inventory.databaseSourceCounts).reduce((total, value) => total + (Number.isSafeInteger(value) && value >= 0 ? value : Number.NaN), 0);
+      if (!Number.isSafeInteger(sourceTotal) || sourceTotal !== inventory.databaseObservedWalletRows) errors.push('walletInventory.databaseSourceCounts no concilia');
+    }
+    if (!/^\d{4}-\d{2}-\d{2}T/.test(String(inventory.exportedAt || ''))) errors.push('walletInventory.exportedAt debe ser ISO-8601');
+    if (!/^[a-f0-9]{64}$/.test(String(inventory.querySha256 || ''))) errors.push('walletInventory.querySha256 es obligatorio');
+    if (!/^[a-f0-9]{64}$/.test(String(inventory.addressSetSha256 || ''))) errors.push('walletInventory.addressSetSha256 es obligatorio');
+    else if (seen.size && inventory.addressSetSha256 !== walletSetDigest([...seen])) errors.push('walletInventory.addressSetSha256 no coincide con wallets');
+  }
   for (const suiteName of ['sourceSuite', 'destinationSuite']) {
     const suite = config && config[suiteName];
     if (!suite || !suite.contracts) {
@@ -109,6 +155,14 @@ function validateConfig(config) {
     for (const name of REQUIRED_CONTRACTS) {
       const address = suite.contracts[name];
       if (!isAddress(address || '')) errors.push(`${suiteName}.contracts.${name} no es una dirección válida`);
+    }
+    const expectedCapabilities = KNOWN_EPOCH_CAPABILITIES[suite.epoch];
+    if (!expectedCapabilities) errors.push(`${suiteName}.epoch no está registrado`);
+    for (const capability of ['automaticExchangeCollateral', 'exchangeCollateralized']) {
+      if (typeof suite.capabilities?.[capability] !== 'boolean') errors.push(`${suiteName}.capabilities.${capability} debe ser booleano`);
+      else if (expectedCapabilities && suite.capabilities[capability] !== expectedCapabilities[capability]) {
+        errors.push(`${suiteName}.capabilities.${capability} no coincide con ${suite.epoch}`);
+      }
     }
   }
   return errors;
@@ -149,7 +203,7 @@ function asCount(value, path, maximum, errors) {
   return count;
 }
 
-async function captureUser(contracts, wallet, blockTag, limits, errors, suiteLabel) {
+async function captureUser(contracts, wallet, blockTag, limits, errors, suiteLabel, capabilities) {
   const p = `${suiteLabel}.users.${wallet}`;
   const core = contracts.CoreProtocol;
   const blue = contracts.BlueToken;
@@ -172,7 +226,9 @@ async function captureUser(contracts, wallet, blockTag, limits, errors, suiteLab
     pendingReserve: await safeRead(vault, 'pendingReserve', [wallet], blockTag, errors, `${p}.pendingReserve`),
     activeAmortizationOrder: await safeRead(vault, 'activeAmortizationOrder', [wallet], blockTag, errors, `${p}.activeAmortizationOrder`),
     pendingMaturedOnly: await safeRead(vault, 'pendingMaturedOnly', [wallet], blockTag, errors, `${p}.pendingMaturedOnly`),
-    automaticExchangeCollateral: await safeRead(vault, 'automaticExchangeCollateral', [wallet], blockTag, errors, `${p}.automaticExchangeCollateral`),
+    automaticExchangeCollateral: capabilities.automaticExchangeCollateral
+      ? await safeRead(vault, 'automaticExchangeCollateral', [wallet], blockTag, errors, `${p}.automaticExchangeCollateral`)
+      : false,
     pendingRefundBlue: await safeRead(exchange, 'pendingRefundBlue', [wallet], blockTag, errors, `${p}.pendingRefundBlue`),
     pendingRefundUsdt: await safeRead(exchange, 'pendingRefundUsdt', [wallet], blockTag, errors, `${p}.pendingRefundUsdt`),
     parkingLots: [],
@@ -203,6 +259,8 @@ async function captureUser(contracts, wallet, blockTag, limits, errors, suiteLab
 
 async function captureSuite(provider, suite, wallets, blockTag, limits, label) {
   const errors = [];
+  const capabilities = KNOWN_EPOCH_CAPABILITIES[suite.epoch];
+  if (!capabilities) throw new Error(`Época no registrada para ${label}`);
   const contracts = makeContracts(provider, suite);
   const globals = {
     blueSupply: await safeRead(contracts.BlueToken, 'totalSupply', [], blockTag, errors, `${label}.globals.blueSupply`),
@@ -224,7 +282,7 @@ async function captureSuite(provider, suite, wallets, blockTag, limits, label) {
   };
 
   const users = [];
-  for (const wallet of wallets) users.push(await captureUser(contracts, wallet, blockTag, limits, errors, label));
+  for (const wallet of wallets) users.push(await captureUser(contracts, wallet, blockTag, limits, errors, label, capabilities));
 
   const nextOrderRaw = await safeRead(contracts.FifoExchange, 'nextOrderId', [], blockTag, errors, `${label}.globals.nextOrderId`);
   globals.nextOrderId = nextOrderRaw;
@@ -234,7 +292,9 @@ async function captureSuite(provider, suite, wallets, blockTag, limits, label) {
     for (let id = 1; id < nextOrderId; id += 1) {
       const order = await safeRead(contracts.FifoExchange, 'orders', [id], blockTag, errors, `${label}.orders.${id}`);
       const amortization = await safeRead(contracts.FifoExchange, 'isAmortizationOrder', [id], blockTag, errors, `${label}.orders.${id}.amortization`);
-      const collateralized = await safeRead(contracts.FifoExchange, 'exchangeCollateralized', [id], blockTag, errors, `${label}.orders.${id}.collateralized`);
+      const collateralized = capabilities.exchangeCollateralized
+        ? await safeRead(contracts.FifoExchange, 'exchangeCollateralized', [id], blockTag, errors, `${label}.orders.${id}.collateralized`)
+        : null;
       if (order !== null) {
         orders.push({
           id: order[0], sequenceId: order[1], remainingAmount: order[2], user: order[3], status: order[4], side: order[5],
@@ -243,7 +303,7 @@ async function captureSuite(provider, suite, wallets, blockTag, limits, label) {
       }
     }
   }
-  return { label, contracts: suite.contracts, globals, users, orders, readErrors: errors };
+  return { label, epoch: suite.epoch, contracts: suite.contracts, capabilities, globals, users, orders, readErrors: errors };
 }
 
 function nonZero(value) {
@@ -368,6 +428,7 @@ function reconcileSnapshots(source, destination, metadata = {}) {
     blockNumber: metadata.blockNumber,
     blockHash: metadata.blockHash,
     mode: 'READ_ONLY_DRY_RUN_FAIL_CLOSED',
+    walletInventory: metadata.walletInventory,
     ready: blockers.length === 0,
     blockers,
     warnings,
@@ -409,15 +470,23 @@ async function auditMigration({ provider, config, limits = {} }) {
   const wallets = config.wallets.map(getAddress);
   const source = await captureSuite(provider, config.sourceSuite, wallets, block.number, effectiveLimits, 'sourceSuite');
   const destination = await captureSuite(provider, config.destinationSuite, wallets, block.number, effectiveLimits, 'destinationSuite');
-  return reconcileSnapshots(source, destination, { chainId: String(network.chainId), blockNumber: block.number, blockHash: block.hash });
+  return reconcileSnapshots(source, destination, {
+    chainId: String(network.chainId),
+    blockNumber: block.number,
+    blockHash: block.hash,
+    walletInventory: config.walletInventory,
+  });
 }
 
 module.exports = {
   ABIS,
+  INVENTORY_SOURCE_KIND,
+  KNOWN_EPOCH_CAPABILITIES,
   REQUIRED_CONTRACTS,
   auditMigration,
   captureSuite,
   normalize,
   reconcileSnapshots,
   validateConfig,
+  walletSetDigest,
 };

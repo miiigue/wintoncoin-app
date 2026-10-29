@@ -34,6 +34,8 @@ async function build(rpc,config,authorization,signature,executor=relayer()) {
     return call;
 }
 async function sponsoredStep(pool,rpc,chainId,userId,row,call) {
+    const config=require('./chainDeployment').configuration();
+    await require('./economicWriteGate').assertOperational({pool,config,operation:call?.label||'safe_sponsored_step'});
     return locked(pool,'gas-budget:'+chainId,async client=>{
         const settings=Object.fromEntries((await client.query("SELECT setting_key,setting_value FROM app_settings WHERE setting_key LIKE 'gas_sponsor_%'")).rows.map(x=>[x.setting_key,x.setting_value]));
         const limit=Number(settings.gas_sponsor_daily_user_operations||0),cap=BigInt(settings.gas_sponsor_daily_budget_wei||'0'),max=BigInt(settings.gas_sponsor_max_topup_wei||'0');

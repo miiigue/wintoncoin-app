@@ -8,6 +8,7 @@ const {signStep}=require('./chainSigning');
 // including administrative test actions. They cannot take a payment's nonce.
 async function execute(bridge,contract,method,args,{deduplicate=false}={}){
  const pool=require('../config/db'),config=await deployment.validate(bridge.provider);
+ await require('./economicWriteGate').assertOperational({pool,config,operation:method});
  const signer=new Wallet(process.env.RELAYER_PRIVATE_KEY),store=new ChainOperationStore(pool,bridge.provider);
  const target=await contract.getAddress(),data=contract.interface.encodeFunctionData(method,args);
  const key=['relayer',config.chainId,target.toLowerCase(),method,deduplicate?keccak256(data):randomUUID()].join(':');

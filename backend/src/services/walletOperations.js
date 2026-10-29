@@ -56,6 +56,7 @@ class WalletOperations {
         return row;
     }
     async prepare(userId,input) {
+        await require('./economicWriteGate').assertOperational({pool:this.pool,config:this.config,operation:'wallet_prepare'});
         const p=normalized(input),user=await this.identity(userId),c=this.config.contracts;
         if(p.action==='autoCollateral'&&p.enabled)await this.consentService.assertCurrentConsent(this.pool,userId,user.address);
         await deployment.validate(this.rpc,this.config);
@@ -120,6 +121,7 @@ class WalletOperations {
             maxNetworkFeeEth:formatEther(BigInt(maxFeeWei)*BigInt(plan.length)),stepsCount:plan.length};
     }
     async authorize(userId,id,authorization) {
+        await require('./economicWriteGate').assertOperational({pool:this.pool,config:this.config,operation:'wallet_authorize'});
         const user=await this.identity(userId);
         return this.store.authorize(id,userId,async(row,client)=>{
             await this.identity(userId);

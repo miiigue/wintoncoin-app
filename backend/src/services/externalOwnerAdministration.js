@@ -53,6 +53,7 @@ function actionPlan(action,input,contracts) {
 async function prepare({pool,provider,action,input}){
   const config=await deployment.validate(provider);
   const plan=actionPlan(action,input,config.contracts);
+  await require('./economicWriteGate').assertOperational({pool,config,operation:action});
   const owner=getAddress(await new Contract(plan.target,abi,provider).owner());
   const store=new ChainOperationStore(pool,provider);
   return locked(pool,plan.resource,async client=>{
@@ -71,6 +72,8 @@ async function confirm({pool,provider,id,hash}){
   if(!/^0x[0-9a-fA-F]{64}$/.test(String(hash)))throw error('Identificador de transacción inválido.',400);
   const store=new ChainOperationStore(pool,provider),initial=await store.get(id);
   if(!initial.kind.startsWith('owner:'))throw error('Operación no admitida.',400);
+  const selected=await deployment.validate(provider);
+  await require('./economicWriteGate').assertOperational({pool,config:selected,operation:initial.kind});
   if(initial.state==='confirmed'||initial.state==='failed'||initial.state==='conflict')return publicResult(initial);
   return locked(pool,'signer:'+initial.chain_id+':'+initial.sender,async client=>{
     const row=await store.get(id);
@@ -79,7 +82,7 @@ async function confirm({pool,provider,id,hash}){
       return store.advanceLocked(row,client);
     }
     if(row.state!=='prepared'||row.steps?.length)throw error('Operación ya utilizada.',409);
-    const config=await deployment.validate(provider);
+    const config=selected;
     if(config.fingerprint!==row.payload.fingerprint||config.chainId!==row.chain_id)throw error('El despliegue cambió. Prepara la operación nuevamente.',409);
     const tx=await provider.getTransaction(hash);
     if(!tx)return {success:false,pending:true,operationId:id,txHash:hash,message:'La red aún no devuelve la transacción. Consulta de nuevo sin repetir la firma.'};

@@ -51,6 +51,8 @@ function assertCancellation(config,row,call){
  if(args[0].toLowerCase()!==config.contracts.recoveryModule.address.toLowerCase()||args[1]!==0n||args[2]!==cancel||args[3]!==0n||args[4]!==0n||args[5]!==0n||args[6]!==0n||args[7]!==ZeroAddress||args[8]!==ZeroAddress)throw error('Solo se patrocina cancelar la recuperación, sin pagos ni reembolsos.');
 }
 async function sponsor(pool,rpc,config,row,call,env=process.env){
+ await require('./economicWriteGate').assertOperational({pool,env,
+  config:require('./chainDeployment').configuration(env),operation:'recovery_cancel'});
  assertCancellation(config,row,call);
  const executor=signer(env);
  if(row.sender.toLowerCase()!==executor.address.toLowerCase())throw error('El ejecutor de emergencia cambió.');
@@ -63,7 +65,9 @@ async function sponsor(pool,rpc,config,row,call,env=process.env){
   if(BigInt(used.total)+max>cap)throw error('Presupuesto de emergencia agotado. Puedes enviar con otra billetera.',429);
   // No daily payment quota is consulted. Signature and contract conditions were
   // simulated before reserving gas; journal persistence still precedes broadcast.
-  const step=await signStep(rpc,executor,call,String(config.chainId),max.toString());
+  // A recovery cancellation is a containment action: keep its intent explicit
+  // all the way down to the static signing gate.
+  const step=await signStep(rpc,executor,{...call,label:'recovery_cancel'},String(config.chainId),max.toString());
   const reserved=await client.query(`UPDATE chain_operations SET payload=payload||jsonb_build_object(
    'emergencyReservedWei',(COALESCE((payload->>'emergencyReservedWei')::numeric,0)+$2::numeric)::text,
    'emergencyBudgetDay',to_char(NOW() AT TIME ZONE 'UTC','YYYY-MM-DD')) WHERE id=$1`,[row.id,max.toString()]);

@@ -3,6 +3,8 @@ const {Wallet}=require('ethers');
 const {locked,error}=require('./chainOperationStore');
 const {signStep}=require('./chainSigning');
 async function sponsor(service,row,requiredWei) {
+    await require('./economicWriteGate').assertOperational({pool:service.pool,
+        config:require('./chainDeployment').configuration(),operation:'gas_sponsorship'});
     if(!process.env.GAS_SPONSOR_PRIVATE_KEY)throw error('El patrocinio de gas no está disponible. No se envió tu operación.',503);
     const signer=new Wallet(process.env.GAS_SPONSOR_PRIVATE_KEY);
     if(['RELAYER_PRIVATE_KEY','ADMIN_CHAIN_PRIVATE_KEY'].some(key=>process.env[key] && new Wallet(process.env[key]).address===signer.address))throw error('El patrocinador debe usar una clave separada de los otros operadores.',503);

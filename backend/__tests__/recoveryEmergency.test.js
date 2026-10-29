@@ -16,6 +16,7 @@ test('no usa cuota ni presupuesto de pagos normales',async()=>{
  const f=fixture();await expect(emergency.sponsor(f.pool,{},config,f.row,f.call,env)).resolves.toHaveProperty('raw');
  expect(f.client.query.mock.calls.some(([sql])=>sql.includes('app_settings')||sql.includes('user_count'))).toBe(false);
  expect(f.client.query.mock.calls.some(([sql])=>sql.includes('emergencyReservedWei'))).toBe(true);
+ expect(require('../src/services/chainSigning').signStep.mock.calls.at(-1)[2]).toMatchObject({label:'recovery_cancel'});
 });
 test('bloquea si se agotó presupuesto de emergencia',async()=>{
  const f=fixture();f.client.query.mockImplementation(async sql=>({rows:sql.includes('pg_try')?[{acquired:true}]:sql.includes('SUM')?[{total:'100'}]:[],rowCount:1}));

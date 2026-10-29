@@ -2,10 +2,15 @@
   "schemaVersion": 1,
   "chainId": "11155420",
   "walletInventory": {
-    "complete": true,
-    "source": "Inventario de cuentas administrativas, relayer y de prueba en entorno Demo WintonCoin",
-    "exportedAt": "2026-10-28T00:05:00.000Z"
+    "complete": false,
+    "source": "Plantilla histórica no acreditada; ejecutar build_v5_audit_inventory.js contra PostgreSQL"
   },
+  "operationalWallets": [
+    "0x7d2C6c16EDe986a8bea0204A9824b4C264256C77",
+    "0x78992e52508B4094Eb487c0540FB1E25C397E1F5",
+    "0x2A263482690d5Eac9ac9Ff71D6223a36B49A50e2",
+    "0x0723B1943Cb4EcDFcDD842B517006A076F281238"
+  ],
   "wallets": [
     "0x7d2C6c16EDe986a8bea0204A9824b4C264256C77",
     "0x78992e52508B4094Eb487c0540FB1E25C397E1F5",
@@ -15,6 +20,11 @@
   ],
   "sourceSuite": {
     "label": "V4 Active en Render",
+    "epoch": "V4_ACTIVE",
+    "capabilities": {
+      "automaticExchangeCollateral": false,
+      "exchangeCollateralized": false
+    },
     "contracts": {
       "CoreProtocol": "0x5Ec1034640b3360AfFc04c8AA674A8Ba4b1a0274",
       "CollateralVault": "0x8683B546f8Ad6AD625f225FE50b1C49BCe1B3797",
@@ -26,6 +36,11 @@
   },
   "destinationSuite": {
     "label": "V5 Codex 163 Desplegada en Optimism Sepolia",
+    "epoch": "V5_CODEX_163",
+    "capabilities": {
+      "automaticExchangeCollateral": true,
+      "exchangeCollateralized": true
+    },
     "contracts": {
       "CoreProtocol": "0x103C502611008dAf8B0488E99486e46CCB00F41b",
       "CollateralVault": "0xF970332060f1DB1475Fe2DAF1b5dfd89111c1A2B",

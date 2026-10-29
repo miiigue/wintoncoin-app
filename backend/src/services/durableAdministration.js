@@ -7,6 +7,7 @@ const {ChainOperationStore,locked,publicResult}=require('./chainOperationStore')
 const {signStep}=require('./chainSigning');
 async function execute(bridge,contract,method,args,projection={},resource) {
     const config=await deployment.validate(bridge.provider);
+    await require('./economicWriteGate').assertOperational({pool,config,operation:method});
     if(!process.env.ADMIN_CHAIN_PRIVATE_KEY)throw Object.assign(new Error('Falta configurar el firmante administrativo de blockchain.'),{status:503});
     if(['RELAYER_PRIVATE_KEY','GAS_SPONSOR_PRIVATE_KEY'].some(key=>process.env[key] && new Wallet(process.env[key]).address===new Wallet(process.env.ADMIN_CHAIN_PRIVATE_KEY).address))
         throw Object.assign(new Error('Administración, pagos y patrocinio requieren firmantes separados.'),{status:503});

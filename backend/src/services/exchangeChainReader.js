@@ -28,7 +28,7 @@ function uint(value, max = BigInt(Number.MAX_SAFE_INTEGER)) {
     return BigInt(value);
 }
 function identityFromEnv(env = process.env) {
-    const chainId = uint(env.EXCHANGE_INDEXER_CHAIN_ID, (1n << 256n) - 1n).toString();
+    const chainId = uint(env.EXCHANGE_INDEXER_CHAIN_ID || env.WINTON_CHAIN_ID, (1n << 256n) - 1n).toString();
     if (chainId === '0') fail('INVALID_CONFIG');
     if (chainId === '11155420') {
         const selected=require('./chainDeployment').configuration(env);

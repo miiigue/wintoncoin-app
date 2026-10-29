@@ -2,6 +2,7 @@
 const {keccak256,Transaction,Contract}=require('ethers');
 const {error}=require('./chainOperationStore');
 async function signStep(provider,signer,call,chainId,maxFeeWei) {
+    require('./economicWriteGate').assertStatic({operation:call?.label});
     const sender=await signer.getAddress();
     const [network,fees,nonce,latest]=await Promise.all([provider.getNetwork(),provider.getFeeData(),provider.getTransactionCount(sender,'pending'),provider.getTransactionCount(sender,'latest')]);
     if(String(network.chainId)!==String(chainId))throw error('Red incorrecta.',503);

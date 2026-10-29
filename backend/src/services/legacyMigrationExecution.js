@@ -146,6 +146,8 @@ async function beforeSigning(service,parent,userId,snapshot,task){
   if(await core[method](snapshot.address,{blockTag:current.blockNumber})!==BigInt(value))throw error('Los compromisos o beneficios cambiaron durante la migración.');
 }
 async function advance(service,parent,userId){
+ await require('./economicWriteGate').assertOperational({pool:service.pool,
+  config:deployment.configuration(),operation:'legacy_migration'});
  if(parent.payload.migrationApproved!==true)throw error('Confirma la actualización de tu billetera antes de trasladar el saldo.');
  return locked(service.pool,'legacy-migration:'+parent.id,async()=>{
   const current=await status(service,parent,userId);

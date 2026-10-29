@@ -219,7 +219,10 @@ async function startServer() {
         startAuditCleanupJob();
 
         // 3. Indexador de órdenes Web3 en segundo plano (si está configurado para la red)
-        if (process.env.EXCHANGE_INDEXER_ADDRESS && process.env.EXCHANGE_INDEXER_START_BLOCK) {
+        // En Demo la dirección y el bloque inicial se derivan de la época validada.
+        // No exigir overrides heredados: mezclarían V4/V5 o dejarían el indexador apagado.
+        if ((process.env.EXCHANGE_INDEXER_CHAIN_ID || process.env.WINTON_CHAIN_ID)
+            && (process.env.EXCHANGE_INDEXER_RPC_URL || process.env.OPTIMISM_RPC_URL)) {
             try {
                 const { startEmbeddedExchangeIndexer } = require('./src/services/exchangeIndexer');
                 startEmbeddedExchangeIndexer(pool);

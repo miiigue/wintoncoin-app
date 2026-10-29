@@ -16,7 +16,11 @@ const { readExchangeSnapshot } = require('../services/exchangeSnapshotService');
 router.get('/deployment', async(req,res)=>{
     res.set('Cache-Control','no-store');
     const deployment=require('../services/chainDeployment');const rpc=deployment.provider();
-    try {res.json({success:true,...await deployment.validate(rpc)});}
+    try {
+        const config=await deployment.validate(rpc);
+        const operations=await require('../services/economicWriteGate').operationalStatus({pool:require('../config/db'),config});
+        res.json({success:true,...config,operations});
+    }
     catch {res.status(503).json({success:false,message:'El despliegue no pudo verificarse.'});}
     finally {rpc.destroy();}
 });

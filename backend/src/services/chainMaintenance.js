@@ -29,6 +29,8 @@ async function maintenanceUsed(client, chainId) {
 // one per-user resource and one budget.
 async function executeMaintenance({ pool, rpc, config, wallet, kind, orderIds = [], env = process.env,
     store = new ChainOperationStore(pool, rpc) }) {
+    const gate = await require('./economicWriteGate').operationalStatus({ pool, env, config });
+    if (!gate.enabled) return { status: 'maintenance_paused', reason: gate.reason };
     const settings = await policy(pool);
     const maxFee = settings.gas_sponsor_maintenance_max_step_wei || '0';
     const daily = settings.gas_sponsor_maintenance_daily_budget_wei || '0';
