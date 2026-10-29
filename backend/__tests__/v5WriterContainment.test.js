@@ -2,7 +2,9 @@
 
 const mockStalePool = {
     options: {},
-    query: jest.fn(async () => ({ rowCount: 1, rows: [{ status: 'ready', fresh: false, error_code: null }] })),
+    query: jest.fn(async sql => String(sql).includes('app_settings')
+        ? { rowCount: 1, rows: [{ setting_value: 'false' }] }
+        : { rowCount: 1, rows: [{ status: 'ready', fresh: false, error_code: null }] }),
     connect: jest.fn()
 };
 jest.mock('../src/config/db', () => mockStalePool);

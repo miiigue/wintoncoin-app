@@ -2,6 +2,7 @@
 
 const V5_EPOCH = 'V5_CODEX_163';
 const MAX_INDEXER_AGE_SECONDS = 120;
+const PRELAUNCH_SETTING = 'pre_launch_mode_enabled';
 
 function isContainmentAction(operation) {
     return ['pause', 'pause_protocol', 'pause_vault', 'owner:pause_protocol', 'owner:pause_vault', 'recovery_cancel']
@@ -34,10 +35,28 @@ function staticStatus({ env = process.env, config } = {}) {
 
 async function operationalStatus({ pool, env = process.env, config, maxAgeSeconds = MAX_INDEXER_AGE_SECONDS } = {}) {
     const state = staticStatus({ env, config });
-    if (state.epoch !== V5_EPOCH || !state.enabled) return state;
+    const managedDemoEpoch = state.epoch === 'V4_ACTIVE' || state.epoch === V5_EPOCH;
+    if (!managedDemoEpoch) return state;
     if (!pool || typeof pool.query !== 'function') {
-        return { ...state, enabled: false, mode: 'read_only', reason: 'V5_INDEXER_STATUS_UNAVAILABLE' };
+        return { ...state, enabled: false, mode: 'read_only', preLaunchVerified: false,
+            reason: 'PRELAUNCH_STATUS_UNAVAILABLE' };
     }
+    let verified;
+    try {
+        const preLaunchResult = await pool.query(
+            'SELECT setting_value FROM app_settings WHERE setting_key=$1', [PRELAUNCH_SETTING]
+        );
+        const setting = preLaunchResult.rowCount === 1 ? preLaunchResult.rows?.[0]?.setting_value : null;
+        if (setting !== 'false') {
+            return { ...state, enabled: false, mode: 'prelaunch_read_only', preLaunchVerified: setting === 'true',
+                preLaunchActive: setting === 'true', reason: setting === 'true' ? 'PRELAUNCH_ACTIVE' : 'PRELAUNCH_STATUS_INVALID' };
+        }
+        verified = { ...state, preLaunchVerified: true, preLaunchActive: false };
+    } catch {
+        return { ...state, enabled: false, mode: 'read_only', preLaunchVerified: false,
+            indexerReady: false, reason: 'PRELAUNCH_STATUS_UNAVAILABLE' };
+    }
+    if (state.epoch !== V5_EPOCH || !state.enabled) return verified;
     try {
         const result = await pool.query(`SELECT status,error_code,
             (last_checked_at > clock_timestamp()-($3*interval '1 second')) AS fresh
@@ -46,11 +65,12 @@ async function operationalStatus({ pool, env = process.env, config, maxAgeSecond
             String((config || configOf(null, env)).contracts.FifoExchange).toLowerCase(), maxAgeSeconds]);
         const row = result.rows?.[0];
         const ready = result.rowCount === 1 && row?.status === 'ready' && row?.fresh === true && !row?.error_code;
-        return ready ? { ...state, mode: 'operational', indexerReady: true }
-            : { ...state, enabled: false, mode: 'read_only', indexerReady: false,
+        return ready ? { ...verified, mode: 'operational', indexerReady: true }
+            : { ...verified, enabled: false, mode: 'read_only', indexerReady: false,
                 reason: row?.error_code || (row?.fresh === false ? 'V5_INDEXER_STALE' : 'V5_INDEXER_NOT_READY') };
     } catch {
-        return { ...state, enabled: false, mode: 'read_only', indexerReady: false, reason: 'V5_INDEXER_STATUS_UNAVAILABLE' };
+        return { ...verified, enabled: false, mode: 'read_only', indexerReady: false,
+            reason: 'V5_INDEXER_STATUS_UNAVAILABLE' };
     }
 }
 
@@ -75,5 +95,5 @@ async function assertOperational({ pool, env = process.env, config, operation } 
     return state;
 }
 
-module.exports = { V5_EPOCH, MAX_INDEXER_AGE_SECONDS, staticStatus, operationalStatus,
+module.exports = { V5_EPOCH, MAX_INDEXER_AGE_SECONDS, PRELAUNCH_SETTING, staticStatus, operationalStatus,
     assertStatic, assertOperational, isContainmentAction, containedError };
