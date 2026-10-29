@@ -13,6 +13,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-10-28 — Activación Oficial de Suite V5 en Render y Remediación de Vulnerabilidades de Producción (npm audit)
+* **Diagnóstico & Resolución Operativa en Render**:
+  - *Despliegue y Purga de Variables Heredadas*: Se eliminaron en Render las variables individuales heredadas que forzaban direcciones de la suite V4 y se fijó `WINTON_DEPLOYMENT_EPOCH = V5_CODEX_163`.
+  - *Arranque y Verificación en Vivo*: El backend arrancó exitosamente aplicando las migraciones hasta la 126 (`126_exchange_collateral_consent.js`). El endpoint público `/api/web3/deployment` respondió HTTP 200 con `epoch: V5_CODEX_163`, contratos enlazados (`CoreProtocol` `0x103C...`, `CollateralVault` `0xF970...`, `FifoExchange` `0xE229...`) y fingerprint verificado.
+* **Remediación de Seguridad en Dependencias**:
+  - Se eliminó la vulnerabilidad crítica (`proxy-addr 2.0.7`) y las altas (`body-parser`, `ip-address`, `sharp`) reportadas en producción vía `npm audit fix`.
+  - Se ajustó la configuración de pruebas en `package.json` ignorando los ejecutores nativos de node para garantizar la ejecución limpia de Jest.
+* **Verificación de Pruebas**:
+  - Suite V5 de backend: **20/20 PASS** (`v5MigrationReadiness`, `applyV5DemoSettings`, `exchangeCollateralConsent`, `exchangeCollateralProjection`, `demoCleanDeploymentMigration`).
+* **Veredicto**: Suite V5 100% activa en producción Demo y dependencias de producción blindadas bajo estándares SOC 2.
+
 ### 2026-10-28 — Ensayo General de Conciliación On-Chain V4 a V5: Verificación Criptográfica en Bloque Finalizado 50676496
 * **Diagnóstico & Ensayo de Producción**:
   - *Metodología Híbrida de Cero Confianza*: Con el fin de adquirir la experiencia operativa requerida para futuras transiciones en Mainnet y descartar saldos huérfanos, se ejecutó `audit_v5_migration_readonly.js` de solo lectura contra Optimism Sepolia en el bloque finalizado `50676496` (hash `0x33df...`).

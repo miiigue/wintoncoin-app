@@ -47,7 +47,8 @@
   "jest": {
     "testPathIgnorePatterns": [
       "/node_modules/",
-      "/__tests__/helpers/"
+      "/__tests__/helpers/",
+      "\\.node\\.cjs$"
     ]
   }
 }
