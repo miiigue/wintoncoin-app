@@ -113,6 +113,7 @@ function Login() {
               }
             );
           } else {
+            sessionStorage.setItem('winton_login_notice', 'Sesión iniciada correctamente.');
             // Redirección exitosa hacia el Dashboard en React
             window.location.href = returnTo || '/dashboard';
           }

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 
 /**
  * ============================================================================
@@ -229,7 +229,13 @@ export default function PublicationsFeed({
 }) {
   const [activeFilter, setActiveFilter] = useState('all');
   const [searchText, setSearchText] = useState('');
+  const [debouncedSearchText, setDebouncedSearchText] = useState('');
   const [sortBy, setSortBy] = useState('recent');
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setDebouncedSearchText(searchText), 250);
+    return () => window.clearTimeout(timer);
+  }, [searchText]);
 
   const effectiveUsername = currentUsername || (typeof window !== 'undefined' ? localStorage.getItem('username') : '') || '';
 
@@ -253,8 +259,8 @@ export default function PublicationsFeed({
     let result = [...publications];
 
     // --- Paso 0: Búsqueda reactiva por texto (título, descripción, autor, beneficiario) ---
-    if (searchText.trim()) {
-      const q = searchText.toLowerCase().trim();
+    if (debouncedSearchText.trim()) {
+      const q = debouncedSearchText.toLowerCase().trim();
       result = result.filter(
         (p) =>
           (p.title && p.title.toLowerCase().includes(q)) ||
@@ -296,7 +302,7 @@ export default function PublicationsFeed({
     );
 
     return result;
-  }, [publications, activeFilter, searchText, sortBy, effectiveUsername]);
+  }, [publications, activeFilter, debouncedSearchText, sortBy, effectiveUsername]);
 
   const getAmountDisplay = (pub) => {
     if (pub.is_humanitarian_cause || pub.category === 'donation') {
@@ -396,7 +402,10 @@ export default function PublicationsFeed({
                 id="publicationSearchClear"
                 aria-label="Limpiar búsqueda"
                 style={{ display: 'flex' }}
-                onClick={() => setSearchText('')}
+                onClick={() => {
+                  setSearchText('');
+                  setDebouncedSearchText('');
+                }}
               >
                 &times;
               </button>
@@ -433,7 +442,11 @@ export default function PublicationsFeed({
             <p style={{ margin: 0, fontSize: '0.95rem' }}>
               {activeFilter === 'hidden'
                 ? 'No tienes publicaciones archivadas u ocultas.'
-                : 'No se encontraron publicaciones en esta categoría.'}
+                : searchText.trim()
+                  ? 'No encontramos publicaciones que coincidan con tu búsqueda.'
+                  : isPreLaunch
+                    ? 'En Prelanzamiento puedes explorar las publicaciones habilitadas por la plataforma. En esta categoría todavía no hay contenido disponible.'
+                    : 'Aún no hay publicaciones disponibles en esta categoría.'}
             </p>
           </div>
         ) : (

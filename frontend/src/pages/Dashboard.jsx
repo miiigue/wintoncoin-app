@@ -71,6 +71,7 @@ export default function Dashboard() {
   // Estados de Configuración, Tooltips y Enlaces Dinámicos
   const [isPreLaunch, setIsPreLaunch] = useState(false);
   const [showPrelaunchTooltip, setShowPrelaunchTooltip] = useState(false);
+  const [loginNotice, setLoginNotice] = useState('');
   const [hasMomentum, setHasMomentum] = useState(false);
   const [hasDonations, setHasDonations] = useState(false);
 
@@ -84,6 +85,15 @@ export default function Dashboard() {
       navigate(`/login?returnTo=${returnTo}`, { replace: true });
     }
   }, [token, navigate]);
+
+  useEffect(() => {
+    const notice = sessionStorage.getItem('winton_login_notice');
+    if (!notice) return undefined;
+    sessionStorage.removeItem('winton_login_notice');
+    setLoginNotice(notice);
+    const timer = window.setTimeout(() => setLoginNotice(''), 3000);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   // 2. Consulta de Saldos del Usuario (Sincronización dual: Balance + Perfil Impulsor)
   const fetchUserBalances = useCallback(async () => {
@@ -468,6 +478,19 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-main-content">
+      {loginNotice && (
+        <div
+          role="status"
+          aria-live="polite"
+          style={{
+            position: 'fixed', top: '16px', left: '50%', transform: 'translateX(-50%)',
+            zIndex: 10000, padding: '12px 18px', borderRadius: '12px',
+            background: '#0f766e', color: '#fff', boxShadow: '0 10px 30px rgba(0,0,0,.25)'
+          }}
+        >
+          {loginNotice}
+        </div>
+      )}
       {/* 1. Barra de Navegación Superior (header-menu legacy) */}
       <DashboardHeader
         username={username}

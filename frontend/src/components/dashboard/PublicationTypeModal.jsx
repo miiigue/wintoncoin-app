@@ -102,14 +102,15 @@ export default function PublicationTypeModal({
         >
           <div className="prelaunch-modal">
             <div className="prelaunch-modal-icon">🚀</div>
-            <h3 className="prelaunch-modal-title">Fase de Desarrollo</h3>
+            <h3 className="prelaunch-modal-title">Prelanzamiento activo</h3>
             <div className="prelaunch-modal-text">
               <p>
-                Durante la <strong>fase de pre-lanzamiento</strong>, la creación de publicaciones por parte de los usuarios está
-                completamente deshabilitada.
+                Estamos preparando la apertura de las publicaciones comunitarias. Mientras el <strong>Prelanzamiento</strong> esté activo,
+                puedes explorar el contenido habilitado, consultar tu perfil y revisar tus saldos.
               </p>
               <p>
-                Solo la cuenta oficial de la plataforma puede publicar tareas con fines educativos, de promoción y pruebas del protocolo.
+                La creación de publicaciones para usuarios permanecerá bloqueada hasta que el lanzamiento sea aprobado. Solo la cuenta
+                oficial de la plataforma puede publicar contenido educativo, promocional o de prueba durante esta etapa.
               </p>
             </div>
             <button
