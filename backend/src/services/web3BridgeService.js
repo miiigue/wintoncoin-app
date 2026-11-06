@@ -41,6 +41,30 @@ const BLUE_ADDRESS = verifiedAddresses.BlueToken;
 const RED_ADDRESS = verifiedAddresses.RedToken;
 const USDT_ADDRESS = verifiedAddresses.USDT;
 
+const ECONOMIC_PAUSE_KEYS = ['CoreProtocol', 'CollateralVault', 'FifoExchange', 'ProtocolTreasury'];
+
+function summarizeEconomicPauseState(values) {
+    const contractPauses = {};
+    for (const key of ECONOMIC_PAUSE_KEYS) {
+        if (typeof values?.[key] !== 'boolean')
+            throw new Error(`Estado de pausa no verificable para ${key}`);
+        contractPauses[key] = values[key];
+    }
+    return {
+        contractPauses,
+        allEconomicContractsPaused: ECONOMIC_PAUSE_KEYS.every((key) => contractPauses[key] === true)
+    };
+}
+
+async function readEconomicPauseState(contracts) {
+    for (const key of ECONOMIC_PAUSE_KEYS) {
+        if (!contracts?.[key] || typeof contracts[key].paused !== 'function')
+            throw new Error(`Suite económica Web3 incompleta: falta ${key}`);
+    }
+    const states = await Promise.all(ECONOMIC_PAUSE_KEYS.map((key) => contracts[key].paused()));
+    return summarizeEconomicPauseState(Object.fromEntries(ECONOMIC_PAUSE_KEYS.map((key, index) => [key, states[index]])));
+}
+
 class Web3BridgeService {
     constructor() {
         if (!RELAYER_PK || !PROTOCOL_ADDRESS) {
@@ -147,8 +171,6 @@ class Web3BridgeService {
             "function hasClaimed(address user) view returns (bool)",
             "function coreProtocol() view returns (address)",
             "event RewardEpochStarted(uint256 indexed epoch, bytes32 root)",
-            "function pause()",
-            "function unpause()",
             "function paused() view returns (bool)",
             "function blueToken() view returns (address)"
         ];
@@ -184,6 +206,11 @@ class Web3BridgeService {
         return new ethers.Contract(EXCHANGE_ADDRESS, this.exchangeAbi, this.wallet || this.provider);
     }
 
+    _getTreasury() {
+        if (!TREASURY_ADDRESS) throw new Error("PROTOCOL_TREASURY_ADDRESS no configurado");
+        return new ethers.Contract(TREASURY_ADDRESS, this.treasuryAbi, this.wallet || this.provider);
+    }
+
     _getERC20(address) {
         if (!address) throw new Error("Dirección de token requerida");
         return new ethers.Contract(address, this.erc20Abi, this.wallet || this.provider);
@@ -216,9 +243,19 @@ class Web3BridgeService {
                 relayerBalance = ethers.formatEther(bal);
             }
 
-            if (!PROTOCOL_ADDRESS || !VAULT_ADDRESS) throw new Error('Contratos Web3 no configurados');
-            let paused, maxTx, commissionRate, totalVaultLocked, vaultPaused;
+            if (!PROTOCOL_ADDRESS || !VAULT_ADDRESS || !EXCHANGE_ADDRESS || !TREASURY_ADDRESS)
+                throw new Error('Suite económica Web3 incompleta');
+            let maxTx, commissionRate, totalVaultLocked;
             const protocolConfig = this._getProtocol();
+            const vaultConfig = this._getVault();
+            const exchangeConfig = this._getExchange();
+            const treasuryConfig = this._getTreasury();
+            const pauseStatePromise = readEconomicPauseState({
+                CoreProtocol: protocolConfig,
+                CollateralVault: vaultConfig,
+                FifoExchange: exchangeConfig,
+                ProtocolTreasury: treasuryConfig
+            });
             const [duration, recipient, extensionDays] = await Promise.all([
                 protocolConfig.COMMITMENT_DURATION(), protocolConfig.extensionFeeRecipient(), protocolConfig.getExtensionDurations()
             ]);
@@ -228,23 +265,24 @@ class Web3BridgeService {
             }));
 
             if (PROTOCOL_ADDRESS) {
-                const protocol = this._getProtocol();
-                const [p, m, c] = await Promise.all([
-                    protocol.paused(),
-                    protocol.maxTransactionAmount(),
-                    protocol.commissionBps()
+                const [m, c] = await Promise.all([
+                    protocolConfig.maxTransactionAmount(),
+                    protocolConfig.commissionBps()
                 ]);
-                paused = p;
                 maxTx = ethers.formatUnits(m, 6);
                 commissionRate = c.toString();
             }
 
             if (VAULT_ADDRESS) {
-                const vault = this._getVault();
-                const [locked, currentPause] = await Promise.all([vault.totalCollateralLocked(), vault.paused()]);
-                vaultPaused = currentPause;
+                const locked = await vaultConfig.totalCollateralLocked();
                 totalVaultLocked = ethers.formatUnits(locked, 6);
             }
+
+            const { contractPauses, allEconomicContractsPaused } = await pauseStatePromise;
+            const paused = contractPauses.CoreProtocol;
+            const vaultPaused = contractPauses.CollateralVault;
+            const exchangePaused = contractPauses.FifoExchange;
+            const treasuryPaused = contractPauses.ProtocolTreasury;
 
             return {
                 success: true,
@@ -268,7 +306,9 @@ class Web3BridgeService {
                     paused,
                     maxTransactionAmount: maxTx,
                     commissionRateBps: commissionRate,
-                    totalCollateralLocked: totalVaultLocked, vaultPaused, commitmentDurationSeconds: Number(duration),
+                    totalCollateralLocked: totalVaultLocked, vaultPaused, exchangePaused, treasuryPaused,
+                    contractPauses, allEconomicContractsPaused,
+                    commitmentDurationSeconds: Number(duration),
                     extensionFeeRecipient: recipient, extensionOptions, minExtensionLevel: 3, minExtensionMarginLevel: 5
                 }
             };
@@ -485,3 +525,5 @@ class Web3BridgeService {
 }
 
 module.exports = new Web3BridgeService();
+module.exports.summarizeEconomicPauseState = summarizeEconomicPauseState;
+module.exports.readEconomicPauseState = readEconomicPauseState;

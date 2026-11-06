@@ -271,6 +271,18 @@ async function setPause(req, res) {
     const { target, action } = req.body; // target: 'protocol' | 'vault'; action: 'pause' | 'unpause'
     const adminUser = req.user?.username || 'admin';
 
+    // V5 uses the external-owner preparation flow. This legacy route signs with
+    // the relayer and must never bypass the owner wallet or prepare a partial
+    // containment of the four-contract economic suite.
+    try {
+        if (require('../../services/chainDeployment').configuration().epoch === 'V5_CODEX_163') {
+            return res.status(409).json({ success: false, ownerPreparationRequired: true,
+                message: 'La Suite V5 requiere preparar cada pausa desde la billetera propietaria. Este flujo directo está deshabilitado.' });
+        }
+    } catch {
+        return res.status(503).json({ success: false, message: 'No se pudo verificar la época de contratos; no se enviará ninguna operación.' });
+    }
+
     if (!['protocol', 'vault'].includes(target) || !['pause', 'unpause'].includes(action)) {
         return res.status(400).json({ success: false, message: "Parámetros inválidos. Use target: 'protocol'|'vault' y action: 'pause'|'unpause'." });
     }

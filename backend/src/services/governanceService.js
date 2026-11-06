@@ -817,6 +817,22 @@ async function _executeAction(client, req, govRequest) {
 
     try {
         if (govRequest.action_type === ACTION_TYPES.CONFIG_CHANGE) {
+            // La Suite V5 no admite pausas parciales ni firmas del relayer. La
+            // gobernanza puede aprobar la intención, pero la contención real se
+            // prepara fuera del backend para los cuatro contratos y requiere una
+            // segunda aprobación explícita de la billetera propietaria.
+            if (govRequest.target_key === 'web3_protocol_paused') {
+                let deployment;
+                try {
+                    deployment = require('./chainDeployment').configuration();
+                } catch {
+                    throw new Error('No se pudo verificar la época de contratos; la operación Web3 queda bloqueada.');
+                }
+                if (deployment.epoch === 'V5_CODEX_163') {
+                    throw new Error('La Suite V5 requiere el paquete externo de pausa integral de Core, Exchange, Treasury y Vault; el flujo parcial de gobernanza está bloqueado.');
+                }
+            }
+
             // PASO 1: Actualizar la base de datos (flujo existente).
             await client.query(
                 `UPDATE app_settings SET setting_value = $1 WHERE setting_key = $2`,

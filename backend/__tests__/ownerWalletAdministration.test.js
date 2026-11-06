@@ -1,5 +1,5 @@
 const { Interface, Wallet, Transaction, keccak256 }=require('ethers');
-const {actionPlan,confirm}=require('../src/services/externalOwnerAdministration');
+const {abi,actionPlan,validatePausePreparation,confirm}=require('../src/services/externalOwnerAdministration');
 const deployment=require('../src/services/chainDeployment');
 const indexer=require('../src/services/exchangeChainReader');
 const {ChainOperationStore}=require('../src/services/chainOperationStore');
@@ -8,6 +8,11 @@ const active=require('../../web3-contracts/deployments/optimism-sepolia-active-b
 
 const contracts=current.contracts;
 const method=(plan,name)=>new Interface([`function ${name}(${name==='setCommissionBps'?'uint256':name==='setCommitmentDuration'?'uint256':'address,uint256'})`]).parseTransaction({data:plan.data});
+const ifacePause=new Interface(['function pause()']);
+
+test('la interfaz administrativa puede consultar paused antes de preparar',()=>{
+  expect(new Interface(abi).getFunction('paused').selector).toMatch(/^0x[0-9a-f]{8}$/);
+});
 
 test('Demo conserva la suite activa y solo cambia completa a V5 con época explícita',()=>{
   const activeEnv={WINTON_CHAIN_ID:current.chainId,CORE_PROTOCOL_ADDRESS:active.contracts.CoreProtocol,
@@ -35,6 +40,40 @@ test('solo genera acciones admitidas, en unidades correctas y con comisión cero
   expect(()=>actionPlan('commission',{value:'10.01'},contracts)).toThrow();
   expect(()=>actionPlan('max_transaction',{amount:'0'},contracts)).toThrow();
   expect(()=>actionPlan('arbitrary',{value:'1'},contracts)).toThrow();
+});
+
+test('prepara pausas separadas para los cuatro contratos económicos',()=>{
+  const expected={
+    pause_protocol:contracts.CoreProtocol,
+    pause_vault:contracts.CollateralVault,
+    pause_exchange:contracts.FifoExchange,
+    pause_treasury:contracts.ProtocolTreasury
+  };
+  for(const [action,target] of Object.entries(expected)){
+    const plan=actionPlan(action,{},contracts);
+    expect(plan.target).toBe(target);
+    expect(ifacePause.parseTransaction({data:plan.data}).name).toBe('pause');
+    expect(plan.resource).toBe(`external-owner:pause:${action.replace('pause_','').replace('protocol','core')}`);
+  }
+});
+
+test('no prepara una pausa redundante y simula desde el owner antes de persistir',async()=>{
+  const plan=actionPlan('pause_exchange',{},contracts),owner=current.deployer;
+  const provider={call:jest.fn(async()=> '0x')};
+  await expect(validatePausePreparation({contract:{paused:jest.fn(async()=>true)},provider,owner,plan}))
+    .rejects.toMatchObject({status:409});
+  expect(provider.call).not.toHaveBeenCalled();
+
+  await expect(validatePausePreparation({contract:{paused:jest.fn(async()=>false)},provider,owner,plan}))
+    .resolves.toBeUndefined();
+  expect(provider.call).toHaveBeenCalledWith({from:owner,to:plan.target,data:plan.data,value:0n});
+});
+
+test('una pausa que revierte en simulación no genera payload utilizable',async()=>{
+  const plan=actionPlan('pause_treasury',{},contracts);
+  const provider={call:jest.fn(async()=>{throw new Error('revert');})};
+  await expect(validatePausePreparation({contract:{paused:jest.fn(async()=>false)},provider,owner:current.deployer,plan}))
+    .rejects.toMatchObject({status:409});
 });
 
 test('una firma con datos distintos no puede confirmar un cambio administrativo',async()=>{

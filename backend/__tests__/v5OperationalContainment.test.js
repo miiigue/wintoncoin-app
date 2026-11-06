@@ -64,10 +64,12 @@ describe('contención operativa V5', () => {
 
     test('pausar sigue permitido durante contención; reanudar no', async () => {
         const pool = { query: jest.fn(async () => ({ rowCount: 1, rows: [{ setting_value: 'true' }] })) };
-        await expect(gate.assertOperational({ pool, env: {}, config: v5, operation: 'pause_protocol' }))
-            .resolves.toMatchObject({ enabled: false, mode: 'prelaunch_read_only', reason: 'PRELAUNCH_ACTIVE' });
-        await expect(gate.assertOperational({ pool, env: {}, config: v5, operation: 'unpause_protocol' }))
-            .rejects.toMatchObject({ status: 503, code: 'PRELAUNCH_ACTIVE' });
+        for (const target of ['protocol', 'vault', 'exchange', 'treasury']) {
+            await expect(gate.assertOperational({ pool, env: {}, config: v5, operation: `pause_${target}` }))
+                .resolves.toMatchObject({ enabled: false, mode: 'prelaunch_read_only', reason: 'PRELAUNCH_ACTIVE' });
+            await expect(gate.assertOperational({ pool, env: {}, config: v5, operation: `unpause_${target}` }))
+                .rejects.toMatchObject({ status: 503, code: 'PRELAUNCH_ACTIVE' });
+        }
     });
 
     test('V4 y redes no V5 conservan su comportamiento', async () => {

@@ -5,7 +5,8 @@ const MAX_INDEXER_AGE_SECONDS = 120;
 const PRELAUNCH_SETTING = 'pre_launch_mode_enabled';
 
 function isContainmentAction(operation) {
-    return ['pause', 'pause_protocol', 'pause_vault', 'owner:pause_protocol', 'owner:pause_vault', 'recovery_cancel']
+    return ['pause', 'pause_protocol', 'pause_vault', 'pause_exchange', 'pause_treasury',
+        'owner:pause_protocol', 'owner:pause_vault', 'owner:pause_exchange', 'owner:pause_treasury', 'recovery_cancel']
         .includes(String(operation || ''));
 }
 

@@ -6,6 +6,7 @@ const { ChainOperationStore, locked, publicResult, error }=require('./chainOpera
 
 const abi=[
   'function owner() view returns(address)',
+  'function paused() view returns(bool)',
   'function setCommissionBps(uint256)', 'function setCommitmentDuration(uint256)',
   'function setCreditLimit(address,uint256)', 'function setKYCStatus(address,bool)',
   'function setMaxTransactionAmount(uint256)', 'function setExtensionOption(uint256,uint16,bool)',
@@ -46,15 +47,31 @@ function actionPlan(action,input,contracts) {
     case 'unpause_protocol':method='unpause';args=[];resource='pause:core';break;
     case 'pause_vault':method='pause';args=[];target=contracts.CollateralVault;resource='pause:vault';break;
     case 'unpause_vault':method='unpause';args=[];target=contracts.CollateralVault;resource='pause:vault';break;
+    case 'pause_exchange':method='pause';args=[];target=contracts.FifoExchange;resource='pause:exchange';break;
+    case 'unpause_exchange':method='unpause';args=[];target=contracts.FifoExchange;resource='pause:exchange';break;
+    case 'pause_treasury':method='pause';args=[];target=contracts.ProtocolTreasury;resource='pause:treasury';break;
+    case 'unpause_treasury':method='unpause';args=[];target=contracts.ProtocolTreasury;resource='pause:treasury';break;
     default:throw error('Acción administrativa no admitida.',400);
   }
   return {target,method,data:iface.encodeFunctionData(method,args),projection,resource:'external-owner:'+resource};
+}
+async function validatePausePreparation({contract,provider,owner,plan}) {
+  if(!['pause','unpause'].includes(plan.method))return;
+  let paused;
+  try{paused=await contract.paused();}
+  catch{throw error('No se pudo comprobar el estado de pausa del contrato.',503);}
+  if(plan.method==='pause'&&paused===true)throw error('El contrato ya está pausado; no se preparó una transacción redundante.',409);
+  if(plan.method==='unpause'&&paused!==true)throw error('El contrato ya está activo; no se preparó una transacción redundante.',409);
+  try{await provider.call({from:owner,to:plan.target,data:plan.data,value:0n});}
+  catch{throw error('La simulación desde la billetera propietaria revertiría; no se preparó la operación.',409);}
 }
 async function prepare({pool,provider,action,input}){
   const config=await deployment.validate(provider);
   const plan=actionPlan(action,input,config.contracts);
   await require('./economicWriteGate').assertOperational({pool,config,operation:action});
-  const owner=getAddress(await new Contract(plan.target,abi,provider).owner());
+  const contract=new Contract(plan.target,abi,provider);
+  const owner=getAddress(await contract.owner());
+  await validatePausePreparation({contract,provider,owner,plan});
   const store=new ChainOperationStore(pool,provider);
   return locked(pool,plan.resource,async client=>{
     const active=await client.query("SELECT * FROM chain_operations WHERE chain_id=$1 AND resource_key=$2 AND state IN ('prepared','pending','conflict') ORDER BY created_at LIMIT 1",[config.chainId,plan.resource]);
@@ -95,4 +112,4 @@ async function confirm({pool,provider,id,hash}){
     return store.advanceLocked({...row,state:'pending',steps:[step]},client);
   });
 }
-module.exports={actionPlan,prepare,confirm};
+module.exports={abi,actionPlan,validatePausePreparation,prepare,confirm};

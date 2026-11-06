@@ -139,8 +139,7 @@ export default function AdminWeb3Panel() {
         '/api/admin/web3/max-tx':['max_transaction',{amount:body.maxAmount}],
         '/api/admin/web3/commission-rate':['commission',{value:String(Number(body.commissionBps)/100)}],
         '/api/admin/web3/extension-params':['extension_option',body],
-        '/api/admin/web3/user-benefits':['user_benefits',body],
-        '/api/admin/web3/pause':[`${body.action}_${body.target}`,body]
+        '/api/admin/web3/user-benefits':['user_benefits',body]
       };
       if (ownerActions[endpoint]) {
         const [action,input]=ownerActions[endpoint];
@@ -221,23 +220,7 @@ export default function AdminWeb3Panel() {
     );
   };
 
-  // 5. Parada / Reanudación de Emergencia
-  const handleTogglePause = (target, currentPaused) => {
-    const action = currentPaused ? 'unpause' : 'pause';
-    const confirmText = currentPaused
-      ? `¿Deseas REANUDAR las operaciones en ${target}?`
-      : `⚠️ ALERTA: ¿Deseas PAUSAR de emergencia las operaciones en ${target}?`;
-
-    if (window.confirm(confirmText)) {
-      executeAdminPost(
-        '/api/admin/web3/pause',
-        { target, action },
-        `${target} ha sido ${action === 'pause' ? 'PAUSADO' : 'REANUDADO'}`
-      );
-    }
-  };
-
-  // 6. Configurar Parámetros de Prórroga desde nivel 3
+  // 5. Configurar Parámetros de Prórroga desde nivel 3
   const handleSetExtensionParams = (e) => {
     e.preventDefault();
     executeAdminPost(
@@ -247,7 +230,7 @@ export default function AdminWeb3Panel() {
     );
   };
 
-  // 7. Auditoría 360° On-Chain
+  // 6. Auditoría 360° On-Chain
   const handleAuditWallet = async (e) => {
     e.preventDefault();
     if (!auditWallet) return;
@@ -314,6 +297,19 @@ export default function AdminWeb3Panel() {
       'Cruce de órdenes ejecutado en FifoExchange'
     );
   };
+
+  const contractPauses = statusData?.parameters?.contractPauses || {};
+  const hasVerifiedPauseSuite = ['CoreProtocol', 'CollateralVault', 'FifoExchange', 'ProtocolTreasury']
+    .every((key) => typeof contractPauses[key] === 'boolean');
+  const pauseTargets = [
+    ['protocol', 'CoreProtocol', contractPauses.CoreProtocol],
+    ['vault', 'Bóveda CollateralVault', contractPauses.CollateralVault],
+    ['exchange', 'Exchange FIFO', contractPauses.FifoExchange],
+    ['treasury', 'Tesorería ProtocolTreasury', contractPauses.ProtocolTreasury]
+  ];
+  const allEconomicContractsPaused = hasVerifiedPauseSuite
+    && statusData?.parameters?.allEconomicContractsPaused === true
+    && pauseTargets.every(([, , paused]) => paused === true);
 
   return (
     <div className={styles.panelContainer}>
@@ -637,28 +633,28 @@ export default function AdminWeb3Panel() {
           <div className={styles.actionPanel}>
             <h3 className={styles.actionPanelTitle}>🚨 Paradas de Emergencia (Pausa)</h3>
             <p className={styles.actionPanelDesc}>
-              Permite detener inmediatamente la emisión de pagos o movimientos de custodia ante alertas de seguridad.
+              La contención solo se considera completa cuando Core, Bóveda, Exchange y Tesorería están pausados.
+              Cada contrato requiere una confirmación independiente de la billetera propietaria.
+            </p>
+            <p role="status" aria-live="polite" style={{ color: allEconomicContractsPaused ? '#4ade80' : '#f87171', fontWeight: 700 }}>
+              {!hasVerifiedPauseSuite
+                ? 'Estado no verificado: falta al menos una lectura on-chain. La preparación queda bloqueada.'
+                : allEconomicContractsPaused
+                ? 'Contención on-chain completa: los cuatro contratos económicos están pausados.'
+                : 'Contención incompleta: no se debe afirmar que Prelanzamiento bloquea universalmente la blockchain.'}
+            </p>
+            <p className={styles.actionPanelDesc}>
+              Este panel no firma ni transmite pausas. La operación se prepara con el paquete externo revisado y solo se ejecuta después de una segunda aprobación expresa.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <button
-                onClick={() => handleTogglePause('protocol', statusData?.parameters?.paused)}
-                disabled={actionLoading || loadingStatus || !statusData}
-                className={`${styles.submitBtn} ${statusData?.parameters?.paused ? styles.successBtn : styles.dangerBtn}`}
-              >
-                {statusData?.parameters?.paused
-                  ? '🟢 Reanudar CoreProtocol'
-                  : '🔴 Pausar CoreProtocol (Emergencia)'}
-              </button>
-
-              <button
-                onClick={() => handleTogglePause('vault', statusData?.parameters?.vaultPaused || false)}
-                disabled={actionLoading || loadingStatus || !statusData}
-                className={`${styles.submitBtn} ${statusData?.parameters?.vaultPaused ? styles.successBtn : styles.dangerBtn}`}
-              >
-                {statusData?.parameters?.vaultPaused
-                  ? '🟢 Reanudar Bóveda CollateralVault'
-                  : '🔴 Pausar Bóveda CollateralVault (Emergencia)'}
-              </button>
+              {pauseTargets.map(([target, label, paused]) => (
+                <div key={target} className={styles.formGroup} aria-label={`Estado de pausa de ${label}`}>
+                  <strong>{label}</strong>
+                  <span style={{ color: paused === true ? '#4ade80' : paused === false ? '#f87171' : '#facc15' }}>
+                    {paused === true ? 'Pausado en blockchain' : paused === false ? 'Sin pausa on-chain' : 'No verificado'}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
         </div>
