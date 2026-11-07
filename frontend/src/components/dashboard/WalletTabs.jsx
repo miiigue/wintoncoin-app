@@ -272,7 +272,7 @@ export default function WalletTabs({
                     onClick={(e) => e.stopPropagation()}
                   >
                     <p>
-                      <strong>Los tokens BLUE son tu activo.</strong> Puedes usarlos para pagar servicios, transferirlos o quemarlos para amortizar tu compromiso RED. Al lanzamiento oficial <strong>14-2-2027</strong>, <strong>1 BLUE = 1 USD</strong>.
+                      <strong>BLUE es una unidad digital utilitaria.</strong> Puedes usarla en las funciones habilitadas del protocolo, llevarla al exchange o quemarla para amortizar compromisos RED. No garantiza precio, liquidez ni redención en dinero.
                     </p>
                   </div>
 

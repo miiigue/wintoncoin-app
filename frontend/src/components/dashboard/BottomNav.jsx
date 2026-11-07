@@ -8,7 +8,7 @@ import { Link, useLocation } from 'react-router-dom';
  * Barra de navegación inferior fija para teléfonos móviles (UX estilo Rappi/Binance):
  * - Inicio (Dashboard central).
  * - Publicar (Acción principal).
- * - Exchange FIFO (1 BLUE = 1 USDT).
+ * - Exchange FIFO con sus reglas de órdenes y garantías.
  * - Billetera Web3 (Balances on-chain y compensaciones).
  * - Perfil (Cuenta de usuario).
  * ============================================================================

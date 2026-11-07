@@ -1,5 +1,23 @@
 import {operationRequest} from './pinOperations.js';
+import {getApiUrl} from './config.js';
 let cached=null,pending=null,identity=null,entryUsers=0,entryCleanup=null;
+let prelaunchCached=null,prelaunchPending=null;
+async function prelaunchStatus(){
+ if(prelaunchCached&&Date.now()-prelaunchCached.at<15000)return prelaunchCached.value;
+ if(prelaunchPending)return prelaunchPending;
+ const request=fetch(`${getApiUrl()}/api/platform-settings`,{credentials:'include',cache:'no-store'})
+  .then(async response=>{
+   if(!response.ok)throw new Error('No se pudo comprobar el estado de Prelanzamiento.');
+   const settings=await response.json();
+   if(typeof settings?.pre_launch_mode_enabled!=='boolean')throw new Error('Estado de Prelanzamiento inválido.');
+   const value={known:true,active:settings.pre_launch_mode_enabled};
+   prelaunchCached={at:Date.now(),value};
+   return value;
+  })
+  .catch(()=>({known:false,active:true}))
+  .finally(()=>{if(prelaunchPending===request)prelaunchPending=null;});
+ prelaunchPending=request;return request;
+}
 export async function publicationAccess(){
  const key=localStorage.getItem('token')+'|'+localStorage.getItem('username');
  if(identity!==key){identity=key;cached=null;pending=null;}
@@ -49,6 +67,14 @@ export function installPublicationEntryGuards(){
   const button=event.target.closest?.(selector);if(!button)return;
   if(permitted.has(button)){permitted.delete(button);return;}
   event.preventDefault();event.stopImmediatePropagation();
+  const prelaunch=await prelaunchStatus();
+  const prelaunchModal=document.getElementById('createPostPrelaunchModal');
+  if(prelaunch.active){
+   if(!prelaunchModal)return;
+   prelaunchModal.dataset.settingsVerified=String(prelaunch.known);
+   prelaunchModal.style.display='flex';
+   return;
+  }
   if(dialog)return;
   dialog=document.createElement('div');dialog.className='modal';dialog.style.cssText='display:flex;position:fixed;inset:0;z-index:10000;background:#000b;align-items:center;justify-content:center;padding:20px';
   dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label','Verificación para publicar');

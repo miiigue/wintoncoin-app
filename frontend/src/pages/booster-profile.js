@@ -93,7 +93,7 @@ function initializeBoosterProfilePage() {
                     ${escapeHtml(capitalizedUsername)}, eres nivel ${levelInfo ? levelInfo.level : '?'} <i class="info-icon" style="font-size: 1.1rem; font-style: normal; opacity: 0.8; margin-left: 5px; vertical-align: middle;">ⓘ</i>
                 </h1>
                 <div class="booster-value-display" style="margin-top: 6px; font-weight: 600; font-size: 0.85rem; letter-spacing: 0.5px;">
-                    <span class="shimmer-text">1 BLUE IOU = 1 BLUE = 1 USD</span>
+                    <span class="shimmer-text">Emisión y quema pareadas: 1 BLUE ↔ 1 RED</span>
                 </div>
                 <div id="tooltip-booster-level" class="info-tooltip" role="tooltip" aria-hidden="true">
                     <p>${levelDescription}</p>

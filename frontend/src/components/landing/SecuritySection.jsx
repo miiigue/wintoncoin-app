@@ -14,9 +14,9 @@ function SecuritySection() {
       <div className="container">
         <div className="section-title-center">
           <h2>
-            Seguridad de Grado <span className="text-green">Militar</span>
+            Seguridad y Transparencia <span className="text-green">Verificable</span>
           </h2>
-          <p>Tu confianza está codificada en la Blockchain. Inmutable. Transparente. Eterna.</p>
+          <p>Reglas registradas y verificables en blockchain, sujetas a auditoría y a los riesgos técnicos informados.</p>
         </div>
 
         <div className="security-grid">
@@ -36,9 +36,9 @@ function SecuritySection() {
             <div className="sec-card data-block">
               <div className="data-header">
                 <span className="block-id">BLK_001</span>
-                <h3>Smart Contracts Auditados</h3>
+                <h3>Arquitectura de Smart Contracts</h3>
               </div>
-              <p>Código inquebrantable. Cada BLUE tiene su contraparte RED exacta. Cero errores humanos.</p>
+              <p>Reglas de emisión y quema automatizadas on-chain. Cada token BLUE tiene su compromiso RED equivalente 1:1.</p>
             </div>
 
             <div className="sec-card data-block">
@@ -58,7 +58,7 @@ function SecuritySection() {
                 </div>
               </div>
               <p>
-                Acaparar tokens BLUE solo logra financiar los compromisos (RED) de la comunidad. Es imposible robar liquidez o manipular el mercado.
+                El diseño pareado y los controles del protocolo buscan reducir desequilibrios y dificultar abusos; no eliminan todos los riesgos técnicos, económicos o de mercado.
               </p>
             </div>
           </div>

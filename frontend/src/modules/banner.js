@@ -111,7 +111,7 @@ export function initializeValueTooltip() {
 }
 
 /**
- * Inicializa el banner de valor estable
+ * Inicializa el banner informativo de contabilidad pareada
  */
 export async function initializeValueBanner() {
     const banner = document.getElementById('value-banner');
@@ -130,7 +130,7 @@ export async function initializeValueBanner() {
         }).resolvedOptions();
         const localCurrency = currencyOptions.currency || 'USD';
         
-        let bannerText = `1 BLUE IOU = 1 BLUE = 1 USD`;
+        const bannerText = 'Emisión y quema pareadas: 1 BLUE ↔ 1 RED';
         
         // El texto final se envuelve en el span con la clase para el efecto
         bannerTextContainer.innerHTML = `<span class="shimmer-text">${bannerText}</span>`;
@@ -142,7 +142,7 @@ export async function initializeValueBanner() {
     } catch (error) {
         console.error('Error al inicializar el banner de valor:', error);
         // Fallback unificado
-        bannerTextContainer.innerHTML = `<span class="shimmer-text">1 BLUE IOU = 1 BLUE = 1 USD</span>`;
+        bannerTextContainer.innerHTML = '<span class="shimmer-text">Emisión y quema pareadas: 1 BLUE ↔ 1 RED</span>';
         banner.style.display = 'flex';
         
         // Inicializar funcionalidad del tooltip incluso en caso de error

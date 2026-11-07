@@ -3,10 +3,10 @@ import { Link } from 'react-router-dom';
 
 /**
  * ============================================================================
- * [WINTONCOIN] - LANDING: FomoSection (Viralidad & Cero Bots)
+ * [WINTONCOIN] - LANDING: FomoSection (Viralidad y controles antifraude)
  * ============================================================================
  * Sección de conversión para influencers, marketing viral y amortización
- * garantizada por Smart Contracts en Blockchain.
+ * apoyada por reglas verificables y controles antifraude.
  * ============================================================================
  */
 function FomoSection() {
@@ -28,14 +28,13 @@ function FomoSection() {
               <li>
                 <span className="icon">🚀</span>
                 <span>
-                  <strong>100% Atención Real:</strong> Usuarios reales motivados por su libertad
-                  financiera.
+                  <strong>Comunidad Orgánica:</strong> Usuarios activos y transparentes participando en la plataforma.
                 </span>
               </li>
               <li>
                 <span className="icon">💎</span>
                 <span>
-                  <strong>Cero Bots:</strong> Cada view, like y comentario es verificado en Blockchain.
+                  <strong>Validación Antifraude:</strong> Cada interacción es procesada con reglas claras de verificación.
                 </span>
               </li>
             </ul>

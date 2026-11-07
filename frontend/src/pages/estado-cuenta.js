@@ -174,9 +174,7 @@ async function initializeEstadoCuenta() {
         const escrow = parseFloat(data.escrow_blue_balance) || 0;
         elements.blueAvailable.textContent = `${formatBalance(available)} BLUE`;
         elements.blueEscrow.textContent = `${formatBalance(escrow)} BLUE`;
-        // La equivalencia se calcula como 1 BLUE = 1 USD (2 decimales)
-        const fiatTotal = available + escrow;
-        elements.fiatEquivalency.textContent = `≈ $${fiatTotal.toLocaleString('es-ES', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} USD`;
+        elements.fiatEquivalency.textContent = 'Sin cotización fiat garantizada';
         
         if (escrow > 0 && data.next_unlock_at) {
             const nextUnlock = new Date(data.next_unlock_at);

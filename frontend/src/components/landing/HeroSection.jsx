@@ -6,7 +6,7 @@ import { Link } from 'react-router-dom';
  * [WINTONCOIN] - LANDING: HeroSection (Propuesta de Valor Principal)
  * ============================================================================
  * Sección de entrada con monedas 3D giratorias (BLUE y RED),
- * estadísticas de estabilidad financiera (1 BLUE = 1 USD, 0% interés)
+ * información resumida sobre el modelo utilitario y sus compromisos pareados
  * y llamada a la acción hacia el login.
  * ============================================================================
  */
@@ -34,8 +34,8 @@ function HeroSection() {
 
           <div className="stats-ticker">
             <div className="stat-item">
-              <span className="stat-value">1 BLUE = 1 USD</span>
-              <span className="stat-label">Valor Estable</span>
+              <span className="stat-value">BLUE utilitario</span>
+              <span className="stat-label">Sin precio ni redención garantizados</span>
             </div>
             <div className="divider"></div>
             <div className="stat-item">

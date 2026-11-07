@@ -448,10 +448,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         } catch (error) {
             console.error(error);
             return {
-                pre_launch_mode_enabled: false,
-                allow_request_publications: true,
-                allow_sell_publications: true,
-                allow_donation_publications: true
+                pre_launch_mode_enabled: true,
+                allow_request_publications: false,
+                allow_sell_publications: false,
+                allow_donation_publications: false
             };
         }
     }
