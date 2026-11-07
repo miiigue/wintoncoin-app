@@ -24,6 +24,10 @@ describe('panel de pausa V5 desde la billetera propietaria', () => {
         expect(source).toContain('administerContract(`pause_${target}`');
         expect(source).toContain('billetera propietaria debe confirmarla de forma independiente');
         expect(source).not.toContain('Reanudar');
+        const positions = ["['protocol'", "['exchange'", "['treasury'", "['vault'"]
+            .map((target) => source.indexOf(target));
+        expect(positions.every((position) => position >= 0)).toBe(true);
+        expect(positions).toEqual([...positions].sort((a, b) => a - b));
     });
 
     test('registra preparación y confirmación sin almacenar claves privadas', () => {

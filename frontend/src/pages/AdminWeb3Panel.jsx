@@ -305,9 +305,9 @@ export default function AdminWeb3Panel() {
     .every((key) => typeof contractPauses[key] === 'boolean');
   const pauseTargets = [
     ['protocol', 'CoreProtocol', contractPauses.CoreProtocol],
-    ['vault', 'Bóveda CollateralVault', contractPauses.CollateralVault],
     ['exchange', 'Exchange FIFO', contractPauses.FifoExchange],
-    ['treasury', 'Tesorería ProtocolTreasury', contractPauses.ProtocolTreasury]
+    ['treasury', 'Tesorería ProtocolTreasury', contractPauses.ProtocolTreasury],
+    ['vault', 'Bóveda CollateralVault', contractPauses.CollateralVault]
   ];
   const allEconomicContractsPaused = hasVerifiedPauseSuite
     && statusData?.parameters?.allEconomicContractsPaused === true
