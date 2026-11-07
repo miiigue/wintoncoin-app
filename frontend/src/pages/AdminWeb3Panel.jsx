@@ -2,7 +2,7 @@
  * ============================================================================
  * [WINTONCOIN] - PANEL ADMINISTRATIVO WEB3 Y SMART CONTRACTS (AdminWeb3Panel.jsx)
  * ============================================================================
- * Panel de control para la gobernanza, auditoría bancaria y calibración de la Suite V4:
+ * Panel de control para la gobernanza, auditoría y calibración de la suite económica activa:
  * - Monitoreo en tiempo real de los 5 contratos + Bóveda en Optimism Sepolia / Local.
  * - Calibración on-chain: Límites de crédito, estados KYC, tasas y circuit breakers.
  * - Auditor 360° On-Chain: Diagnóstico financiero de cualquier billetera y lotes de deuda.
@@ -29,6 +29,8 @@ export default function AdminWeb3Panel() {
   const [recoveryId,setRecoveryId]=useState('');
   const [recoveryHash,setRecoveryHash]=useState('');
   const [lastOwnerOperation,setLastOwnerOperation]=useState(null);
+  const [pauseConfirmation,setPauseConfirmation]=useState('');
+  const [pauseProgress,setPauseProgress]=useState('');
 
   // Form states - Gobernanza
   const [creditLimitWallet, setCreditLimitWallet] = useState('');
@@ -311,13 +313,60 @@ export default function AdminWeb3Panel() {
     && statusData?.parameters?.allEconomicContractsPaused === true
     && pauseTargets.every(([, , paused]) => paused === true);
 
+  const handlePauseEconomicSuite = async () => {
+    if (!hasVerifiedPauseSuite) {
+      showToast('❌ Primero debe confirmarse el estado on-chain de los cuatro contratos.');
+      return;
+    }
+    const pendingTargets = pauseTargets.filter(([, , paused]) => paused === false);
+    if (pendingTargets.length === 0) {
+      showToast('✅ Los cuatro contratos económicos ya están pausados.');
+      return;
+    }
+    if (pauseConfirmation !== 'PAUSAR SUITE ECONOMICA') {
+      showToast('❌ Escribe la frase de confirmación exactamente como se muestra.');
+      return;
+    }
+    const accepted = window.confirm(
+      `Se solicitarán ${pendingTargets.length} firmas independientes de la billetera propietaria. `+
+      'La pausa puede quedar parcial si cancelas una firma. ¿Continuar?'
+    );
+    if (!accepted) return;
+
+    setActionLoading(true);
+    try {
+      for (let index = 0; index < pendingTargets.length; index += 1) {
+        const [target, label] = pendingTargets[index];
+        setPauseProgress(`Pausando ${label} (${index + 1}/${pendingTargets.length})…`);
+        const result = await administerContract(`pause_${target}`, {});
+        setLastOwnerOperation(result);
+        if (!result.success) {
+          if (result.pending) {
+            throw new Error(`${label} quedó pendiente. Conserva la referencia ${result.operationId || 'mostrada arriba'} y no repitas la firma.`);
+          }
+          throw new Error(result.message || `No se confirmó la pausa de ${label}.`);
+        }
+      }
+      setPauseConfirmation('');
+      setPauseProgress('Verificando la contención completa en blockchain…');
+      await fetchStatus();
+      showToast('✅ Pausas confirmadas. Comprueba que los cuatro contratos indiquen “Pausado en blockchain”.');
+    } catch (error) {
+      showToast(`❌ ${error.message}`);
+      await fetchStatus();
+    } finally {
+      setPauseProgress('');
+      setActionLoading(false);
+    }
+  };
+
   return (
     <div className={styles.panelContainer}>
       {/* Header Principal */}
       <div className={styles.headerSection}>
         <div className={styles.headerTitleGroup}>
           <h1>
-            <span>⚙️</span> Panel de Control Smart Contracts (Suite V4)
+            <span>⚙️</span> Panel de Control Smart Contracts
           </h1>
           <p className={styles.headerSubtitle}>
             Configuración de contratos, permisos e historial de operaciones
@@ -644,7 +693,8 @@ export default function AdminWeb3Panel() {
                 : 'Contención incompleta: no se debe afirmar que Prelanzamiento bloquea universalmente la blockchain.'}
             </p>
             <p className={styles.actionPanelDesc}>
-              Este panel no firma ni transmite pausas. La operación se prepara con el paquete externo revisado y solo se ejecuta después de una segunda aprobación expresa.
+              El panel prepara cada operación y la billetera propietaria debe confirmarla de forma independiente. El servidor nunca recibe ni conserva la clave privada.
+              Si una firma se cancela, el proceso se detiene y puedes continuarlo después únicamente con los contratos que sigan activos.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {pauseTargets.map(([target, label, paused]) => (
@@ -656,6 +706,33 @@ export default function AdminWeb3Panel() {
                 </div>
               ))}
             </div>
+            {!allEconomicContractsPaused && (
+              <div className={styles.formGroup} style={{ marginTop: '1rem' }}>
+                <label className={styles.formLabel} htmlFor="pause-suite-confirmation">
+                  Para habilitar la pausa escribe: <strong>PAUSAR SUITE ECONOMICA</strong>
+                </label>
+                <input
+                  id="pause-suite-confirmation"
+                  className={styles.formInput}
+                  value={pauseConfirmation}
+                  onChange={(event) => setPauseConfirmation(event.target.value)}
+                  autoComplete="off"
+                  spellCheck="false"
+                />
+                <button
+                  type="button"
+                  className={`${styles.submitBtn} ${styles.dangerBtn}`}
+                  disabled={actionLoading || loadingStatus || !hasVerifiedPauseSuite || pauseConfirmation !== 'PAUSAR SUITE ECONOMICA'}
+                  onClick={handlePauseEconomicSuite}
+                >
+                  {actionLoading ? 'Procesando pausa…' : 'Pausar contratos económicos pendientes'}
+                </button>
+                {pauseProgress && <p role="status" aria-live="assertive">{pauseProgress}</p>}
+              </div>
+            )}
+            <p className={styles.actionPanelDesc}>
+              La reactivación no está disponible en este botón de emergencia. Requiere una decisión de gobierno separada y que Prelanzamiento esté desactivado.
+            </p>
           </div>
         </div>
       )}

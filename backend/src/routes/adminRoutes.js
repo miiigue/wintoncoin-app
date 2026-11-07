@@ -163,6 +163,12 @@ router.post('/web3/owner/prepare', web3RpcLimiter, (req,res,next)=>{
     const rpc=deployment.provider();
     try{
         const result=await require('../services/externalOwnerAdministration').prepare({pool:require('../config/db'),provider:rpc,action:req.body?.action,input:req.body||{}});
+        await require('../services/auditService').logAuditEvent(require('../config/db'),req,{
+            eventType:'web3.owner_operation.prepared',actorId:req.user?.userId??null,
+            actorUsername:req.user?.username||'admin',category:'web3_governance',
+            metadata:{action:req.body?.action,operationId:result.operationId,chainId:result.chainId,
+                target:result.to,pending:result.pending===true,txHash:result.txHash||null}
+        });
         res.json({success:true,...result});
     }catch(e){res.status(e.status||503).json({success:false,message:e.status?e.message:'No se pudo preparar la operación en blockchain.'});}
     finally{rpc.destroy();}
@@ -173,6 +179,11 @@ router.post('/web3/owner/confirm', web3RpcLimiter, async(req,res)=>{
     const rpc=deployment.provider();
     try{
         const result=await require('../services/externalOwnerAdministration').confirm({pool:require('../config/db'),provider:rpc,id:req.body.operationId,hash:req.body.txHash});
+        await require('../services/auditService').logAuditEvent(require('../config/db'),req,{
+            eventType:result.success?'web3.owner_operation.confirmed':'web3.owner_operation.pending',
+            actorId:req.user?.userId??null,actorUsername:req.user?.username||'admin',category:'web3_governance',
+            metadata:{operationId:req.body.operationId,txHash:req.body.txHash,state:result.state||null,success:result.success===true}
+        });
         res.status(result.success?200:202).json(result);
     }catch(e){res.status(e.status||503).json({success:false,message:e.status?e.message:'No se pudo verificar la transacción; conserva su identificador y consulta nuevamente.'});}
     finally{rpc.destroy();}
