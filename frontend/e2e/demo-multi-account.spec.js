@@ -80,4 +80,40 @@ test.describe('Bloque A multiusuario no económico', () => {
       await context.close();
     }
   });
+
+  test('cerrar sesión y volver atrás no restaura una sesión utilizable', async ({ browser }) => {
+    const context = await browser.newContext({ permissions: ['notifications'], serviceWorkers: 'block' });
+    try {
+      const page = await context.newPage();
+      await login(page, usernames[3]);
+      await page.locator('.profile-trigger').click();
+      await page.locator('#logoutLink').click();
+      await page.waitForURL(/\/login\.html(?:\?|$)/, { waitUntil: 'domcontentloaded' });
+      await page.goBack({ waitUntil: 'domcontentloaded' });
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('token'))).toBeNull();
+      await expect(page).not.toHaveURL(/\/contract_interaction\.html(?:\?|$)/);
+      await expect(page.locator('#usernameDisplay')).toHaveCount(0);
+    } finally {
+      await context.close();
+    }
+  });
+
+  test('el panel básico permanece utilizable en ancho móvil', async ({ browser }) => {
+    const context = await browser.newContext({
+      permissions: ['notifications'],
+      serviceWorkers: 'block',
+      viewport: { width: 390, height: 844 },
+    });
+    try {
+      const page = await context.newPage();
+      await login(page, usernames[0]);
+      await expect(page.locator('#usernameDisplay')).toBeVisible();
+      await expect(page.getByText('PRE-LANZAMIENTO', { exact: false }).first()).toBeVisible();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1)).toBe(true);
+      await page.locator('.profile-trigger').click();
+      await expect(page.locator('#profileDropdown')).toHaveClass(/show/);
+    } finally {
+      await context.close();
+    }
+  });
 });

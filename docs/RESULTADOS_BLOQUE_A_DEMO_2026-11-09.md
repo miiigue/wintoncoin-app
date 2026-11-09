@@ -9,7 +9,7 @@ Alcance: recorridos públicos y autenticados sin pagos, fondos, firmas ni transa
 
 - Pruebas E2E públicas: **5/5 aprobadas**.
 - Pruebas E2E autenticadas con una cuenta QA normal: **2/2 aprobadas**.
-- Pruebas E2E multiusuario con QA-01 a QA-04: **2/2 aprobadas**.
+- Pruebas E2E multiusuario con QA-01 a QA-04: **4/4 aprobadas**.
 - Suite backend: **501 aprobadas**, 46 omitidas por diseño.
 - Compilación Demo e aislamiento de backend, CRM y orígenes: aprobados.
 - Prelanzamiento: activo; operaciones económicas del backend deshabilitadas.
@@ -25,6 +25,8 @@ Alcance: recorridos públicos y autenticados sin pagos, fondos, firmas ni transa
 5. Base de datos, RPC, manifiesto contractual y CORS permanecen vinculados a la identidad autorizada de Demo.
 6. Cuatro cuentas conservan identidades y tokens de sesión distintos en contextos aislados, incluso después de recargar.
 7. Una cuenta normal no puede abrir el panel administrativo.
+8. Cerrar sesión y usar Atrás no restaura la sesión ni el panel privado.
+9. El panel básico, el distintivo de Prelanzamiento y el menú permanecen utilizables a 390 × 844 px sin desbordamiento horizontal.
 
 ## Límite de seguridad pendiente
 
