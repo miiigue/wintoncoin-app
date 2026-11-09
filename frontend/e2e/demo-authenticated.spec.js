@@ -8,15 +8,16 @@ async function dismissNotificationGate(page) {
   const overlay = page.locator('.notification-gate-overlay');
   if (!await overlay.isVisible().catch(() => false)) return;
 
-  const initialAction = page.locator('#gate-action-btn');
+  const initialAction = page.locator('#gate-action-btn:visible');
   if (await initialAction.isVisible().catch(() => false)) {
-    await initialAction.click();
+    await initialAction.click({ timeout: 3_000 }).catch(() => {});
   }
 
   for (let step = 0; step < 5 && await overlay.isVisible().catch(() => false); step += 1) {
-    const next = page.locator('#wizard-next');
+    const next = page.locator('#wizard-next:visible');
     if (!await next.isVisible().catch(() => false)) break;
-    await next.click();
+    const clicked = await next.click({ timeout: 3_000 }).then(() => true).catch(() => false);
+    if (!clicked) break;
   }
 
   await expect(overlay).toBeHidden({ timeout: 5_000 });
