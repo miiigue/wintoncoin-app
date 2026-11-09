@@ -78,6 +78,10 @@ typings/
 frontend/dist/
 frontend/dist-demo/
 
+# Playwright local evidence and transient reports
+frontend/playwright-report/
+frontend/test-results/
+
 # Serverless directories
 .serverless/
 
