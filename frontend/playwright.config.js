@@ -6,7 +6,8 @@ export default defineConfig({
   testDir: './e2e',
   fullyParallel: false,
   workers: 1,
-  timeout: 30_000,
+  // Render Free puede tardar más de 50 s al salir del reposo.
+  timeout: 60_000,
   expect: { timeout: 8_000 },
   retries: process.env.CI ? 1 : 0,
   reporter: process.env.CI

@@ -29,7 +29,10 @@ async function login(page) {
   await page.locator('#identifier').fill(username);
   await page.locator('#password').fill(password);
   await page.getByRole('button', { name: 'Ingresar', exact: true }).click();
-  await page.waitForURL(/\/(?:contract_interaction\.html|dashboard)(?:\?|$)/, { timeout: 20_000 });
+  await page.waitForURL(/\/(?:contract_interaction\.html|dashboard)(?:\?|$)/, {
+    timeout: 60_000,
+    waitUntil: 'domcontentloaded',
+  });
 
   const emergencyModal = page.locator('#venezuelaEmergencyModal:visible');
   const campaignVisible = await emergencyModal
