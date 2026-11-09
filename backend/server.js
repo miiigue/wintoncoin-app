@@ -5,6 +5,7 @@ require('./config.js');
 const express = require('express');
 const pool = require('./src/config/db'); // Importamos la conexión a BD centralizada
 const cors = require('cors');
+const { corsAllowedOrigins, isCorsOriginAllowed } = require('./src/config/environmentOrigins');
 const helmet = require('helmet'); // [SEGURIDAD P0] HTTP Security Headers (X-Frame-Options, HSTS, CSP, etc.)
 const cookieParser = require('cookie-parser'); // NECESARIO PARA COOKIES
 const path = require('path');
@@ -79,48 +80,9 @@ const {
 // CORS allowlist:
 // - En producción: solo dominios reales (Hostinger/Render)
 // - En desarrollo: además localhost para permitir trabajar sin abrir CORS globalmente
-const ALLOWED_ORIGINS = [
-    'https://wintoncoin-frontend.onrender.com',
-    'https://sc.wintoncoin.com', // Hostinger (producción legacy)
-    'https://www.sc.wintoncoin.com',
-    'https://wintoncoin.com', // Producción (dominio principal)
-    'https://www.wintoncoin.com', // Producción (con www)
-    'https://demo.wintoncoin.com', // Entorno DEMO
-    'https://www.demo.wintoncoin.com' // Entorno DEMO (con www)
-];
-
-// SEGURIDAD FINTECH / AUDITORÍA BANCARIA: Cero Hardcoded Secrets y resolución dinámica.
-// Inyectamos dinámicamente FRONTEND_URL en el listado de orígenes permitidos por CORS.
-// Esto evita el cruce de entornos y asegura que si el dominio se reconfigura en Render/AWS,
-// el sistema acepte las conexiones de origen cruzado de manera estrictamente controlada.
-if (process.env.FRONTEND_URL) {
-    const rawFrontendUrl = process.env.FRONTEND_URL.trim();
-    if (rawFrontendUrl) {
-        try {
-            // Normalizamos el origen parseándolo como una URL válida para extraer el protocolo y host
-            const parsedOrigin = new URL(rawFrontendUrl).origin;
-            ALLOWED_ORIGINS.push(parsedOrigin);
-            
-            // Si el frontend está configurado sin 'www', agregamos la variante con 'www' para evitar bloqueos
-            if (parsedOrigin.startsWith('https://') && !parsedOrigin.includes('://www.')) {
-                const domainWithoutProtocol = parsedOrigin.replace('https://', '');
-                ALLOWED_ORIGINS.push(`https://www.${domainWithoutProtocol}`);
-            }
-        } catch (error) {
-            // Registro auditable en caso de configuración errónea en las variables del servidor
-            console.error('[CORS SECURITY WARNING]: FRONTEND_URL configurado con formato inválido:', error.message);
-        }
-    }
-}
-
-if (process.env.NODE_ENV !== 'production') {
-    ALLOWED_ORIGINS.push(
-        'http://localhost:3000',
-        'http://127.0.0.1:3000',
-        'http://localhost:5500',
-        'http://127.0.0.1:5500'
-    );
-}
+// Demo usa una allowlist cerrada y no incorpora valores de otros entornos.
+// Fuera de Demo se conserva la política existente.
+const ALLOWED_ORIGINS = corsAllowedOrigins(process.env);
 
 // [SEGURIDAD P0] Helmet: Inyecta HTTP Security Headers en cada respuesta del servidor.
 // Protege contra: Clickjacking (X-Frame-Options), MIME Sniffing (X-Content-Type-Options),
@@ -153,16 +115,7 @@ app.use(cors({
         // Permitir requests sin Origin (ej: health checks, curl, server-to-server)
         if (!origin) return callback(null, true);
 
-        // ✅ Dev convenience (sin bajar seguridad en producción):
-        // Permitimos cualquier localhost/127.0.0.1 o IP de red local con cualquier puerto SOLO fuera de producción.
-        if (process.env.NODE_ENV !== 'production') {
-            const isLocalhostOrigin = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
-            const isLanOrigin = /^http:\/\/(192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2[0-9]|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin);
-            if (isLocalhostOrigin || isLanOrigin) return callback(null, true);
-        }
-
-        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-        if (process.env.NODE_ENV !== 'production') return callback(null, true);
+        if (isCorsOriginAllowed(origin, process.env)) return callback(null, true);
         return callback(new Error('Origen no permitido por CORS'), false);
     },
     credentials: true // CRÍTICO: Permite cookies entre dominios

@@ -773,6 +773,12 @@ async function runOneTimeCleanup(client) {
 /**
  * Función principal para configurar y asegurar que todas las tablas de la DB existen.
  */
+function defaultPrelaunchValue(env = process.env) {
+    // Fail-closed únicamente para una instancia declarada explícitamente Demo.
+    // No se infiere Demo por NODE_ENV, URL o nombre de base de datos.
+    return env.IS_DEMO_ENV === 'true' ? 'true' : 'false';
+}
+
 async function initializeDatabase() {
     const tableCreationQueries = [
         `CREATE TABLE IF NOT EXISTS users (
@@ -1066,7 +1072,7 @@ async function initializeDatabase() {
         ['welcome_bonus_enabled', 'true', 'Activa o desactiva el bono de bienvenida.'],
         ['welcome_bonus_amount', '25', 'Cantidad de BLUE que se otorga al registrarse sin código de referido.'],
         // --- NUEVAS CONFIGURACIONES DE FASES Y PUBLICACIONES ---
-        ['pre_launch_mode_enabled', 'false', 'Activa el modo pre-lanzamiento (todas las ganancias a perfil impulsor).'],
+        ['pre_launch_mode_enabled', defaultPrelaunchValue(), 'Activa el modo pre-lanzamiento y contiene las escrituras económicas.'],
         ['allow_request_publications', 'true', 'Permitir crear publicaciones de tipo "Solicitud".'],
         ['allow_sell_publications', 'true', 'Permitir crear publicaciones de tipo "Venta".'],
         ['allow_donation_publications', 'true', 'Permitir crear publicaciones de tipo "Donación".'],
@@ -1502,4 +1508,4 @@ async function generateUniqueReferralCode(client, username) {
 
     return referralCode;
 }
-module.exports = { initializeDatabase, applyMigrations, generateUniqueReferralCode };
+module.exports = { initializeDatabase, applyMigrations, generateUniqueReferralCode, defaultPrelaunchValue };

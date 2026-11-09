@@ -44,7 +44,9 @@
                     <!-- Menú de equipo exclusivo para superadmin (ocultado dinámicamente si no corresponde) -->
                     <li id="sidebarTeamLi" style="display: none;"><a href="#team" class="nav-link" data-section="team" style="color: #A78BFA;">👥 Equipo<span class="nav-badge" id="teamBadge" aria-label="Pendientes"></span></a></li>
                     <li><a href="#notifications" class="nav-link" data-section="notifications">Notificaciones</a></li>
-                    <li><a href="https://www.crm.wintoncoin.com" target="_blank" class="nav-link">CRM<span class="nav-badge nav-badge-blue" id="crmBadge" aria-label="Pendientes"></span></a></li>
+                    <li id="sidebarCrmLi">
+                        <a id="sidebarCrmLink" class="nav-link" aria-disabled="true">CRM<span class="nav-badge nav-badge-blue" id="crmBadge" aria-label="Pendientes"></span></a>
+                    </li>
                     <li><a href="#academy" class="nav-link" data-section="academy" style="color: #4da6ff;">🎓 Winton
                             Academy</a></li>
                     <li><a href="momentum-admin.html" class="nav-link" style="color: #FFD700;">⚡ Momentum<span class="nav-badge" id="momentumBadge" aria-label="Pendientes"></span></a></li>
@@ -1216,6 +1218,34 @@
 
         </main>
     </div>
+
+    <script>
+        (function configureEnvironmentCrmLink() {
+            const link = document.getElementById('sidebarCrmLink');
+            if (!link) return;
+
+            const demoHosts = new Set(['demo.wintoncoin.com', 'www.demo.wintoncoin.com']);
+            const isDemo = document.documentElement.dataset.wintonEnvironment === 'demo'
+                || demoHosts.has(window.location.hostname.toLowerCase());
+
+            if (isDemo) {
+                link.removeAttribute('href');
+                link.removeAttribute('target');
+                link.removeAttribute('rel');
+                link.setAttribute('aria-disabled', 'true');
+                link.setAttribute('title', 'CRM no disponible en Demo');
+                link.style.cursor = 'not-allowed';
+                link.style.opacity = '0.65';
+                link.append(document.createTextNode(' (no disponible en Demo)'));
+                return;
+            }
+
+            link.href = 'https://www.crm.wintoncoin.com';
+            link.target = '_blank';
+            link.rel = 'noopener noreferrer';
+            link.removeAttribute('aria-disabled');
+        })();
+    </script>
 
     <!-- ES Modules (Vite) -->
     <script type="module" src="src/pages/admin-panel.js"></script>

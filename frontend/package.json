@@ -6,14 +6,15 @@
   "scripts": {
     "dev": "vite --host",
     "build": "npm run check:react && vite build",
-    "build:demo": "npm run check:react && vite build --mode demo",
+    "build:demo": "npm run check:react && vite build --mode demo && npm run check:demo-isolation",
     "preview": "vite preview",
     "lint": "eslint src --ext .js",
     "test:wallet": "node scripts/check-wallet-render.cjs",
     "test:exchange-consent": "node scripts/check-exchange-collateral-consent.cjs",
     "check:react": "node scripts/check-react-references.cjs",
+    "check:demo-isolation": "node scripts/check-demo-environment-isolation.cjs && node scripts/check-demo-crm-isolation.cjs",
     "test:account-security": "node scripts/check-account-security.cjs && node scripts/check-marketplace-authorization.cjs && node scripts/check-publication-payment.cjs && node scripts/check-sale-payment.cjs && node scripts/check-admin-status.cjs && node scripts/check-credit-recovery.cjs && node scripts/check-publication-access.cjs",
-    "test:pwa": "node scripts/check-pwa-build.cjs",
+    "test:pwa": "node scripts/check-pwa-api-retry-policy.cjs && node scripts/check-pwa-build.cjs",
     "test:e2e:demo": "playwright test"
   },
   "devDependencies": {

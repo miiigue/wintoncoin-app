@@ -386,13 +386,20 @@
             const isFileProtocol = window.location.protocol === 'file:';
             const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
             const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
+            const isDemoBuild = document.documentElement.dataset.wintonEnvironment === 'demo';
+            const demoHosts = ['demo.wintoncoin.com', 'www.demo.wintoncoin.com'];
+            const productionHosts = ['wintoncoin.com', 'www.wintoncoin.com', 'sc.wintoncoin.com', 'www.sc.wintoncoin.com', 'wintoncoin-frontend.onrender.com'];
 
             if (isFileProtocol) return 'http://localhost:3000';
             if (isLocal) return `http://${hostname}:3000`;
-            if (hostname.startsWith('demo.') || hostname.includes('demo.')) {
+            if (isDemoBuild && !demoHosts.includes(hostname)) {
+                throw new Error('El build Demo solo puede usar dominios Demo autorizados.');
+            }
+            if (demoHosts.includes(hostname)) {
                 return 'https://wintoncoin-backend-demo.onrender.com';
             }
-            return 'https://wintoncoin-backend.onrender.com';
+            if (productionHosts.includes(hostname)) return 'https://wintoncoin-backend.onrender.com';
+            throw new Error('Dominio no autorizado para resolver el API de WintonCoin.');
         }
 
         const API_URL = getApiUrl();

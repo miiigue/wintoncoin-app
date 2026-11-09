@@ -3,7 +3,7 @@
   "chainId": "11155420",
   "core": "0x103C502611008dAf8B0488E99486e46CCB00F41b",
   "settings": {
-    "pre_launch_mode_enabled": "false",
+    "pre_launch_mode_enabled": "true",
     "red_credit_referral": "4",
     "red_credit_base_limit": "18",
     "red_credit_culture_quiz": "2",

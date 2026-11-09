@@ -18,6 +18,7 @@
 const pool = require('../../config/db'); // Conexión a la base de datos PostgreSQL
 const { logAuditEvent } = require('../../services/auditService'); // Log inmutable de auditoría
 const boosterService = require('../../services/boosterService'); // Servicio del motor booster
+const prelaunchExitReadiness = require('../../services/prelaunchExitReadiness');
 
 /**
  * Helper interno: Verifica si el sistema de gobernanza está activo.
@@ -157,23 +158,41 @@ async function updateSetting(req, res) {
 
         if (onChainSync.attempted && !onChainSync.success)
             return res.status(503).json({success:false,message:onChainSync.error || 'El contrato no confirmó el cambio. El valor vigente no se modificó.',on_chain_sync:onChainSync});
+        let result;
         if (key === 'pre_launch_mode_enabled' && value === 'false') {
-            await pool.query(
-                `INSERT INTO app_settings (setting_key, setting_value) VALUES ('pre_launch_deactivated_at', NOW()::text)
-                 ON CONFLICT (setting_key) DO UPDATE SET setting_value = NOW()::text`
+            const readiness = await prelaunchExitReadiness.evaluate({ pool });
+            if (!readiness.ready) {
+                return res.status(409).json({
+                    success: false,
+                    code: 'PRELAUNCH_EXIT_NOT_READY',
+                    message: 'No se puede desactivar Prelanzamiento: la verificación técnica de Demo tiene requisitos pendientes.',
+                    readiness
+                });
+            }
+            // Un único statement conserva juntos el cambio de fase y su marca temporal.
+            const rows = await pool.query(
+                `INSERT INTO app_settings (setting_key, setting_value, updated_at)
+                 VALUES ('pre_launch_deactivated_at', NOW()::text, NOW()), ($2, $1, NOW())
+                 ON CONFLICT (setting_key)
+                 DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
+                 RETURNING *`,
+                [value, key]
             );
+            result = { rows: rows.rows.filter(row => row.setting_key === key) };
         }
 
         // AUDITORÍA FINTECH & CIBERSEGURIDAD (SOC 2 / ISO 27001): Operación UPSERT con Timestamp de Auditoría
         // Garantiza resiliencia total y trazabilidad: actualiza setting_value y marca updated_at = NOW().
-        const result = await pool.query(
-            `INSERT INTO app_settings (setting_key, setting_value, updated_at)
-             VALUES ($2, $1, NOW())
-             ON CONFLICT (setting_key)
-             DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
-             RETURNING *`,
-            [value, key]
-        );
+        if (!result) {
+            result = await pool.query(
+                `INSERT INTO app_settings (setting_key, setting_value, updated_at)
+                 VALUES ($2, $1, NOW())
+                 ON CONFLICT (setting_key)
+                 DO UPDATE SET setting_value = EXCLUDED.setting_value, updated_at = NOW()
+                 RETURNING *`,
+                [value, key]
+            );
+        }
 
         await logAuditEvent(pool, req, {
             eventType: 'admin.settings.updated',

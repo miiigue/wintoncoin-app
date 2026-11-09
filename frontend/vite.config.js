@@ -13,10 +13,29 @@ import { VitePWA } from 'vite-plugin-pwa';
 import react from '@vitejs/plugin-react';
 import { resolve } from 'path';
 
+const PRODUCT_BACKEND_URL = 'https://wintoncoin-backend.onrender.com';
+const DEMO_BACKEND_URL = 'https://wintoncoin-backend-demo.onrender.com';
+const PRODUCT_WEB_ORIGIN_PATTERN = /https:\/\/(?:www\.)?(?:crm\.|boosters\.)?wintoncoin\.com(?:\/[^"'\x60\s<)]*)?/gi;
+const DEMO_DISABLED_EXTERNAL_URL = '/#demo-external-link-disabled';
+
+const sanitizeDemoContent = (content) => content
+  .replaceAll(PRODUCT_BACKEND_URL, DEMO_BACKEND_URL)
+  .replace(PRODUCT_WEB_ORIGIN_PATTERN, DEMO_DISABLED_EXTERNAL_URL);
+
 // Plugin personalizado para inyectar alertas visuales de DEMO en la interfaz
 const demoModePlugin = (mode) => {
   return {
     name: 'html-transform-demo',
+    enforce: 'pre',
+    transform(code, id) {
+      if (mode !== 'demo' || !id || id.includes('node_modules')) return null;
+      if (!code.includes(PRODUCT_BACKEND_URL) && !PRODUCT_WEB_ORIGIN_PATTERN.test(code)) return null;
+      PRODUCT_WEB_ORIGIN_PATTERN.lastIndex = 0;
+      return {
+        code: sanitizeDemoContent(code),
+        map: null,
+      };
+    },
     transformIndexHtml(html) {
       if (mode === 'demo') {
         // Ribbon diagonal profesional 
@@ -29,7 +48,11 @@ const demoModePlugin = (mode) => {
         `;
 
         // Inyectamos el ribbon estático antes del cierre del body
-        let modifiedHtml = html.replace('</body>', `${demoRibbon}\n</body>`);
+        let modifiedHtml = html
+          .replace(/<html(\s|>)/i, '<html data-winton-environment="demo"$1')
+          .replace(PRODUCT_WEB_ORIGIN_PATTERN, DEMO_DISABLED_EXTERNAL_URL)
+          .replaceAll(PRODUCT_BACKEND_URL, DEMO_BACKEND_URL)
+          .replace('</body>', `${demoRibbon}\n</body>`);
 
         // Interceptamos la etiqueta title para anteponerle la palabra [DEMO]
         modifiedHtml = modifiedHtml.replace(/<title>(.*?)<\/title>/, '<title>[DEMO] $1</title>');
@@ -41,6 +64,25 @@ const demoModePlugin = (mode) => {
         return modifiedHtml;
       }
       return html;
+    },
+    generateBundle(_options, bundle) {
+      if (mode !== 'demo') return;
+      const leaks = [];
+      for (const [fileName, output] of Object.entries(bundle)) {
+        // Los mapas conservan sourcesContent original aun cuando el módulo ya
+        // fue transformado. Se sanea ese texto sin alterar el código generado.
+        if (output.type === 'asset' && fileName.endsWith('.map') && typeof output.source === 'string') {
+          output.source = sanitizeDemoContent(output.source);
+        }
+        const content = output.type === 'chunk'
+          ? output.code
+          : (typeof output.source === 'string' ? output.source : output.source?.toString());
+        PRODUCT_WEB_ORIGIN_PATTERN.lastIndex = 0;
+        if (content?.includes(PRODUCT_BACKEND_URL) || PRODUCT_WEB_ORIGIN_PATTERN.test(content)) leaks.push(fileName);
+      }
+      if (leaks.length > 0) {
+        throw new Error(`El build Demo contiene referencias al backend productivo: ${leaks.join(', ')}`);
+      }
     }
   };
 };

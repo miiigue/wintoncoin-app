@@ -20,6 +20,15 @@ export function getApiUrl() {
     const isFileProtocol = window.location.protocol === 'file:';
     const isPrivateIp = /^10\.|^192\.168\.|^172\.(1[6-9]|2\d|3[0-1])\./.test(hostname);
     const isLocal = hostname === 'localhost' || hostname === '127.0.0.1' || isPrivateIp || isFileProtocol;
+    const demoHosts = new Set(['demo.wintoncoin.com', 'www.demo.wintoncoin.com']);
+    const productionHosts = new Set([
+        'wintoncoin.com',
+        'www.wintoncoin.com',
+        'sc.wintoncoin.com',
+        'www.sc.wintoncoin.com',
+        'wintoncoin-frontend.onrender.com'
+    ]);
+    const isDemoBuild = typeof import.meta !== 'undefined' && import.meta.env?.MODE === 'demo';
 
     // 2. Si se ejecuta como archivo local plano (file://), redirigir al servidor local por defecto
     if (isFileProtocol) {
@@ -29,7 +38,13 @@ export function getApiUrl() {
     // 3. AISLAMIENTO ESTRICTO DE DEMO (Prioridad Inviolable de Seguridad):
     // Si el usuario está navegando en el dominio demo (demo.wintoncoin.com) o en modo demo,
     // FORZAR SIEMPRE el backend de Demo, anulando cualquier valor residual de build.
-    if (hostname.startsWith('demo.') || hostname === 'demo.wintoncoin.com' || (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.MODE === 'demo')) {
+    if (isDemoBuild) {
+        if (!demoHosts.has(hostname)) {
+            throw new Error('El build Demo solo puede usar dominios Demo autorizados.');
+        }
+        return 'https://wintoncoin-backend-demo.onrender.com';
+    }
+    if (demoHosts.has(hostname)) {
         return 'https://wintoncoin-backend-demo.onrender.com';
     }
 
@@ -43,12 +58,15 @@ export function getApiUrl() {
     }
 
     // 5. Entornos de Staging / Variables de entorno explícitas
-    if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+    if (productionHosts.has(hostname) && typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
         return import.meta.env.VITE_API_URL;
     }
 
-    // 6. Entorno de Producción por Defecto (wintoncoin.com / sc.wintoncoin.com)
-    return 'https://wintoncoin-backend.onrender.com';
+    // 6. Dominios productivos conocidos conservan el backend anterior.
+    if (productionHosts.has(hostname)) return 'https://wintoncoin-backend.onrender.com';
+
+    // Un host no identificado nunca hereda silenciosamente otro ambiente.
+    throw new Error('Dominio no autorizado para resolver el API de WintonCoin.');
 }
 
 /**

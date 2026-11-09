@@ -3,7 +3,8 @@ const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),asse
 const source=fs.readFileSync(path.join(__dirname,'../src/middleware/adminSession.js'),'utf8');
 function fixture(env={}) {
  const module={exports:{}};
- vm.runInNewContext(source,{module,URL,process:{env:{NODE_ENV:'production',ADMIN_SECRET_KEY:'synthetic-admin',JWT_SECRET:'synthetic-user',...env}},require:name=>name==='jsonwebtoken'?{verify:()=>({userId:1,role:'admin',pwdVersion:'1234567890'})}:{query:async()=>({rows:[{id:1,username:'fixture',role:'admin',account_status:'active',password_hash:'hash1234567890'}]})}});
+ const environmentOrigins=require('../src/config/environmentOrigins');
+ vm.runInNewContext(source,{module,URL,process:{env:{NODE_ENV:'production',ADMIN_SECRET_KEY:'synthetic-admin',JWT_SECRET:'synthetic-user',...env}},require:name=>name==='jsonwebtoken'?{verify:()=>({userId:1,role:'admin',pwdVersion:'1234567890'})}:name==='../config/environmentOrigins'?environmentOrigins:{query:async()=>({rows:[{id:1,username:'fixture',role:'admin',account_status:'active',password_hash:'hash1234567890'}]})}});
  return module.exports;
 }
 (async()=>{

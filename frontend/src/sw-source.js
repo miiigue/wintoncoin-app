@@ -11,7 +11,6 @@ import { registerRoute, NavigationRoute } from 'workbox-routing';
 import { NetworkFirst, CacheFirst, StaleWhileRevalidate, NetworkOnly } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { CacheableResponsePlugin } from 'workbox-cacheable-response';
-import { BackgroundSyncPlugin } from 'workbox-background-sync';
 import { clientsClaim } from 'workbox-core';
 
 // ============================================================================
@@ -22,14 +21,31 @@ clientsClaim();
 
 // Precache manifest (inyectado automáticamente por Workbox)
 const isAdminPath = path => /^\/(?:admin(?:[/.\-]|$)|governance-panel|momentum-admin)/.test(path);
+const LEGACY_API_QUEUE_DB = 'workbox-background-sync';
+const LEGACY_API_QUEUE_TAG = 'workbox-background-sync:wintoncoin-api-queue';
+
+const clearLegacyApiRetryQueue = () => new Promise(resolve => {
+  if (!self.indexedDB) return resolve();
+  const request = self.indexedDB.deleteDatabase(LEGACY_API_QUEUE_DB);
+  request.onsuccess = () => resolve();
+  request.onerror = () => resolve();
+  request.onblocked = () => resolve();
+});
+
 precacheAndRoute(self.__WB_MANIFEST.filter(entry => !isAdminPath(new URL(typeof entry === 'string' ? entry : entry.url, self.location.origin).pathname)));
 self.addEventListener('activate', event => event.waitUntil((async () => {
+  // Elimina solicitudes guardadas por versiones anteriores antes de controlar
+  // clientes con la política nueva. Nunca se reproducen automáticamente.
+  await clearLegacyApiRetryQueue();
   for (const name of await caches.keys()) {
     if (!name.startsWith('wintoncoin-') && !name.startsWith('workbox-precache')) continue;
     const cache = await caches.open(name);
     for (const request of await cache.keys()) if (isAdminPath(new URL(request.url).pathname)) await cache.delete(request);
   }
 })()));
+self.addEventListener('sync', event => {
+  if (event.tag === LEGACY_API_QUEUE_TAG) event.waitUntil(clearLegacyApiRetryQueue());
+});
 cleanupOutdatedCaches();
 
 // ============================================================================
@@ -130,12 +146,13 @@ registerRoute(
     })
 );
 
-// API: Network Only
+// API: Network Only, sin cola ni reintentos diferidos.
+// Una mutación no debe reaparecer después de un cambio de fase, sesión o
+// configuración de Prelanzamiento. Si la red falla, la aplicación informa el
+// fallo al usuario y este decide si vuelve a intentarlo en el estado vigente.
 registerRoute(
     /\/api\//,
-    new NetworkOnly({
-        plugins: [new BackgroundSyncPlugin('wintoncoin-api-queue', { maxRetentionTime: 1440 })]
-    })
+    new NetworkOnly()
 );
 
 // CDN: Cache First
