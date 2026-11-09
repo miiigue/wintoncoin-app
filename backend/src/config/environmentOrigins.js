@@ -1,5 +1,7 @@
 'use strict';
 
+const { hasDemoEnvironmentMarker } = require('../services/demoEnvironmentGuard');
+
 const DEMO_ORIGINS = Object.freeze([
     'https://demo.wintoncoin.com',
     'https://www.demo.wintoncoin.com'
@@ -64,7 +66,7 @@ function configuredOrigins(env, keys, { production }) {
 }
 
 function corsAllowedOrigins(env = process.env) {
-    if (env.IS_DEMO_ENV === 'true') return [...DEMO_ORIGINS];
+    if (hasDemoEnvironmentMarker(env)) return [...DEMO_ORIGINS];
     const production = env.NODE_ENV === 'production';
     const origins = [
         ...BASE_ORIGINS,
@@ -76,7 +78,7 @@ function corsAllowedOrigins(env = process.env) {
 
 function isCorsOriginAllowed(origin, env = process.env) {
     if (!origin) return true;
-    if (env.IS_DEMO_ENV === 'true') return DEMO_ORIGINS.includes(origin);
+    if (hasDemoEnvironmentMarker(env)) return DEMO_ORIGINS.includes(origin);
 
     if (env.NODE_ENV !== 'production') {
         const localhost = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
@@ -90,7 +92,7 @@ function isCorsOriginAllowed(origin, env = process.env) {
 }
 
 function adminAllowedOrigins(env = process.env) {
-    if (env.IS_DEMO_ENV === 'true') return [...DEMO_ORIGINS];
+    if (hasDemoEnvironmentMarker(env)) return [...DEMO_ORIGINS];
     const production = env.NODE_ENV === 'production';
     const origins = [
         ...configuredOrigins(env, ['FRONTEND_URL', 'ADMIN_FRONTEND_URL'], { production }),
@@ -101,7 +103,7 @@ function adminAllowedOrigins(env = process.env) {
 }
 
 function isTrustedAdminOrigin(value, env = process.env) {
-    const production = env.NODE_ENV === 'production' || env.IS_DEMO_ENV === 'true';
+    const production = env.NODE_ENV === 'production' || hasDemoEnvironmentMarker(env);
     const origin = normalizeOrigin(value, { production });
     if (!origin) return false;
     return adminAllowedOrigins(env).some(allowed =>

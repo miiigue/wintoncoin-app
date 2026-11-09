@@ -2,7 +2,7 @@
 const {readFileSync}=require('fs');
 const path=require('path');
 const {Contract, getAddress, keccak256, toUtf8Bytes}=require('ethers');
-const {assertDemoDeployment,assertDemoRpcEndpoints}=require('./demoEnvironmentGuard');
+const {assertDemoDeployment,assertDemoRpcEndpoints,hasDemoEnvironmentMarker}=require('./demoEnvironmentGuard');
 const keys={CoreProtocol:'CORE_PROTOCOL_ADDRESS',CollateralVault:'COLLATERAL_VAULT_ADDRESS',FifoExchange:'FIFO_EXCHANGE_ADDRESS',BlueToken:'BLUE_TOKEN_ADDRESS',RedToken:'RED_TOKEN_ADDRESS',USDT:'USDT_TOKEN_ADDRESS',ProtocolTreasury:'PROTOCOL_TREASURY_ADDRESS'};
 const demoEpochs={
     V4_ACTIVE:'optimism-sepolia-active-before-v5-2026-10-27.json',
@@ -33,14 +33,14 @@ function configuration(env=process.env) {
     }
     const fingerprint=keccak256(toUtf8Bytes(JSON.stringify({chainId,epoch,contracts})));
     const selected={chainId,epoch,contracts,startBlocks:manifest.startBlocks||{},fingerprint};
-    if(env.IS_DEMO_ENV==='true')assertDemoDeployment(env,selected);
+    if(hasDemoEnvironmentMarker(env))assertDemoDeployment(env,selected);
     return selected;
 }
 function provider() {
     const {ChainRpcProvider,endpoints}=require('./chainRpcProvider');
     const config=configuration();
     const urls=endpoints(process.env,config.chainId);
-    if(process.env.IS_DEMO_ENV==='true')assertDemoRpcEndpoints(process.env,urls);
+    if(hasDemoEnvironmentMarker(process.env))assertDemoRpcEndpoints(process.env,urls);
     return new ChainRpcProvider(urls,config.chainId);
 }
 async function validate(rpc,config=configuration()) {

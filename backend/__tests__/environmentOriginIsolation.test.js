@@ -11,6 +11,7 @@ const {
 describe('aislamiento de orígenes por ambiente', () => {
     const demo = {
         IS_DEMO_ENV: 'true',
+        WINTON_ENVIRONMENT_ID: 'demo',
         NODE_ENV: 'production',
         FRONTEND_URL: 'https://wintoncoin.com',
         ADMIN_FRONTEND_URL: 'https://admin.wintoncoin.com'
@@ -19,6 +20,12 @@ describe('aislamiento de orígenes por ambiente', () => {
     test('Demo ignora orígenes configurados de otros ambientes', () => {
         expect(corsAllowedOrigins(demo)).toEqual(DEMO_ORIGINS);
         expect(adminAllowedOrigins(demo)).toEqual(DEMO_ORIGINS);
+    });
+
+    test('la identidad Demo mantiene CORS aislado aunque falte IS_DEMO_ENV', () => {
+        const markerMismatch = { ...demo, IS_DEMO_ENV: 'false' };
+        expect(corsAllowedOrigins(markerMismatch)).toEqual(DEMO_ORIGINS);
+        expect(isCorsOriginAllowed('https://wintoncoin.com', markerMismatch)).toBe(false);
     });
 
     test.each([

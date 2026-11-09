@@ -61,6 +61,10 @@ function parseFingerprintList(raw) {
     return new Set(parsed.map(item => String(item).toLowerCase()));
 }
 
+function hasDemoEnvironmentMarker(env = process.env) {
+    return env.IS_DEMO_ENV === 'true' || env.WINTON_ENVIRONMENT_ID === 'demo';
+}
+
 function assertDemoMarker(env = process.env) {
     if (env.IS_DEMO_ENV !== 'true' || env.WINTON_ENVIRONMENT_ID !== 'demo') {
         throw new Error('El servicio Demo no tiene una identidad de entorno explícita.');
@@ -105,6 +109,7 @@ module.exports = {
     DEMO_EPOCH,
     databaseFingerprint,
     rpcFingerprint,
+    hasDemoEnvironmentMarker,
     assertDemoDatabase,
     assertDemoDeployment,
     assertDemoRpcEndpoints

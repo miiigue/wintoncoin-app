@@ -1,14 +1,14 @@
 // Requerir el configurador de entorno dinámico central del proyecto
 require('../../config');
 const { Pool } = require('pg');
-const { assertDemoDatabase } = require('../services/demoEnvironmentGuard');
+const { assertDemoDatabase, hasDemoEnvironmentMarker } = require('../services/demoEnvironmentGuard');
 
 let useSsl = false;
 const dbUrl = process.env.DATABASE_URL || '';
 
 // Demo falla cerrado antes de crear el pool. La huella no contiene usuario,
 // contraseña ni parámetros de conexión y vincula el servicio a una base exacta.
-if (process.env.IS_DEMO_ENV === 'true') assertDemoDatabase(process.env);
+if (hasDemoEnvironmentMarker(process.env)) assertDemoDatabase(process.env);
 
 // 1. Si es una URL interna de Render (.internal), NUNCA usar SSL (viaja por red privada).
 // 2. Si es una URL local (localhost/127.0.0.1), NUNCA usar SSL.
@@ -17,7 +17,7 @@ if (dbUrl.includes('.internal')) {
     useSsl = false;
 } else if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
     useSsl = false;
-} else if (dbUrl.includes('render.com') || process.env.NODE_ENV === 'production' || process.env.IS_DEMO_ENV === 'true') {
+} else if (dbUrl.includes('render.com') || process.env.NODE_ENV === 'production' || hasDemoEnvironmentMarker(process.env)) {
     useSsl = { rejectUnauthorized: false };
 } else {
     useSsl = false;

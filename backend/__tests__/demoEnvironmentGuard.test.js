@@ -33,6 +33,14 @@ describe('compuerta fail-closed del entorno Demo', () => {
         expect(() => guard.assertDemoDatabase(env)).toThrow('identidad de entorno explícita');
     });
 
+    test.each([
+        [{ IS_DEMO_ENV: 'true', WINTON_ENVIRONMENT_ID: '' }, true],
+        [{ IS_DEMO_ENV: 'false', WINTON_ENVIRONMENT_ID: 'demo' }, true],
+        [{ IS_DEMO_ENV: 'false', WINTON_ENVIRONMENT_ID: 'production' }, false]
+    ])('activa la compuerta si cualquiera de los marcadores declara Demo', (env, expected) => {
+        expect(guard.hasDemoEnvironmentMarker(env)).toBe(expected);
+    });
+
     test('exige red, época y fingerprint exactos antes de crear un proveedor', () => {
         const env = demoEnv();
         const config = { chainId: guard.DEMO_CHAIN_ID, epoch: guard.DEMO_EPOCH, fingerprint: deploymentFingerprint };
