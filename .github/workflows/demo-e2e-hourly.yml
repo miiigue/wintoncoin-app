@@ -1,9 +1,9 @@
 name: Demo - Verificación pública cada hora
 
-# El evento schedule solo se activa cuando este archivo existe en la rama
-# predeterminada de GitHub. Este paquete se prepara en demo y no debe copiarse
-# a main sin una autorización humana separada. workflow_dispatch permite el
-# ensayo manual desde una rama que ya contenga el archivo.
+# Los eventos schedule y workflow_dispatch solo quedan disponibles cuando el
+# workflow existe en la rama predeterminada de GitHub. Este paquete se conserva
+# preparado e inactivo en demo y no debe copiarse a main sin una autorización
+# humana separada.
 
 on:
   schedule:
