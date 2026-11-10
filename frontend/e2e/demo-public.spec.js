@@ -1,6 +1,10 @@
 import { test, expect } from 'playwright/test';
 
 const apiBaseURL = process.env.WINTON_QA_API_URL || 'https://wintoncoin-backend-demo.onrender.com';
+const expectedChainId = process.env.WINTON_QA_CHAIN_ID || '11155420';
+const expectedEpoch = process.env.WINTON_QA_DEPLOYMENT_EPOCH || 'V5_CODEX_163';
+const expectedFingerprint = process.env.WINTON_QA_DEPLOYMENT_FINGERPRINT
+  || '0xa4fbb3c5518e2f8d0a4c2257fcc3f802697ee5c3a3ad2de75f15f1ece98fddb1';
 
 test.describe('Bloque A público y no económico', () => {
   test('la portada identifica inequívocamente el entorno Demo', async ({ page }) => {
@@ -57,12 +61,49 @@ test.describe('Bloque A público y no económico', () => {
     const deploymentResponse = await request.get(`${apiBaseURL}/api/web3/deployment`);
     expect(deploymentResponse.ok()).toBeTruthy();
     const deployment = await deploymentResponse.json();
+    expect(deployment).toMatchObject({
+      success: true,
+      chainId: expectedChainId,
+      epoch: expectedEpoch,
+      fingerprint: expectedFingerprint,
+    });
     expect(deployment.operations).toMatchObject({
       enabled: false,
       mode: 'prelaunch_read_only',
+      epoch: expectedEpoch,
+      fingerprint: expectedFingerprint,
       reason: 'PRELAUNCH_ACTIVE',
       preLaunchVerified: true,
       preLaunchActive: true,
     });
+  });
+
+  test('la suite Demo esperada mantiene pausados sus cuatro contratos económicos', async ({ request }) => {
+    const [deploymentResponse, statusResponse] = await Promise.all([
+      request.get(`${apiBaseURL}/api/web3/deployment`),
+      request.get(`${apiBaseURL}/api/web3/status`),
+    ]);
+    expect(deploymentResponse.ok()).toBeTruthy();
+    expect(statusResponse.ok()).toBeTruthy();
+
+    const deployment = await deploymentResponse.json();
+    const status = await statusResponse.json();
+    expect(status).toMatchObject({
+      success: true,
+      chainId: expectedChainId,
+      parameters: {
+        contractPauses: {
+          CoreProtocol: true,
+          CollateralVault: true,
+          FifoExchange: true,
+          ProtocolTreasury: true,
+        },
+        allEconomicContractsPaused: true,
+      },
+    });
+
+    for (const key of ['CoreProtocol', 'CollateralVault', 'FifoExchange', 'ProtocolTreasury']) {
+      expect(status.contracts[key]).toBe(deployment.contracts[key]);
+    }
   });
 });

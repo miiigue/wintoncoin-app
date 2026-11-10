@@ -1,0 +1,72 @@
+name: Demo - Verificación pública cada hora
+
+# El evento schedule solo se activa cuando este archivo existe en la rama
+# predeterminada de GitHub. Este paquete se prepara en demo y no debe copiarse
+# a main sin una autorización humana separada. workflow_dispatch permite el
+# ensayo manual desde una rama que ya contenga el archivo.
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-public-hourly
+  cancel-in-progress: true
+
+jobs:
+  public-demo-smoke:
+    name: Pruebas públicas no económicas
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WINTON_QA_BASE_URL: https://demo.wintoncoin.com
+      WINTON_QA_API_URL: https://wintoncoin-backend-demo.onrender.com
+      WINTON_QA_CHAIN_ID: '11155420'
+      WINTON_QA_DEPLOYMENT_EPOCH: V5_CODEX_163
+      WINTON_QA_DEPLOYMENT_FINGERPRINT: '0xa4fbb3c5518e2f8d0a4c2257fcc3f802697ee5c3a3ad2de75f15f1ece98fddb1'
+    steps:
+      - name: Descargar código de la rama Demo
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Instalar dependencias bloqueadas
+        working-directory: frontend
+        run: npm ci
+
+      - name: Instalar Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Confirmar aislamiento de Demo
+        shell: bash
+        run: |
+          test "$WINTON_QA_BASE_URL" = "https://demo.wintoncoin.com"
+          test "$WINTON_QA_API_URL" = "https://wintoncoin-backend-demo.onrender.com"
+          test "$WINTON_QA_CHAIN_ID" = "11155420"
+          test "$WINTON_QA_DEPLOYMENT_EPOCH" = "V5_CODEX_163"
+          test "$WINTON_QA_DEPLOYMENT_FINGERPRINT" = "0xa4fbb3c5518e2f8d0a4c2257fcc3f802697ee5c3a3ad2de75f15f1ece98fddb1"
+
+      - name: Ejecutar Bloque A público
+        working-directory: frontend
+        run: npm run test:e2e:demo -- --grep "Bloque A público"
+
+      - name: Conservar evidencia si falla
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-public-e2e-${{ github.run_id }}
+          path: |
+            frontend/playwright-report
+            frontend/test-results
+          if-no-files-found: ignore
+          retention-days: 14
