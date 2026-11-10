@@ -27,6 +27,7 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
             initialFeeBps
         );
         await exchange.waitForDeployment();
+        await exchange.unpause();
 
         // 3. Fondear usuarios de prueba
         await blueToken.mint(user1.address, 100_000n * ONE_TOKEN);
@@ -401,7 +402,7 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
             ).to.be.revertedWithCustomError(exchange, "OrderNotCancellable");
         });
 
-        it("test_pause_AllowsCancellation: La cancelación opera normalmente durante pausa", async function () {
+        it("test_pause_BlocksCancellation: La pausa integral bloquea la cancelación", async function () {
             await exchange.connect(user1).createBlueOrder(50n * ONE_TOKEN);
             await exchange.connect(owner).pause();
             expect(await exchange.paused()).to.be.true;
@@ -411,10 +412,11 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
                 exchange.connect(user1).createBlueOrder(50n * ONE_TOKEN)
             ).to.be.revertedWithCustomError(exchange, "EnforcedPause");
 
-            // Cancelar orden debe ser exitoso en pausa
-            await expect(exchange.connect(user1).cancelOrder(1)).to.not.be.reverted;
+            // Cancelar orden también debe quedar bloqueado en la pausa integral.
+            await expect(exchange.connect(user1).cancelOrder(1))
+                .to.be.revertedWithCustomError(exchange, "PrelaunchFrozen");
             const o = await exchange.orders(1);
-            expect(o.status).to.equal(4); // CANCELLED
+            expect(o.status).to.equal(1); // OPEN, sin mutación
         });
     });
 
@@ -683,7 +685,7 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
             );
         });
 
-        it("test_adversarial_claimFeesDuringPause: La tesorería puede reclamar comisiones durante pausa de emergencia", async function () {
+        it("test_adversarial_claimFeesDuringPause: La pausa integral bloquea el retiro de comisiones", async function () {
             // Proponer y activar fee de 100 BPS (1.00%) para generar comisiones
             await exchange.connect(owner).proposeFeeUpdate(100);
             await ethers.provider.send("evm_increaseTime", [48 * 3600 + 1]);
@@ -714,20 +716,21 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
                 exchange.matchOrders(1, 2)
             ).to.be.revertedWithCustomError(exchange, "EnforcedPause");
 
-            // claimFees() DEBE operar con éxito aun bajo pausa
+            // claimFees() no debe mover activos durante la pausa integral.
             const treasuryAddr = await exchange.treasury();
             const blueTreasuryBefore = await blueToken.balanceOf(treasuryAddr);
             const usdtTreasuryBefore = await usdtToken.balanceOf(treasuryAddr);
 
-            await exchange.claimFees();
+            await expect(exchange.claimFees())
+                .to.be.revertedWithCustomError(exchange, "EnforcedPause");
 
             const blueTreasuryAfter = await blueToken.balanceOf(treasuryAddr);
             const usdtTreasuryAfter = await usdtToken.balanceOf(treasuryAddr);
 
-            expect(blueTreasuryAfter - blueTreasuryBefore).to.equal(accBlue);
-            expect(usdtTreasuryAfter - usdtTreasuryBefore).to.equal(accUsdt);
-            expect(await exchange.accumulatedFeesBlue()).to.equal(0n);
-            expect(await exchange.accumulatedFeesUsdt()).to.equal(0n);
+            expect(blueTreasuryAfter).to.equal(blueTreasuryBefore);
+            expect(usdtTreasuryAfter).to.equal(usdtTreasuryBefore);
+            expect(await exchange.accumulatedFeesBlue()).to.equal(accBlue);
+            expect(await exchange.accumulatedFeesUsdt()).to.equal(accUsdt);
         });
 
         it("test_adversarial_cannotRescuePairsUnderAnyCondition: El owner no puede retirar reservas bajo rescueForeignToken", async function () {
@@ -789,6 +792,7 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
                 0
             );
             await badExchange.waitForDeployment();
+            await badExchange.unpause();
             await feeTokenMock.connect(user1).approve(await badExchange.getAddress(), ethers.MaxUint256);
 
             await expect(
@@ -805,6 +809,7 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
                 0
             );
             await badExchange.waitForDeployment();
+            await badExchange.unpause();
             await feeTokenMock.connect(user1).approve(await badExchange.getAddress(), ethers.MaxUint256);
 
             await expect(
@@ -965,6 +970,7 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
                 0
             );
             await attackExchange.waitForDeployment();
+            await attackExchange.unpause();
 
             // Fondear al usuario y aprobar
             const amount = 50n * ONE_TOKEN;
@@ -1069,6 +1075,7 @@ describe("FifoExchange — Suite de Pruebas Unitarias y de Integración (V3.3.6)
                 0
             );
             await harness.waitForDeployment();
+            await harness.unpause();
 
             // Fondear y aprobar
             await blueToken.mint(user1.address, 10n * ONE_TOKEN);

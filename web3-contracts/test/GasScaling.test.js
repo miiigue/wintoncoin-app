@@ -5,7 +5,7 @@ describe('Medición local de crecimiento por posiciones activas',function(){
  this.timeout(240000);
  it('los contratos optimizados caben en el límite configurado para desplegar',async()=>{
   const f=await fixture();
-  for(const [name,c] of [['CoreProtocol',f.core],['BlueToken',f.blue]]){
+  for(const [name,c] of [['CoreProtocol',f.core],['CollateralVault',f.vault],['FifoExchange',f.exchange],['ProtocolTreasury',f.treasury],['BlueToken',f.blue]]){
    const gas=(await c.deploymentTransaction().wait()).gasUsed;expect(gas).lessThan(BigInt(require('../hardhat.config').networks.optimismSepolia.gas));
    expect(((await ethers.provider.getCode(c.target)).length-2)/2).lessThan(24577);
    console.log(JSON.stringify({contract:name,deploymentGas:gas.toString()}));

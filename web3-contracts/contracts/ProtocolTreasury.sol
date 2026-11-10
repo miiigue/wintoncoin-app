@@ -6,7 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "./OperationalModeControl.sol";
 
 /**
  * @title ProtocolTreasury (Bóveda y Tesorería Institucional) - Suite V4
@@ -30,7 +30,7 @@ interface ITreasuryCore {
     function amortizeWithBlue(uint256 amount) external;
 }
 
-contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
+contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, OperationalModeControl {
     using SafeERC20 for IERC20;
 
     // ========================================================================
@@ -167,14 +167,18 @@ contract ProtocolTreasury is Ownable2Step, ReentrancyGuard, Pausable {
      * @notice Pausa de emergencia para suspender reclamos durante contingencias.
      */
     function pause() external onlyOwner {
-        _pause();
+        _enterPrelaunchFreeze();
+    }
+
+    function enterEmergencyExitOnly() external onlyOwner {
+        _enterEmergencyExitOnly();
     }
 
     /**
      * @notice Reanudación de operaciones normales tras verificar contingencia.
      */
     function unpause() external onlyOwner {
-        _unpause();
+        _resumeNormalOperation();
     }
 
     /**

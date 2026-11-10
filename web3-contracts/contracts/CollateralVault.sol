@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "./OperationalModeControl.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
@@ -17,20 +17,24 @@ interface ICoreVault {
     function onCollateralRepayment(address user, uint256 amount) external;
     function settleMatured(address user) external;
     function paused() external view returns (bool);
+    function operationalMode() external view returns (uint8);
 }
 interface IExchangeVault {
     function usdtToken() external view returns (address);
     function feeBps() external view returns (uint16);
-    function MIN_ORDER_AMOUNT() external view returns (uint128);
     function createAmortizationOrder(address user, uint128 amount) external returns (uint64);
     function collateralizeFromVault(address user, uint64 orderId, uint128 maximum, bool maturedOnly)
         external returns (uint128 amount, uint64 sequence);
 }
+interface IOperationalModeView {
+    function operationalMode() external view returns (uint8);
+}
 
 /// @notice Collateral is counted once across Vault and FIFO. Only purchased BLUE
 /// settles RED. Cancelled orders return funds here, never bypassing withdrawals.
-contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizationVault {
+contract CollateralVault is Ownable2Step, ReentrancyGuard, OperationalModeControl, IAmortizationVault {
     using SafeERC20 for IERC20;
+    uint128 private constant MIN_EXCHANGE_ORDER_AMOUNT = 1_000_000;
     IERC20 public immutable collateralToken;
     address public coreProtocol;
     address public exchange;
@@ -78,7 +82,7 @@ contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizati
         _kyc(msg.sender);
         _deposit(msg.sender, value);
     }
-    function setAutomaticExchangeCollateral(bool enabled) external {
+    function setAutomaticExchangeCollateral(bool enabled) external whenNotPaused {
         automaticExchangeCollateral[msg.sender] = enabled;
         emit AutomaticExchangeCollateralSet(msg.sender, enabled);
     }
@@ -137,7 +141,14 @@ contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizati
         if (reserved > required) required = reserved;
         return userCollateral[user] > required ? userCollateral[user] - required : 0;
     }
-    function withdraw(uint256 value) external nonReentrant whenNotPaused {
+    /// @notice Canonical fail-closed gate consulted by Core before creating exposure.
+    function economicSuiteNormal(address treasuryAddress) external view returns (bool) {
+        return treasuryAddress != address(0) && exchange != address(0) &&
+            operationalMode == OperationalMode.NORMAL &&
+            IOperationalModeView(treasuryAddress).operationalMode() == uint8(OperationalMode.NORMAL) &&
+            IOperationalModeView(exchange).operationalMode() == uint8(OperationalMode.NORMAL);
+    }
+    function withdraw(uint256 value) external nonReentrant whenExitAllowed {
         _kyc(msg.sender);
         _refreshPending(msg.sender);
         require(value > 0 && value <= getFreeCollateral(msg.sender), "Vault: Requested amount exceeds free collateral");
@@ -189,7 +200,7 @@ contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizati
     function _processPending(address user) private {
         if (activeAmortizationOrder[user] != 0) return;
         uint256 value = pendingReserve[user];
-        if (value < IExchangeVault(exchange).MIN_ORDER_AMOUNT()) return;
+        if (value < MIN_EXCHANGE_ORDER_AMOUNT) return;
         require(value <= type(uint128).max, "Vault: Amount overflow");
         pendingReserve[user] = 0;
         exchangeReserved[user] += value;
@@ -214,7 +225,7 @@ contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizati
     /// @notice Accounts USDT already held by the Exchange as collateral exactly once.
     /// No token transfer occurs: physical custody remains in the original FIFO order.
     function registerExchangeCollateral(address user, uint64 id, uint128 value, bool maturedOnly)
-        external onlyExchange
+        external onlyExchange whenNotPaused
     {
         _registerExchangeCollateral(user, id, value, maturedOnly);
     }
@@ -236,7 +247,7 @@ contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizati
         totalCollateralLocked += value;
         emit ExchangeCollateralRegistered(user, id, value, maturedOnly);
     }
-    function releaseExchangeCollateral(uint64 id, uint128 value) external onlyExchange {
+    function releaseExchangeCollateral(uint64 id, uint128 value) external onlyExchange whenExitAllowed {
         Purchase storage purchase = purchases[id];
         require(purchase.exchangeOrigin, "Vault: Not exchange-origin collateral");
         address user = _deductReservation(id, value);
@@ -246,9 +257,10 @@ contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizati
     }
     /// @notice Converts a held Exchange refund into Vault collateral before it can leave custody.
     /// The Exchange transfers the same amount in the same atomic transaction.
-    function protectPendingRefund(address user, uint128 value) external onlyExchange returns (uint128 locked) {
+    function protectPendingRefund(address user, uint128 value) external onlyExchange whenExitAllowed returns (uint128 locked) {
         if (!automaticExchangeCollateral[user] || value == 0) return 0;
-        require(!ICoreVault(coreProtocol).paused(), "Vault: Core protection paused");
+        require(ICoreVault(coreProtocol).operationalMode() != uint8(OperationalMode.PRELAUNCH_FROZEN),
+            "Vault: Core protection frozen");
         ICoreVault(coreProtocol).settleMatured(user);
         uint256 available = availableReservation(user, true);
         locked = value < available ? value : uint128(available);
@@ -268,11 +280,11 @@ contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizati
         totalExchangeReserved -= value;
         if (purchase.remaining == 0 && activeAmortizationOrder[user] == id) activeAmortizationOrder[user] = 0;
     }
-    function onAmortizationRefund(uint64 id, uint128 value) external onlyExchange nonReentrant {
+    function onAmortizationRefund(uint64 id, uint128 value) external onlyExchange nonReentrant whenExitAllowed {
         address user = _deductReservation(id, value);
         emit AmortizationReserveReturned(user, id, value);
     }
-    function onAmortizationFill(uint64 id, uint128 gross, uint128 netBlue) external onlyExchange nonReentrant {
+    function onAmortizationFill(uint64 id, uint128 gross, uint128 netBlue) external onlyExchange nonReentrant whenNotPaused {
         Purchase memory purchase = purchases[id];
         require(netBlue <= _target(purchase.user, purchase.maturedOnly), "Vault: Purchase target changed");
         uint256 shortfall = ICoreVault(coreProtocol).getCoverageShortfall(purchase.user);
@@ -286,7 +298,8 @@ contract CollateralVault is Ownable2Step, ReentrancyGuard, Pausable, IAmortizati
         // A separate permissionless processPending creates the next FIFO order;
         // never re-enter the exchange from its matching callback.
     }
-    function pause() external onlyOwner { _pause(); }
-    function unpause() external onlyOwner { _unpause(); }
+    function pause() external onlyOwner { _enterPrelaunchFreeze(); }
+    function enterEmergencyExitOnly() external onlyOwner { _enterEmergencyExitOnly(); }
+    function unpause() external onlyOwner { _resumeNormalOperation(); }
     function renounceOwnership() public pure override { revert("Vault: Ownership renunciation is permanently disabled"); }
 }

@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "./OperationalModeControl.sol";
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "./interfaces/IAmortizationVault.sol";
 
@@ -33,6 +33,7 @@ interface IExchangeCoreKYC {
     function isKYCVerified(address user) external view returns (bool);
     function settleMatured(address user) external;
     function paused() external view returns (bool);
+    function operationalMode() external view returns (uint8);
     function redToken() external view returns (address);
 }
 interface ILinkedVault {
@@ -42,7 +43,7 @@ interface ILinkedVault {
     function automaticExchangeCollateral(address user) external view returns (bool);
 }
 
-contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
+contract FifoExchange is Ownable2Step, ReentrancyGuard, OperationalModeControl {
     using SafeERC20 for IERC20;
 
     // =========================================================================
@@ -131,14 +132,14 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
         else usdtOrderIds.push(id);
         emit OrderResumed(id, previous, order.sequenceId);
     }
-    function claimPendingRefunds() external nonReentrant {
+    function claimPendingRefunds() external nonReentrant whenExitAllowed {
         _requireKYC(msg.sender);
         uint128 blue = pendingRefundBlue[msg.sender];
         uint128 usdt = pendingRefundUsdt[msg.sender];
-        require(blue > 0 || usdt > 0, "Exchange: No pending refund");
+        if (blue == 0 && usdt == 0) revert NoPendingRefund();
         // A Core pause must not hold an independently withdrawable USDT refund.
         if (blue > 0 && !_canReturnBlue(msg.sender)) blue = 0;
-        require(blue > 0 || usdt > 0, "Exchange: BLUE refund awaits Core");
+        if (blue == 0 && usdt == 0) revert BlueRefundAwaitsCore();
         uint128 originalUsdt = usdt;
         uint128 protectedUsdt;
         if (usdt > 0 && amortizationVault != address(0)) {
@@ -158,7 +159,10 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
         if (coreProtocol != address(0)) IExchangeCoreKYC(coreProtocol).settleMatured(user);
     }
     function _canReturnBlue(address user) private view returns (bool) {
-        return _isKYCVerified(user) && (coreProtocol == address(0) || !IExchangeCoreKYC(coreProtocol).paused());
+        return _isKYCVerified(user) && (
+            coreProtocol == address(0) ||
+            IExchangeCoreKYC(coreProtocol).operationalMode() != uint8(OperationalMode.PRELAUNCH_FROZEN)
+        );
     }
     function setAmortizationVault(address vault) external onlyOwner {
         if (amortizationVault != address(0) || vault.code.length == 0) revert InvalidContractCode();
@@ -180,7 +184,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function collateralizeFromVault(address user, uint64 id, uint128 maximum, bool maturedOnly)
-        external returns (uint128 value, uint64 sequence)
+        external whenNotPaused returns (uint128 value, uint64 sequence)
     {
         if (msg.sender != amortizationVault) revert Unauthorized();
         Order storage order = orders[id];
@@ -207,7 +211,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
     function _protectMatured(Order storage order) private {
         if (order.side != OrderSide.USDT_FOR_BLUE || coreProtocol == address(0)) return;
         bool automatic = ILinkedVault(amortizationVault).automaticExchangeCollateral(order.user);
-        if (IExchangeCoreKYC(coreProtocol).paused()) {
+        if (IExchangeCoreKYC(coreProtocol).operationalMode() == uint8(OperationalMode.PRELAUNCH_FROZEN)) {
             if (automatic) revert CoreProtectionPaused();
             return;
         }
@@ -223,7 +227,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
     function _requireKYC(address user) private view {
         // Standalone V3.3.6 tests may run without the V4 link. The V4 deployment
         // must configure the immutable integration before accepting users.
-        if (coreProtocol != address(0)) require(IExchangeCoreKYC(coreProtocol).isKYCVerified(user), "Exchange: KYC not verified");
+        if (coreProtocol != address(0) && !IExchangeCoreKYC(coreProtocol).isKYCVerified(user)) revert KycNotVerified();
     }
 
     function _isKYCVerified(address user) private view returns (bool) {
@@ -234,10 +238,10 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
     IERC20 public immutable blueToken;
     IERC20 public immutable usdtToken;
 
-    uint16 public constant MAX_FEE_BPS = 500;                // 500 BPS = 5.00% tope absoluto
-    uint128 public constant MIN_ORDER_AMOUNT = 1_000_000;    // 1 token completo (6 decimales)
-    uint48 public constant TIMELOCK_DELAY = 48 hours;       // 48 horas exactas
-    uint48 public constant TIMELOCK_GRACE_PERIOD = 7 days;  // 7 días de ventana tras desbloqueo
+    uint16 private constant MAX_FEE_BPS = 500;               // 500 BPS = 5.00% tope absoluto
+    uint128 private constant MIN_ORDER_AMOUNT = 1_000_000;   // 1 token completo (6 decimales)
+    uint48 private constant TIMELOCK_DELAY = 48 hours;       // 48 horas exactas
+    uint48 private constant TIMELOCK_GRACE_PERIOD = 7 days;  // 7 días de ventana tras desbloqueo
 
     // =========================================================================
     // VARIABLES DE ESTADO Y CONTABILIDAD DE DOBLE ENTRADA
@@ -362,6 +366,9 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
     error CannotRescuePairToken();
     error InsufficientContractReserve();
     error InsufficientContractFees();
+    error NoPendingRefund();
+    error BlueRefundAwaitsCore();
+    error KycNotVerified();
     error DepositAmountMismatch(uint256 expected, uint256 received);
     error InvalidMatchAmount();
     error RenounceOwnershipDisabled();
@@ -541,10 +548,10 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
 
     /**
      * @notice Cancela una orden activa y devuelve el monto remanente intacto al creador.
-     * @dev Operativa incluso bajo estado pausado. Solo el owner de la orden puede ejecutarla.
+     * @dev Bloqueada durante la pausa integral. Solo el owner de la orden puede ejecutarla.
      * @param orderId Identificador de la orden a cancelar.
      */
-    function cancelOrder(uint64 orderId) external nonReentrant {
+    function cancelOrder(uint64 orderId) external nonReentrant whenExitAllowed {
         Order storage order = orders[orderId];
         if (order.status == OrderStatus.NONE) revert OrderNotFound();
         if (order.user != msg.sender) revert Unauthorized();
@@ -852,12 +859,12 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
 
     /**
      * @notice Transfiere las comisiones devengadas exclusivamente hacia la tesorería vigente.
-     * @dev Permissionless. Puede llamarse incluso durante pausa de emergencia.
+     * @dev Permissionless durante operación normal; bloqueada durante pausa integral.
      * Aplica verificación estricta de solvencia antes de Effects e Interactions:
      * Los fondos reservados para órdenes activas (totalReserved) tienen prioridad absoluta
      * de custodia y jamás pueden utilizarse para satisfacer pagos a tesorería.
      */
-    function claimFees() external nonReentrant {
+    function claimFees() external nonReentrant whenNotPaused {
         _requireKYC(treasury);
         // 1. Lectura de comisiones devengadas
         uint128 blueFees = accumulatedFeesBlue;
@@ -916,7 +923,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
      * @notice Ejecuta la actualización de comisión una vez cumplido el plazo de 48 horas.
      * @dev Permissionless. Puede ejecutarse durante pausa.
      */
-    function executeFeeUpdate() external nonReentrant {
+    function executeFeeUpdate() external nonReentrant whenNotPaused {
         uint48 unlockTime = feeUnlockTimestamp;
         if (unlockTime == 0) revert NoPendingFeeProposal();
         if (block.timestamp < unlockTime) revert TimelockNotExpired();
@@ -1017,7 +1024,11 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
      * @notice Activa la pausa de emergencia bloqueando nuevos depósitos y matches.
      */
     function pause() external onlyOwner {
-        _pause();
+        _enterPrelaunchFreeze();
+    }
+
+    function enterEmergencyExitOnly() external onlyOwner {
+        _enterEmergencyExitOnly();
     }
 
     /**
@@ -1025,7 +1036,7 @@ contract FifoExchange is Ownable2Step, ReentrancyGuard, Pausable {
      * @dev Autónomo e independiente de contratos externos.
      */
     function unpause() external onlyOwner {
-        _unpause();
+        _resumeNormalOperation();
     }
 
     /**

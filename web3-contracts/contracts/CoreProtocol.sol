@@ -3,7 +3,7 @@ pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/Ownable2Step.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/utils/Pausable.sol";
+import "./OperationalModeControl.sol";
 
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "./libraries/CommitmentTree.sol";
@@ -29,6 +29,7 @@ interface IRedToken {
 
 interface ICollateralVault {
     function userCollateral(address user) external view returns (uint256);
+    function economicSuiteNormal(address treasury) external view returns (bool);
 }
 
 /**
@@ -50,7 +51,7 @@ interface ICollateralVault {
  * 5. Orden por vencimiento real con un árbol equilibrado y sumas por grupo.
  * 6. Gobernanza en Dos Pasos (Ownable2Step) y prohibición de renuncia a la administración.
  */
-contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
+contract CoreProtocol is Ownable2Step, ReentrancyGuard, OperationalModeControl {
     error PaymentStateChanged();
     error PaymentAccountingMismatch();
     error InsufficientFinalCoverage();
@@ -62,6 +63,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     error InvalidPayerSignature();
     error OverdueCommitments();
     error InsufficientBlueBalance();
+    error EconomicSuiteNotNormal();
     using CommitmentTree for CommitmentTree.Tree;
     mapping(address => CommitmentTree.Tree) private _commitments;
     mapping(uint256 => address) private _lotOwner;
@@ -279,6 +281,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         uint256 expectedFee, uint256 expectedDueAt, address expectedRecipient, uint256 deadline)
         external nonReentrant whenNotPaused
     {
+        _requireEconomicSuiteNormal();
         require(isKYCVerified[msg.sender], "Protocol: KYC not verified");
         require(userLevels[msg.sender] >= MIN_EXTENSION_LEVEL, "Protocol: Extension requires level 3");
         require(block.timestamp <= deadline, "Protocol: Extension authorization expired");
@@ -416,11 +419,15 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     }
 
     function pause() external onlyOwner {
-        _pause();
+        _enterPrelaunchFreeze();
+    }
+
+    function enterEmergencyExitOnly() external onlyOwner {
+        _enterEmergencyExitOnly();
     }
 
     function unpause() external onlyOwner {
-        _unpause();
+        _resumeNormalOperation();
     }
 
     // ========================================================================
@@ -555,6 +562,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     function processAuthorizedMixedPayment(MixedPaymentAuthorization calldata auth, bytes calldata signature)
         external nonReentrant whenNotPaused
     {
+        _requireEconomicSuiteNormal();
         if (!(block.timestamp <= auth.deadline)) revert PaymentAuthorizationExpired();
         if (!(auth.feeBps == commissionBps)) revert CommissionChanged();
         if (!(auth.duration == COMMITMENT_DURATION)) revert DurationChanged();
@@ -571,8 +579,15 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
     function processPayment(address payer, address payee, uint256 amount)
         external nonReentrant whenNotPaused
     {
+        _requireEconomicSuiteNormal();
         require(msg.sender == payer, "Protocol: Payer authorization required");
         _processPayment(payer, payee, amount);
+    }
+
+    /// @dev Emission is fail-closed unless every economic dependency is in NORMAL.
+    /// This prevents partial administrative transitions from creating exposure.
+    function _requireEconomicSuiteNormal() private view {
+        if (!ICollateralVault(vault).economicSuiteNormal(treasury)) revert EconomicSuiteNotNormal();
     }
 
     function _hashTypedDataV4(bytes32 structHash) private view returns (bytes32) {
@@ -673,7 +688,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
      * @dev Quema atómicamente el BLUE del usuario y su saldo RED correspondiente, amortizando lotes en orden FIFO.
      * @param user Cuenta cuyo BLUE disponible se aplica a compromisos vencidos.
      */
-    function settleMatured(address user) external nonReentrant whenNotPaused {
+    function settleMatured(address user) external nonReentrant whenExitAllowed {
         require(isKYCVerified[user], "Protocol: KYC not verified");
         _settleMatured(user);
     }
@@ -690,7 +705,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
         _assertPairedSupply();
         emit DebtAmortized(user, value, redToken.balanceOf(user));
     }
-    function amortizeWithBlue(uint256 amount) external nonReentrant whenNotPaused {
+    function amortizeWithBlue(uint256 amount) external nonReentrant whenExitAllowed {
         require(isKYCVerified[msg.sender], "Protocol: KYC not verified");
         require(amount > 0, "Protocol: Amortization amount must be greater than zero");
         require(blueToken.balanceOf(msg.sender) >= amount, "Protocol: Insufficient BLUE balance");
@@ -713,7 +728,7 @@ contract CoreProtocol is Ownable2Step, ReentrancyGuard, Pausable {
      * @param user Dirección del deudor cuyo colateral fue ejecutado.
      * @param amount Monto de compromiso amortizado.
      */
-    function onCollateralRepayment(address user, uint256 amount) external onlyVault nonReentrant whenNotPaused {
+    function onCollateralRepayment(address user, uint256 amount) external onlyVault nonReentrant whenExitAllowed {
         require(amount > 0, "Protocol: Repayment amount must be greater than zero");
         require(redToken.balanceOf(user) >= amount, "Protocol: Amount exceeds user debt");
 

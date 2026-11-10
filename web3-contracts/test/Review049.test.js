@@ -50,9 +50,9 @@ describe('Custodia y reanudación: revisión068',()=>{
  it('Cancelar BLUE con KYC suspendido mantiene custodia y reclamar no puede repetirse',async()=>{
   const id=await sell();await f.core.setKYCStatus(f.bob.address,false);await f.exchange.connect(f.bob).cancelOrder(id);await invariant();
   expect(await f.exchange.pendingRefundBlue(f.bob.address)).eq(100n*U);
-  await expect(f.exchange.connect(f.bob).claimPendingRefunds()).revertedWith('Exchange: KYC not verified');
+  await expect(f.exchange.connect(f.bob).claimPendingRefunds()).revertedWithCustomError(f.exchange,'KycNotVerified');
   await f.core.setKYCStatus(f.bob.address,true);await f.exchange.connect(f.bob).claimPendingRefunds();
-  await expect(f.exchange.connect(f.bob).claimPendingRefunds()).revertedWith('Exchange: No pending refund');await invariant();
+  await expect(f.exchange.connect(f.bob).claimPendingRefunds()).revertedWithCustomError(f.exchange,'NoPendingRefund');await invariant();
  });
  it('Pausa de Core retiene BLUE pendiente pero permite retirar USDT independiente',async()=>{
   const blueId=await sell();await f.exchange.connect(f.bob).createUsdtOrder(10n*U);const usdtId=await f.exchange.nextOrderId()-1n;
@@ -68,7 +68,7 @@ describe('Custodia y reanudación: revisión068',()=>{
  it('Core pausado permite cancelar venta: BLUE queda custodiado hasta poder amortizar',async()=>{
   const id=await sell();await f.pay(f.bob,f.carol,40n*U);await time.increase(30*86400);await f.core.pause();await f.exchange.connect(f.bob).cancelOrder(id);
   expect(await f.exchange.pendingRefundBlue(f.bob.address)).eq(100n*U);await invariant();
-  await expect(f.exchange.connect(f.bob).claimPendingRefunds()).revertedWith('Exchange: BLUE refund awaits Core');expect(await f.exchange.pendingRefundBlue(f.bob.address)).eq(100n*U);
+  await expect(f.exchange.connect(f.bob).claimPendingRefunds()).revertedWithCustomError(f.exchange,'BlueRefundAwaitsCore');expect(await f.exchange.pendingRefundBlue(f.bob.address)).eq(100n*U);
   await f.core.unpause();await f.exchange.connect(f.bob).claimPendingRefunds();expect(await f.red.balanceOf(f.bob.address)).eq(0);expect(await f.blue.balanceOf(f.bob.address)).eq(60n*U);await invariant();
  });
  it('Cancelar compra garantizada sin KYC retorna al Vault, nunca a billetera',async()=>{
@@ -97,7 +97,7 @@ describe('Reservas retenidas y comisiones separadas',()=>{
   await f.exchange.connect(f.bob).createBlueOrder(100n*U);await f.exchange.connect(f.other).createUsdtOrder(100n*U);await f.exchange.matchOrders(10,20);
   await f.exchange.connect(f.carol).createUsdtOrder(20n*U);const id=await f.exchange.nextOrderId()-1n;await f.core.setKYCStatus(f.carol.address,false);await f.exchange.connect(f.carol).cancelOrder(id);
   expect((await f.exchange.freeSurplus(false)).surplus).eq(0);
-  await f.core.setKYCStatus(f.treasury.target,false);await expect(f.exchange.claimFees()).revertedWith('Exchange: KYC not verified');
+  await f.core.setKYCStatus(f.treasury.target,false);await expect(f.exchange.claimFees()).revertedWithCustomError(f.exchange,'KycNotVerified');
   await f.core.setKYCStatus(f.treasury.target,true);await f.exchange.claimFees();
   expect(await f.usdt.balanceOf(f.exchange.target)).eq(20n*U);expect(await f.exchange.pendingRefundUsdt(f.carol.address)).eq(20n*U);
  });

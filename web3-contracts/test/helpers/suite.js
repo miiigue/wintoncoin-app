@@ -31,6 +31,10 @@ async function fixture() {
   await core.setExtensionOption(15, 250, true);
   await core.setExtensionOption(30, 500, true);
   await core.setExtensionOption(60, 1000, true);
+  await core.unpause();
+  await treasury.unpause();
+  await vault.unpause();
+  await exchange.unpause();
   const pay = (payer, payee, amount) => core.connect(payer).processPayment(payer.address, payee.address, amount);
   const extend = async (user, index = 0, days = 30) => {
     const lot = await core.userDebtLots(user.address, index);

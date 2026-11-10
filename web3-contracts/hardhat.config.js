@@ -16,14 +16,17 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200 // Estándar para reducción de gas en despliegues.
+        runs: 1 // Mantiene desplegable la suite; la suite de gas limita las rutas frecuentes.
       }
     }
   },
   networks: {
     // Red de simulación sellada para pruebas sin gasto real
     hardhat: {
-      chainId: 1337
+      chainId: 1337,
+      // Solo el harness adversarial añade una función y supera el límite.
+      // GasScaling valida por separado el bytecode de cada contrato real.
+      allowUnlimitedContractSize: true
     },
     // Entorno de Staging/Demo: Optimism Sepolia (Testnet Pública)
     optimismSepolia: {
