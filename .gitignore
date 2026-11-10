@@ -126,3 +126,5 @@ android/captures/
 # Hardhat Build & Cache Artifacts
 web3-contracts/artifacts/
 web3-contracts/cache/
+web3-contracts/artifacts-v6/
+web3-contracts/cache-v6/
