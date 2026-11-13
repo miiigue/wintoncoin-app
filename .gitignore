@@ -54,15 +54,25 @@ typings/
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
+# dotenv environment variables file (Zero Hardcoded Secrets Standard)
 .env
 .env.*
+!.env.example
+!backend/.env.example
+!frontend/.env.example
+!web3-contracts/.env.example
 .env.local
 .env.production
 .env.development
 .env.test
 .env.demo
 .env.demo_user
+
+# Artefactos temporales de agentes y respaldos locales (Higiene SOC 2)
+*.resolved
+*.bak
+*.bak-*
+puente-agentes/temp_renders/
 
 
 # next.js build output

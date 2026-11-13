@@ -15,9 +15,15 @@ backups/
 *_backup_*.json
 demo_audit_backup_genesis.json
 
-# Archivos de entorno y backup de configuracion
+# Archivos de entorno y backup de configuracion (Zero Hardcoded Secrets)
 .env.*
+!.env.example
 .env.backup
+
+# Artefactos temporales y respaldos
+*.resolved
+*.bak
+*.bak-*
 
 # Logs y archivos de debug
 *.log

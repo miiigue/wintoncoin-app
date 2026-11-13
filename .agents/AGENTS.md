@@ -50,3 +50,21 @@ Para preservar la prohibición estricta de transferencias P2P directas en `BlueT
 4. La Tesorería amortiza su compromiso RED utilizando sus tokens BLUE acumulados por comisiones, preservando estrictamente la invariante de paridad: `TotalSupply(BLUE) == TotalSupply(RED)` con variación neta cero en la masa monetaria circulante.
 </RULE[treasury_incentive_mechanism]>
 
+<RULE[repository_architecture_standard]>
+# Estándar de Arquitectura y Orden del Repositorio (SOC 2 / FinTech Engineering Hygiene)
+Todo código, script, prueba o documento nuevo debe nacer ubicado en su carpeta canónica desde el instante en que se crea:
+
+1. **Raíz del Proyecto Limpia (Zero Root Clutter):**
+   - En la raíz (`smart-contract/`) SOLO pueden existir archivos maestros de configuración y catálogos obligatorios (`package.json`, `package-lock.json`, `.gitignore`, `VERSION`, `README.md`, `EVOLUCION.md`, `MIGRACION_REACT_CATALOGO.md`, `QA_TEST_CATALOG.md`, `verify_all_backend_imports.js`).
+   - Queda prohibido crear documentos `.md` de reportes puntuales, scripts one-off `.js`, respaldos `.json` o binarios `.apk` sueltos en la raíz. Toda documentación técnica, auditoría o runbook nuevo va en `docs/`.
+2. **Modularización Estricta en Backend (`backend/src/`):**
+   - Prohibido añadir rutas inline, consultas SQL o cron jobs directamente dentro de `backend/server.js`.
+   - Toda ruta nueva va en `backend/src/routes/`, su controlador en `backend/src/controllers/`, su lógica de negocio en `backend/src/services/`, y cualquier tarea programada en `backend/src/workers/` (registrada en `cronManager.js`).
+   - Toda migración en `backend/migrations/` debe usar el siguiente número correlativo único (ej. `127_nombre_descriptivo.js`), exportando `up(client)` transaccional compatible con `backend/scripts/migrationRunner.js`. Prohibido repetir prefijos numéricos.
+   - Scripts temporales de depuración local deben ir exclusivamente en `backend/scratch/` (ignorado por Git), nunca mezclados en `backend/scripts/`.
+3. **Orden en Frontend (`frontend/`):**
+   - Toda vista o componente nuevo se crea en React (`.jsx`) dentro de `frontend/src/pages/` o `frontend/src/components/`.
+   - Cuando una página legada se migre al 100% a React, se debe retirar su script vanilla antiguo en `frontend/src/pages/*.js` para evitar código duplicado (DRY).
+</RULE[repository_architecture_standard]>
+
+

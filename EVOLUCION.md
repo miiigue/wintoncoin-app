@@ -2389,7 +2389,6 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
     - Registrada la nueva entrada `adminUserDetail` en `rollupOptions.input` para empaquetado y precacheo PWA automatizado.
   - **Suite de Pruebas Unitarias (`backend/__tests__/adminUserDossier.test.js` y `adminSubmodulesIntegrity.test.js`)**:
     - Pruebas unitarias Jest con mocks puros (100% aisladas del motor PostgreSQL), respuesta 404, estructura 200 consolidada, registro de evento `admin.user.view_dossier`, sanitización Zero-Secrets, validación de entrada (DoS) y trazabilidad SOC 2 de mutaciones de estado.
-<<<<<<< HEAD
   - **Alineación Estricta de Esquema SQL & Resiliencia en Tiempo de Ejecución**:
     - Corregida la consulta base de `getUserDossier360` para consultar exclusivamente columnas existentes en `users`, sustituyendo referencias anómalas por `COALESCE`, fallback de tolerancia a fallos y derivando el scoring desde `user_trust_score_logs`.
     - Ajustados nombres reales de tablas (`publication_acceptances`, `disaster_aid_disbursements`, `user_agreements_log`) y campos de cambio de balance contable (`blue_change`/`red_change`), eliminando los errores 500.
@@ -5039,7 +5038,6 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 ---
 
 ### 2026-05-01 ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã¯Â¿Â½ RediseÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â±o del Banner de Referidos (Booster Edition)
->>>>>>> feature/wallet-ux-fixes
 
 - **Contexto**: ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€¦Ã¢â‚¬Å“donaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³nÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ¯Â¿Â½ es un tipo de publicaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n distinto (no es venta ni solicitud). Si se trata como genÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â©rico, la UX y las reglas se vuelven confusas.
 - **DecisiÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n**: crear categorÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­a de donaciones con estilos y lÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³gica especÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â­fica en frontend, con soporte backend donde aplica.

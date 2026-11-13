@@ -35,9 +35,12 @@ console.log('🔍 Iniciando auditoría exhaustiva de carga en tiempo de ejecuci�
 
 const allFiles = getAllJsFiles(backendDir);
 
+// Lista de puntos de entrada y runners críticos del backend para verificar su carga síncrona
 const rootFiles = [
+    // Punto de entrada principal del servidor Express
     path.join(__dirname, 'backend', 'server.js'),
-    path.join(__dirname, 'backend', 'migrationRunner.js')
+    // Ejecutor programático de migraciones SQL (ubicado canónicamente en backend/scripts/)
+    path.join(__dirname, 'backend', 'scripts', 'migrationRunner.js')
 ];
 
 const targetFiles = [...allFiles, ...rootFiles.filter(f => fs.existsSync(f))];

@@ -788,3 +788,418 @@ PASOS:
 6. Confirma que la interfaz te guíe de manera intuitiva y amigable en todo momento.
 ```
 
+
+---
+
+`	ext
+TITULO: QA-59 - Verificación de Acceso Seguro y Mensaje Amigable de Inicio de Sesión
+DESCRIPCION: Esta prueba busca comprobar que al iniciar sesión en la plataforma desde tu teléfono móvil, el sistema confirme el ingreso de manera inmediata con un mensaje breve y amigable, llevándote fluidamente al panel principal sin demoras ni pantallas en blanco.
+PASOS:
+2. Abre la aplicación de WintonCoin en el navegador de tu teléfono móvil e ingresa a la pantalla de inicio de sesión.
+3. Escribe tu nombre de usuario y tu contraseña en los campos correspondientes.
+4. Presiona el botón verde de Iniciar Sesión.
+5. Observa que aparezca un mensaje breve y amigable confirmando que tu sesión ha iniciado correctamente.
+6. Comprueba que el sistema te dirija de inmediato a tu panel principal mostrando tu información personal de manera clara y ordenada.
+`
+
+---
+
+> Alcance oficial, precondiciones, evidencias, severidades y criterios de parada de QA-62 a QA-92: `docs/MATRIZ_BLOQUE_A_DEMO.md`. Estas misiones pertenecen al Bloque A no económico de Demo y no autorizan pagos, fondos, firmas ni transacciones blockchain.
+
+---
+
+```text
+TITULO: QA-62 - Confirmar que Estás en la Versión Demo
+DESCRIPCION: Abre la portada de WintonCoin Demo y confirma que carga completa, que se identifica como entorno de prueba y que los accesos principales no llevan a una página en blanco.
+PASOS:
+2. Abre https://demo.wintoncoin.com en una ventana nueva.
+3. Confirma que ves la marca DEMO MODE y que la dirección sigue perteneciendo a demo.wintoncoin.com.
+4. Revisa que sean visibles los accesos para iniciar sesión y registrarse, sin presionarlos todavía.
+5. Guarda una captura donde aparezcan la dirección y la marca de Demo.
+```
+
+---
+
+```text
+TITULO: QA-63 - Abrir y Cerrar el Recorrido de Inicio de Sesión
+DESCRIPCION: Comprueba que el acceso de inicio de sesión abre el formulario correcto y permite regresar a la portada sin perder la identificación de Demo.
+PASOS:
+2. Desde la portada toca Iniciar Sesión.
+3. Confirma que aparecen los campos de usuario o correo y contraseña.
+4. Toca el logotipo o el enlace para volver al inicio.
+5. Confirma que vuelves a la portada Demo sin errores.
+```
+
+---
+
+```text
+TITULO: QA-64 - Intentar Entrar sin Completar los Campos
+DESCRIPCION: Verifica que el formulario no continúe cuando falta el usuario o la contraseña y que la indicación sea comprensible.
+PASOS:
+2. Deja vacíos los campos de usuario y contraseña.
+3. Presiona Ingresar una sola vez.
+4. Confirma que permaneces en Login y que la pantalla solicita completar los datos.
+5. Guarda una captura del resultado sin introducir información personal.
+```
+
+---
+
+```text
+TITULO: QA-65 - Rechazar una Contraseña Incorrecta sin Revelar Datos
+DESCRIPCION: Usa una cuenta ficticia conocida y una contraseña deliberadamente incorrecta para comprobar que no se concede acceso ni se revela información privada.
+PASOS:
+2. Escribe el identificador de QA-01 y una contraseña incorrecta distinta de la habitual.
+3. Presiona Ingresar una sola vez.
+4. Confirma que sigues fuera de la cuenta y que el aviso no revela datos internos ni personales.
+5. Cierra el aviso y no repitas el intento.
+```
+
+---
+
+```text
+TITULO: QA-66 - Bloquear el Panel cuando no Hay Sesión
+DESCRIPCION: Confirma que una persona sin sesión no puede abrir directamente el panel privado ni ver información de otra cuenta.
+PASOS:
+2. En una ventana privada nueva abre https://demo.wintoncoin.com/dashboard.
+3. Espera a que termine la carga inicial.
+4. Confirma que el sistema te lleva a Login y que no muestra datos privados durante la transición.
+5. Guarda una captura de la pantalla final y de la dirección visible.
+```
+
+---
+
+```text
+TITULO: QA-67 - Revisar el Inicio del Registro sin Enviar Datos
+DESCRIPCION: Abre el registro únicamente para confirmar que la pantalla es legible y que presenta sus enlaces legales; no completes ni envíes el formulario.
+PASOS:
+2. Abre https://demo.wintoncoin.com/register.
+3. Revisa que la primera pantalla se adapte al tamaño del dispositivo y no tenga textos o botones cortados.
+4. Localiza los enlaces de términos y privacidad sin aceptar ni enviar nada.
+5. Cierra la página sin crear una cuenta.
+```
+
+---
+
+```text
+TITULO: QA-68 - Abrir Términos y Política de Privacidad
+DESCRIPCION: Comprueba que los documentos legales se pueden abrir antes de registrarse y que son legibles desde el dispositivo usado.
+PASOS:
+2. Abre el enlace de Términos y Condiciones desde la portada o el registro.
+3. Confirma que el documento carga, tiene título visible y permite volver atrás.
+4. Repite el recorrido con la Política de Privacidad.
+5. Informa si algún enlace falla, está vacío o obliga a aceptar antes de leer.
+```
+
+---
+
+```text
+TITULO: QA-69 - Abrir una Dirección Inexistente sin Provocar una Pantalla Rota
+DESCRIPCION: Comprueba que una dirección equivocada se recupera de forma segura y no expone mensajes técnicos del servidor.
+PASOS:
+2. Abre https://demo.wintoncoin.com/ruta-qa-inexistente.
+3. Espera a que termine cualquier redirección.
+4. Confirma que terminas en la portada Demo o en una pantalla controlada, nunca en blanco ni con detalles internos.
+5. Guarda la dirección final y una captura del resultado.
+```
+
+---
+
+```text
+TITULO: QA-70 - Registrar Promesas de Seguridad y Autenticidad para Revisión
+DESCRIPCION: Localiza las promesas visibles sobre auditoría, seguridad, ausencia de errores, atención real y bots. Esta tarea solo registra lo publicado; no confirma que las promesas sean verdaderas.
+PASOS:
+2. En la portada busca las secciones de Seguridad y del programa para creadores.
+3. Captura completas las frases Smart Contracts Auditados, Seguridad de Grado Militar, Código inquebrantable y Cero errores humanos si aparecen.
+4. Captura completas las frases 100% Atención Real y Cero Bots si aparecen.
+5. Entrega las capturas al responsable de cumplimiento indicando fecha, URL y dispositivo, sin afirmar que exista una auditoría o garantía.
+```
+
+---
+
+```text
+TITULO: QA-71 - Entrar con una Cuenta Ficticia Válida
+DESCRIPCION: Inicia sesión con QA-01 y confirma que el sistema abre su panel sin cruzar datos ni solicitar operaciones económicas.
+PASOS:
+2. Abre Login en la ventana reservada para QA-01.
+3. Escribe sus datos mediante el canal seguro y presiona Ingresar una sola vez.
+4. Confirma que llegas al panel y que aparece Sesión iniciada correctamente cuando corresponda.
+5. Guarda una captura ocultando el nombre de cuenta y cualquier dato privado.
+```
+
+---
+
+```text
+TITULO: QA-72 - Mantener Separadas las Cuatro Cuentas de Prueba
+DESCRIPCION: Abre cada cuenta ficticia en un navegador, perfil o ventana privada diferente para comprobar que sus sesiones y datos no se mezclan.
+PASOS:
+2. Inicia QA-01, QA-02, QA-03 y QA-04 en cuatro contextos separados y etiquétalos A, B, C y D fuera de la aplicación.
+3. Abre el menú de perfil en cada contexto y compara únicamente el nombre visible de esa misma cuenta.
+4. Actualiza cada panel una vez y confirma que ninguna ventana cambia de identidad.
+5. Detén todas las pruebas si una ventana muestra el usuario o datos de otra.
+```
+
+---
+
+```text
+TITULO: QA-73 - Identificar qué Panel Abre Realmente después de Entrar
+DESCRIPCION: Registra la dirección y la interfaz que Demo sirve después del Login para detectar si conviven recorridos diferentes con comportamientos incompatibles.
+PASOS:
+2. Inicia QA-01 desde login.html y espera a que termine toda redirección.
+3. Anota si la dirección final es dashboard o contract_interaction.html.
+4. Comprueba si el panel muestra una sola versión coherente de menús, catálogo y aviso de Prelanzamiento.
+5. Registra un fallo si entra al recorrido legado cuando el Login declara dashboard, o si ambas versiones aplican reglas diferentes.
+```
+
+---
+
+```text
+TITULO: QA-74 - Confirmar que Prelanzamiento Está Visible y Explicado
+DESCRIPCION: Comprueba que el panel identifica la fase Beta de Prelanzamiento y que su explicación no promete fechas ni permite pagos.
+PASOS:
+2. Localiza la banda Pre-lanzamiento VERSION BETA en el panel.
+3. Toca la banda o su indicador de información.
+4. Lee el mensaje y confirma que explica el estado sin pedir una firma, pago o conexión de billetera.
+5. Guarda una captura del aviso y ciérralo.
+```
+
+---
+
+```text
+TITULO: QA-75 - Bloquear una Publicación de Usuario durante Prelanzamiento
+DESCRIPCION: Presiona Crear Nueva Publicación como usuario normal y confirma que solo aparece una explicación, sin permitir crear o enviar contenido.
+PASOS:
+2. En el panel presiona Crear Nueva Publicación una sola vez.
+3. Confirma que aparece el título Prelanzamiento activo y que explica qué funciones sí pueden explorarse.
+4. Presiona Entendido y confirma que vuelves al panel sin abrir un formulario.
+5. Repite con doble toque una sola vez y confirma que no se duplican ventanas.
+```
+
+---
+
+```text
+TITULO: QA-76 - Ocultar Venta Rápida durante Prelanzamiento
+DESCRIPCION: Revisa las acciones principales del panel para comprobar que un usuario normal no recibe un acceso de Venta Rápida mientras la etapa está activa.
+PASOS:
+2. Ve al área donde aparece Crear Nueva Publicación.
+3. Confirma que no existe un botón utilizable llamado Venta Rápida.
+4. Actualiza la página una vez y vuelve a revisar la misma zona.
+5. Informa de inmediato si aparece un flujo para cobrar o generar un pago.
+```
+
+---
+
+```text
+TITULO: QA-77 - Dar Prioridad al Aviso de Prelanzamiento antes de KYC
+DESCRIPCION: Cuando no hay publicaciones, confirma que la pantalla no invite a crear y que ninguna verificación KYC o formulario se muestre antes del aviso que bloquea publicaciones durante Prelanzamiento.
+PASOS:
+2. Abre una categoría sin publicaciones y revisa el mensaje del estado vacío.
+3. Registra un fallo si aparece Crear la Primera Publicación o cualquier invitación equivalente mientras Prelanzamiento está activo.
+4. Si la invitación existe, presiónala una sola vez únicamente para identificar el primer aviso y no completes ningún dato.
+5. Registra un fallo si aparece Verificación para publicar, KYC o un formulario antes de Prelanzamiento activo; cierra el aviso y termina la prueba.
+```
+
+---
+
+```text
+TITULO: QA-78 - Buscar y Limpiar Publicaciones sin Bloquear la Pantalla
+DESCRIPCION: Usa el buscador del panel para comprobar el mensaje sin coincidencias y que limpiar restaura el estado anterior.
+PASOS:
+2. Escribe xyz999 en el campo Buscar.
+3. Confirma que aparece No encontramos publicaciones que coincidan con tu búsqueda.
+4. Presiona el botón para limpiar la búsqueda.
+5. Confirma que el texto desaparece y vuelve el listado o el estado vacío anterior.
+```
+
+---
+
+```text
+TITULO: QA-79 - Cambiar los Filtros del Catálogo
+DESCRIPCION: Comprueba que los filtros visibles cambian la lista o muestran un estado vacío claro sin invitar a publicar durante Prelanzamiento.
+PASOS:
+2. Presiona en orden Todos, En proceso, Solicitud, Venta, Donación y Ocultas.
+3. En cada filtro observa si cambia el contador o la lista sin recargar toda la página.
+4. Cuando no haya contenido confirma que el mensaje explica el estado sin ofrecer crear una publicación.
+5. Vuelve a Todos y confirma que el panel permanece estable.
+```
+
+---
+
+```text
+TITULO: QA-80 - Ordenar las Publicaciones Disponibles
+DESCRIPCION: Si existen al menos dos publicaciones, cambia el orden para comprobar que la lista responde sin duplicar ni perder tarjetas.
+PASOS:
+2. Anota los dos primeros títulos visibles sin copiar datos personales.
+3. Cambia entre Más reciente y Más antigua.
+4. Si los importes son comparables cambia también entre Mayor recompensa y Menor recompensa.
+5. Registra NO APLICA si no hay suficientes publicaciones para comparar.
+```
+
+---
+
+```text
+TITULO: QA-81 - Abrir y Cerrar una Publicación Oficial
+DESCRIPCION: Abre una publicación existente únicamente para leer su ficha; no participes, no contrates y no confirmes ninguna acción.
+PASOS:
+2. Elige una tarjeta oficial visible en el panel y anota su título.
+3. Abre la tarjeta y confirma que la ficha corresponde al mismo título.
+4. No presiones botones de participar, contratar, donar, pagar o conectar billetera.
+5. Vuelve al panel y confirma que la sesión sigue activa.
+```
+
+---
+
+```text
+TITULO: QA-82 - Abrir el Menú Personal sin Mezclar Cuentas
+DESCRIPCION: Comprueba que el menú muestra la identidad de la sesión actual, enlaces personales y que se cierra al tocar fuera.
+PASOS:
+2. Presiona el nombre o icono de menú del usuario.
+3. Confirma que aparecen Mi Perfil, Billetera Web3, Recuperación, Configuración y Cerrar Sesión.
+4. Comprueba que no aparece una opción administrativa para esta cuenta normal.
+5. Toca fuera del menú y confirma que se cierra.
+```
+
+---
+
+```text
+TITULO: QA-83 - Consultar Notificaciones sin Modificarlas
+DESCRIPCION: Abre la campana y el historial para comprobar que pertenecen a la cuenta actual. No uses Limpiar ni Descartar en este bloque.
+PASOS:
+2. Presiona la campana de Notificaciones.
+3. Confirma que aparece una lista propia o el mensaje No tienes notificaciones pendientes.
+4. Presiona Ver historial y revisa que la ventana cargue o indique que todavía no hay historial.
+5. Cierra el historial sin limpiar ni descartar elementos.
+```
+
+---
+
+```text
+TITULO: QA-84 - Impedir que un Usuario Normal Abra el Panel Administrativo
+DESCRIPCION: Intenta abrir la ruta administrativa con una cuenta normal y confirma que el acceso se rechaza sin mostrar información interna.
+PASOS:
+2. Con QA-02 iniciada abre https://demo.wintoncoin.com/admin/web3.
+3. Espera a que termine la verificación de sesión administrativa.
+4. Confirma que ves Acceso administrativo y no el contenido del panel Web3.
+5. Regresa al panel y confirma que la sesión normal sigue siendo QA-02.
+```
+
+---
+
+```text
+TITULO: QA-85 - Recargar el Panel sin Cambiar de Identidad
+DESCRIPCION: Actualiza la página una vez y confirma que la sesión se conserva correctamente o que Login se solicita sin mostrar datos ajenos.
+PASOS:
+2. Abre el menú y confirma que la sesión actual corresponde a QA-03.
+3. Cierra el menú y actualiza la página una sola vez.
+4. Si el panel vuelve a abrir, confirma que sigue siendo QA-03.
+5. Si la sesión expiró, confirma que Login aparece antes de cualquier dato privado.
+```
+
+---
+
+```text
+TITULO: QA-86 - Cerrar Sesión sin Recuperar Datos con Atrás
+DESCRIPCION: Cierra QA-04 desde el menú y usa Atrás para confirmar que el navegador no restaura una sesión privada utilizable.
+PASOS:
+2. Abre el menú personal y presiona Cerrar Sesión.
+3. Confirma que sales del panel y llegas a Login.
+4. Presiona Atrás una vez y espera a que termine la carga.
+5. Confirma que no puedes ver ni usar datos privados y que cualquier ruta protegida vuelve a Login.
+```
+
+---
+
+```text
+TITULO: QA-87 - Revisar el Panel en Pantalla Pequeña
+DESCRIPCION: Comprueba que el panel, los filtros, el buscador, los menús y el aviso de Prelanzamiento pueden usarse sin textos cortados ni controles fuera de pantalla.
+PASOS:
+2. Abre el panel con el teléfono en posición vertical.
+3. Recorre la banda de Prelanzamiento, las acciones, los filtros, el buscador y los menús sin activar acciones económicas.
+4. Gira el teléfono a posición horizontal y revisa las mismas zonas.
+5. Captura cualquier solapamiento indicando dispositivo, navegador y orientación.
+```
+
+---
+
+```text
+TITULO: QA-88 - Abrir el Exchange Únicamente cuando el Índice Esté Listo
+DESCRIPCION: Esta prueba solo consulta la pantalla; no crea órdenes, no compra, no vende y no conecta una billetera. Debe aplazarse mientras la sincronización no esté estable.
+PASOS:
+2. Pide al coordinador la confirmación escrita de tres lecturas consecutivas ready y usable igual a true.
+3. Si no existe esa confirmación registra APLAZADA y termina esta prueba.
+4. Si existe, abre Exchange BLUE/USDT y revisa únicamente que la pantalla cargue datos sin errores.
+5. Sal del Exchange sin presionar Comprar, Vender, Retirar, Aprobar, Confirmar o Conectar.
+```
+
+---
+
+```text
+TITULO: QA-89 - Abrir el Panel Web3 con un Rol Administrativo Autorizado
+DESCRIPCION: Confirma que el panel solo se muestra a una sesión administrativa o de auditoría válida; esta prueba no utiliza ninguno de sus controles de cambio.
+PASOS:
+2. Con la sesión administrativa autorizada abre https://demo.wintoncoin.com/admin/web3.
+3. Confirma que finaliza el mensaje Verificando sesión administrativa y aparece el panel.
+4. No presiones botones de pausa, reanudación, simulación, pago o configuración.
+5. Guarda una captura del encabezado ocultando identidad, direcciones y valores sensibles.
+```
+
+---
+
+```text
+TITULO: QA-90 - Comparar el Estado de Pausa de los Cuatro Contratos
+DESCRIPCION: Revisa los cuatro estados económicos sin cambiar nada y confirma que la pantalla distingue Pausado en blockchain, Sin pausa on-chain o No verificado.
+PASOS:
+2. Localiza el bloque de contención integral en el panel Web3.
+3. Revisa por separado CoreProtocol, FifoExchange, ProtocolTreasury y CollateralVault.
+4. Confirma que la conclusión general coincide con los cuatro renglones y no oculta un contrato sin pausa.
+5. Detén las pruebas económicas si aparece Contención incompleta o cualquier estado no verificado.
+```
+
+---
+
+```text
+TITULO: QA-91 - Verificar el Estado Administrativo de Prelanzamiento
+DESCRIPCION: Consulta el ajuste Modo Pre-Lanzamiento únicamente para confirmar que está activo; no cambies interruptores ni guardes configuración.
+PASOS:
+2. Abre la sección de configuración del panel administrativo.
+3. Localiza Modo Pre-Lanzamiento y confirma que aparece activo.
+4. No presiones el interruptor ni ningún botón de guardar.
+5. Compara este estado con la banda visible en una cuenta QA normal y registra cualquier diferencia.
+```
+
+---
+
+```text
+TITULO: QA-92 - Consultar Únicamente el Expediente de una Cuenta Ficticia
+DESCRIPCION: Abre el detalle de una cuenta QA para comprobar que el panel presenta el expediente correcto, sin copiar ni divulgar sus datos.
+PASOS:
+2. Busca una de las cuatro cuentas QA por su identificador interno autorizado.
+3. Abre su detalle y confirma únicamente que el nombre mostrado corresponde a la cuenta seleccionada.
+4. No edites estados, saldos, KYC, roles, datos de contacto ni direcciones.
+5. Cierra el detalle y registra solo si los campos cargaron o fallaron, nunca sus valores.
+```
+
+---
+
+`	ext
+TITULO: QA-60 - Exploración del Catálogo y Búsqueda Ágil con Debounce Móvil
+DESCRIPCION: El objetivo de esta prueba es asegurar que al buscar servicios en la pantalla de inicio o catálogo desde tu teléfono móvil, la barra de búsqueda responda de forma suave y sin tirones, mostrando con claridad los resultados o un mensaje amigable si no hay publicaciones disponibles.
+PASOS:
+2. Ingresa a la pantalla principal de servicios o publicaciones desde tu teléfono móvil.
+3. Toca la barra de búsqueda y escribe el nombre de un servicio o palabra clave como soporte o diseño.
+4. Observa cómo la aplicación espera una fracción de segundo después de que terminas de escribir para actualizar la lista de forma fluida y sin congelarse.
+5. Borra el texto de la barra de búsqueda y confirma que el catálogo completo vuelva a mostrarse de inmediato.
+6. Si una búsqueda no arroja coincidencias, comprueba que la tarjeta informativa te explique amablemente que no hay resultados y te oriente a revisar otras categorías.
+`
+
+---
+
+`	ext
+TITULO: QA-61 - Información Amigable de Prelanzamiento al Intentar Publicar
+DESCRIPCION: Esta misión tiene como fin verificar que cuando un usuario común intente publicar un nuevo servicio durante la fase de prelanzamiento, el sistema le presente una explicación clara, cordial y sin términos técnicos complejos, orientándolo sobre las funciones que sí están activas para explorar.
+PASOS:
+2. Dirígete a la sección de publicaciones o catálogo desde tu teléfono móvil.
+3. Presiona el botón de Crear Publicación o Publicar Servicio.
+4. Observa la ventana informativa que se despliega en pantalla.
+5. Confirma que el mensaje indique cordialmente que la plataforma se encuentra en fase de prelanzamiento y detalle de forma sencilla qué opciones están disponibles para explorar.
+6. Presiona el botón de cerrar o entendido y verifica que regreses a la pantalla principal sin ningún bloqueo ni mensaje de error.
+`

@@ -56,7 +56,7 @@ En HTML:
 1) **Definir versión** (SemVer).
 2) **Actualizar nombres de assets** (si aplica).
 3) **Actualizar referencias en HTML**.
-4) **Actualizar `docs/CHANGELOG.md` y `docs/EVOLUCION.md`.**
+4) **Actualizar `docs/CHANGELOG.md` y `EVOLUCION.md` (ubicado en la raíz del proyecto como única fuente de verdad).**
 5) **Commit del release** (mensaje claro).
 6) **Deploy backend en Render.**
 7) **Deploy frontend en Hostinger.**

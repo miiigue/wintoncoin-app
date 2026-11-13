@@ -12,7 +12,8 @@
     "test:unit": "node node_modules/jest/bin/jest.js --runInBand --detectOpenHandles --forceExit",
     "build:demo": "npm --prefix frontend run build:demo",
     "build": "npm --prefix frontend run build",
-    "audit:imports": "node verify_all_backend_imports.js",
+    "audit:structure": "node scripts/check-repo-structure.cjs",
+    "audit:imports": "node scripts/check-repo-structure.cjs && node verify_all_backend_imports.js",
     "update:ui-inventory": "node scripts/update-ui-screen-inventory.js",
     "prepare": "husky || true"
   },
