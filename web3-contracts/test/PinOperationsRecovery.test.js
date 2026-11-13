@@ -6,27 +6,83 @@ const {fixture,U}=require('./helpers/suite');
 const {WalletOperations}=require('../../backend/src/services/walletOperations');
 const {ChainOperationStore,locked}=require('../../backend/src/services/chainOperationStore');
 const deployment=require('../../backend/src/services/chainDeployment');
+const safePolicy=require('../../backend/src/services/safeAccountPolicy');
+const safeArtifact=name=>require('./vendor/safe-1.4.1/'+name+'.json');
+const safeTypes={SafeTx:['to:address','value:uint256','data:bytes','operation:uint8','safeTxGas:uint256','baseGas:uint256','gasPrice:uint256','gasToken:address','refundReceiver:address','nonce:uint256'].map(x=>{const [name,type]=x.split(':');return {name,type};})};
+
+function safeRunner(safe,owner,executor) {
+ const runner={provider:ethers.provider,address:safe.target,owner,privateKey:owner.privateKey,
+  getAddress:async()=>safe.target,call:tx=>ethers.provider.call(tx),estimateGas:tx=>ethers.provider.estimateGas({...tx,from:safe.target}),resolveName:name=>ethers.provider.resolveName(name)};
+ runner.sendTransaction=async input=>{
+  const tx=await ethers.resolveProperties(input),safeTx={to:tx.to,value:String(tx.value||0),data:tx.data||'0x',operation:0,safeTxGas:'0',baseGas:'0',gasPrice:'0',gasToken:ethers.ZeroAddress,refundReceiver:ethers.ZeroAddress,nonce:String(await safe.nonce())};
+  const signature=await owner.signTypedData({chainId:1337,verifyingContract:safe.target},safeTypes,safeTx);
+  return safe.connect(executor).execTransaction(...safePolicy.args(safeTx),signature);
+ };
+ return runner;
+}
 
 (process.env.WINTON_MIGRATION_TEST_PORT?describe:describe.skip)('PIN + contratos reales + recuperación PostgreSQL',function(){
  this.timeout(120000);
- let pool,control,schema,f,user,service,cfg,paymentServices=[];
+ let pool,control,schema,f,user,service,cfg,safeConfig,safeOwner,testDeployment,storeOptions,originalSafeConfiguration,originalDeploymentConfiguration,paymentServices=[];
  beforeEach(async()=>{
   control=new Pool({host:'127.0.0.1',port:Number(process.env.WINTON_MIGRATION_TEST_PORT),user:'review070',database:'postgres',connectionTimeoutMillis:5000});
   expect((await control.query('SHOW data_directory')).rows[0].data_directory.replaceAll('\\','/')).to.match(/\/pg-review-070$/);
   schema='pin077_'+randomBytes(6).toString('hex');await control.query(`CREATE SCHEMA ${schema}`);
   pool=new Pool({...control.options,options:`-c search_path=${schema}`,max:8});
-  await pool.query("CREATE TABLE users(id INTEGER PRIMARY KEY,web3_wallet_address TEXT,has_transaction_pin BOOLEAN,kyc_verified BOOLEAN,red_credit_limit_override NUMERIC,account_status TEXT DEFAULT 'active'); CREATE TABLE app_settings(setting_key TEXT PRIMARY KEY,setting_value TEXT,updated_at TIMESTAMPTZ)");
+  await pool.query("CREATE TABLE users(id INTEGER PRIMARY KEY,web3_wallet_address TEXT,has_transaction_pin BOOLEAN,kyc_verified BOOLEAN,red_credit_limit_override NUMERIC,account_status TEXT DEFAULT 'active'); CREATE TABLE admin_users(id INTEGER PRIMARY KEY); CREATE TABLE app_settings(setting_key TEXT PRIMARY KEY,setting_value TEXT,updated_at TIMESTAMPTZ)");
   await require('../../backend/migrations/116_durable_chain_operations').up(pool);
   await require('../../backend/migrations/117_payment_recovery_controls').up(pool);
-  f=await fixture();user=ethers.Wallet.createRandom().connect(ethers.provider);
-  await f.owner.sendTransaction({to:user.address,value:ethers.parseEther('5')});
-  await f.core.setKYCStatus(user.address,true);await f.core.setCreditLimit(user.address,1000n*U);await f.usdt.mint(user.address,1000n*U);
+  await require('../../backend/migrations/119_credit_policy_exponential_backoff').up(pool);
+  await require('../../backend/migrations/121_recoverable_accounts').up(pool);
+  for(const [key,value] of Object.entries({gas_sponsor_enabled:'true',gas_sponsor_daily_user_operations:'100',gas_sponsor_daily_budget_wei:ethers.parseEther('100').toString(),gas_sponsor_max_topup_wei:ethers.parseEther('.1').toString()}))await pool.query('UPDATE app_settings SET setting_value=$2 WHERE setting_key=$1',[key,value]);
+  f=await fixture();
+  async function deploy(name){const a=safeArtifact(name);return (await new ethers.ContractFactory(a.abi,a.bytecode,f.owner).deploy()).waitForDeployment();}
+  const singleton=await deploy('Safe'),handler=await deploy('CompatibilityFallbackHandler'),factory=await deploy('SafeProxyFactory');
+  const recoveryArtifact=require('./vendor/safe-recovery-0.1.0/SocialRecoveryModule.json');
+  const recovery=await (await new ethers.ContractFactory(recoveryArtifact.abi,recoveryArtifact.bytecode,f.owner).deploy(86400)).waitForDeployment();
+  const originalAlice=f.alice;
+  safeOwner=ethers.Wallet.createRandom().connect(ethers.provider);await f.owner.sendTransaction({to:safeOwner.address,value:ethers.parseEther('1')});
+  async function account(owner,nonce){
+   const init=singleton.interface.encodeFunctionData('setup',[[owner.address],1,ethers.ZeroAddress,'0x',handler.target,ethers.ZeroAddress,0,ethers.ZeroAddress]);
+   const receipt=await (await factory.createProxyWithNonce(singleton.target,init,nonce)).wait();
+   const address=receipt.logs.map(l=>{try{return factory.interface.parseLog(l);}catch{return null;}}).find(e=>e?.name==='ProxyCreation').args.proxy;
+   const safe=new ethers.Contract(address,safeArtifact('Safe').abi,ethers.provider),runner=safeRunner(safe,owner,f.relayer),guardian=ethers.Wallet.createRandom();
+   await (await new ethers.Contract(address,safeArtifact('Safe').abi,runner).enableModule(recovery.target)).wait();
+   await (await recovery.connect(runner).addGuardianWithThreshold(guardian.address,1)).wait();
+   return {safe,runner,owner,guardian};
+  }
+  const primary=await account(safeOwner,101),secondary=await account(originalAlice,102);user=primary.runner;f.alice=secondary.runner;
+  for(const account of [primary,secondary]){
+   await f.core.setKYCStatus(account.runner.address,true);await f.core.setCreditLimit(account.runner.address,1000n*U);await f.usdt.mint(account.runner.address,1000n*U);
+  }
+  await (await f.usdt.connect(f.alice).approve(f.exchange.target,ethers.MaxUint256)).wait();
   await pool.query('INSERT INTO users(id,web3_wallet_address,has_transaction_pin,kyc_verified,red_credit_limit_override) VALUES(1,$1,true,true,NULL),(2,$2,true,true,NULL)',[user.address,f.alice.address]);
   cfg={chainId:'1337',contracts:{CoreProtocol:f.core.target,CollateralVault:f.vault.target,FifoExchange:f.exchange.target,BlueToken:f.blue.target,RedToken:f.red.target,USDT:f.usdt.target,ProtocolTreasury:f.treasury.target},fingerprint:'synthetic-local-suite'};
+  originalDeploymentConfiguration=deployment.configuration;deployment.configuration=()=>cfg;
+  const contracts={};for(const [name,address] of Object.entries({singleton:singleton.target,factory:factory.target,fallbackHandler:handler.target,passkeyFactory:factory.target,passkeyVerifier:handler.target,recoveryModule:recovery.target}))contracts[name]={address,codeHash:ethers.keccak256(await ethers.provider.getCode(address))};
+  safeConfig={chainId:'1337',hash:'local-safe-fixture',safeVersion:'1.4.1',contracts,proxyCodeHash:ethers.keccak256(await ethers.provider.getCode(primary.safe.target)),recoveryDeploymentEvidence:'isolated laboratory fixture'};
+  originalSafeConfiguration=safePolicy.configuration;safePolicy.configuration=()=>safeConfig;
+  const identity1=randomUUID(),identity2=randomUUID();
+  await pool.query("INSERT INTO account_identities(id,user_id,review_state) VALUES($1,1,'verified'),($2,2,'verified')",[identity1,identity2]);
+  await pool.query(`INSERT INTO smart_accounts(identity_id,chain_id,address,passkey,recovery_address,manifest_hash,state,backup_confirmed_at)
+    VALUES($1,'1337',$2,$3::jsonb,$4,$5,'active',NOW()),($6,'1337',$7,$8::jsonb,$9,$5,'active',NOW())`,
+   [identity1,user.address.toLowerCase(),JSON.stringify({owner:primary.owner.address}),primary.guardian.address.toLowerCase(),safeConfig.hash,
+    identity2,f.alice.address.toLowerCase(),JSON.stringify({owner:secondary.owner.address}),secondary.guardian.address.toLowerCase()]);
   process.env.WALLET_MAX_STEP_FEE_WEI=ethers.parseEther('.1').toString();
-  service=new WalletOperations(pool,ethers.provider,cfg,{decryptPrivateKeyWithPin:async(_c,id,pin)=>{if(id!==1||pin!=='729418')throw Object.assign(new Error('PIN incorrecto'),{status:401});return user.privateKey;}},{finality:null,confirmations:1});
+  const sponsored=ethers.Wallet.createRandom();await f.owner.sendTransaction({to:sponsored.address,value:ethers.parseEther('5')});process.env.RELAYER_PRIVATE_KEY=sponsored.privateKey;
+  testDeployment={configuration:()=>cfg};storeOptions={finality:null,confirmations:1,deployment:testDeployment};
+  service=new WalletOperations(pool,ethers.provider,cfg,{},storeOptions);
+  const authorize=service.authorize.bind(service);service.authorize=async(idUser,id,pin)=>{
+   await service.store.get(id,idUser);
+   if(typeof pin==='string'){
+    if(idUser!==1||pin!=='729418')throw Object.assign(new Error('PIN incorrecto'),{status:401});
+    const current=await service.status(idUser,id);if(current.authorization){const signature=await safeOwner.signTypedData({chainId:1337,verifyingContract:user.address},safeTypes,current.authorization.transaction);return authorize(idUser,id,{hash:current.authorization.hash,signature});}
+    return authorize(idUser,id,{});
+   }
+   return authorize(idUser,id,pin);
+  };
  });
- afterEach(async()=>{for(const x of paymentServices)await x.close();paymentServices=[];delete process.env.GAS_SPONSOR_PRIVATE_KEY;if(pool)await pool.end();if(control){await control.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await control.end();}});
+ afterEach(async()=>{for(const x of paymentServices)await x.close();paymentServices=[];delete process.env.GAS_SPONSOR_PRIVATE_KEY;delete process.env.RELAYER_PRIVATE_KEY;if(originalSafeConfiguration)safePolicy.configuration=originalSafeConfiguration;if(originalDeploymentConfiguration)deployment.configuration=originalDeploymentConfiguration;if(pool)await pool.end();if(control){await control.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);await control.end();}});
  async function finish(quote){let r=await service.authorize(1,quote.operationId,'729418');for(let n=0;n<15&&!r.success;n++){r=await service.status(1,quote.operationId);if(r.requiresSignature)r=await service.authorize(1,quote.operationId,'729418');}expect(r.success,JSON.stringify(r)).eq(true);return r;}
  it('valida red, enlaces y seis decimales del despliegue',async()=>{expect(await deployment.validate(ethers.provider,cfg)).eq(cfg);await expect(deployment.validate(ethers.provider,{...cfg,chainId:'10'})).rejectedWith('red');});
  it('depósito con aprobación limitada, retiro libre y envío USDT con la misma identidad',async()=>{
@@ -67,7 +123,7 @@ const deployment=require('../../backend/src/services/chainDeployment');
   const original=service.store.provider;let sends=0;
   service.store.provider=new Proxy(original,{get(target,key){if(key==='broadcastTransaction')return async raw=>{sends++;await target.broadcastTransaction(raw);throw Error('lost reply');};const value=target[key];return typeof value==='function'?value.bind(target):value;}});
   await service.authorize(1,q.operationId,'729418');
-  const restarted=new ChainOperationStore(pool,ethers.provider,{finality:null,confirmations:1});expect((await restarted.reconcile(q.operationId)).success).eq(true);
+  const restarted=new ChainOperationStore(pool,ethers.provider,storeOptions);expect((await restarted.reconcile(q.operationId)).success).eq(true);
   await restarted.reconcile(q.operationId);expect(sends).eq(1);expect(await f.usdt.balanceOf(f.bob.address)).eq(before+3n*U);
  });
  it('DB falla después de confirmación: espejo pendiente se recupera sin reenvío',async()=>{
@@ -75,7 +131,7 @@ const deployment=require('../../backend/src/services/chainDeployment');
   await pool.query('UPDATE chain_operations SET projection=$2 WHERE id=$1',[q.operationId,JSON.stringify({type:'setting',key:'debt_cycle_days',value:'30'})]);
   await service.authorize(1,q.operationId,'729418');
   const wrapped={query:pool.query.bind(pool),connect:async()=>{const client=await pool.connect();return {release:x=>client.release(x),query:(sql,args)=>sql.startsWith('INSERT INTO app_settings')?Promise.reject(Error('DB unavailable')):client.query(sql,args)};}};
-  const broken=new ChainOperationStore(wrapped,ethers.provider,{finality:null,confirmations:1});await expect(broken.reconcile(q.operationId)).rejectedWith('DB unavailable');
+  const broken=new ChainOperationStore(wrapped,ethers.provider,storeOptions);await expect(broken.reconcile(q.operationId)).rejectedWith('DB unavailable');
   expect((await service.store.get(q.operationId,1)).state).eq('pending');expect((await service.store.reconcile(q.operationId)).success).eq(true);
   expect((await pool.query("SELECT setting_value FROM app_settings WHERE setting_key='debt_cycle_days'")).rows[0].setting_value).eq('30');
  });
@@ -98,29 +154,28 @@ const deployment=require('../../backend/src/services/chainDeployment');
  it('un bloqueo ocupado no se interpreta como éxito',async()=>{
   await locked(pool,'synthetic-credit',async()=>{await expect(locked(pool,'synthetic-credit',async()=>true)).rejectedWith('en curso');});
  });
- it('patrocinio entrega gas una sola vez y respeta presupuesto por identidad',async()=>{
-  const sponsor=ethers.Wallet.createRandom();process.env.GAS_SPONSOR_PRIVATE_KEY=sponsor.privateKey;
-  await f.owner.sendTransaction({to:sponsor.address,value:ethers.parseEther('3')});
+ it('patrocinio Safe no financia la EOA de la cuenta y respeta la cuota por identidad',async()=>{
   await ethers.provider.send('hardhat_setBalance',[user.address,'0x0']);
   for(const [key,value] of Object.entries({gas_sponsor_enabled:'true',gas_sponsor_daily_user_operations:'1',gas_sponsor_daily_budget_wei:ethers.parseEther('1').toString(),gas_sponsor_max_topup_wei:ethers.parseEther('.1').toString()}))await pool.query('UPDATE app_settings SET setting_value=$2 WHERE setting_key=$1',[key,value]);
   const q=await service.prepare(1,{action:'transfer',amount:'1',destination:f.bob.address});
-  let waiting;try{await service.authorize(1,q.operationId,'729418');}catch(e){waiting=e;}
-  expect(waiting.status).eq(202);expect(waiting.fundingOperationId).a('string');
-  expect((await service.status(1,waiting.fundingOperationId)).success).eq(true);
-  await finish(q);expect((await pool.query("SELECT COUNT(*)::int AS n FROM chain_operations WHERE kind='gas'")).rows[0].n).eq(1);
+  await finish(q);expect((await pool.query("SELECT COUNT(*)::int AS n FROM chain_operations WHERE kind='gas'")).rows[0].n).eq(0);
   await ethers.provider.send('hardhat_setBalance',[user.address,'0x0']);
   const second=await service.prepare(1,{action:'transfer',amount:'1',destination:f.bob.address});
-  await expect(service.authorize(1,second.operationId,'729418')).rejectedWith('presupuesto');
+  await expect(service.authorize(1,second.operationId,'729418')).rejectedWith('cuota');
  });
  it('una confirmación de política anterior no salta la evaluación de la nueva',async()=>{
-  const {savePolicy,tick}=require('../../backend/src/services/creditPolicyJobs');
+  const {savePolicy,tick,retryIssue}=require('../../backend/src/services/creditPolicyJobs');
   const old=await service.store.prepare({userId:1,key:'old-policy',chainId:'1337',sender:user.address,resource:'credit:'+user.address.toLowerCase(),kind:'credit',payload:{}});
   const version=await savePolicy(pool,'red_credit_base_limit','80',9);
-  let calls=0;
-  const scoring={syncCreditLimitOnChain:async id=>{expect(id).eq(1);calls++;return calls===1?{pending:true,operationId:old.id}:{skipped:true,reason:'already_current'};}};
+  const seen=[];
+  const scoring={syncCreditLimitOnChain:async id=>{seen.push(id);return id===1&&seen.filter(x=>x===1).length===1?{pending:true,operationId:old.id}:{skipped:true,reason:'already_current'};}};
   await tick(pool,scoring);await pool.query("UPDATE chain_operations SET state='confirmed' WHERE id=$1",[old.id]);
-  await tick(pool,scoring);expect(calls).eq(2);
-  expect((await pool.query('SELECT cursor_id FROM credit_policy_jobs WHERE version_id=$1',[version.policyVersion])).rows[0].cursor_id).eq(1);
+  await tick(pool,scoring);
+  await pool.query(`INSERT INTO credit_policy_issues(version_id,user_id,operation_id,reason,status,retry_requested,retry_count,next_retry_at)
+    VALUES($1,1,$2,'CONFIRMED_RECHECK','open',FALSE,1,NOW()+interval '1 hour')`,[version.policyVersion,old.id]);
+  await tick(pool,scoring);expect(seen.filter(x=>x===1)).length(1);
+  await retryIssue(pool,version.policyVersion,1);await tick(pool,scoring);expect(seen.filter(x=>x===1)).length(2);
+  expect((await pool.query('SELECT status FROM credit_policy_issues WHERE version_id=$1 AND user_id=1',[version.policyVersion])).rows[0].status).eq('resolved');
  });
  it('política global versionada se reanuda y conserva cuentas con excepción',async()=>{
   const {savePolicy,tick}=require('../../backend/src/services/creditPolicyJobs');
@@ -156,12 +211,13 @@ const deployment=require('../../backend/src/services/chainDeployment');
   await require('../../backend/migrations/117_payment_recovery_controls').up(pool);
   const {MarketplacePayments}=require('../../backend/src/services/marketplacePayments');
   for(const [key,value] of Object.entries({gas_sponsor_enabled:'true',gas_sponsor_daily_user_operations:'3',gas_sponsor_daily_budget_wei:ethers.parseEther('1').toString(),gas_sponsor_max_topup_wei:ethers.parseEther('.1').toString()}))await pool.query('UPDATE app_settings SET setting_value=$2 WHERE setting_key=$1',[key,value]);
-  const payments=new MarketplacePayments(pool,ethers.provider,cfg,{relayerKey:relayer.privateKey,walletService:service.walletService,finality:null,confirmations:1});
+  process.env.RELAYER_PRIVATE_KEY=relayer.privateKey;
+  const payments=new MarketplacePayments(pool,ethers.provider,cfg,{relayerKey:relayer.privateKey,walletService:service.walletService,finality:null,confirmations:1,deployment:testDeployment});
   paymentServices.push(payments);return {payments,payload:{publicationId:'1',acceptanceId:'1',category:'request',payer:'payer',payee:'payee',amount:'10',expectedFeeBps:String(await f.core.commissionBps())}};
  }
  async function sendAndRollback(payments,payload,pin='729418'){
   const client=await pool.connect();try{await client.query('BEGIN');await client.query('SELECT * FROM users FOR UPDATE');await payments.begin(client,payload,pin);throw Error('Unexpected success');}
-  catch(e){await client.query('ROLLBACK');if(e.code!=='PAYMENT_PENDING')throw e;return e.operationId;}finally{client.release();}
+  catch(e){await client.query('ROLLBACK');if(e.code!=='PAYMENT_PENDING')throw e;const state=await payments.status(1,e.operationId);if(state.authorization){const digest=ethers.TypedDataEncoder.hash(state.authorization.domain,state.authorization.types,state.authorization.message);const signature=await safeOwner.signTypedData({chainId:1337,verifyingContract:user.address},{SafeMessage:[{name:'message',type:'bytes'}]},{message:digest});await payments.authorize(1,e.operationId,signature);}return e.operationId;}finally{client.release();}
  }
  it('pago sobrevive rollback y reinicio: mismo hash, una emisión y un único registro',async()=>{
   const {payments,payload}=await marketplace();const before=await f.blue.balanceOf(f.alice.address);
@@ -239,10 +295,10 @@ const deployment=require('../../backend/src/services/chainDeployment');
   const sponsor=ethers.Wallet.createRandom();process.env.GAS_SPONSOR_PRIVATE_KEY=sponsor.privateKey;await f.owner.sendTransaction({to:sponsor.address,value:ethers.parseEther('1')});
   await ethers.provider.send('hardhat_setBalance',[user.address,'0x0']);
   const quote=await service.prepare(1,{action:'transfer',amount:'1',destination:f.bob.address});
-  await expect(service.authorize(1,quote.operationId,'729418')).rejectedWith('presupuesto');
+  await expect(service.authorize(1,quote.operationId,'729418')).rejectedWith('cuota');
  });
  it('reservas firmadas de ayer siguen contando; preparaciones vencidas sin firma no',async()=>{
-  const store=new ChainOperationStore(pool,ethers.provider,{finality:null,confirmations:1});
+  const store=new ChainOperationStore(pool,ethers.provider,storeOptions);
   const row=await store.prepare({userId:1,key:'old-gas',chainId:'1337',sender:user.address,resource:'test-budget',kind:'gas',payload:{reservedWei:'15',parentId:'old-parent'}});
   await pool.query("UPDATE chain_operations SET created_at=NOW()-interval '2 days',state='pending' WHERE id=$1",[row.id]);
   const usage=require('../../backend/src/services/gasBudgetUsage').usage;
@@ -262,7 +318,9 @@ const deployment=require('../../backend/src/services/chainDeployment');
   const {settle,createMaintenanceWorker}=require('../../backend/src/services/chainMaintenance');
   const params={pool,rpc:ethers.provider,config:cfg,wallet:user.address,env:{RELAYER_PRIVATE_KEY:runner.privateKey},store:service.store};
   const sent=await settle(params);expect(sent.pending).eq(true);
-  expect((await settle(params)).success).eq(true);expect((await settle(params)).status).eq('not_needed');
+  let confirmed=sent;
+  for(let attempt=0;attempt<10&&!confirmed.success;attempt++) confirmed=await service.store.reconcile(sent.operationId);
+  expect(confirmed.success,confirmed.error).eq(true);expect((await settle(params)).status).eq('not_needed');
   expect(await f.red.balanceOf(user.address)).eq(0);expect(await f.blue.balanceOf(user.address)).eq(4750000n);expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
   expect((await pool.query("SELECT * FROM chain_operations WHERE kind='settleMatured'")).rowCount).eq(1);
   const bridge={getUserAuditDetailed:async wallet=>{const block=await ethers.provider.getBlock('latest');return {success:true,blockNumber:block.number,blockHash:block.hash,blueBalance:ethers.formatUnits(await f.blue.balanceOf(wallet),6),credit:{isKYCVerified:await f.core.isKYCVerified(wallet),isDelinquent:await f.core.isDelinquent(wallet)}};}};
@@ -275,7 +333,7 @@ const deployment=require('../../backend/src/services/chainDeployment');
   for(const [key,value] of Object.entries({gas_sponsor_enabled:'true',gas_sponsor_daily_budget_wei:ethers.parseEther('1').toString(),gas_sponsor_maintenance_daily_budget_wei:ethers.parseEther('.5').toString(),gas_sponsor_maintenance_max_step_wei:ethers.parseEther('.05').toString()}))await pool.query('INSERT INTO app_settings(setting_key,setting_value) VALUES($1,$2) ON CONFLICT(setting_key) DO UPDATE SET setting_value=EXCLUDED.setting_value',[key,value]);
   await f.core.connect(user).processPayment(user.address,f.bob.address,5n*U);await f.pay(f.alice,user,10n*U);
   await ethers.provider.send('evm_increaseTime',[Number(await f.core.COMMITMENT_DURATION())+1]);await ethers.provider.send('evm_mine',[]);
-  const resource=`maintenance:1337:${f.core.target.toLowerCase()}:${user.address.toLowerCase()}`;
+  const resource=`maintenance:1337:${user.address.toLowerCase()}`;
   const old=await service.store.prepare({key:'old-maintenance',chainId:'1337',sender:runner.address,resource,kind:'settleMatured',payload:{to:f.core.target,data:f.core.interface.encodeFunctionData('settleMatured',[user.address]),value:'0',maxFeeWei:ethers.parseEther('.1').toString(),reservedWei:ethers.parseEther('.1').toString(),fingerprint:cfg.fingerprint}});
   await expect(require('../../backend/src/services/chainMaintenance').settle({pool,rpc:ethers.provider,config:cfg,wallet:user.address,env:{RELAYER_PRIVATE_KEY:runner.privateKey},store:service.store})).rejectedWith('MAINTENANCE_POLICY_REDUCED');
   expect((await service.store.get(old.id)).steps).length(0);expect(await f.red.balanceOf(user.address)).eq(5250000n);

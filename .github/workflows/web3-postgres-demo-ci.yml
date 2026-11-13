@@ -1,0 +1,115 @@
+name: Demo - Web3 PostgreSQL integrations
+
+# Test-only workflow. It never contacts an RPC, moves funds, deploys contracts,
+# or targets Production. The PostgreSQL service is discarded with the runner.
+on:
+  pull_request:
+    branches:
+      - demo
+    paths:
+      - '.github/workflows/web3-postgres-demo-ci.yml'
+      - 'backend/migrations/**'
+      - 'backend/src/services/**'
+      - 'web3-contracts/contracts/**'
+      - 'web3-contracts/test/**'
+      - 'web3-contracts/package-lock.json'
+      - 'package-lock.json'
+  push:
+    branches:
+      - demo
+    paths:
+      - '.github/workflows/web3-postgres-demo-ci.yml'
+      - 'backend/migrations/**'
+      - 'backend/src/services/**'
+      - 'web3-contracts/contracts/**'
+      - 'web3-contracts/test/**'
+      - 'web3-contracts/package-lock.json'
+      - 'package-lock.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-web3-postgres-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres-integrations:
+    name: 37 isolated Web3/PostgreSQL scenarios
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      WINTON_MIGRATION_TEST_PORT: '5432'
+      PGHOST: 127.0.0.1
+      PGPORT: '5432'
+      PGUSER: review070
+      PGPASSWORD: demo-ci-disposable-password
+      PGDATABASE: postgres
+      NODE_ENV: test
+      IS_DEMO_ENV: 'true'
+
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: review070
+          POSTGRES_PASSWORD: demo-ci-disposable-password
+          POSTGRES_DB: postgres
+          PGDATA: /var/lib/postgresql/data/pg-review-070
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U review070 -d postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    steps:
+      - name: Checkout Demo candidate
+        uses: actions/checkout@v4
+
+      - name: Configure Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            web3-contracts/package-lock.json
+
+      - name: Install locked dependencies
+        run: |
+          npm ci --ignore-scripts
+          npm --prefix web3-contracts ci
+
+      - name: Verify disposable PostgreSQL identity
+        run: |
+          set -euo pipefail
+          test -n "${WINTON_MIGRATION_TEST_PORT:-}"
+          test "$WINTON_MIGRATION_TEST_PORT" = "$PGPORT"
+          test "$(psql -Atqc 'SHOW data_directory')" = "/var/lib/postgresql/data/pg-review-070"
+
+      - name: Run all 37 PostgreSQL integration scenarios
+        working-directory: web3-contracts
+        run: |
+          set -euo pipefail
+          npx hardhat test \
+            test/ExchangeIndexerIntegration.test.js \
+            test/MixedPaymentSql163.test.js \
+            test/PinOperationsRecovery.test.js \
+            --grep 'PostgreSQL aislado|Pago mixto real|PIN \+ contratos reales' \
+            2>&1 | tee postgres-integration-results.log
+          if grep -Eq '[1-9][0-9]* pending' postgres-integration-results.log; then
+            echo 'PostgreSQL integration scenarios were skipped.' >&2
+            exit 1
+          fi
+          grep -Eq '37 passing' postgres-integration-results.log
+
+      - name: Preserve failure evidence
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-web3-postgres-${{ github.run_id }}
+          path: web3-contracts/postgres-integration-results.log
+          if-no-files-found: ignore
+          retention-days: 14
