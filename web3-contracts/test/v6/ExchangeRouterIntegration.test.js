@@ -4,7 +4,7 @@ const { loadFixture, time } = require('@nomicfoundation/hardhat-network-helpers'
 const U = 1_000_000n, BLUE = 0, USDT = 1;
 
 describe('V6 modular: integración del Router Exchange', function () {
-  async function fixture() {
+  async function fixture(exchangeFeeBps = 100) {
     const [owner, guardian, treasury, seller, buyer, debtAccount, outsider] = await ethers.getSigners();
     const modes = await (await ethers.getContractFactory('ProtocolModeController')).deploy(guardian.address);
     const risk = await (await ethers.getContractFactory('RiskRegistry')).deploy(owner.address);
@@ -15,7 +15,7 @@ describe('V6 modular: integración del Router Exchange', function () {
     await blue.setSupplyController(pairs.target); await red.setSupplyController(pairs.target);
     await pairs.setOperator(operator.target, true);
     const usdt = await (await ethers.getContractFactory('MockERC20')).deploy('USDT', 'USDT', 6);
-    const config = await (await ethers.getContractFactory('ExchangeConfig')).deploy(treasury.address, 100);
+    const config = await (await ethers.getContractFactory('ExchangeConfig')).deploy(treasury.address, exchangeFeeBps);
     const book = await (await ethers.getContractFactory('FifoOrderBook')).deploy();
     const custody = await (await ethers.getContractFactory('ExchangeCustody')).deploy(blue.target, usdt.target);
     const adapter = await (await ethers.getContractFactory('AmortizationAdapter')).deploy(modes.target, book.target, custody.target);
@@ -47,6 +47,19 @@ describe('V6 modular: integración del Router Exchange', function () {
     expect(await f.usdt.balanceOf(f.seller.address)).eq(99n * U);
     expect(await f.custody.accumulatedFees(BLUE)).eq(1n * U);
     expect(await f.custody.solvent(BLUE)).eq(true); expect(await f.custody.solvent(USDT)).eq(true);
+  });
+
+  it('usa la liquidación optimizada sin comisión cuando la tarifa es cero', async () => {
+    const f = await fixture(0);
+    await f.router.connect(f.seller).createOrder(BLUE, 100n * U);
+    await f.router.connect(f.buyer).createOrder(USDT, 100n * U);
+    await f.router.matchNext(10);
+    expect(await f.blue.balanceOf(f.buyer.address)).eq(100n * U);
+    expect(await f.usdt.balanceOf(f.seller.address)).eq(100n * U);
+    expect(await f.custody.accumulatedFees(BLUE)).eq(0);
+    expect(await f.custody.accumulatedFees(USDT)).eq(0);
+    expect(await f.custody.solvent(BLUE)).eq(true);
+    expect(await f.custody.solvent(USDT)).eq(true);
   });
 
   it('suspende la cabeza sin KYC y nunca adelanta una orden posterior indebidamente', async () => {

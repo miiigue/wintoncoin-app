@@ -13,6 +13,7 @@ contract FifoOrderBook is Ownable2Step {
         uint128 original; uint128 refunded;
     }
     struct QueueEntry { uint64 id; uint64 sequence; }
+    struct MatchCandidate { uint64 id; uint128 remaining; address user; uint256 index; }
 
     address public router;
     uint64 public nextOrderId = 1;
@@ -51,12 +52,12 @@ contract FifoOrderBook is Ownable2Step {
     }
 
     function applyFill(uint64 id, uint128 amount) external onlyRouter {
-        Order storage value = _orders[id];
-        if (!_active(value.status)) revert OrderNotActive();
-        if (amount == 0 || amount > value.remaining) revert InvalidAmount();
-        value.remaining -= amount;
-        value.status = value.remaining == 0 ? Status.FILLED : Status.PARTIALLY_FILLED;
-        emit OrderFilled(id, amount, value.remaining);
+        _applyFill(id, amount);
+    }
+
+    function applyMatchedFill(uint64 blueId, uint64 usdtId, uint128 amount) external onlyRouter {
+        _applyFill(blueId, amount);
+        _applyFill(usdtId, amount);
     }
 
     function cancel(uint64 id) external onlyRouter returns (address user, Side side, uint128 refund) {
@@ -86,6 +87,11 @@ contract FifoOrderBook is Ownable2Step {
     }
 
     function order(uint64 id) external view returns (Order memory) { return _orders[id]; }
+    function collateralOrderRemaining(uint64 id, address user) external view returns (uint128) {
+        Order storage value = _orders[id];
+        if (value.user != user || value.side != Side.USDT_FOR_BLUE || !_active(value.status)) return 0;
+        return value.remaining;
+    }
     function queueLength(Side side) external view returns (uint256) {
         return side == Side.BLUE_FOR_USDT ? _blueIds.length : _usdtIds.length;
     }
@@ -102,6 +108,34 @@ contract FifoOrderBook is Ownable2Step {
             if (_active(candidate.status) && candidate.sequence == entry.sequence) return (candidate.id, i);
         }
         return (0, end);
+    }
+    function nextPair(uint256 blueFrom, uint256 usdtFrom, uint256 maximum)
+        external view returns (MatchCandidate memory blueOrder, MatchCandidate memory usdtOrder)
+    {
+        blueOrder = _nextActiveCandidate(_blueIds, blueFrom, maximum);
+        usdtOrder = _nextActiveCandidate(_usdtIds, usdtFrom, maximum);
+    }
+    function _nextActiveCandidate(QueueEntry[] storage ids, uint256 from, uint256 maximum)
+        private view returns (MatchCandidate memory result)
+    {
+        uint256 end = from + maximum;
+        if (end < from || end > ids.length) end = ids.length;
+        for (uint256 i = from; i < end; ++i) {
+            QueueEntry storage entry = ids[i];
+            Order storage candidate = _orders[entry.id];
+            if (_active(candidate.status) && candidate.sequence == entry.sequence) {
+                return MatchCandidate(candidate.id, candidate.remaining, candidate.user, i);
+            }
+        }
+        result.index = end;
+    }
+    function _applyFill(uint64 id, uint128 amount) private {
+        Order storage value = _orders[id];
+        if (!_active(value.status)) revert OrderNotActive();
+        if (amount == 0 || amount > value.remaining) revert InvalidAmount();
+        value.remaining -= amount;
+        value.status = value.remaining == 0 ? Status.FILLED : Status.PARTIALLY_FILLED;
+        emit OrderFilled(id, amount, value.remaining);
     }
     function _active(Status value) private pure returns (bool) {
         return value == Status.OPEN || value == Status.PARTIALLY_FILLED;

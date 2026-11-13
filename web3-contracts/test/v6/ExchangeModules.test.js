@@ -24,6 +24,9 @@ describe('V6 modular: libro FIFO, custodia y configuración', function () {
     const f = await loadFixture(fixture);
     await expect(f.book.connect(f.seller).create(f.seller.address, BLUE, 10n * U)).revertedWithCustomError(f.book, 'Unauthorized');
     await expect(f.custody.connect(f.seller).deposit(BLUE, f.seller.address, 10n * U)).revertedWithCustomError(f.custody, 'Unauthorized');
+    await expect(f.book.connect(f.seller).applyMatchedFill(1, 2, U)).revertedWithCustomError(f.book, 'Unauthorized');
+    await expect(f.custody.connect(f.seller).settleMatchWithoutFees(f.seller.address, f.buyer.address, U))
+      .revertedWithCustomError(f.custody, 'Unauthorized');
     await expect(f.book.setRouter(f.router.target)).revertedWithCustomError(f.book, 'IntegrationLocked');
     await expect(f.custody.setIntegration(f.router.target, f.config.target)).revertedWithCustomError(f.custody, 'IntegrationAlreadyLocked');
   });
@@ -47,6 +50,21 @@ describe('V6 modular: libro FIFO, custodia y configuración', function () {
     expect(await f.custody.totalReserved(BLUE)).eq(0); expect(await f.custody.accumulatedFees(BLUE)).eq(1n * U);
     expect(await f.custody.solvent(BLUE)).eq(true); await f.router.claimFees();
     expect(await f.blue.balanceOf(f.treasury.address)).eq(1n * U); expect(await f.usdt.balanceOf(f.treasury.address)).eq(1n * U);
+  });
+
+  it('liquida la ruta sin comisión de forma simétrica y solvente', async () => {
+    const f = await loadFixture(fixture);
+    await f.router.deposit(BLUE, f.seller.address, 100n * U);
+    await f.router.deposit(USDT, f.buyer.address, 100n * U);
+    await f.router.settleWithoutFees(f.seller.address, f.buyer.address, 100n * U);
+    expect(await f.blue.balanceOf(f.buyer.address)).eq(100n * U);
+    expect(await f.usdt.balanceOf(f.seller.address)).eq(100n * U);
+    expect(await f.custody.totalReserved(BLUE)).eq(0);
+    expect(await f.custody.totalReserved(USDT)).eq(0);
+    expect(await f.custody.accumulatedFees(BLUE)).eq(0);
+    expect(await f.custody.accumulatedFees(USDT)).eq(0);
+    expect(await f.custody.solvent(BLUE)).eq(true);
+    expect(await f.custody.solvent(USDT)).eq(true);
   });
 
   it('mantiene refunds retenidos como pasivo hasta su liberación', async () => {

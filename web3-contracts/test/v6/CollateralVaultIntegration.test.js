@@ -79,6 +79,67 @@ describe('V6 modular: Bóveda, garantía y amortización pareada', function () {
     expect(await f.vault.solvent()).eq(true);
   });
 
+  it('deposita y crea la orden de garantía en una sola transacción atómica', async () => {
+    const f = await loadFixture(fixture);
+    const tx = await f.vault.connect(f.debtor).depositAndCreateAmortizationOrder(100n * U);
+    await expect(tx)
+      .to.emit(f.vault, 'Deposited').withArgs(f.debtor.address, 100n * U)
+      .and.to.emit(f.vault, 'CollateralOrderCreated').withArgs(f.debtor.address, 1, 100n * U);
+    const receipt = await tx.wait();
+    const vaultEvents = receipt.logs
+      .filter(log => log.address.toLowerCase() === f.vault.target.toLowerCase())
+      .map(log => f.vault.interface.parseLog(log).name);
+    expect(vaultEvents).deep.eq(['Deposited', 'CollateralOrderCreated']);
+    expect(await f.vault.collateralBalance(f.debtor.address)).eq(100n * U);
+    expect(await f.vault.exchangeReserved(f.debtor.address)).eq(100n * U);
+    expect(await f.usdt.balanceOf(f.custody.target)).eq(100n * U);
+    expect(await f.vault.solvent()).eq(true);
+  });
+
+  it('revierte también el depósito si no puede crear la orden atómica', async () => {
+    const f = await loadFixture(fixture);
+    await expect(f.vault.connect(f.debtor).depositAndCreateAmortizationOrder(U - 1n))
+      .revertedWithCustomError(f.router, 'InvalidAmount');
+    expect(await f.vault.collateralBalance(f.debtor.address)).eq(0);
+    expect(await f.usdt.balanceOf(f.vault.target)).eq(0);
+  });
+
+  it('la ruta atómica falla cerrada sin KYC y durante Prelanzamiento', async () => {
+    const f = await loadFixture(fixture);
+    await f.risk.setProfile(f.debtor.address, false, 0, 3);
+    await expect(f.vault.connect(f.debtor).depositAndCreateAmortizationOrder(10n * U))
+      .revertedWithCustomError(f.vault, 'KycNotVerified');
+    expect(await f.vault.collateralBalance(f.debtor.address)).eq(0);
+    expect(await f.vault.exchangeReserved(f.debtor.address)).eq(0);
+    expect(await f.usdt.balanceOf(f.custody.target)).eq(0);
+    expect(await f.book.queueLength(1)).eq(0);
+    await f.risk.setProfile(f.debtor.address, true, 0, 3);
+    await f.modes.connect(f.guardian).guardianRestrictTo(1);
+    await expect(f.vault.connect(f.debtor).depositAndCreateAmortizationOrder(10n * U))
+      .revertedWithCustomError(f.vault, 'NotNormal');
+    expect(await f.vault.collateralBalance(f.debtor.address)).eq(0);
+    expect(await f.vault.exchangeReserved(f.debtor.address)).eq(0);
+    expect(await f.usdt.balanceOf(f.custody.target)).eq(0);
+    expect(await f.book.queueLength(1)).eq(0);
+  });
+
+  it('conserva reservas y solvencia tras llenado parcial y cancelación de la ruta atómica', async () => {
+    const f = await loadFixture(fixture);
+    await f.risk.setProfile(f.debtor.address, true, 100n * U, 3);
+    await f.engine.connect(f.debtor).processPayment(f.seller.address, 100n * U);
+    await f.vault.connect(f.debtor).depositAndCreateAmortizationOrder(100n * U);
+    await time.increase(30 * 86400 + 1);
+    await f.blue.connect(f.seller).approve(f.custody.target, ethers.MaxUint256);
+    await f.router.connect(f.seller).createOrder(BLUE, 40n * U);
+    await f.router.matchNext(10);
+    expect(await f.vault.exchangeReserved(f.debtor.address)).eq(60n * U);
+    await f.router.connect(f.debtor).cancelOrder(1);
+    expect(await f.vault.exchangeReserved(f.debtor.address)).eq(0);
+    expect(await f.vault.collateralBalance(f.debtor.address)).eq(60n * U);
+    expect(await f.vault.solvent()).eq(true);
+    expect(await f.blue.totalSupply()).eq(await f.red.totalSupply());
+  });
+
   it('revierte el cruce completo si la quema de garantía no puede completarse', async () => {
     const f = await loadFixture(fixture);
     await f.vault.connect(f.debtor).deposit(100n * U);

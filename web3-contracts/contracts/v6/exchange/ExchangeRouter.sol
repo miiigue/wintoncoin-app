@@ -8,7 +8,10 @@ import "./ExchangeConfig.sol";
 import "./AmortizationAdapter.sol";
 
 interface IModeForExchange { function mode() external view returns (uint8); }
-interface IRiskForExchange { function isKYCVerified(address account) external view returns (bool); }
+interface IRiskForExchange {
+    function isKYCVerified(address account) external view returns (bool);
+    function verificationPair(address first, address second) external view returns (bool, bool);
+}
 
 /// @notice Single public mutation surface for the modular V6 exchange.
 contract ExchangeRouter is ReentrancyGuard {
@@ -63,28 +66,30 @@ contract ExchangeRouter is ReentrancyGuard {
     /// @notice Matches only the earliest active order of each side within a bounded scan.
     function matchNext(uint256 maximumScanned) external nonReentrant returns (uint128 gross) {
         _normal(); if (maximumScanned == 0) revert InvalidAmount();
-        (uint64 blueId, uint256 blueIndex) = book.nextActive(FifoOrderBook.Side.BLUE_FOR_USDT, blueCursor, maximumScanned);
-        (uint64 usdtId, uint256 usdtIndex) = book.nextActive(FifoOrderBook.Side.USDT_FOR_BLUE, usdtCursor, maximumScanned);
-        if (blueId == 0 || usdtId == 0) return 0;
-        FifoOrderBook.Order memory blueOrder = book.order(blueId);
-        FifoOrderBook.Order memory usdtOrder = book.order(usdtId);
-        if (!risk.isKYCVerified(blueOrder.user)) {
-            book.suspend(blueId); blueCursor = blueIndex + 1; emit OrderSkipped(blueId, blueOrder.user); return 0;
+        (FifoOrderBook.MatchCandidate memory blueOrder,
+            FifoOrderBook.MatchCandidate memory usdtOrder) = book.nextPair(blueCursor, usdtCursor, maximumScanned);
+        if (blueOrder.id == 0 || usdtOrder.id == 0) return 0;
+        (bool blueVerified, bool usdtVerified) = risk.verificationPair(blueOrder.user, usdtOrder.user);
+        if (!blueVerified) {
+            book.suspend(blueOrder.id); blueCursor = blueOrder.index + 1;
+            emit OrderSkipped(blueOrder.id, blueOrder.user); return 0;
         }
-        if (!risk.isKYCVerified(usdtOrder.user)) {
-            book.suspend(usdtId); usdtCursor = usdtIndex + 1; emit OrderSkipped(usdtId, usdtOrder.user); return 0;
+        if (!usdtVerified) {
+            book.suspend(usdtOrder.id); usdtCursor = usdtOrder.index + 1;
+            emit OrderSkipped(usdtOrder.id, usdtOrder.user); return 0;
         }
         gross = blueOrder.remaining < usdtOrder.remaining ? blueOrder.remaining : usdtOrder.remaining;
-        (uint128 secured, address blueRecipient) = amortization.quote(usdtId, gross);
+        (uint128 secured, address blueRecipient) = amortization.quote(usdtOrder.id, gross);
         if (secured > 0) gross = secured; else blueRecipient = usdtOrder.user;
         uint128 fee = uint128(uint256(gross) * config.feeBps() / 10_000);
         uint128 net = gross - fee;
-        book.applyFill(blueId, gross); book.applyFill(usdtId, gross);
-        if (gross == blueOrder.remaining) blueCursor = blueIndex + 1; else blueCursor = blueIndex;
-        if (gross == usdtOrder.remaining) usdtCursor = usdtIndex + 1; else usdtCursor = usdtIndex;
-        custody.settleMatch(blueOrder.user, blueRecipient, gross, net, net, fee, fee);
-        if (secured > 0) amortization.consume(usdtId, gross, net);
-        emit OrdersMatched(blueId, usdtId, gross, fee);
+        book.applyMatchedFill(blueOrder.id, usdtOrder.id, gross);
+        if (gross == blueOrder.remaining) blueCursor = blueOrder.index + 1; else blueCursor = blueOrder.index;
+        if (gross == usdtOrder.remaining) usdtCursor = usdtOrder.index + 1; else usdtCursor = usdtOrder.index;
+        if (fee == 0) custody.settleMatchWithoutFees(blueOrder.user, blueRecipient, gross);
+        else custody.settleMatch(blueOrder.user, blueRecipient, gross, net, net, fee, fee);
+        if (secured > 0) amortization.consume(usdtOrder.id, gross, net);
+        emit OrdersMatched(blueOrder.id, usdtOrder.id, gross, fee);
     }
 
     function cancelOrder(uint64 orderId) external nonReentrant {

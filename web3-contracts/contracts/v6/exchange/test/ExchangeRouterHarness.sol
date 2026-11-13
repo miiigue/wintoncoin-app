@@ -13,6 +13,7 @@ contract ExchangeRouterHarness {
     }
     function create(address user, FifoOrderBook.Side side, uint128 amount) external returns (uint64) { return book.create(user, side, amount); }
     function fill(uint64 id, uint128 amount) external { book.applyFill(id, amount); }
+    function fillPair(uint64 blueId, uint64 usdtId, uint128 amount) external { book.applyMatchedFill(blueId, usdtId, amount); }
     function cancel(uint64 id) external returns (address, FifoOrderBook.Side, uint128) { return book.cancel(id); }
     function suspend(uint64 id) external { book.suspend(id); }
     function resume(uint64 id) external returns (uint64) { return book.resume(id); }
@@ -20,6 +21,9 @@ contract ExchangeRouterHarness {
     function settle(address blueSeller, address usdtBuyer, uint128 gross, uint128 blueNet,
         uint128 usdtNet, uint128 blueFee, uint128 usdtFee) external {
         custody.settleMatch(blueSeller, usdtBuyer, gross, blueNet, usdtNet, blueFee, usdtFee);
+    }
+    function settleWithoutFees(address blueSeller, address usdtBuyer, uint128 gross) external {
+        custody.settleMatchWithoutFees(blueSeller, usdtBuyer, gross);
     }
     function refund(ExchangeCustody.Asset asset, address user, uint128 amount, bool hold) external { custody.refund(asset, user, amount, hold); }
     function release(ExchangeCustody.Asset asset, address user, address recipient, uint128 amount) external {

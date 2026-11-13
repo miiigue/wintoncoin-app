@@ -72,11 +72,8 @@ contract CollateralVaultV6 is Ownable2Step, ReentrancyGuard {
     }
 
     function deposit(uint256 amount) external nonReentrant {
-        _normal(); _kyc(msg.sender); if (amount == 0) revert InvalidAmount();
-        uint256 beforeBalance = usdt.balanceOf(address(this));
-        usdt.safeTransferFrom(msg.sender, address(this), amount);
-        if (usdt.balanceOf(address(this)) - beforeBalance != amount) revert DepositAmountMismatch();
-        collateralBalance[msg.sender] += amount; totalCollateral += amount;
+        _normal(); _kyc(msg.sender);
+        _deposit(msg.sender, amount);
         _assertSolvent(); emit Deposited(msg.sender, amount);
     }
 
@@ -89,14 +86,38 @@ contract CollateralVaultV6 is Ownable2Step, ReentrancyGuard {
 
     function createAmortizationOrder(uint128 amount) external nonReentrant returns (uint64 orderId) {
         _normal(); _kyc(msg.sender);
-        if (amount == 0 || amount > unreservedCollateral(msg.sender)) revert InsufficientFreeCollateral();
-        exchangeReserved[msg.sender] += amount; totalExchangeReserved += amount;
+        orderId = _createAmortizationOrder(msg.sender, amount);
+    }
+
+    /// @notice Deposits USDT and reserves it in the FIFO amortization queue in
+    /// one atomic operation. A failure in any module rolls the whole deposit back.
+    function depositAndCreateAmortizationOrder(uint128 amount)
+        external nonReentrant returns (uint64 orderId)
+    {
+        _normal(); _kyc(msg.sender);
+        _deposit(msg.sender, amount);
+        emit Deposited(msg.sender, amount);
+        orderId = _createAmortizationOrder(msg.sender, amount);
+        _assertSolvent();
+    }
+
+    function _deposit(address user, uint256 amount) private {
+        if (amount == 0) revert InvalidAmount();
+        uint256 beforeBalance = usdt.balanceOf(address(this));
+        usdt.safeTransferFrom(user, address(this), amount);
+        if (usdt.balanceOf(address(this)) - beforeBalance != amount) revert DepositAmountMismatch();
+        collateralBalance[user] += amount; totalCollateral += amount;
+    }
+
+    function _createAmortizationOrder(address user, uint128 amount) private returns (uint64 orderId) {
+        if (amount == 0 || amount > unreservedCollateral(user)) revert InsufficientFreeCollateral();
+        exchangeReserved[user] += amount; totalExchangeReserved += amount;
         usdt.forceApprove(exchangeCustody, amount);
-        orderId = router.createCollateralOrder(msg.sender, amount);
+        orderId = router.createCollateralOrder(user, amount);
         usdt.forceApprove(exchangeCustody, 0);
-        orderUser[orderId] = msg.sender; orderReserved[orderId] = amount;
-        adapter.register(orderId, msg.sender, amount);
-        emit CollateralOrderCreated(msg.sender, orderId, amount);
+        orderUser[orderId] = user; orderReserved[orderId] = amount;
+        adapter.register(orderId, user, amount);
+        emit CollateralOrderCreated(user, orderId, amount);
     }
 
     function onCollateralFill(address user, uint64 orderId, uint128 grossUsdt, uint128 netBlue)

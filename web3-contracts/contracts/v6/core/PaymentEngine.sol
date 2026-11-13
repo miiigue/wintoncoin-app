@@ -115,11 +115,17 @@ contract PaymentEngine is Ownable2Step, ReentrancyGuard {
     function amortizeWithBlue(uint256 amount) external nonReentrant {
         _requireExits();
         _requireKyc(msg.sender);
-        if (amount == 0 || amount > ledger.outstanding(msg.sender)) revert InvalidPayment();
+        uint256 debt = ledger.outstanding(msg.sender);
+        if (amount == 0 || amount > debt) revert InvalidPayment();
         if (amount > blue.balanceOf(msg.sender)) revert InsufficientBlue();
         pairs.burnPair(msg.sender, msg.sender, amount);
         ledger.amortize(msg.sender, amount, false);
-        _assertAccounting(msg.sender);
+        // burnPair validates global BLUE/RED equality before and after burning.
+        // Both the user's RED balance and the FIFO commitment ledger must
+        // independently converge to the same already-calculated result.
+        uint256 expected = debt - amount;
+        if (red.balanceOf(msg.sender) != expected || ledger.outstanding(msg.sender) != expected)
+            revert AccountingMismatch();
         emit DebtAmortized(msg.sender, amount, false);
     }
 

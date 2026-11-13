@@ -43,8 +43,11 @@ contract ExchangeCustody is Ownable2Step, ReentrancyGuard {
     function deposit(Asset asset, address from, uint128 amount) external onlyRouter nonReentrant {
         if (from == address(0) || amount == 0) revert InvalidAmount(); IERC20 token = _token(asset);
         uint256 beforeBalance = token.balanceOf(address(this)); token.safeTransferFrom(from, address(this), amount);
-        if (token.balanceOf(address(this)) - beforeBalance != amount) revert DepositAmountMismatch();
-        totalReserved[uint8(asset)] += amount; _assertSolvent(asset); emit Deposited(asset, from, amount);
+        uint256 afterBalance = token.balanceOf(address(this));
+        if (afterBalance - beforeBalance != amount) revert DepositAmountMismatch();
+        totalReserved[uint8(asset)] += amount;
+        if (afterBalance < liabilities(asset)) revert Insolvent();
+        emit Deposited(asset, from, amount);
     }
     function settleMatch(address blueSeller, address usdtBuyer, uint128 gross, uint128 blueNet,
         uint128 usdtNet, uint128 blueFee, uint128 usdtFee) external onlyRouter nonReentrant {
@@ -54,6 +57,15 @@ contract ExchangeCustody is Ownable2Step, ReentrancyGuard {
         accumulatedFees[0] += blueFee; accumulatedFees[1] += usdtFee;
         blue.safeTransfer(usdtBuyer, blueNet); usdt.safeTransfer(blueSeller, usdtNet);
         _assertSolvent(Asset.BLUE); _assertSolvent(Asset.USDT); emit MatchSettled(blueSeller, usdtBuyer, gross);
+    }
+    function settleMatchWithoutFees(address blueSeller, address usdtBuyer, uint128 gross)
+        external onlyRouter nonReentrant
+    {
+        if (blueSeller == address(0) || usdtBuyer == address(0) || gross == 0) revert InvalidAmount();
+        _consumeReserve(Asset.BLUE, gross); _consumeReserve(Asset.USDT, gross);
+        blue.safeTransfer(usdtBuyer, gross); usdt.safeTransfer(blueSeller, gross);
+        _assertSolvent(Asset.BLUE); _assertSolvent(Asset.USDT);
+        emit MatchSettled(blueSeller, usdtBuyer, gross);
     }
     function refund(Asset asset, address user, uint128 amount, bool hold) external onlyRouter nonReentrant {
         if (user == address(0) || amount == 0) revert InvalidAmount(); _consumeReserve(asset, amount);

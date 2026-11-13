@@ -49,13 +49,11 @@ contract AmortizationAdapter is Ownable2Step, ReentrancyGuard {
     function register(uint64 orderId, address user, uint128 amount) external onlyVault {
         if (modes.mode() != NORMAL) revert NotNormal();
         if (user == address(0) || amount == 0) revert InvalidAmount();
-        FifoOrderBook.Order memory value = book.order(orderId);
-        if (value.user != user || value.side != FifoOrderBook.Side.USDT_FOR_BLUE ||
-            (value.status != FifoOrderBook.Status.OPEN && value.status != FifoOrderBook.Status.PARTIALLY_FILLED))
-            revert InvalidOrder();
+        uint128 orderRemaining = book.collateralOrderRemaining(orderId, user);
+        if (orderRemaining == 0) revert InvalidOrder();
         Reservation storage storedReservation = _reservations[orderId];
         if (storedReservation.user != address(0) && storedReservation.user != user) revert InvalidOrder();
-        if (uint256(storedReservation.remaining) + amount > value.remaining) revert InvalidAmount();
+        if (uint256(storedReservation.remaining) + amount > orderRemaining) revert InvalidAmount();
         if (uint256(totalCollateralReserved) + amount > custody.totalReserved(uint256(ExchangeCustody.Asset.USDT)))
             revert InsufficientPhysicalReserve();
         storedReservation.user = user; storedReservation.remaining += amount; totalCollateralReserved += amount;

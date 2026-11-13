@@ -47,6 +47,9 @@ contract RiskRegistry is Ownable2Step {
 
     function profile(address account) external view returns (Profile memory) { return _profiles[account]; }
     function isKYCVerified(address account) external view returns (bool) { return _profiles[account].kycVerified; }
+    function verificationPair(address first, address second) external view returns (bool, bool) {
+        return (_profiles[first].kycVerified, _profiles[second].kycVerified);
+    }
     function creditLimit(address account) external view returns (uint256) { return _profiles[account].creditLimit; }
     function userLevel(address account) external view returns (uint8) { return _profiles[account].level; }
 
