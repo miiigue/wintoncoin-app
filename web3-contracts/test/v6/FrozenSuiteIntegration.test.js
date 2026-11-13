@@ -1,0 +1,45 @@
+const { expect } = require('chai');
+const { ethers } = require('hardhat');
+
+describe('V6: arranque integral congelado', function () {
+  it('enlaza los módulos reales y bloquea operaciones desde su creación', async function () {
+    const [owner, guardian, treasury, user, recipient] = await ethers.getSigners();
+    const make = async (name, ...args) => (await ethers.getContractFactory(name)).deploy(...args);
+    const modes = await make('ProtocolModeController', guardian.address);
+    const risk = await make('RiskRegistry', owner.address);
+    const config = await make('ProtocolConfig', 1000000000n, 2592000, 0);
+    const authorization = await make('PaymentAuthorization');
+    const ledger = await make('CommitmentLedger');
+    const blue = await make('BlueTokenV6', risk.target);
+    const red = await make('RedTokenV6');
+    const pairs = await make('PairedSupplyController', blue.target, red.target, modes.target);
+    const engine = await make('PaymentEngine', modes.target, risk.target, config.target, authorization.target, ledger.target, pairs.target, blue.target, red.target, treasury.address);
+    const extensions = await make('ExtensionManager', modes.target, risk.target, ledger.target, engine.target);
+    const usdt = await make('MockERC20', 'Demo USDT', 'USDT', 6);
+    const exchangeConfig = await make('ExchangeConfig', treasury.address, 0);
+    const book = await make('FifoOrderBook');
+    const custody = await make('ExchangeCustody', blue.target, usdt.target);
+    const adapter = await make('AmortizationAdapter', modes.target, book.target, custody.target);
+    const router = await make('ExchangeRouter', modes.target, risk.target, book.target, custody.target, exchangeConfig.target, adapter.target);
+    const vault = await make('CollateralVaultV6', usdt.target, modes.target, risk.target, engine.target, router.target, adapter.target, custody.target);
+    await blue.setSupplyController(pairs.target); await red.setSupplyController(pairs.target);
+    await blue.setExchange(custody.target); await authorization.setPaymentEngine(engine.target);
+    await ledger.setPaymentEngine(engine.target); await pairs.setOperator(engine.target, true);
+    await engine.setExtensionManager(extensions.target); await engine.setCollateralVault(vault.target);
+    await book.setRouter(router.target); await custody.setIntegration(router.target, exchangeConfig.target);
+    await adapter.setIntegration(router.target, vault.target);
+    await risk.setProfile(user.address, true, 1000000000n, 3);
+    await risk.setProfile(recipient.address, true, 1000000000n, 3);
+    await usdt.mint(user.address, 10000000n); await usdt.connect(user).approve(vault.target, 10000000n);
+    expect(await modes.mode()).eq(1);
+    expect(await engine.extensionManager()).eq(extensions.target);
+    expect(await engine.collateralVault()).eq(vault.target);
+    expect(await blue.totalSupply()).eq(0); expect(await red.totalSupply()).eq(0);
+    await expect(engine.connect(user).processPayment(recipient.address, 1000000n)).revertedWithCustomError(engine, 'NotNormal');
+    await expect(vault.connect(user).deposit(1000000n)).revertedWithCustomError(vault, 'NotNormal');
+    await expect(router.connect(user).createOrder(1, 1000000n)).revertedWithCustomError(router, 'OperationsFrozen');
+    await expect(extensions.connect(user).requestExtension(0, 2592000, 0, 0, 0)).revertedWithCustomError(extensions, 'NotNormal');
+    expect(await blue.totalSupply()).eq(await red.totalSupply());
+    expect(await vault.totalCollateral()).eq(0);
+  });
+});

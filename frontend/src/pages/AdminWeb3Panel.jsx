@@ -24,6 +24,8 @@ export default function AdminWeb3Panel() {
   const [statusData, setStatusData] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
   const [statusError, setStatusError] = useState('');
+  const [v6Candidate, setV6Candidate] = useState(null);
+  const [v6CandidateError, setV6CandidateError] = useState('');
   const [toastMessage, setToastMessage] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [recoveryId,setRecoveryId]=useState('');
@@ -102,6 +104,17 @@ export default function AdminWeb3Panel() {
 
   useEffect(() => {
     fetchStatus();
+    if (!['demo.wintoncoin.com', 'www.demo.wintoncoin.com'].includes(window.location.hostname)) return undefined;
+    const controller = new AbortController();
+    fetch(`${getApiUrl()}/api/admin/web3/v6-candidate`, { credentials: 'include', cache: 'no-store', signal: controller.signal })
+      .then(async response => {
+        if (!response.ok) throw new Error('No se pudo verificar el candidato V6.');
+        const data = await response.json();
+        if (data.success !== true || typeof data.configured !== 'boolean') throw new Error('La respuesta de V6 no se pudo verificar.');
+        setV6Candidate(data);
+      })
+      .catch(error => { if (error.name !== 'AbortError') setV6CandidateError(error.message); });
+    return () => controller.abort();
   }, []);
 
   const verifyOwnerTransaction=async(event)=>{
@@ -391,6 +404,16 @@ export default function AdminWeb3Panel() {
           </button>
         </div>
       </div>
+
+      {['demo.wintoncoin.com', 'www.demo.wintoncoin.com'].includes(window.location.hostname) && <section aria-label="Candidato V6 Demo" style={{ padding: '1rem', margin: '1rem 0', border: '1px solid #475569', borderRadius: '0.75rem' }}>
+        <h2>Candidato V6 en Demo</h2>
+        <p>Esta información es independiente de la suite activa y sus controles de pausa.</p>
+        {v6CandidateError ? <p role="alert">{v6CandidateError} No se puede confirmar su estado.</p>
+          : !v6Candidate ? <p>Consultando V6…</p>
+          : !v6Candidate.configured ? <p>No hay un candidato V6 configurado.</p>
+          : <><p>Modo verificado: {v6Candidate.mode === 'PRELAUNCH_FROZEN' ? 'Prelanzamiento congelado' : 'No confirmado'}</p>
+            <p>Red: {v6Candidate.chainId} · Bloque: {v6Candidate.blockNumber}</p></>}
+      </section>}
 
       <Web3Readiness />
       {lastOwnerOperation?.operationId&&<p role="status">

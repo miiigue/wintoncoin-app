@@ -126,6 +126,11 @@ router.post('/email-templates/:key/preview', verifyAdminToken, emailTemplateCont
 const adminWeb3Controller = require('../controllers/admin/adminWeb3Controller');
 const contractAdmin = require('../middleware/contractAdministration');
 router.use('/web3', verifyAdminToken, contractAdmin.guard);
+router.get('/web3/v6-candidate', web3RpcLimiter, async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    try { res.json(await require('../services/v6CandidateStatus').inspect()); }
+    catch (_) { res.status(503).json({success:false,message:'No se pudo verificar V6 Demo.'}); }
+});
 router.get('/web3/recovery-status', async(req,res)=>{
     try {
         res.set('Cache-Control','no-store');
