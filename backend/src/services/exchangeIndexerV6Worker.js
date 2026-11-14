@@ -98,8 +98,12 @@ function startExchangeIndexerV6(pool, provider, config, { pollMs = 10000, batchB
   let stopped = false, timer;
   async function run() {
     if (stopped) return;
-    try { await worker.tick(); } catch (error) { onError(error); }
-    if (!stopped) timer = setTimeout(run, pollMs);
+    let delay=pollMs;
+    try {
+      const page=await worker.tick();
+      if(page.status==='syncing') delay=100;
+    } catch (error) { onError(error); }
+    if (!stopped) timer = setTimeout(run, delay);
   }
   timer = setTimeout(run, 0);
   return { worker, stop() { stopped = true; clearTimeout(timer); } };

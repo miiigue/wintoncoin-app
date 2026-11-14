@@ -174,11 +174,11 @@ async function startServer() {
         // 3. Indexador de órdenes Web3 en segundo plano (si está configurado para la red)
         // En Demo la dirección y el bloque inicial se derivan de la época validada.
         // No exigir overrides heredados: mezclarían V4/V5 o dejarían el indexador apagado.
-        if (process.env.EXCHANGE_INDEXER_RPC_URL || process.env.OPTIMISM_RPC_URL) {
+        if (process.env.EXCHANGE_INDEXER_RPC_URL || process.env.OPTIMISM_RPC_URL ||
+            (process.env.IS_DEMO_ENV === 'true' && process.env.WINTON_ENVIRONMENT_ID === 'demo')) {
             try {
                 if (process.env.IS_DEMO_ENV === 'true' && process.env.WINTON_ENVIRONMENT_ID === 'demo' && process.env.EXCHANGE_INDEXER_V6_ENABLED !== 'false') {
-                    const { startVerifiedDemoV6Indexer } = require('./src/services/exchangeIndexerV6Startup');
-                    await startVerifiedDemoV6Indexer(pool);
+                    require('./src/services/exchangeIndexerV6Startup').scheduleDemoV6Indexer(pool);
                 } else if (!(process.env.IS_DEMO_ENV === 'true' && process.env.WINTON_ENVIRONMENT_ID === 'demo')) {
                     const { startEmbeddedExchangeIndexer } = require('./src/services/exchangeIndexer');
                     startEmbeddedExchangeIndexer(pool);

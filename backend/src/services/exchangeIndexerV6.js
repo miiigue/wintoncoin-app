@@ -55,6 +55,17 @@ async function resolveConfig(provider, manifest) {
   return configFromManifest({...manifest,startBlocks:blocks});
 }
 
+async function logsInRange(provider, filter) {
+  try { return await provider.getLogs(filter); }
+  catch(error) {
+    const detail=String(error?.error?.message || error?.info?.error?.message || error?.message);
+    if(filter.fromBlock===filter.toBlock || !/block range|range.{0,30}(limit|wide)|limit.{0,35}blocks/i.test(detail)) throw error;
+    const middle=Math.floor((filter.fromBlock+filter.toBlock)/2);
+    const first=await logsInRange(provider,{...filter,toBlock:middle});
+    return first.concat(await logsInRange(provider,{...filter,fromBlock:middle+1}));
+  }
+}
+
 async function readPage(provider, config, fromBlock, toBlock) {
   if (!Number.isSafeInteger(fromBlock) || !Number.isSafeInteger(toBlock) || fromBlock < 1 || toBlock < fromBlock) throw Error('INVALID_RANGE');
   if ((await provider.getNetwork()).chainId !== config.chainId) throw Error('WRONG_CHAIN');
@@ -68,7 +79,7 @@ async function readPage(provider, config, fromBlock, toBlock) {
     if (keccak256(await provider.getCode(stream.address, toBlock)).toLowerCase() !== stream.codeHash) throw Error('V6_CODE_HASH_MISMATCH');
     const iface = interfaces[stream.kind];
     const topics = iface.fragments.filter(f => f.type === 'event').map(f => iface.getEvent(f.format()).topicHash);
-    for (const log of await provider.getLogs({ address: stream.address, fromBlock: atStart, toBlock, topics: [topics] })) {
+    for (const log of await logsInRange(provider,{ address: stream.address, fromBlock: atStart, toBlock, topics: [topics] })) {
       if (log.removed || getAddress(log.address) !== stream.address || log.blockNumber < atStart || log.blockNumber > toBlock || !Number.isSafeInteger(log.index) || log.index < 0) throw Error('INVALID_V6_LOG');
       const block = await provider.getBlock(log.blockNumber);
       if (!block?.hash || block.hash !== log.blockHash) throw Error('V6_CHAIN_CHANGED');
