@@ -16,12 +16,13 @@ const { readExchangeSnapshot } = require('../services/exchangeSnapshotService');
 async function exchangeReadIdentity() {
     if (process.env.IS_DEMO_ENV !== 'true' || process.env.WINTON_ENVIRONMENT_ID !== 'demo') return { identity: identityFromEnv(), v6: false };
     if (process.env.EXCHANGE_INDEXER_V6_ENABLED === 'false') throw Error('V6_INDEXER_DISABLED');
-    if (process.env.IS_DEMO_ENV !== 'true' || process.env.WINTON_ENVIRONMENT_ID !== 'demo') throw Error('V6_INDEXER_DEMO_ONLY');
     const release = require('../services/marketplaceDeployment').configuration();
-    const service = require('../services/marketplaceDeployment');
-    const rpc = service.provider();
-    let config;
-    try { config = await require('../services/exchangeIndexerV6').resolveConfig(rpc,release.manifest); } finally { rpc.destroy(); }
+    // Reads compare the pinned stream identity with the cursor verified by the
+    // worker. Fetching receipts on every public request makes freshness depend
+    // on the caller's RPC quota and duplicates the worker's canonical check.
+    const config = require('../services/exchangeIndexerV6').configFromManifest({
+      ...release.manifest, startBlocks:require('../services/v6ReleasePin').startBlocks
+    });
     return { identity: {chainId:String(config.chainId),exchange:config.streams.find(x=>x.kind==='router').address.toLowerCase(),streamFingerprint:require('ethers').id(JSON.stringify(config.streams))}, v6:true };
 }
 router.get('/deployment', async(req,res)=>{
