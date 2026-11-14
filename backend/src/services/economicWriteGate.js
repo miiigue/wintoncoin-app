@@ -16,6 +16,10 @@ function configOf(config, env) {
 
 function staticStatus({ env = process.env, config } = {}) {
     const selected = configOf(config, env);
+    if (selected.epoch === 'V6_DEMO') {
+        return { enabled:false, mode:'read_only', epoch:selected.epoch, fingerprint:selected.fingerprint,
+            reason:'V6_OPERATIONAL_CHECK_REQUIRED' };
+    }
     if (selected.epoch !== V5_EPOCH) {
         return { enabled: true, mode: 'normal', epoch: selected.epoch, fingerprint: selected.fingerprint };
     }
@@ -36,7 +40,7 @@ function staticStatus({ env = process.env, config } = {}) {
 
 async function operationalStatus({ pool, env = process.env, config, maxAgeSeconds = MAX_INDEXER_AGE_SECONDS } = {}) {
     const state = staticStatus({ env, config });
-    const managedDemoEpoch = state.epoch === 'V4_ACTIVE' || state.epoch === V5_EPOCH;
+    const managedDemoEpoch = ['V4_ACTIVE', V5_EPOCH, 'V6_DEMO'].includes(state.epoch);
     if (!managedDemoEpoch) return state;
     if (!pool || typeof pool.query !== 'function') {
         return { ...state, enabled: false, mode: 'read_only', preLaunchVerified: false,
@@ -56,6 +60,24 @@ async function operationalStatus({ pool, env = process.env, config, maxAgeSecond
     } catch {
         return { ...state, enabled: false, mode: 'read_only', preLaunchVerified: false,
             indexerReady: false, reason: 'PRELAUNCH_STATUS_UNAVAILABLE' };
+    }
+    if (state.epoch === 'V6_DEMO') {
+        try {
+            const current = require('./marketplaceDeployment').configuration(env);
+            if (current.epoch !== state.epoch || current.fingerprint !== state.fingerprint)
+                return {...verified, reason:'V6_RELEASE_MISMATCH'};
+            const status = await require('./v6CandidateStatus').inspect(env);
+            if (!status.configured || status.mode !== 'NORMAL')
+                return {...verified, reason:'V6_CONTRACTS_BLOCKED'};
+            const router = current.contracts.ExchangeRouter.toLowerCase();
+            const sync = await pool.query(`SELECT 1 FROM web3_exchange_v6_sync WHERE chain_id=$1 AND router_address=$2
+                AND status='ready' AND cursor_hash IS NOT NULL AND updated_at > clock_timestamp()-($3*interval '1 second')`,
+                [current.chainId,router,maxAgeSeconds]);
+            if (sync.rowCount !== 1) return {...verified, reason:'V6_INDEXER_NOT_READY'};
+            return {...verified, enabled:true, mode:'operational', indexerReady:true, reason:null};
+        } catch {
+            return {...verified, reason:'V6_STATUS_UNAVAILABLE'};
+        }
     }
     if (state.epoch !== V5_EPOCH || !state.enabled) return verified;
     try {

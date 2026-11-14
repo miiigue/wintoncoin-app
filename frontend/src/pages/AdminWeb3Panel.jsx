@@ -16,6 +16,7 @@ import { getApiUrl } from '../modules/config.js';
 import ContractConfiguration from '../components/ContractConfiguration.jsx';
 import IdentityDocumentReview from '../components/IdentityDocumentReview.jsx';
 import Web3Readiness from '../components/Web3Readiness.jsx';
+import V6ModeActivation from '../components/V6ModeActivation.jsx';
 import { administerContract } from '../modules/ownerWalletAdministration.js';
 import styles from './AdminWeb3Panel.module.css';
 
@@ -111,7 +112,13 @@ export default function AdminWeb3Panel() {
         if (!response.ok) throw new Error('No se pudo verificar el candidato V6.');
         const data = await response.json();
         if (data.success !== true || typeof data.configured !== 'boolean') throw new Error('La respuesta de V6 no se pudo verificar.');
-        setV6Candidate(data);
+        if (!data.configured) { setV6Candidate(data); return; }
+        const readiness = await fetch(`${getApiUrl()}/api/admin/web3/v6-mode/readiness`, {
+          credentials:'include', cache:'no-store', signal:controller.signal
+        });
+        const state = readiness.ok ? await readiness.json() : {};
+        setV6Candidate({...data, activationReady:state.success === true && state.activationReady === true,
+          activationMessage:state.message});
       })
       .catch(error => { if (error.name !== 'AbortError') setV6CandidateError(error.message); });
     return () => controller.abort();
@@ -413,6 +420,7 @@ export default function AdminWeb3Panel() {
           : !v6Candidate.configured ? <p>No hay un candidato V6 configurado.</p>
           : <><p>Modo verificado: {v6Candidate.mode === 'PRELAUNCH_FROZEN' ? 'Prelanzamiento congelado' : 'No confirmado'}</p>
             <p>Red: {v6Candidate.chainId} · Bloque: {v6Candidate.blockNumber}</p></>}
+        <V6ModeActivation candidate={v6Candidate} onVerified={fetchStatus} />
       </section>}
 
       <Web3Readiness />

@@ -13,6 +13,17 @@ const router = express.Router();
 const web3BridgeService = require('../services/web3BridgeService');
 const { identityFromEnv } = require('../services/exchangeChainReader');
 const { readExchangeSnapshot } = require('../services/exchangeSnapshotService');
+async function exchangeReadIdentity() {
+    if (process.env.IS_DEMO_ENV !== 'true' || process.env.WINTON_ENVIRONMENT_ID !== 'demo') return { identity: identityFromEnv(), v6: false };
+    if (process.env.EXCHANGE_INDEXER_V6_ENABLED === 'false') throw Error('V6_INDEXER_DISABLED');
+    if (process.env.IS_DEMO_ENV !== 'true' || process.env.WINTON_ENVIRONMENT_ID !== 'demo') throw Error('V6_INDEXER_DEMO_ONLY');
+    const release = require('../services/marketplaceDeployment').configuration();
+    const service = require('../services/marketplaceDeployment');
+    const rpc = service.provider();
+    let config;
+    try { config = await require('../services/exchangeIndexerV6').resolveConfig(rpc,release.manifest); } finally { rpc.destroy(); }
+    return { identity: {chainId:String(config.chainId),exchange:config.streams.find(x=>x.kind==='router').address.toLowerCase(),streamFingerprint:require('ethers').id(JSON.stringify(config.streams))}, v6:true };
+}
 router.get('/deployment', async(req,res)=>{
     res.set('Cache-Control','no-store');
     const deployment=require('../services/chainDeployment');const rpc=deployment.provider();
@@ -38,10 +49,12 @@ router.get('/exchange/:wallet', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Dirección o paginación inválida.' });
     }
     let identity;
-    try { identity = identityFromEnv(); }
+    let v6;
+    try { ({ identity, v6 } = await exchangeReadIdentity()); }
     catch (_) { return res.status(503).json({ success: false, usable: false, status: 'not_configured', data: null }); }
     try {
-        const snapshot = await readExchangeSnapshot(require('../config/db'), identity, req.params.wallet.toLowerCase(), { after, limit });
+        const reader = v6 ? require('../services/exchangeSnapshotV6').readExchangeSnapshotV6 : readExchangeSnapshot;
+        const snapshot = await reader(require('../config/db'), identity, req.params.wallet.toLowerCase(), { after, limit });
         return res.status(snapshot.usable ? 200 : 503).json({ success: snapshot.usable, ...snapshot });
     } catch (_) {
         return res.status(503).json({ success: false, usable: false, status: 'unavailable', data: null });
@@ -56,8 +69,9 @@ router.get('/exchange/:wallet', async (req, res) => {
 router.get('/exchange-queue', async (req, res) => {
     res.set('Cache-Control', 'no-store');
     try {
-        const identity = identityFromEnv();
-        const snapshot = await require('../services/exchangeSnapshotService').readExchangeQueue(require('../config/db'), identity);
+        const {identity,v6} = await exchangeReadIdentity();
+        const reader = v6 ? require('../services/exchangeSnapshotV6').readExchangeQueueV6 : require('../services/exchangeSnapshotService').readExchangeQueue;
+        const snapshot = await reader(require('../config/db'), identity);
         return res.status(snapshot.usable ? 200 : 503).json({ success: snapshot.usable, ...snapshot });
     } catch (_) {
         return res.status(503).json({ success: false, usable: false, status: 'unavailable', data: null });

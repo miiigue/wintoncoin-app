@@ -20,7 +20,7 @@ async function inspect(env = process.env) {
   const manifest = JSON.parse(raw.toString('utf8'));
   const provider = require('./chainDeployment').provider();
   try {
-    const result = await validateV6Demo({provider, contracts:manifest.contracts, Contract, getAddress, keccak256, manifest});
+    const result = await validateV6Demo({provider, contracts:manifest.contracts, Contract, getAddress, keccak256, manifest, requireFrozen:false});
     return {success:true, configured:true, ...result};
   } finally { provider.destroy(); }
 }

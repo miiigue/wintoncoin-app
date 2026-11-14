@@ -1,6 +1,7 @@
 'use strict';
 const {Contract,Interface,Wallet,parseUnits,formatUnits,id:hash}=require('ethers');
-const deployment=require('./chainDeployment');
+const deployment=require('./marketplaceDeployment');
+const v6=require('./marketplacePaymentV6');
 const {ChainOperationStore,locked,publicResult,error}=require('./chainOperationStore');
 const {confirmedReceipt}=require('./chainConfirmation');
 const {signStep}=require('./chainSigning');
@@ -31,10 +32,19 @@ class MarketplacePayments {
   // Controllers keep a business transaction open. A separate pool prevents
   // concurrent requests from consuming every connection needed to save a signature.
   this.journalPool=options.journalPool||new (require('pg').Pool)({...pool.options,max:4,connectionTimeoutMillis:5000});
-  this.store=new ChainOperationStore(this.journalPool,rpc,options);
+  this.store=new ChainOperationStore(this.journalPool,rpc,{deployment,...options});
   this.walletService=options.walletService||require('./walletService');
  }
- async terms(){await deployment.validate(this.rpc,this.config);const c=new Contract(this.config.contracts.CoreProtocol,abi,this.rpc);return {feeBps:String(await c.commissionBps()),durationSeconds:String(await c.COMMITMENT_DURATION())};}
+ async terms(){
+  await deployment.validate(this.rpc,this.config);
+  if(this.config.epoch==='V6_DEMO'){
+   const c=new Contract(this.config.contracts.ProtocolConfig,['function activeConfig() view returns(uint128,uint48,uint16)'],this.rpc);
+   const [,duration,fee]=await c.activeConfig();
+   return {feeBps:String(fee),durationSeconds:String(duration)};
+  }
+  const c=new Contract(this.config.contracts.CoreProtocol,abi,this.rpc);
+  return {feeBps:String(await c.commissionBps()),durationSeconds:String(await c.COMMITMENT_DURATION())};
+ }
  async begin(client,p,pin) {
   await require('./economicWriteGate').assertOperational({pool:this.pool,config:this.config,operation:'marketplace_begin'});
   if(!/^[1-9]\d*$/.test(String(p.publicationId))||!/^\d{1,12}(\.\d{1,6})?$/.test(String(p.amount)))throw error('Publicación o importe inválido.',400);
@@ -53,9 +63,10 @@ class MarketplacePayments {
   if(p.acceptanceId)reference='acceptance:'+p.acceptanceId;
   else if(p.category==='donation') {if(!uuid(p.requestId))throw error('Falta una referencia válida para recuperar esta donación.',400);reference='donation:'+payer.id+':'+p.publicationId+':'+p.requestId;}
   else reference='quick-sale:'+p.publicationId;
-  const key=['marketplace',this.config.chainId,this.config.contracts.CoreProtocol.toLowerCase(),reference].join(':');
+  const coreAddress=this.config.epoch==='V6_DEMO'?this.config.contracts.PaymentEngine:this.config.contracts.CoreProtocol;
+  const key=['marketplace',this.config.chainId,coreAddress.toLowerCase(),reference].join(':');
   const signer=new Wallet(this.options.relayerKey||process.env.RELAYER_PRIVATE_KEY);
-  const payload={...p,publicationSnapshot:hash(JSON.stringify(publicationSnapshot)),paymentKey:key,amount:formatUnits(amount,6),payerId:payer.id,payeeId:payee.id,payerWallet:payer.web3_wallet_address.toLowerCase(),payeeWallet:payee.web3_wallet_address.toLowerCase(),fingerprint:this.config.fingerprint,core:this.config.contracts.CoreProtocol};
+  const payload={...p,epoch:this.config.epoch,publicationSnapshot:hash(JSON.stringify(publicationSnapshot)),paymentKey:key,amount:formatUnits(amount,6),payerId:payer.id,payeeId:payee.id,payerWallet:payer.web3_wallet_address.toLowerCase(),payeeWallet:payee.web3_wallet_address.toLowerCase(),fingerprint:this.config.fingerprint,core:coreAddress};
   // The controller holds the publication lock. Persist outside its transaction;
   // user_id is intentionally NULL to avoid waiting on its users FK row locks.
   {
@@ -79,7 +90,13 @@ class MarketplacePayments {
     // Authorization is signed in the client after preparation.
     row=await this.store.prepare({key:previous?key+':retry:'+randomUUID():key,chainId:this.config.chainId,sender:signer.address,resource:'payment:'+payload.payerWallet,kind:'marketplace',payload});
    }
-   if(row.state==='prepared'&&!row.payload.authorization) {
+   if(row.state==='prepared'&&!row.payload.authorization && payload.epoch==='V6_DEMO') {
+    await deployment.validate(this.rpc,this.config);
+    const q=await v6.quotePayment(this.rpc,this.config.contracts,payload.payerWallet,amount);
+    if(String(q.feeBps)!==String(p.expectedFeeBps))throw error('La comisión cambió. Revisa el pago.',409);
+    const authorization={payer:payload.payerWallet,payee:payload.payeeWallet,amount:String(amount),feeBps:String(q.feeBps),blueAmount:String(q.blueAmount),redAmount:String(q.redAmount),duration:String(q.duration),nonce:String(q.nonce),deadline:q.block.timestamp+900,agreementHash:hash(key),payerStateHash:q.payerStateHash};
+    await this.journalPool.query('UPDATE chain_operations SET payload=payload||$2::jsonb WHERE id=$1',[row.id,JSON.stringify({authorization})]);
+   } else if(row.state==='prepared'&&!row.payload.authorization) {
     await deployment.validate(this.rpc,this.config);
     const core=new Contract(payload.core,abi,this.rpc);
     const [nonce,feeBps,payerStateHash,block]=await Promise.all([core.paymentNonces(payload.payerWallet),core.commissionBps(),core.paymentStateHash(payload.payerWallet),this.rpc.getBlock('latest')]);
@@ -106,7 +123,7 @@ class MarketplacePayments {
    await deployment.validate(this.rpc,this.config);
    const a=await safeExecution.account(this.pool,userId,this.config.chainId);
    if(a.address!==p.payerWallet||p.fingerprint!==this.config.fingerprint)throw error('La cuenta o el despliegue cambió.');
-   await assertTreasuryReady(new Contract(p.core,abi,this.rpc),p.authorization.amount,p.authorization.feeBps);
+   if(p.epoch!=='V6_DEMO')await assertTreasuryReady(new Contract(p.core,abi,this.rpc),p.authorization.amount,p.authorization.feeBps);
    await safePolicy.validateAccount(this.rpc,safePolicy.configuration(),a);
    return locked(this.pool,'publication-authorization:'+p.publicationId,async client=>{
     await client.query('BEGIN');
@@ -115,7 +132,7 @@ class MarketplacePayments {
      if(!publication||hash(JSON.stringify(publication))!==p.publicationSnapshot)throw error('La publicación cambió. Solicita un nuevo resumen.');
      const participants=(await client.query('SELECT account_status FROM users WHERE id IN ($1,$2)',[p.payerId,p.payeeId])).rows;
      if(participants.length!==2||participants.some(u=>u.account_status!=='active'))throw error('Participante no habilitado.',403);
-     const call={to:p.core,value:'0',data:new Interface(abi).encodeFunctionData('processAuthorizedMixedPayment',[p.authorization,signature]),label:'Pago autorizado por el usuario'};
+     const call=p.epoch==='V6_DEMO'?v6.paymentCall(this.config.contracts,p.authorization,signature):{to:p.core,value:'0',data:new Interface(abi).encodeFunctionData('processAuthorizedMixedPayment',[p.authorization,signature]),label:'Pago autorizado por el usuario'};
      await this.rpc.call({...call,from:safeExecution.relayer().address});
      const step=await safeExecution.sponsoredStep(this.journalPool,this.rpc,this.config.chainId,userId,fresh,call);
      await client.query('COMMIT');return [step];
@@ -132,6 +149,10 @@ class MarketplacePayments {
    const block=await this.rpc.getBlock('latest');
    if(require('./marketplaceExpiry').canRenewUnsentPayment(row,block?.timestamp,settled))return {...publicResult(row),state:'expired',authorization:null,success:false,settled:false,canRenew:true,message:'El resumen de este pago venció sin registrar un envío. Vuelve a pulsar Confirmar pago en la publicación para revisar un resumen actualizado y autorizarlo.'};
   }
+  if(row.state==='prepared'&&row.payload.authorization&&row.payload.epoch==='V6_DEMO'){
+   if(row.payload.fingerprint!==this.config.fingerprint)throw error('El despliegue del pago cambió.');
+   return {...publicResult(row),authorization:v6.paymentRequest(this.config.contracts,row.payload.authorization),success:false,settled:false,message:'Revisa y autoriza el pago V6 en tu dispositivo.'};
+  }
   if(row.state==='prepared'&&row.payload.authorization)await assertTreasuryReady(new Contract(row.payload.core,abi,this.rpc),row.payload.authorization.amount,row.payload.authorization.feeBps);
   return {...publicResult(row),authorization:row.state==='prepared'?{domain:{name:'WintonCore',version:'5',chainId:this.config.chainId,verifyingContract:row.payload.core},types:mixedTypes,primaryType:'MixedPayment',message:row.payload.authorization}:null,success:settled,settled,message:settled?'Pago confirmado y registrado.':row.state==='failed'?'El contrato rechazó este intento. Puedes abrir el resumen y autorizar otro intento en tu dispositivo.':row.state==='conflict'?'El pago necesita revisión. Conserva esta referencia; no se enviará un pago nuevo automáticamente.':'Pago registrado. Espera la confirmación y actualización de la publicación; no repitas el pago.'};
  }
@@ -141,16 +162,25 @@ class MarketplacePayments {
    const row=await this.store.get(operationId);
    if(row.kind!=='marketplace'||row.state!=='confirmed')return false;
    if((await client.query('SELECT 1 FROM marketplace_payment_settlements WHERE operation_id=$1',[row.id])).rowCount)return true;
-   if(row.payload.fingerprint!==this.config.fingerprint)throw error('El pago pertenece a otro despliegue.');
+   // A confirmed V5 operation may still need projecting after the Demo reader
+   // changes to V6. Match its original deployment before accepting the receipt.
+   if(row.payload.fingerprint!==this.config.fingerprint){
+    const previous=this.config.epoch==='V6_DEMO' && row.payload.epoch!=='V6_DEMO'
+     ? require('./chainDeployment').configuration() : null;
+    if(!previous || row.payload.fingerprint!==previous.fingerprint ||
+       String(row.chain_id)!==String(previous.chainId) ||
+       row.payload.core.toLowerCase()!==previous.contracts.CoreProtocol.toLowerCase())
+      throw error('El pago pertenece a otro despliegue.');
+   }
    const receipt=await confirmedReceipt(this.rpc,row.steps[0].hash,this.options);
    if(!receipt||receipt.status!==1||receipt.blockHash!==row.steps[0].blockHash)throw error('La confirmación del pago requiere revisión.');
-   const p=row.payload,iface=new Interface(abi);
+   const p=row.payload,iface=p.epoch==='V6_DEMO'?v6.iface:new Interface(abi);
    const events=receipt.logs.filter(l=>l.address.toLowerCase()===p.core.toLowerCase()).map(l=>{try{return iface.parseLog(l);}catch{return null;}});
    const payments=events.filter(e=>e?.name==='PaymentProcessed');
    if(payments.length!==1)throw error('No se encontró un único pago comprobable.');
-   const e=payments[0].args;
-   if(e.payer.toLowerCase()!==p.payerWallet||e.payee.toLowerCase()!==p.payeeWallet||e.netAmount!==parseUnits(p.amount,6))throw error('El resultado no corresponde al pago registrado.');
-   if(p.authorization.blueAmount!==undefined){
+   const e=p.epoch==='V6_DEMO'?v6.confirmedPayment(receipt,this.config.contracts,p.authorization):payments[0].args;
+   if(payments[0].args.payer.toLowerCase()!==p.payerWallet||payments[0].args.payee.toLowerCase()!==p.payeeWallet||e.netAmount!==parseUnits(p.amount,6))throw error('El resultado no corresponde al pago registrado.');
+   if(p.epoch!=='V6_DEMO'&&p.authorization.blueAmount!==undefined){
     const funding=events.filter(x=>x?.name==='PairedPaymentFunding');
     const total=BigInt(p.authorization.amount)+BigInt(p.authorization.amount)*BigInt(p.authorization.feeBps)/10000n;
     if(funding.length!==1||funding[0].args.payer.toLowerCase()!==p.payerWallet||funding[0].args.payee.toLowerCase()!==p.payeeWallet||funding[0].args.redIssued!==total||funding[0].args.redAmortized!==BigInt(p.authorization.blueAmount)||funding[0].args.netRedIncrease!==BigInt(p.authorization.redAmount))throw error('La contabilidad pareada confirmada requiere conciliación.');

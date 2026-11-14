@@ -19,7 +19,7 @@ const LINKS = {
   CollateralVaultV6: { usdt:'USDT', modes:'ProtocolModeController', risk:'RiskRegistry', engine:'PaymentEngine', router:'ExchangeRouter', adapter:'AmortizationAdapter', exchangeCustody:'ExchangeCustody' },
 };
 
-async function validateV6Demo({provider, contracts, Contract, getAddress, keccak256, manifest, localRehearsal = false}) {
+async function validateV6Demo({provider, contracts, Contract, getAddress, keccak256, manifest, localRehearsal = false, requireFrozen = true}) {
   const chainId = String((await provider.getNetwork()).chainId);
   if (chainId !== (localRehearsal ? '1337' : '11155420')) throw new Error('Red distinta de Demo.');
   // Pin all reads to one block: a mixed-block view can falsely report parity
@@ -58,7 +58,10 @@ async function validateV6Demo({provider, contracts, Contract, getAddress, keccak
     }
   }
   const mode = new Contract(addresses.ProtocolModeController, ['function mode() view returns(uint8)'], provider);
-  if (await mode.mode({blockTag}) !== 1n) throw new Error('V6 no está en Prelanzamiento congelado.');
+  const currentMode = await mode.mode({blockTag});
+  const modes = ['NORMAL', 'PRELAUNCH_FROZEN', 'EMERGENCY_EXIT_ONLY'];
+  if (currentMode < 0n || currentMode > 2n) throw new Error('Modo desconocido.');
+  if (requireFrozen && currentMode !== 1n) throw new Error('V6 no está en Prelanzamiento congelado.');
   const tokenAbi = ['function decimals() view returns(uint8)', 'function totalSupply() view returns(uint256)'];
   const blue = new Contract(addresses.BlueTokenV6, tokenAbi, provider);
   const red = new Contract(addresses.RedTokenV6, tokenAbi, provider);
@@ -67,6 +70,6 @@ async function validateV6Demo({provider, contracts, Contract, getAddress, keccak
   if (await blue.totalSupply({blockTag}) !== await red.totalSupply({blockTag})) throw new Error('BLUE y RED no coinciden.');
   const pairs = new Contract(addresses.PairedSupplyController, ['function operators(address) view returns(bool)'], provider);
   if (!await pairs.operators(addresses.PaymentEngine, {blockTag})) throw new Error('Motor no autorizado para suministro pareado.');
-  return {chainId, blockNumber:blockTag, mode:'PRELAUNCH_FROZEN', contracts:addresses};
+  return {chainId, blockNumber:blockTag, mode:modes[Number(currentMode)], contracts:addresses};
 }
 module.exports = {validateV6Demo, LINKS};

@@ -47,6 +47,14 @@ export default function Exchange() {
   const [collateralConsent, setCollateralConsent] = useState(null);
   const [consentModalOpen, setConsentModalOpen] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
+  // V6 reads can be introduced before its operation adapter. Never route a
+  // V6 screen to the older transaction implementation on that basis alone.
+  const requireExchangeOperations = () => {
+    if (queueStatus !== 'ready') throw new Error('No se pudo verificar el estado del Exchange. Inténtalo de nuevo.');
+    if (publicQueue.protocolVersion === 'V6' && publicQueue.capabilities?.exchangeWrite !== true) {
+      throw new Error('Las operaciones del Exchange V6 todavía no están disponibles en Demo.');
+    }
+  };
 
   // Sincronización continua de datos On-Chain y de la Cola FIFO
   const syncData = async () => {
@@ -119,6 +127,7 @@ export default function Exchange() {
     setIsSubmitting(true);
 
     try {
+      requireExchangeOperations();
       if (!connectedWallet) throw new Error('No se pudo verificar tu billetera.');
 
       const res = await web3OnChainService.createSellOrder(amountInput);
@@ -141,6 +150,7 @@ export default function Exchange() {
     setIsSubmitting(true);
 
     try {
+      requireExchangeOperations();
       if (!connectedWallet) throw new Error('No se pudo verificar tu billetera.');
 
       const res=await web3OnChainService.createBuyOrder(amountInput);
@@ -163,6 +173,7 @@ export default function Exchange() {
     setFeedbackMsg(null);
     setLastTxHash(null);
     try {
+      requireExchangeOperations();
       const res = await web3OnChainService.cancelOrder(orderId);
       setLastTxHash(res.txHash);
       setFeedbackMsg(`Orden #${orderId} cancelada exitosamente en la blockchain.`);
@@ -177,6 +188,7 @@ export default function Exchange() {
     setErrorMsg(null);
     setFeedbackMsg(null);
     try {
+      requireExchangeOperations();
       const res = await web3OnChainService.claimRefunds();
       setLastTxHash(res.txHash);
       setFeedbackMsg(`¡Devoluciones reclamadas con éxito! Fondos transferidos a tu billetera.`);
@@ -190,6 +202,7 @@ export default function Exchange() {
     setErrorMsg(null);
     setFeedbackMsg(null);
     try {
+      requireExchangeOperations();
       const enabled = !onChainState?.automaticExchangeCollateral;
       if (enabled) {
         const status = await web3OnChainService.getAutomaticCollateralConsent();
@@ -219,6 +232,7 @@ export default function Exchange() {
     setFeedbackMsg(null);
     setIsSubmitting(true);
     try {
+      requireExchangeOperations();
       await web3OnChainService.acceptAutomaticCollateralConsent(collateralConsent.document, connectedWallet);
       const res = await web3OnChainService.setAutomaticExchangeCollateral(true);
       setLastTxHash(res.txHash);
@@ -290,7 +304,7 @@ export default function Exchange() {
               display: 'inline-block'
             }}></span>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: connectedWallet ? '#10B981' : '#38BDF8' }}>
-              {connectedWallet ? '🟢 Optimism Sepolia (FifoExchange V4)' : 'Consultando tu billetera asociada'}
+              {connectedWallet ? '🟢 Billetera asociada verificada' : 'Consultando tu billetera asociada'}
             </span>
             {connectedWallet && (
               <code style={{ fontSize: '0.78rem', background: 'rgba(0,0,0,0.3)', padding: '2px 6px', borderRadius: '4px', color: '#cbd5e1' }}>
@@ -333,6 +347,9 @@ export default function Exchange() {
         </div>
 
         {/* FEEDBACK & ERRORES */}
+        {publicQueue.protocolVersion === 'V6' && publicQueue.capabilities?.exchangeWrite !== true && (
+          <p role="status">Las operaciones del Exchange V6 aún no están disponibles. Puedes consultar la información verificada.</p>
+        )}
         {feedbackMsg && (
           <div className={styles.successToast}>
             <span>✓</span> {feedbackMsg}
@@ -469,7 +486,7 @@ export default function Exchange() {
               </div>
             </div>
 
-            <div className={styles.burnCheckboxRow}>
+            {publicQueue.protocolVersion === 'V6' ? <p>La garantía automática todavía no está disponible en V6.</p> : <div className={styles.burnCheckboxRow}>
               <div>
                 <strong>Garantía automática al vencimiento: {onChainState?.automaticExchangeCollateral ? 'autorizada' : 'no autorizada'}</strong>
                 <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
@@ -484,7 +501,7 @@ export default function Exchange() {
                   </button>
                 )}
               </div>
-            </div>
+            </div>}
 
             {/* Resumen de costos */}
             <div className={styles.rateDetails}>
@@ -494,7 +511,7 @@ export default function Exchange() {
               </div>
               <div className={styles.rateRow}>
                 <span>Red Blockchain</span>
-                <strong style={{ color: '#10b981' }}>Optimism Sepolia L2 (Suite V4)</strong>
+                <strong style={{ color: '#10b981' }}>Optimism Sepolia L2</strong>
               </div>
               <div className={styles.rateRow}>
                 <span>Disponibilidad en Cola FIFO</span>

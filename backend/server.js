@@ -176,8 +176,13 @@ async function startServer() {
         // No exigir overrides heredados: mezclarían V4/V5 o dejarían el indexador apagado.
         if (process.env.EXCHANGE_INDEXER_RPC_URL || process.env.OPTIMISM_RPC_URL) {
             try {
-                const { startEmbeddedExchangeIndexer } = require('./src/services/exchangeIndexer');
-                startEmbeddedExchangeIndexer(pool);
+                if (process.env.IS_DEMO_ENV === 'true' && process.env.WINTON_ENVIRONMENT_ID === 'demo' && process.env.EXCHANGE_INDEXER_V6_ENABLED !== 'false') {
+                    const { startVerifiedDemoV6Indexer } = require('./src/services/exchangeIndexerV6Startup');
+                    await startVerifiedDemoV6Indexer(pool);
+                } else if (!(process.env.IS_DEMO_ENV === 'true' && process.env.WINTON_ENVIRONMENT_ID === 'demo')) {
+                    const { startEmbeddedExchangeIndexer } = require('./src/services/exchangeIndexer');
+                    startEmbeddedExchangeIndexer(pool);
+                }
             } catch (err) {
                 console.warn('[EXCHANGE_INDEXER] No se pudo arrancar el indexador en segundo plano:', err.message);
             }

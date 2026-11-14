@@ -1,7 +1,8 @@
 'use strict';
 const {randomUUID}=require('crypto');
 const {Contract,Interface,Wallet,parseUnits,formatEther,getAddress}=require('ethers');
-const deployment=require('./chainDeployment');
+const deployment=require('./marketplaceDeployment');
+const {buildV6WalletPlan,capabilities:v6Capabilities}=require('./v6WalletPlan');
 const {ChainOperationStore,publicResult,error}=require('./chainOperationStore');
 const {signStep}=require('./chainSigning');
 const safePolicy=require('./safeAccountPolicy');
@@ -42,13 +43,15 @@ function splitCollateralizedBuy(amount,redDebt,feeBps,reserved=0n,pending=0n) {
 class WalletOperations {
     constructor(pool,rpc=deployment.provider(),config=deployment.configuration(),walletService=require('./walletService'),options={}) {
         this.pool=pool;this.rpc=rpc;this.config=config;this.walletService=walletService;
+        this.ContractClass=options.ContractClass||Contract;
+        this.safeExecution=options.safeExecution||safeExecution;
         this.consentService=options.consentService||require('./exchangeCollateralConsent');
-        this.store=new ChainOperationStore(pool,rpc,options);
+        this.store=new ChainOperationStore(pool,rpc,{...options,deployment});
     }
     async identity(userId) {
         const row=(await this.pool.query('SELECT id,web3_wallet_address,has_transaction_pin,account_status FROM users WHERE id=$1',[userId])).rows[0];
         if(row?.account_status!=='active')throw error('La cuenta no está habilitada para operar.',403);
-        const account=await safeExecution.account(this.pool,userId,this.config.chainId);
+        const account=await this.safeExecution.account(this.pool,userId,this.config.chainId);
         try {row.address=getAddress(row.web3_wallet_address);}catch {throw error('Tu cuenta necesita revisar su billetera.',409);}
         const count=await this.pool.query('SELECT id FROM users WHERE LOWER(web3_wallet_address)=LOWER($1)',[row.address]);
         if(count.rowCount!==1)throw error('La billetera está asociada a más de una cuenta.');
@@ -58,9 +61,11 @@ class WalletOperations {
     async prepare(userId,input) {
         await require('./economicWriteGate').assertOperational({pool:this.pool,config:this.config,operation:'wallet_prepare'});
         const p=normalized(input),user=await this.identity(userId),c=this.config.contracts;
+        if(this.config.epoch==='V6_DEMO' && v6Capabilities[p.action]===false)throw error('Esta modalidad todavía no está disponible en V6.',409);
         if(p.action==='autoCollateral'&&p.enabled)await this.consentService.assertCurrentConsent(this.pool,userId,user.address);
         await deployment.validate(this.rpc,this.config);
-        if(!await new Contract(c.CoreProtocol,coreABI,this.rpc).isKYCVerified(user.address))throw error('Necesitas KYC aprobado para esta operación.',403);
+        const kycContract=this.config.epoch==='V6_DEMO'?c.RiskRegistry:c.CoreProtocol;
+        if(!await new this.ContractClass(kycContract,coreABI,this.rpc).isKYCVerified(user.address))throw error('Necesitas KYC aprobado para esta operación.',403);
         const plan=[],amount=p.amount?parseUnits(p.amount,6):null;
         const approve=async(token,spender,value=amount)=>{
             const erc=new Contract(token,tokenABI,this.rpc);
@@ -71,7 +76,9 @@ class WalletOperations {
                 plan.push(call(token,tokenABI,'approve',[spender,value],'Autorizar únicamente este importe'));
             }
         };
-        switch(p.action) {
+        if(this.config.epoch==='V6_DEMO') {
+            plan.push(...await buildV6WalletPlan({action:p.action,amount,orderId:p.orderId,destination:p.destination,user:user.address,contracts:c,rpc:this.rpc,ContractClass:this.ContractClass}));
+        } else switch(p.action) {
             case 'deposit': await approve(c.USDT,c.CollateralVault);plan.push(call(c.CollateralVault,vaultABI,'deposit',[amount],labels.deposit));break;
             case 'withdraw':
                 if(await new Contract(c.CollateralVault,vaultABI,this.rpc).getFreeCollateral(user.address)<amount)throw error('Ese importe respalda compromisos o no está disponible.');
@@ -115,8 +122,8 @@ class WalletOperations {
         const maxFeeWei=String(process.env.WALLET_MAX_STEP_FEE_WEI || '100000000000000');
         if(!/^\d+$/.test(maxFeeWei)||BigInt(maxFeeWei)<=0n)throw error('Presupuesto de red no configurado.',503);
         const id=randomUUID();
-        const row=await this.store.prepare({id,userId,key:'wallet:'+id,chainId:this.config.chainId,sender:safeExecution.relayer().address,resource:'wallet:'+user.address.toLowerCase(),kind:p.action,
-            payload:{...p,account:user.address.toLowerCase(),kycAccount:user.address,kycContract:c.CoreProtocol,fingerprint:this.config.fingerprint,plan,planLength:plan.length,maxFeeWei,expiresAt:Date.now()+15*60*1000}});
+        const row=await this.store.prepare({id,userId,key:'wallet:'+id,chainId:this.config.chainId,sender:this.safeExecution.relayer().address,resource:'wallet:'+user.address.toLowerCase(),kind:p.action,
+            payload:{...p,account:user.address.toLowerCase(),kycAccount:user.address,kycContract,fingerprint:this.config.fingerprint,plan,planLength:plan.length,maxFeeWei,expiresAt:Date.now()+15*60*1000}});
         return {...publicResult(row),title:labels[p.action],amount:p.amount,destination:p.destination||user.address,chainId:this.config.chainId,
             maxNetworkFeeEth:formatEther(BigInt(maxFeeWei)*BigInt(plan.length)),stepsCount:plan.length};
     }
@@ -130,13 +137,14 @@ class WalletOperations {
             await deployment.validate(this.rpc,this.config);
             if(row.kind==='autoCollateral'&&row.payload.enabled===true)
                 await this.consentService.assertCurrentConsent(client,userId,user.address);
-            if(!await new Contract(this.config.contracts.CoreProtocol,coreABI,this.rpc).isKYCVerified(user.address))throw error('Tu KYC no está aprobado.',403);
+            const kycContract=this.config.epoch==='V6_DEMO'?this.config.contracts.RiskRegistry:this.config.contracts.CoreProtocol;
+            if(!await new this.ContractClass(kycContract,coreABI,this.rpc).isKYCVerified(user.address))throw error('Tu KYC no está aprobado.',403);
             const config=safePolicy.configuration();
             if(String(config.chainId)!==this.config.chainId)throw error('Red de cuenta incorrecta.');
-            const quote=await safeExecution.quote(this.pool,this.rpc,config,userId,row.payload.plan[row.steps.length]);
+            const quote=await this.safeExecution.quote(this.pool,this.rpc,config,userId,row.payload.plan[row.steps.length]);
             if(!authorization||quote.hash!==authorization.hash)throw error('Revisa y confirma la operación en tu dispositivo.');
-            const call=await safeExecution.build(this.rpc,config,quote,authorization.signature);
-            return [await safeExecution.sponsoredStep(this.pool,this.rpc,row.chain_id,userId,row,call)];
+            const call=await this.safeExecution.build(this.rpc,config,quote,authorization.signature);
+            return [await this.safeExecution.sponsoredStep(this.pool,this.rpc,row.chain_id,userId,row,call)];
         });
     }
     async abandon(userId,id) {
@@ -147,7 +155,7 @@ class WalletOperations {
         const row=await this.store.get(id,userId); // Ownership check before any reconciliation.
         const result=await this.store.reconcile(id);
         const current=await this.store.get(id,userId);
-        const authorization=result.requiresSignature&&current.payload.account?await safeExecution.quote(this.pool,this.rpc,safePolicy.configuration(),userId,current.payload.plan[current.steps.length]):null;
+        const authorization=result.requiresSignature&&current.payload.account?await this.safeExecution.quote(this.pool,this.rpc,safePolicy.configuration(),userId,current.payload.plan[current.steps.length]):null;
         return {...result,authorization,title:labels[row.kind]||'Patrocinio de gas',amount:row.payload.amount,
             destination:row.payload.destination||row.payload.account||row.sender,chainId:row.chain_id,stepsCount:row.payload.planLength||1,
             maxNetworkFeeEth:row.payload.maxFeeWei?formatEther(BigInt(row.payload.maxFeeWei)*BigInt(row.payload.planLength||1)):'0'};

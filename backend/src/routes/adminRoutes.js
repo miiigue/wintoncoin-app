@@ -126,6 +126,25 @@ router.post('/email-templates/:key/preview', verifyAdminToken, emailTemplateCont
 const adminWeb3Controller = require('../controllers/admin/adminWeb3Controller');
 const contractAdmin = require('../middleware/contractAdministration');
 router.use('/web3', verifyAdminToken, contractAdmin.guard);
+router.get('/web3/v6-mode/readiness', web3RpcLimiter, async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    try { res.json(await require('../services/v6ModeGovernance').status({pool:require('../config/db')})); }
+    catch (_) { res.status(503).json({success:false,activationReady:false,message:'No se pudo verificar la preparación V6.'}); }
+});
+router.post('/web3/v6-mode/prepare', web3RpcLimiter, async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    let provider;
+    try { provider=require('../services/chainDeployment').provider(); res.json(await require('../services/v6ModeGovernance').prepare({pool:require('../config/db'),provider})); }
+    catch(e) { res.status(e.status||503).json({success:false,message:e.status?e.message:'No se pudo preparar la operación V6.'}); }
+    finally { if(provider) provider.destroy(); }
+});
+router.post('/web3/v6-mode/confirm', web3RpcLimiter, async(req,res)=>{
+    res.set('Cache-Control','no-store');
+    let provider;
+    try { provider=require('../services/chainDeployment').provider(); res.json(await require('../services/v6ModeGovernance').confirm({pool:require('../config/db'),provider,operationId:req.body?.operationId,txHash:req.body?.txHash})); }
+    catch(e) { res.status(e.status||503).json({success:false,message:e.status?e.message:'No se pudo verificar la operación V6.'}); }
+    finally { if(provider) provider.destroy(); }
+});
 router.get('/web3/v6-candidate', web3RpcLimiter, async(req,res)=>{
     res.set('Cache-Control','no-store');
     try { res.json(await require('../services/v6CandidateStatus').inspect()); }
