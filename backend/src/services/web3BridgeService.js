@@ -373,7 +373,7 @@ class Web3BridgeService {
         if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
             return { success: false, error: 'Paginación inválida' };
         try {
-            const v6Config = require('./v6ChainBridge').activeV6Config();
+            const v6Config = require('./v6ChainBridge').activeV6Config?.();
             if (v6Config) {
                 return await require('./v6ChainBridge').getUserAuditDetailedV6({
                     provider: this.provider,
