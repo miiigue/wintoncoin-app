@@ -66,13 +66,22 @@ async function validatePausePreparation({contract,provider,owner,plan}) {
   catch{throw error('La simulación desde la billetera propietaria revertiría; no se preparó la operación.',409);}
 }
 async function prepare({pool,provider,action,input}){
-  const config=await deployment.validate(provider);
-  const plan=actionPlan(action,input,config.contracts);
+  const v6Bridge=require('./v6ChainBridge');
+  const v6Config=v6Bridge.activeV6Config();
+  let config,plan;
+  if(v6Config){
+    await require('./marketplaceDeployment').validate(provider,v6Config);
+    config=v6Config;
+    plan=await v6Bridge.buildV6OwnerActionPlan(provider,v6Config,action,input);
+  }else{
+    config=await deployment.validate(provider);
+    plan=actionPlan(action,input,config.contracts);
+  }
   await require('./economicWriteGate').assertOperational({pool,config,operation:action});
   const contract=new Contract(plan.target,abi,provider);
   const owner=getAddress(await contract.owner());
   await validatePausePreparation({contract,provider,owner,plan});
-  const store=new ChainOperationStore(pool,provider);
+  const store=new ChainOperationStore(pool,provider,v6Config?{deployment:require('./marketplaceDeployment')}:{});
   return locked(pool,plan.resource,async client=>{
     const active=await client.query("SELECT * FROM chain_operations WHERE chain_id=$1 AND resource_key=$2 AND state IN ('prepared','pending','conflict') ORDER BY created_at LIMIT 1",[config.chainId,plan.resource]);
     if(active.rows[0]){
@@ -87,9 +96,16 @@ async function prepare({pool,provider,action,input}){
 }
 async function confirm({pool,provider,id,hash}){
   if(!/^0x[0-9a-fA-F]{64}$/.test(String(hash)))throw error('Identificador de transacción inválido.',400);
-  const store=new ChainOperationStore(pool,provider),initial=await store.get(id);
+  const v6Config=require('./v6ChainBridge').activeV6Config();
+  const store=new ChainOperationStore(pool,provider,v6Config?{deployment:require('./marketplaceDeployment')}:{}),initial=await store.get(id);
   if(!initial.kind.startsWith('owner:'))throw error('Operación no admitida.',400);
-  const selected=await deployment.validate(provider);
+  let selected;
+  if(v6Config){
+    await require('./marketplaceDeployment').validate(provider,v6Config);
+    selected=v6Config;
+  }else{
+    selected=await deployment.validate(provider);
+  }
   await require('./economicWriteGate').assertOperational({pool,config:selected,operation:initial.kind});
   if(initial.state==='confirmed'||initial.state==='failed'||initial.state==='conflict')return publicResult(initial);
   return locked(pool,'signer:'+initial.chain_id+':'+initial.sender,async client=>{

@@ -1,6 +1,7 @@
 'use strict';
 const { formatUnits } = require('ethers');
 const { address, uint } = require('./exchangeChainReader');
+const { capabilities: walletCapabilities } = require('./v6WalletPlan');
 const states = [null,'OPEN','PARTIALLY_FILLED','FILLED','CANCELLED','SUSPENDED'];
 function render(o, row) {
   return { order_id:o.id, sequence_id:o.sequence, wallet_address:o.user, side:o.side===0?'SELL_BLUE':'BUY_BLUE', status:states[o.status],
@@ -16,7 +17,15 @@ async function snapshot(pool, identity, wallet, {after='0',limit=50,maxAgeSecond
     await client.query('BEGIN ISOLATION LEVEL REPEATABLE READ READ ONLY');
     const row=(await client.query(`SELECT *, (status='ready' AND cursor_hash IS NOT NULL AND updated_at > clock_timestamp()-($3*interval '1 second')) AS fresh FROM web3_exchange_v6_sync WHERE chain_id=$1 AND router_address=$2`,[...key,maxAgeSeconds])).rows[0];
     const matching=row?.stream_fingerprint===identity.streamFingerprint;
-    const out={chainId:identity.chainId,exchange:identity.exchange,protocolVersion:'V6',capabilities:{exchangeRead:true,exchangeWrite:false,collateralDetails:false},usable:!!row?.fresh&&matching,status:!row?'not_started':!matching?'configuration_changed':row.status==='ready'&&!row.fresh?'stale':row.status,verifiedThroughBlock:row?.cursor_hash?row.cursor_block:null,verifiedBlockHash:row?.cursor_hash??null,data:null};
+    // Capacidades reales alineadas con el planificador de operaciones V6 (auditables por versión de protocolo).
+    const capabilities = {
+        exchangeRead: true,
+        exchangeWrite: Boolean(walletCapabilities.buy && walletCapabilities.sell && walletCapabilities.cancel && walletCapabilities.resume && walletCapabilities.claim),
+        autoCollateral: Boolean(walletCapabilities.autoCollateral),
+        secureOrder: Boolean(walletCapabilities.secureOrder),
+        collateralDetails: false,
+    };
+    const out={chainId:identity.chainId,exchange:identity.exchange,protocolVersion:'V6',capabilities,usable:!!row?.fresh&&matching,status:!row?'not_started':!matching?'configuration_changed':row.status==='ready'&&!row.fresh?'stale':row.status,verifiedThroughBlock:row?.cursor_hash?row.cursor_block:null,verifiedBlockHash:row?.cursor_hash??null,data:null};
     if (!queue) out.wallet=wallet;
     if(out.usable && !queue){
       const rows=(await client.query(`SELECT data,block_number,block_hash FROM web3_exchange_v6_orders WHERE chain_id=$1 AND router_address=$2 AND data->>'user'=$3 AND order_id>$4 ORDER BY order_id LIMIT $5`,[...key,wallet,after,limit+1])).rows;

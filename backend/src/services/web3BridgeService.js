@@ -233,6 +233,14 @@ class Web3BridgeService {
 
     async getProtocolStatus() {
         try {
+            const v6Config = require('./v6ChainBridge').activeV6Config();
+            if (v6Config) {
+                return await require('./v6ChainBridge').getProtocolStatusV6({
+                    provider: this.provider,
+                    wallet: this.wallet,
+                    config: v6Config
+                });
+            }
             const net = await this.provider.getNetwork();
             let relayerBalance = "0.0";
             let relayerAddress = null;
@@ -365,6 +373,17 @@ class Web3BridgeService {
         if (!Number.isSafeInteger(offset) || offset < 0 || !Number.isSafeInteger(limit) || limit < 1 || limit > 100)
             return { success: false, error: 'Paginación inválida' };
         try {
+            const v6Config = require('./v6ChainBridge').activeV6Config();
+            if (v6Config) {
+                return await require('./v6ChainBridge').getUserAuditDetailedV6({
+                    provider: this.provider,
+                    config: v6Config,
+                    walletAddress,
+                    offset,
+                    limit,
+                    finality
+                });
+            }
             if (!['latest','safe','finalized'].includes(finality)) throw Error('Finalidad inválida');
             const config = require('./chainDeployment').configuration();
             if (String((await this.provider.getNetwork()).chainId) !== config.chainId) throw Error('Red incorrecta');
@@ -413,11 +432,18 @@ class Web3BridgeService {
     }
 
     async checkUserKYCStrict(walletAddress) {
+        const v6Config = require('./v6ChainBridge').activeV6Config();
+        if (v6Config) return require('./v6ChainBridge').checkUserKYCV6(this.provider, v6Config, walletAddress);
         if (!PROTOCOL_ADDRESS || !walletAddress) return false;
         return this._getProtocol().isKYCVerified(walletAddress);
     }
 
     async checkUserKYC(walletAddress) {
+        const v6Config = require('./v6ChainBridge').activeV6Config();
+        if (v6Config) {
+            try { return await require('./v6ChainBridge').checkUserKYCV6(this.provider, v6Config, walletAddress); }
+            catch { return false; }
+        }
         if (!PROTOCOL_ADDRESS || !walletAddress) return false;
         try {
             const protocol = this._getProtocol();
@@ -472,6 +498,8 @@ class Web3BridgeService {
     }
 
     async executeMatching(maxMatches = 10, maxOrdersScanned = 20) {
+        const v6Config = require('./v6ChainBridge').activeV6Config();
+        if (v6Config) return require('./v6ChainBridge').executeMatchingV6(this, v6Config, maxMatches, maxOrdersScanned);
         if (!this._isReady() || !EXCHANGE_ADDRESS) return { success: false, error: 'Exchange no configurado' };
         try {
             const exchange = this._getExchange();
@@ -483,6 +511,8 @@ class Web3BridgeService {
     }
 
     async mintMockUsdt(walletAddress, amountUnits) {
+        const v6Config = require('./v6ChainBridge').activeV6Config();
+        if (v6Config) return require('./v6ChainBridge').mintMockUsdtV6(this, v6Config, walletAddress, amountUnits);
         if (process.env.ENABLE_TEST_TOKEN_MINT !== 'true') return { success: false, error: 'Emisión de prueba deshabilitada' };
         if (!this._isReady() || !USDT_ADDRESS) return { success: false, error: 'Token USDT no configurado' };
         try {

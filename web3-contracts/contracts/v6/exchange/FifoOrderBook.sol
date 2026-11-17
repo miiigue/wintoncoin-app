@@ -89,7 +89,7 @@ contract FifoOrderBook is Ownable2Step {
     function order(uint64 id) external view returns (Order memory) { return _orders[id]; }
     function collateralOrderRemaining(uint64 id, address user) external view returns (uint128) {
         Order storage value = _orders[id];
-        if (value.user != user || value.side != Side.USDT_FOR_BLUE || !_active(value.status)) return 0;
+        if (value.user != user || value.side != Side.USDT_FOR_BLUE || (!_active(value.status) && value.status != Status.SUSPENDED)) return 0;
         return value.remaining;
     }
     function queueLength(Side side) external view returns (uint256) {

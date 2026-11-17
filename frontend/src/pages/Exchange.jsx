@@ -55,6 +55,18 @@ export default function Exchange() {
       throw new Error('Las operaciones del Exchange V6 todavía no están disponibles en Demo.');
     }
   };
+  const requireAutoCollateral = () => {
+    requireExchangeOperations();
+    if (publicQueue.protocolVersion === 'V6' && publicQueue.capabilities?.autoCollateral !== true) {
+      throw new Error('La garantía automática todavía no está disponible en V6.');
+    }
+  };
+  const requireSecureOrder = () => {
+    requireExchangeOperations();
+    if (publicQueue.protocolVersion === 'V6' && publicQueue.capabilities?.secureOrder !== true) {
+      throw new Error('La afectación manual de órdenes todavía no está disponible en V6.');
+    }
+  };
 
   // Sincronización continua de datos On-Chain y de la Cola FIFO
   const syncData = async () => {
@@ -198,11 +210,31 @@ export default function Exchange() {
     }
   };
 
+  // Afectar una orden de compra USDT activa como garantía de compromiso RED
+  const handleSecureOrder = async (orderId, amount) => {
+    setErrorMsg(null);
+    setFeedbackMsg(null);
+    setLastTxHash(null);
+    setIsSubmitting(true);
+    try {
+      requireSecureOrder();
+      if (!connectedWallet) throw new Error('No se pudo verificar tu billetera.');
+      const res = await web3OnChainService.collateralizeUsdtOrder(orderId, amount);
+      setLastTxHash(res.txHash);
+      setFeedbackMsg(`Orden #${orderId} afectada como garantía del compromiso RED manteniendo su prioridad FIFO.`);
+      await syncData();
+    } catch (err) {
+      setErrorMsg(err.message || 'No se pudo afectar la orden como garantía on-chain');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleAutomaticCollateral = async () => {
     setErrorMsg(null);
     setFeedbackMsg(null);
     try {
-      requireExchangeOperations();
+      requireAutoCollateral();
       const enabled = !onChainState?.automaticExchangeCollateral;
       if (enabled) {
         const status = await web3OnChainService.getAutomaticCollateralConsent();
@@ -232,7 +264,7 @@ export default function Exchange() {
     setFeedbackMsg(null);
     setIsSubmitting(true);
     try {
-      requireExchangeOperations();
+      requireAutoCollateral();
       await web3OnChainService.acceptAutomaticCollateralConsent(collateralConsent.document, connectedWallet);
       const res = await web3OnChainService.setAutomaticExchangeCollateral(true);
       setLastTxHash(res.txHash);
@@ -486,7 +518,7 @@ export default function Exchange() {
               </div>
             </div>
 
-            {publicQueue.protocolVersion === 'V6' ? <p>La garantía automática todavía no está disponible en V6.</p> : <div className={styles.burnCheckboxRow}>
+            {publicQueue.protocolVersion === 'V6' && publicQueue.capabilities?.autoCollateral !== true ? <p>La garantía automática todavía no está disponible en V6.</p> : <div className={styles.burnCheckboxRow}>
               <div>
                 <strong>Garantía automática al vencimiento: {onChainState?.automaticExchangeCollateral ? 'autorizada' : 'no autorizada'}</strong>
                 <div style={{ fontSize: '0.78rem', color: '#cbd5e1', marginTop: '2px' }}>
@@ -684,6 +716,21 @@ export default function Exchange() {
                         <div className={styles.queueItemAmount}>
                           {fmt(ord.remaining_amount)} {ord.side === 'SELL_BLUE' ? 'BLUE' : 'USDT'}
                         </div>
+                        {ord.side === 'BUY_BLUE' &&
+                          (ord.status === 'OPEN' || ord.status === 'PARTIALLY_FILLED') &&
+                          userRedCommitment > 0 &&
+                          parseFloat(ord.remaining_amount) > 0 &&
+                          (publicQueue.protocolVersion !== 'V6' || publicQueue.capabilities?.secureOrder === true) && (
+                            <button
+                              type="button"
+                              className={styles.cancelBtn}
+                              disabled={isSubmitting || !connectedWallet}
+                              onClick={() => handleSecureOrder(ord.order_id, ord.remaining_amount)}
+                              style={{ marginRight: '8px' }}
+                            >
+                              Usar como garantía RED
+                            </button>
+                          )}
                         {(ord.status === 'OPEN' || ord.status === 'PARTIALLY_FILLED') && (
                           <button
                             className={styles.cancelBtn}

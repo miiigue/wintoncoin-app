@@ -38,6 +38,8 @@ contract AmortizationVaultHarness {
     uint128 public receivedBlue;
     uint128 public refundedUsdt;
     constructor(address adapterAddress) { adapter = AmortizationAdapter(adapterAddress); }
+    function protectOverdue(address, uint64) external pure {}
+    function automaticExchangeCollateral(address) external pure returns(bool) { return false; }
     function register(uint64 orderId, address user, uint128 amount) external { adapter.register(orderId, user, amount); }
     function onCollateralFill(address, uint64, uint128 grossUsdt, uint128 netBlue) external {
         require(msg.sender == address(adapter), "only adapter"); filledUsdt += grossUsdt; receivedBlue += netBlue;

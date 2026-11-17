@@ -6,8 +6,8 @@ const {Interface}=require('ethers');
 const target='0x1111111111111111111111111111111111111111',owner='0x2222222222222222222222222222222222222222';
 const operationId='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',txHash='0x'+'a'.repeat(64);
 const data=new Interface(['function setMode(uint8)']).encodeFunctionData('setMode',[0]);
-test('readiness real bloquea si el exchange V6 no está integrado',async()=>{
-  await assert.rejects(governance.ready({pool:{}}),/garantía RED/);
+test('readiness real permanece bloqueada si falta configuración de entorno V6 o estado listo',async()=>{
+  await assert.rejects(governance.ready({pool:{},env:{}}));
   assert.equal((await governance.status({pool:{}})).activationReady,false);
 });
 

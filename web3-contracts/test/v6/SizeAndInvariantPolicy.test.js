@@ -42,6 +42,7 @@ describe('V6: política de tamaño e invariantes monetarios', function () {
       'PaymentEngine',
       'ProtocolConfig',
       'ProtocolModeController',
+      'ProtocolTreasuryV6',
       'RedTokenV6',
       'RiskRegistry',
     ]);

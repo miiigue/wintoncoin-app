@@ -60,6 +60,19 @@ contract AmortizationAdapter is Ownable2Step, ReentrancyGuard {
         emit CollateralRegistered(user, orderId, amount);
     }
 
+    /// @notice Releases excess reservation on a user-funded USDT order when
+    /// RED commitments decrease via another path, leaving USDT in custody.
+    function unreserve(uint64 orderId, address user, uint128 amount) external onlyVault nonReentrant {
+        if (modes.mode() != NORMAL) revert NotNormal();
+        Reservation storage storedReservation = _reservations[orderId];
+        if (user == address(0) || storedReservation.user != user) revert InvalidOrder();
+        if (amount == 0 || amount > storedReservation.remaining) revert InvalidAmount();
+        storedReservation.remaining -= amount;
+        totalCollateralReserved -= amount;
+        if (storedReservation.remaining == 0) delete _reservations[orderId];
+        emit CollateralReleased(user, orderId, amount);
+    }
+
     function quote(uint64 orderId, uint128 maximum) external view returns (uint128 amount, address recipient) {
         uint128 reserved = _reservations[orderId].remaining;
         amount = reserved < maximum ? reserved : maximum;
@@ -71,6 +84,7 @@ contract AmortizationAdapter is Ownable2Step, ReentrancyGuard {
         if (grossUsdt == 0 || grossUsdt > storedReservation.remaining) revert InvalidAmount();
         address user = storedReservation.user;
         storedReservation.remaining -= grossUsdt; totalCollateralReserved -= grossUsdt;
+        if (storedReservation.remaining == 0) delete _reservations[orderId];
         IAmortizationVaultV6(vault).onCollateralFill(user, orderId, grossUsdt, netBlue);
         emit CollateralConsumed(user, orderId, grossUsdt, netBlue);
     }
@@ -81,6 +95,7 @@ contract AmortizationAdapter is Ownable2Step, ReentrancyGuard {
         if (amount == 0) return (0, address(0));
         address user = storedReservation.user;
         storedReservation.remaining -= amount; totalCollateralReserved -= amount;
+        if (storedReservation.remaining == 0) delete _reservations[orderId];
         recipient = vault;
         IAmortizationVaultV6(vault).onCollateralRefund(user, orderId, amount);
         emit CollateralReleased(user, orderId, amount);

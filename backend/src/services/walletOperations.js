@@ -2,7 +2,7 @@
 const {randomUUID}=require('crypto');
 const {Contract,Interface,Wallet,parseUnits,formatEther,getAddress}=require('ethers');
 const deployment=require('./marketplaceDeployment');
-const {buildV6WalletPlan,capabilities:v6Capabilities}=require('./v6WalletPlan');
+const {buildV6WalletPlan,capabilities:v6Capabilities,splitCollateralizedBuy}=require('./v6WalletPlan');
 const {ChainOperationStore,publicResult,error}=require('./chainOperationStore');
 const {signStep}=require('./chainSigning');
 const safePolicy=require('./safeAccountPolicy');
@@ -31,15 +31,6 @@ function normalized(input) {
     return out;
 }
 function call(address,abi,name,args,label) {return {to:address,data:new Interface(abi).encodeFunctionData(name,args),value:'0',label};}
-function splitCollateralizedBuy(amount,redDebt,feeBps,reserved=0n,pending=0n) {
-    for(const value of [amount,redDebt,feeBps,reserved,pending])if(typeof value!=='bigint'||value<0n)throw error('Datos de cobertura inválidos.',400);
-    if(feeBps>=10000n)throw error('Comisión de exchange inválida.',503);
-    if(redDebt===0n)return {secured:0n,ordinary:amount,budget:0n};
-    const budget=redDebt*10000n/(10000n-feeBps),assigned=reserved+pending;
-    const missing=budget>assigned?budget-assigned:0n;
-    const secured=amount<missing?amount:missing;
-    return {secured,ordinary:amount-secured,budget};
-}
 class WalletOperations {
     constructor(pool,rpc=deployment.provider(),config=deployment.configuration(),walletService=require('./walletService'),options={}) {
         this.pool=pool;this.rpc=rpc;this.config=config;this.walletService=walletService;
@@ -77,7 +68,7 @@ class WalletOperations {
             }
         };
         if(this.config.epoch==='V6_DEMO') {
-            plan.push(...await buildV6WalletPlan({action:p.action,amount,orderId:p.orderId,destination:p.destination,user:user.address,contracts:c,rpc:this.rpc,ContractClass:this.ContractClass}));
+            plan.push(...await buildV6WalletPlan({action:p.action,amount,orderId:p.orderId,destination:p.destination,enabled:p.enabled,user:user.address,contracts:c,rpc:this.rpc,ContractClass:this.ContractClass}));
         } else switch(p.action) {
             case 'deposit': await approve(c.USDT,c.CollateralVault);plan.push(call(c.CollateralVault,vaultABI,'deposit',[amount],labels.deposit));break;
             case 'withdraw':

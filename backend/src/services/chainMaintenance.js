@@ -44,14 +44,30 @@ async function executeMaintenance({ pool, rpc, config, wallet, kind, orderIds = 
         throw Error('INVALID_COLLATERAL_ORDER_BATCH');
     }
     const signer = new Wallet(env.RELAYER_PRIVATE_KEY);
-    const core = new Contract(config.contracts.CoreProtocol, coreAbi, rpc);
-    const vault = kind === 'collateralizeMatured' ? new Contract(config.contracts.CollateralVault, vaultAbi, rpc) : null;
-    const target = kind === 'settleMatured' ? config.contracts.CoreProtocol : config.contracts.CollateralVault;
-    const args = kind === 'settleMatured' ? [wallet] : [wallet, orderIds];
-    const data = new Interface(kind === 'settleMatured' ? coreAbi : vaultAbi).encodeFunctionData(kind, args);
+    let target, data, needed;
+    if (config.epoch === 'V6_DEMO') {
+        const modeController = new Contract(config.contracts.ProtocolModeController, ['function mode() view returns(uint8)'], rpc);
+        const risk = new Contract(config.contracts.RiskRegistry, ['function isKYCVerified(address) view returns(bool)'], rpc);
+        const ledger = new Contract(config.contracts.CommitmentLedger, ['function matured(address) view returns(uint256)'], rpc);
+        const vaultV6 = kind === 'collateralizeMatured'
+            ? new Contract(config.contracts.CollateralVaultV6, ['function protectOverdue(address,uint64)', 'function automaticExchangeCollateral(address) view returns(bool)'], rpc)
+            : null;
+        target = kind === 'settleMatured' ? config.contracts.PaymentEngine : config.contracts.CollateralVaultV6;
+        data = kind === 'settleMatured'
+            ? new Interface(['function settleMatured(address)']).encodeFunctionData('settleMatured', [wallet])
+            : new Interface(['function protectOverdue(address,uint64)']).encodeFunctionData('protectOverdue', [wallet, BigInt(orderIds[0])]);
+        needed = Number(await modeController.mode()) === 0 && await risk.isKYCVerified(wallet) &&
+            BigInt(await ledger.matured(wallet)) > 0n && (!vaultV6 || await vaultV6.automaticExchangeCollateral(wallet));
+    } else {
+        const core = new Contract(config.contracts.CoreProtocol, coreAbi, rpc);
+        const vault = kind === 'collateralizeMatured' ? new Contract(config.contracts.CollateralVault, vaultAbi, rpc) : null;
+        target = kind === 'settleMatured' ? config.contracts.CoreProtocol : config.contracts.CollateralVault;
+        const args = kind === 'settleMatured' ? [wallet] : [wallet, orderIds];
+        data = new Interface(kind === 'settleMatured' ? coreAbi : vaultAbi).encodeFunctionData(kind, args);
+        needed = !await core.paused() && await core.isKYCVerified(wallet) && await core.isDelinquent(wallet) &&
+            (!vault || await vault.automaticExchangeCollateral(wallet));
+    }
     const resource = `maintenance:${config.chainId}:${wallet.toLowerCase()}`;
-    const needed = !await core.paused() && await core.isKYCVerified(wallet) && await core.isDelinquent(wallet) &&
-        (!vault || await vault.automaticExchangeCollateral(wallet));
     if (!needed) return { status: 'not_needed' };
 
     const prepared = await locked(pool, `gas-budget:${config.chainId}`, async client => {
@@ -104,6 +120,18 @@ async function settle(input) { return executeMaintenance({ ...input, kind: 'sett
 async function collateralizeMatured(input) { return executeMaintenance({ ...input, kind: 'collateralizeMatured' }); }
 
 async function collateralOrderIds(pool, config, wallet, maxAgeSeconds = 120) {
+    if (config.epoch === 'V6_DEMO') {
+        const routerAddress = config.contracts.ExchangeRouter.toLowerCase();
+        const sync = await pool.query(`SELECT 1 FROM web3_exchange_v6_sync WHERE chain_id=$1 AND router_address=$2
+            AND status='ready' AND cursor_hash IS NOT NULL AND updated_at>clock_timestamp()-($3*interval '1 second')`,
+            [config.chainId, routerAddress, maxAgeSeconds]);
+        if (!sync.rowCount) return [];
+        return (await pool.query(`SELECT order_id::text FROM web3_exchange_v6_orders
+            WHERE chain_id=$1 AND router_address=$2 AND data->>'user'=$3 AND data->>'side'='1'
+            AND data->>'status' IN ('1','2','5') AND (data->>'remaining')::numeric > 0
+            ORDER BY (data->>'sequence')::numeric, order_id LIMIT 16`,
+            [config.chainId, routerAddress, wallet.toLowerCase()])).rows.map(row => row.order_id);
+    }
     const key = [config.chainId, config.contracts.FifoExchange.toLowerCase(), wallet.toLowerCase(), maxAgeSeconds];
     const sync = await pool.query(`SELECT 1 FROM web3_exchange_sync WHERE chain_id=$1 AND exchange_address=$2
         AND status='ready' AND last_checked_at>clock_timestamp()-($4*interval '1 second')`, key);
@@ -135,8 +163,10 @@ function createMaintenanceWorker(pool, { bridge, rpc, config, batchSize = 20, ex
         try {
             bridge ||= require('./web3BridgeService');
             rpc ||= bridge.provider;
-            config ||= deployment.configuration();
-            await deployment.validate(rpc, config);
+            config ||= require('./v6ChainBridge').activeV6Config() || deployment.configuration();
+            if (config.epoch === 'V6_DEMO') await require('./marketplaceDeployment').validate(rpc, config);
+            else await deployment.validate(rpc, config);
+            const coreAddress = (config.contracts.CoreProtocol || config.contracts.PaymentEngine).toLowerCase();
             const rows = (await pool.query(`SELECT id,web3_wallet_address FROM users WHERE id>$1
                 AND web3_wallet_address ~ '^0x[0-9a-fA-F]{40}$' ORDER BY id LIMIT $2`, [after, batchSize])).rows;
             let checked = 0, failed = 0, awaiting = 0;
@@ -150,11 +180,12 @@ function createMaintenanceWorker(pool, { bridge, rpc, config, batchSize = 20, ex
                         VALUES($1,$2,$3,$4,$5,$6) ON CONFLICT(chain_id,core_address,wallet_address) DO UPDATE SET
                         block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash,snapshot=EXCLUDED.snapshot,checked_at=NOW()
                         WHERE web3_wallet_snapshots.block_number<=EXCLUDED.block_number`,
-                    [config.chainId, config.contracts.CoreProtocol.toLowerCase(), wallet.toLowerCase(), snapshot.blockNumber, snapshot.blockHash, JSON.stringify(snapshot)]);
+                    [config.chainId, coreAddress, wallet.toLowerCase(), snapshot.blockNumber, snapshot.blockHash, JSON.stringify(snapshot)]);
                     if (snapshot.credit.isKYCVerified && snapshot.credit.isDelinquent) {
                         let result;
-                        const supports = config.epoch === 'V5_CODEX_163' || config.supportsExchangeCollateral === true;
-                        if (supports && snapshot.collateral?.automaticAtMaturity === true
+                        const supports = config.epoch === 'V6_DEMO' || config.epoch === 'V5_CODEX_163' || config.supportsExchangeCollateral === true;
+                        const automatic = snapshot.collateral?.automaticAtMaturity === true || snapshot.collateralVault?.automaticAtMaturity === true;
+                        if (supports && automatic
                             && await checkCollateralConsent(pool, user.id, wallet)) {
                             const orderIds = await loadCollateralOrders(pool, config, wallet);
                             if (orderIds.length) result = await executeCollateral({ pool, rpc, config, wallet, orderIds });

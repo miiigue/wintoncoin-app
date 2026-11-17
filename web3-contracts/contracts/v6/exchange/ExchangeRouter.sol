@@ -12,6 +12,10 @@ interface IRiskForExchange {
     function isKYCVerified(address account) external view returns (bool);
     function verificationPair(address first, address second) external view returns (bool, bool);
 }
+interface IOverdueProtectionV6 {
+    function protectOverdue(address user,uint64 orderId) external;
+    function automaticExchangeCollateral(address user) external view returns(bool);
+}
 
 /// @notice Single public mutation surface for the modular V6 exchange.
 contract ExchangeRouter is ReentrancyGuard {
@@ -49,7 +53,9 @@ contract ExchangeRouter is ReentrancyGuard {
         ExchangeCustody.Asset asset = side == FifoOrderBook.Side.BLUE_FOR_USDT
             ? ExchangeCustody.Asset.BLUE : ExchangeCustody.Asset.USDT;
         custody.deposit(asset, msg.sender, amount);
-        id = book.create(msg.sender, side, amount); emit OrderOpened(id, msg.sender, side, amount);
+        id = book.create(msg.sender, side, amount);
+        if (side == FifoOrderBook.Side.USDT_FOR_BLUE) _protectOverdue(msg.sender,id);
+        emit OrderOpened(id, msg.sender, side, amount);
     }
 
     /// @notice Opens a USDT order physically funded by the linked Vault but owned by the user.
@@ -78,6 +84,7 @@ contract ExchangeRouter is ReentrancyGuard {
             book.suspend(usdtOrder.id); usdtCursor = usdtOrder.index + 1;
             emit OrderSkipped(usdtOrder.id, usdtOrder.user); return 0;
         }
+        _protectOverdue(usdtOrder.user,usdtOrder.id);
         gross = blueOrder.remaining < usdtOrder.remaining ? blueOrder.remaining : usdtOrder.remaining;
         (uint128 secured, address blueRecipient) = amortization.quote(usdtOrder.id, gross);
         if (secured > 0) gross = secured; else blueRecipient = usdtOrder.user;
@@ -96,6 +103,8 @@ contract ExchangeRouter is ReentrancyGuard {
         _exitAllowed();
         FifoOrderBook.Order memory current = book.order(orderId);
         if (current.user != msg.sender) revert Unauthorized();
+        if (current.side == FifoOrderBook.Side.USDT_FOR_BLUE && modes.mode() == NORMAL) _protectOverdue(msg.sender,orderId);
+        else if (current.side == FifoOrderBook.Side.USDT_FOR_BLUE && IOverdueProtectionV6(amortization.vault()).automaticExchangeCollateral(msg.sender)) revert ExitOnly();
         (, FifoOrderBook.Side side, uint128 refundAmount) = book.cancel(orderId);
         uint128 collateralRefund; address vaultRecipient;
         if (side == FifoOrderBook.Side.USDT_FOR_BLUE) {
@@ -118,7 +127,9 @@ contract ExchangeRouter is ReentrancyGuard {
     }
     function resumeOrder(uint64 orderId) external nonReentrant {
         _normal(); _kyc(msg.sender); FifoOrderBook.Order memory value = book.order(orderId);
-        if (value.user != msg.sender) revert Unauthorized(); book.resume(orderId);
+        if (value.user != msg.sender) revert Unauthorized();
+        if (value.side == FifoOrderBook.Side.USDT_FOR_BLUE) _protectOverdue(msg.sender,orderId);
+        book.resume(orderId);
     }
     function claimFees() external nonReentrant { _normal(); custody.claimFees(); }
     function blueToken() external view returns (address) { return address(custody.blue()); }
@@ -126,4 +137,9 @@ contract ExchangeRouter is ReentrancyGuard {
     function _normal() private view { uint8 value = modes.mode(); if (value == PRELAUNCH_FROZEN) revert OperationsFrozen(); if (value != NORMAL) revert ExitOnly(); }
     function _exitAllowed() private view { if (modes.mode() == PRELAUNCH_FROZEN) revert OperationsFrozen(); }
     function _kyc(address user) private view { if (!risk.isKYCVerified(user)) revert KycNotVerified(); }
+    function _protectOverdue(address user,uint64 orderId) private {
+        address vaultAddress = amortization.vault();
+        if (risk.isKYCVerified(user)) IOverdueProtectionV6(vaultAddress).protectOverdue(user,orderId);
+        else if (IOverdueProtectionV6(vaultAddress).automaticExchangeCollateral(user)) revert KycNotVerified();
+    }
 }

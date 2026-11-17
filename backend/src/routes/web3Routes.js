@@ -27,10 +27,15 @@ async function exchangeReadIdentity() {
 }
 router.get('/deployment', async(req,res)=>{
     res.set('Cache-Control','no-store');
-    const deployment=require('../services/chainDeployment');const rpc=deployment.provider();
+    const deployment=require('../services/marketplaceDeployment');const rpc=deployment.provider();
     try {
-        const config=await deployment.validate(rpc);
-        const operations=await require('../services/economicWriteGate').operationalStatus({pool:require('../config/db'),config});
+        const selected=deployment.configuration();
+        const validated=await deployment.validate(rpc,selected);
+        const contracts=selected.epoch==='V6_DEMO'
+            ? require('../services/v6ChainBridge').withCompatibilityAliases(validated.contracts)
+            : validated.contracts;
+        const config={...selected,...validated,contracts};
+        const operations=await require('../services/economicWriteGate').operationalStatus({pool:require('../config/db'),config:selected});
         res.json({success:true,...config,operations});
     }
     catch {res.status(503).json({success:false,message:'El despliegue no pudo verificarse.'});}
