@@ -112,13 +112,7 @@ export default function AdminWeb3Panel() {
         if (!response.ok) throw new Error('No se pudo verificar el candidato V6.');
         const data = await response.json();
         if (data.success !== true || typeof data.configured !== 'boolean') throw new Error('La respuesta de V6 no se pudo verificar.');
-        if (!data.configured) { setV6Candidate(data); return; }
-        const readiness = await fetch(`${getApiUrl()}/api/admin/web3/v6-mode/readiness`, {
-          credentials:'include', cache:'no-store', signal:controller.signal
-        });
-        const state = readiness.ok ? await readiness.json() : {};
-        setV6Candidate({...data, activationReady:state.success === true && state.activationReady === true,
-          activationMessage:state.message});
+        setV6Candidate(data);
       })
       .catch(error => { if (error.name !== 'AbortError') setV6CandidateError(error.message); });
     return () => controller.abort();
@@ -418,7 +412,12 @@ export default function AdminWeb3Panel() {
         {v6CandidateError ? <p role="alert">{v6CandidateError} No se puede confirmar su estado.</p>
           : !v6Candidate ? <p>Consultando V6…</p>
           : !v6Candidate.configured ? <p>No hay un candidato V6 configurado.</p>
-          : <><p>Modo verificado: {v6Candidate.mode === 'PRELAUNCH_FROZEN' ? 'Prelanzamiento congelado' : 'No confirmado'}</p>
+          : <><p>Modo verificado: <strong>{
+              v6Candidate.mode === 'NORMAL' ? 'NORMAL (Activo)' :
+              v6Candidate.mode === 'PRELAUNCH_FROZEN' ? 'Prelanzamiento congelado' :
+              v6Candidate.mode === 'PAUSED' ? 'Pausado' :
+              'No confirmado'
+            }</strong></p>
             <p>Red: {v6Candidate.chainId} · Bloque: {v6Candidate.blockNumber}</p></>}
         <V6ModeActivation candidate={v6Candidate} onVerified={fetchStatus} />
       </section>}

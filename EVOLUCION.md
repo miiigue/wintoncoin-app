@@ -8374,3 +8374,191 @@ Se retira la sustitución automática basada en saldos aparentes cero. Error RPC
   - La billetera activa conserva monitor y cancelación de recuperación sospechosa. Consulta al montar y cada 60 segundos con página visible; no garantiza avisos con aplicación cerrada.
   - El reloj muestra tiempo de seguimiento en esta pantalla, sin estimación de confirmación ni bloques ficticios. Diferencia autorización, espera y detención.
   - Comprobaciones: 18 de origen, 23 interacciones y 8 validaciones de respaldo. No constituyen certificación ni auditoría SOC2. La causa concreta de las demoras móviles requiere evidencia de la solicitud real.
+
+- **Verificación Técnica de Seguridad, Indexador V5 y Diagnóstico Micro-UX Bloque A (CODEX-173 / ANTIGRAVITY-154)**:
+  - **Aislamiento y Modo Prelanzamiento Verificado**: Confirmado que pre_launch_mode_enabled = true está activo en Render y economicWriteGate.js intercepta fail-closed con HTTP 503 (PRELAUNCH_ACTIVE). Cero transacciones on-chain hacia Sepolia.
+  - **Indexador FifoExchange Certificado**: Endpoint /api/web3/exchange-queue certificado en status: ready, usable: true y sincronizado hasta el bloque 51010543 tras superar el arranque en frío.
+  - **Diagnóstico Micro-UX y Rendimiento (Frontend React)**: Identificados 4 puntos de optimización móvil tipo Binance/Uber:
+    1. PublicationsFeed.jsx: Estado vacío visual con botón de acción.
+    2. PublicationsFeed.jsx: Debounce de 250ms en la búsqueda en vivo.
+    3. PublicationTypeModal.jsx: Mensaje de prelanzamiento en positivo y comprensible.
+    4. login.jsx: Mensaje breve amigable confirmando acceso exitoso.
+  - **Coordinación de Puente**: Registrado ANTIGRAVITY-154 en puente-agentes/PARA_CODEX.md y actualizado ESTADO_ANTIGRAVITY.md.
+
+- **Auditoría de Guardrails UX y Pausa Integral Candidata (CODEX-176/177 / ANTIGRAVITY-156)**:
+  - **Alineación Arquitectónica y Gobernanza**: Ratificado el bloqueo fail-closed en rutas heredadas bajo época V5 y la regla indivisible allEconomicContractsPaused.
+  - **Guardrails UX Verificados (backend/__tests__/prelaunchUxGuardrails.test.js)**: 4/4 tests PASS. Feed sin promesas bloqueadas en prelanzamiento, debounce de 250ms con cleanup, textos neutrales sin aseveraciones infundadas en login y modal.
+  - **Cobertura en Solidity Candidata (web3-contracts/test/IntegralPauseCoverage.test.js)**: 3/3 tests PASS en Hardhat. whenNotPaused verificado en cancelaciones, consentimientos y reclamos en código candidato.
+  - **Delimitación de Seguridad**: Distinción documentada entre código candidato y bytecode V5 ya desplegado en Optimism Sepolia. Cero transacciones on-chain ni despliegues ejecutados.
+
+- **Envío de Paquete Local a Revisión de Codex (ANTIGRAVITY-157)**:
+  - Notificado a Codex vía puente-agentes/PARA_CODEX.md el estado completo del paquete local de UX y contención.
+  - Se solicitó el dictamen formal de Codex para que Miguel pueda otorgar la autorización de publicación en Demo tras la validación técnica.
+
+- **Verificación Independiente de Despliegue Demo y Estado en Vivo (CODEX-180 / ANTIGRAVITY-158)**:
+  - **Aislamiento Estricto y Commits**: Rama remota origin/demo verificada en el commit 19aafcf precedido por 0b2deee. Cero interacción con producción y cero transacciones on-chain.
+  - **Verificación de Bundle Demo en Vivo**: En https://demo.wintoncoin.com/dashboard se confirmó la entrega del bundle main.BUSkOJr7.js conteniendo los nuevos textos de Prelanzamiento activo, Sesión iniciada correctamente, el debounce de 250ms y la remoción de promesas falsas.
+  - **Blindaje del Backend Demo**: Verificado en https://wintoncoin-backend-demo.onrender.com con pre_launch_mode_enabled=true y economicWriteGate activo en fail-closed (PRELAUNCH_ACTIVE).
+  - **Monitoreo del Indexador FifoExchange**: Endpoint /api/web3/exchange-queue en sincronización activa (verifiedThroughBlock: 51045283) respondiendo 503 fail-closed conforme al diseño de protección.
+  - **Registro en Puente**: Notificado a Codex mediante ANTIGRAVITY-158 en puente-agentes/PARA_CODEX.md.
+
+- **Creación de la Guía Maestra de 50 Pruebas QA para Usuarios y Testers (docs/GUIA_50_PRUEBAS_USUARIOS_QA.md)**:
+  - Redactada bajo el formato «Se debe probar... / El resultado debe ser...» en lenguaje cotidiano no técnico.
+  - Agrupada en 7 módulos funcionales: Acceso y Sesión, Catálogo y Búsqueda Debounced, Prelanzamiento Protegido, Billetera y Tokens, Seguridad/Passkeys/12 palabras, Notificaciones y Navegación Móvil, y Resiliencia de Red.
+  - Archivo preparado para distribución directa a testers y validadores del entorno Demo.
+
+- **Creación de Catálogo Maestro de Pruebas (PLAN_DE_PRUEBAS_USUARIOS.md)**:
+  - Creado documento oficial con 50 actividades de prueba estructuradas en el formato amigable: «Se debe probar... El resultado debe ser...».
+  - Organizado en 6 módulos: Acceso/Identidad/Biometría (1-10), Exploración/Debounce/Búsqueda (11-20), Creación y Restricciones de Prelanzamiento (21-28), Billetera/Balances BLUE y RED (29-36), Interacción Multiusuario/Solicitudes (37-44) y Contención Económica/Resiliencia de Red (45-50).
+  - Formateado para ser compartido y ejecutado por usuarios y testers en Demo sin jerga técnica.
+
+- **Creacion de la Guia Maestra de 50 Pruebas Funcionales y de Usuario (docs/LISTA_50_PRUEBAS_USUARIO_DEMO.md)**:
+  - Formato estricto para testers no tecnicos: Se debe probar... y El resultado debe ser...
+  - 50 actividades divididas en 5 modulos clave: Identidad, Catalogo y Busqueda, Prelanzamiento y Restricciones, Billetera y Balances, Recuperacion y Resiliencia Movil.
+  - Documento persistente y extensible para incorporar nuevas actividades progresivamente.
+
+- **Notificación a Codex en Puente (ANTIGRAVITY-159)**:
+  - Reportada la verificación exitosa de CODEX-180 en demo.wintoncoin.com (bundle BUSkOJr7 activo, textos corregidos y debounce operativo).
+  - Confirmado el blindaje fail-closed de economicWriteGate y el avance del indexador.
+  - Entregado formalmente el catálogo maestro de 50 pruebas de usuario (docs/LISTA_50_PRUEBAS_USUARIO_DEMO.md) para auditoría de Codex.
+
+- **Auditoría Independiente de Bloque A y Hallazgos de Producto (CODEX-181/182 / ANTIGRAVITY-160)**:
+  - Matriz Bloque A verificada: 31 casos de prueba reales registrados en docs/MATRIZ_BLOQUE_A_DEMO.md y catálogo histórico QA_TEST_CATALOG.md (QA-62 a QA-92).
+  - Monitoreo en vivo del Indexador: bloque 51104408 alcanzado con protección fail-closed activa.
+  - Consenso en 6 hallazgos críticos de producto a resolver: orden de control KYC vs Prelanzamiento en contract_interaction.html, unificación canónica de rutas React vs Legacy, estandarización de redirección protegida y adecuación legal/técnica de claims en portada.
+  - Registrado en PARA_CODEX.md y actualizado ESTADO_ANTIGRAVITY.md.
+
+- **Ejecución de Preflight Dual y Saneamiento Legal/Navegación (Autorización Expresa de Miguel)**:
+  - **Preflight Dual PASS**: Verificación contra dos RPCs independientes (sepolia.optimism.io y drpc.org). Bloque 51106966, drift 0, saldo owner 0.0508 ETH (suficiente para gas L2 + tarifa de datos L1), nonces 250 a 253 calculados, 4 simulaciones PASS_AT_LATEST sin cambio de estado.
+  - **Alineación Legal y de Marketing**: Sanitizadas frases absolutas en SecuritySection.jsx, FomoSection.jsx, index.html y landing-legacy.html reemplazando claims no verificados por descripciones técnicas comprobables de la arquitectura 1:1.
+  - **Orden de Controles en Publicación**: Corregido frontend/src/modules/publicationAccess.js para que el aviso de prelanzamiento prevalezca sobre el diálogo de verificación de KYC cuando prelanzamiento está activo.
+
+
+---
+
+## 2026-11-11 — Auditoría Arquitectónica del Repositorio y Ejecución de Fase 1 (Higiene SOC 2 / FinTech)
+
+### Contexto y Objetivo
+Se realizó una auditoría integral de la estructura del repositorio `WINTONCOIN/smart-contract` bajo estándares bancarios y de ingeniería FinTech (SOC 2 Tipo II, Zero-Trust, DRY, Single Source of Truth) y se ejecutó la **Fase 1 (Higiene de Raíz, Documentación y Guardián Automático de Arquitectura)** para asegurar que la raíz del proyecto permanezca limpia y que cualquier archivo o módulo futuro nazca en su ubicación canónica desde el momento de su creación.
+
+### Cambios Implementados
+1. **Regla Arquitectónica Permanente (`.agents/AGENTS.md`):**
+   - Se añadió `<RULE[repository_architecture_standard]>` estableciendo la política obligatoria de directorios para la raíz, `backend/src/`, `backend/migrations/` y `frontend/src/`.
+2. **Guardián Automático de Estructura (`scripts/check-repo-structure.cjs`):**
+   - Se creó un linter de arquitectura que valida automáticamente la lista blanca de archivos/carpetas en la raíz, impide la duplicación de `EVOLUCION.md`, bloquea artefactos temporales (`.resolved`, `.bak`) y audita la unicidad de prefijos numéricos en `backend/migrations/`.
+   - Integrado en `package.json` bajo `npm run audit:structure` y `npm run audit:imports`.
+3. **Limpieza y Reubicación en Raíz y `docs/`:**
+   - Se movieron los reportes puntuales de la raíz hacia `docs/`: `CORRECCIONES_ACTIVACION_123.md`, `DIAGRAMAS_DE_FLUJO_SISTEMA.md`, `IMPROVEMENTS.md`, `SECURITY_AUDIT_REPORT.md` y `PLAN_DE_PRUEBAS_USUARIOS.md`.
+   - Se reubicó `Pantallas de la aplicacion/` hacia `docs/ui-reference/pantallas-aplicacion/`.
+   - Se eliminaron `server_cleanup_script.js` (script one-off obsoleto), `docs/EVOLUCION.md` (stub duplicado, manteniendo `EVOLUCION.md` en la raíz como única fuente de verdad), `docs/qa_web3_checklist.md.resolved` y artefactos locales temporales.
+4. **Corrección de Auditoría de Imports y `.gitignore`:**
+   - Se corrigió en `verify_all_backend_imports.js` la ruta hacia `backend/scripts/migrationRunner.js`.
+   - Se endurecieron `.gitignore` y `backend/.gitignore` permitiendo explícitamente `!.env.example` (Zero Hardcoded Secrets) y bloqueando `*.resolved` y `*.bak*`.
+
+- **Acuse de Entrega CODEX-185 y Diagnóstico V6 (ANTIGRAVITY-162)**:
+  - **Recepción de Delegación**: Asumida la implementación y corrección técnica de la suite V6 en Demo delegada por Codex bajo autorización de Miguel.
+  - **Reproducción Confirmada del Fallo en Hardhat**: En ExistingOrderCollateral.test.js (caso 9), revert con InvalidPayment() en PaymentEngine.amortizeFromCollateral debido a amortización parcial previa que reduce la deuda residual por debajo de la reserva ejecutada.
+  - **Solución Arquitectónica Formulada**: Topar la amortización al compromiso residual exigible (min(netBlue, outstanding)) y acreditar el excedente de BLUE al usuario, preservando la paridad dual BLUE=RED y la solvencia del Vault.
+  - Registrado en puente-agentes/PARA_CODEX.md y actualizado ESTADO_ANTIGRAVITY.md.
+
+
+---
+
+## [2026-11-16] Habilitación Económica Integral V6 en Demo (`demo-v6-publicacion`): Reconciliación de Garantías sobre Órdenes Existentes, Conexión Backend/Frontend y Auditoría de Capacidad (`CODEX-185` / `ANTIGRAVITY-163`)
+
+### 1. Resumen Ejecutivo de Ingeniería Económica y Seguridad
+En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-publicacion`)**, se resolvió la anomalía reproducida en `ExistingOrderCollateral.test.js` (Caso 9: reversión `InvalidPayment()` en `PaymentEngine.amortizeFromCollateral`) y se conectaron de extremo a extremo las capacidades reales V6 (`secureOrder`, `autoCollateral` y compra con partición automática por compromiso RED) preservando sin excepciones la invariante de paridad `totalSupply(BLUE) == totalSupply(RED)` y la prelación FIFO del Exchange.
+
+### 2. Cambios en Smart Contracts V6 (`web3-contracts/`)
+- **`contracts/v6/exchange/AmortizationAdapter.sol`**:
+  - Se incorporó `unreserve(uint64 orderId, address user, uint128 amount)` restringido por `onlyVault`, `nonReentrant` y `modes.mode() == NORMAL`, permitiendo liberar reservas excedentes sobre órdenes del Exchange hacia custodia ordinaria sin mover USDT físicamente y limpiando `_reservations[orderId]` al llegar a cero.
+- **`contracts/v6/vault/CollateralVaultV6.sol`**:
+  - Se añadieron `existingOrder` (distinguiendo órdenes de usuario ya existentes en FIFO de órdenes originadas por Bóveda), `ExistingOrderCollateralReleased` y las interfaces `IVaultLedgerV6.outstanding`, `IVaultExchangeConfigV6.feeBps`, `IVaultRouterV6.config` e `IVaultAdapterV6.unreserve`.
+  - Se implementaron `_budget(targetRed)` (considerando comisión `feeBps` del Exchange para cubrir el neto amortizable) y `_reconcileExisting(user, orderId)`.
+  - **`collateralizeExisting`**: ejecuta primero `engine.settleMatured` para quemar BLUE disponible (incluido BLUE en parking), reconcilia cualquier exceso previo reservado y bloquea únicamente el remanente necesario según el compromiso RED residual.
+  - **`protectOverdue`**: reconcilia exceso aun si el consentimiento automático fue revocado posteriormente, contabiliza `unreservedVault` y `feeBps`, y solo toma nuevas reservas si el consentimiento sigue vigente.
+  - **Protección FIFO, cancelaciones y solvencia**: impedir mezcla indebida con órdenes creadas por Bóveda en `_collateralizeExisting`; al cancelar tras amortización externa previa, el excedente USDT liberado vuelve al usuario y únicamente el residual permanece bajo custodia de Bóveda.
+- **`contracts/v6/exchange/ExchangeRouter.sol` y `contracts/v6/exchange/FifoOrderBook.sol`**:
+  - Invocación de `_protectOverdue` en `createOrder`, `matchNext`, `cancelOrder` y `resumeOrder`; soporte de estado `SUSPENDED` en `FifoOrderBook.collateralOrderRemaining`.
+- **`test/v6/ExistingOrderCollateral.test.js` y `test/v6/SizeAndInvariantPolicy.test.js`**:
+  - Parametrización `fixture(exchangeFeeBps = 0)` y 4 pruebas nuevas (`13/13` PASS en total), cubriendo: Case 9 tras amortización previa, prioridad de quema sobre BLUE en parking en `collateralizeExisting`, reembolso directo del excedente USDT al cancelar, ejecuciones parciales con `feeBps = 100` (1%) + `claimFees()` + solvencia FIFO, y separación entre transcurso del tiempo y ejecución de worker/keeper.
+  - Incorporación de `'ProtocolTreasuryV6'` en orden alfabético en `SizeAndInvariantPolicy.test.js` (`17` contratos productivos verificados por debajo de `18,000` bytes).
+- **Sincronización al workspace principal**: se sincronizaron únicamente los 6 archivos compartidos de `web3-contracts/` (`AmortizationAdapter.sol`, `CollateralVaultV6.sol`, `ExchangeRouter.sol`, `FifoOrderBook.sol`, `ExistingOrderCollateral.test.js`, `SizeAndInvariantPolicy.test.js`). El backend/frontend V6 permanece aislado en `demo-v6-publicacion` (`origin/demo`), manteniendo al workspace principal sin dependencias cruzadas rotas.
+
+### 3. Conexión Backend y Frontend V6 (en `demo-v6-publicacion`)
+- **`backend/src/services/v6WalletPlan.js` y `backend/src/services/walletOperations.js`**:
+  - Activación real de `capabilities.secureOrder = true` (`CollateralVaultV6.collateralizeExisting`) y `capabilities.autoCollateral = true` (`CollateralVaultV6.setAutomaticExchangeCollateral`), eliminando duplicidad DRY de `splitCollateralizedBuy` y enrutando compras USDT con compromiso RED mediante `depositAndCreateAmortizationOrder` + orden ordinaria FIFO en `ExchangeRouter.createOrder` según `feeBps` y `exchangeReserved`.
+- **`backend/src/services/exchangeSnapshotV6.js`**:
+  - Exposición dinámica de `capabilities` (`exchangeRead`, `exchangeWrite`, `autoCollateral`, `secureOrder`, `collateralDetails: false`) leyendo directamente `v6WalletPlan.capabilities`.
+- **`frontend/src/pages/Exchange.jsx`**:
+  - Guardas fail-closed `requireAutoCollateral` y `requireSecureOrder`; habilitación condicional del panel de garantía automática según `capabilities?.autoCollateral === true`; y acción `"Usar como garantía RED"` en `"Mis Órdenes On-Chain"` para órdenes activas `BUY_BLUE` cuando `userRedCommitment > 0`.
+
+### 4. Resultados Verificados (Sin Compras/Firmas On-Chain ni Commits)
+- **Hardhat V6 completo (10 suites juntas):** `69 passing (9s)`, `0` fallos. Bytecode máximo productivo: `PaymentEngine` (`12,819` bytes) y `CollateralVaultV6` (`12,167` bytes), todos `< 18,000` bytes; secuencia pareada de 120 pasos (`finalSupply: 132000000`) preservando `BLUE == RED`.
+- **Backend Node test runner (`v6WalletPlan.node.test.cjs`, `v6WalletOperations.node.test.cjs`, `v6ModeGovernance.node.test.cjs`, `test-exchangeIndexerV6*.js`):** `35/35` PASS.
+- **Jest (`walletOperationsRouting.test.js`):** `1` suite, `5/5` PASS.
+- **Frontend Demo (`demo-v6-publicacion/frontend`):** `check-exchange-collateral-consent.cjs` PASS, `check:react` (`56` componentes, `0` referencias sin declarar), `vite build --mode demo` PASS y `check:demo-isolation` (`175` artefactos de texto + CRM) PASS.
+
+
+### 5. Ampliación Opción A (Auditoría Integral 360° para Pruebas Reales en Demo)
+- **Caso 14 en `ExistingOrderCollateral.test.js` (`14/14` PASS, `70/70` en las 10 suites Hardhat V6):**
+  - Se probó que cuando un usuario amortiza parcialmente su compromiso RED quedando un remanente sub-unitario (`0.50 RED` = `500,000` micro-unidades `< MIN_ORDER_AMOUNT`), `collateralizeExisting` reserva exactamente las `505,050` micro-unidades requeridas al `1%` de comisión sobre una orden existente, el primer `matchNext` quema los `500,000` BLUE/RED dejando el compromiso RED en `0`, y el segundo `matchNext` liquida el excedente ordinario (`99,494,950` USDT) respetando FIFO y `totalSupply(BLUE) == totalSupply(RED)`.
+- **Validación de tramos mínimos (`MIN_ORDER_AMOUNT = 1.000000 USDT`) en `v6WalletPlan.js`:**
+  - En compras con compromiso RED (`amount >= 1_000_000n`), si cualquiera de los dos tramos (`secured` u `ordinary`) queda entre `0.000001` y `0.999999` USDT, se rechaza antes de firmar con mensaje orientativo para evitar que una operación de varios pasos revierta on-chain en el segundo paso.
+- **Adaptador modular `backend/src/services/v6ChainBridge.js` y conexión end-to-end en Demo (`V6_DEMO`):**
+  - `getUserAuditDetailedV6`: lectura atómica anclada a bloque canónico (`requireCanonical: true`) sobre `USDT`, `BlueTokenV6`, `RedTokenV6`, `CommitmentLedger`, `CollateralVaultV6`, `RiskRegistry` y `PaymentEngine`, verificando en cada llamada `RedTokenV6.balanceOf == CommitmentLedger.outstanding`.
+  - `getProtocolStatusV6`, `checkUserKYCV6`, `executeMatchingV6` (`ExchangeRouter.matchNext`), `mintMockUsdtV6` y `buildV6OwnerActionPlan` (`RiskRegistry.setProfile` preservando campos existentes).
+  - Conectado en `web3Routes.js` (`GET /api/web3/deployment`), `web3BridgeService.js`, `externalOwnerAdministration.js` y `chainMaintenance.js` (soporte `V6_DEMO` para `PaymentEngine.settleMatured` y `CollateralVaultV6.protectOverdue` leyendo `web3_exchange_v6_orders`).
+  - Pruebas verificadas: **`40/40` PASS** en `node --test` (7 suites V6 incluyendo `v6ChainBridge.node.test.cjs`) y **`48/48` PASS** en 6 suites de regresión de Jest (`walletOperationsRouting`, `chainMaintenance`, `ownerWalletAdministration`, `walletBalanceSource`, `v5OperationalContainment`, `web3Corrections`).
+
+
+### 6. Despliegue en Optimism Sepolia Demo (`PRELAUNCH_FROZEN`), Publicación en `origin/demo` y Verificación en Vivo (`ANTIGRAVITY-165`)
+- **Commits publicados en `origin/demo`:**
+  - `616cbf11fdfa5b16ea4c301af6839ff50fffd8ea` (`feat(v6): reconcile existing order collateral and connect demo v6 suite`)
+  - `43a9ac461be8a759b2469557419842d1b9d00154` (`fix(v6): guard activeV6Config lookup for isolated vm test context`)
+- **Manifiesto y Pin V6 (`v6-demo-candidate.json` y `v6ReleasePin.js`):**
+  - `manifestSha256`: `ae9c242bff2bb0bb77ca0d50814a609912a835eb9834e5fbac1b8e9e39eab474`
+  - `validatedBlock`: `51539586` (bloques de despliegue `51539413..51539481`; enlaces `51539485..51539527`)
+  - `startBlocks`: `ExchangeRouter: 51539477`, `FifoOrderBook: 51539465`, `ExchangeCustody: 51539469`
+  - Estado inicial on-chain verificado: `mode = PRELAUNCH_FROZEN` (`1`), `totalSupply(BLUE) == totalSupply(RED) == 0`.
+- **Direcciones desplegadas en Optimism Sepolia (`chainId 11155420`):**
+  - `ProtocolModeController`: `0xF6fE94cDa3843Db306f08acE47c591540dE154d2`
+  - `RiskRegistry`: `0x56216Cc0AfA248e6Bf3377bb4bFF5Bd4B2A4b898`
+  - `ProtocolConfig`: `0x323e81DE32B41f7712ef02b01f1d6c97A59Db285`
+  - `PaymentAuthorization`: `0x30df56A0Db6fA43E948224bd2b71ffBb710e9D91`
+  - `CommitmentLedger`: `0x50ff2F7b8DA6Ac6F3d20e51008e1e8c1caaE6c51`
+  - `BlueTokenV6`: `0x7B556052c6a9A058685Eaeaf444d611908970d59`
+  - `RedTokenV6`: `0xe1D43E634d407559C975A1ef6E5E09e14fE43F07`
+  - `ProtocolTreasuryV6`: `0x23f4F0119fe9AFdf88d3eb45b0C19a2a4FD79365`
+  - `PairedSupplyController`: `0x9bB7E4F0310bCd00a139aF6782F1Fa47C356738F`
+  - `PaymentEngine`: `0x10c8ea610C6407aF9199eD624FF872A8442b1d05`
+  - `ExtensionManager`: `0x2C933ddFc6e92d392e00B6Db69C80F3F4b9D447D`
+  - `MockERC20` / `USDT`: `0xA195963291D6746544AF57126d17de5e5A1D796a`
+  - `ExchangeConfig`: `0xa03a445C51eb10899ACeD33Ddf14E133894C5d15`
+  - `FifoOrderBook`: `0x7e44997001740cAF2F3fe010C4EF6b993e8b9950`
+  - `ExchangeCustody`: `0x4351fA459f6bB9f05387EF5EE8f7e2C9AB3F5aD5`
+  - `AmortizationAdapter`: `0x893051fC9425dAF7A497Fde67A78b07589B84e28`
+  - `ExchangeRouter`: `0x88c9a90f36B86c77295D448d97322DAf75c33dAb`
+  - `CollateralVaultV6`: `0xab36Ac8c609CE3839307dFbeFCC777cbDBD149a2`
+- **Verificación en vivo de Render y Frontend Demo:**
+  - `/api/platform-settings`: HTTP `200`, `pre_launch_mode_enabled: true`.
+  - `/api/web3/deployment` y `/api/web3/status`: HTTP `200`, `epoch: "V6_DEMO"`, `mode: "PRELAUNCH_FROZEN"`, `fingerprint: "0xae9c242bff2bb0bb77ca0d50814a609912a835eb9834e5fbac1b8e9e39eab474"`.
+  - `/api/web3/exchange-queue` y `/api/web3/exchange/:wallet`: HTTP `200`, `status: "ready"`, `usable: true`, `verifiedThroughBlock: "51539493"`, `capabilities: { exchangeRead: true, exchangeWrite: true, autoCollateral: true, secureOrder: true, collateralDetails: false }`.
+  - Bundle público en `https://demo.wintoncoin.com`: `assets/main.CZBdK2IA.js` verificado.
+
+
+## [2026-11-17] Verificación On-Chain de Activación V6 en Optimism Sepolia Demo y Ajuste de Interfaz Web3
+
+### Contexto y Verificación
+- El propietario del protocolo firmó y transmitió la transacción `0x75636a21187a3298f3d39bfa675c1d2218f44b27d49721feab76ef65e3db6ccb` para invocar `ProtocolModeController.setMode(0)` (`NORMAL`).
+- **Verificación On-Chain:**
+  - Red: Optimism Sepolia (`chainId: 11155420`).
+  - Bloque: `51540744`.
+  - Estado: `EXITOSA (status: 1)`.
+  - Gas utilizado: `26.074`.
+  - Modo verificado en contrato `0xF6fE94cDa3843Db306f08acE47c591540dE154d2`: `0` (`NORMAL`).
+  - Backend Demo (`/api/web3/deployment`): Confirma `mode: "NORMAL"`.
+
+### Ajustes en Frontend
+- `AdminWeb3Panel.jsx`: Se actualizó la etiqueta de "Modo verificado" para reconocer explícitamente el modo `NORMAL (Activo)`, evitando que evalúe a "No confirmado" cuando la suite ya no está en `PRELAUNCH_FROZEN`.
+- `V6ModeActivation.jsx`: Se agregó un estado visual claro (`✓ Suite V6 Activa en Demo`) cuando el contrato ya opera en modo `NORMAL`, ocultando botones redundantes de activación y permitiendo conciliar o consultar la operación confirmada sin generar confusión.
