@@ -112,7 +112,16 @@ export default function AdminWeb3Panel() {
         if (!response.ok) throw new Error('No se pudo verificar el candidato V6.');
         const data = await response.json();
         if (data.success !== true || typeof data.configured !== 'boolean') throw new Error('La respuesta de V6 no se pudo verificar.');
-        setV6Candidate(data);
+        // Si el candidato no está configurado, se almacena el estado base directamente
+        if (!data.configured) { setV6Candidate(data); return; }
+        // Se consulta la preparación operativa (readiness) para habilitar la activación desde PRELAUNCH_FROZEN
+        const readiness = await fetch(`${getApiUrl()}/api/admin/web3/v6-mode/readiness`, {
+          credentials:'include', cache:'no-store', signal:controller.signal
+        });
+        const state = readiness.ok ? await readiness.json() : {};
+        // Se combinan los datos del candidato (incluyendo mode: 'NORMAL') con el estado de readiness
+        setV6Candidate({...data, activationReady:state.success === true && state.activationReady === true,
+          activationMessage:state.message});
       })
       .catch(error => { if (error.name !== 'AbortError') setV6CandidateError(error.message); });
     return () => controller.abort();

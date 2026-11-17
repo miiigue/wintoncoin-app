@@ -8562,3 +8562,10 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
 ### Ajustes en Frontend
 - `AdminWeb3Panel.jsx`: Se actualizó la etiqueta de "Modo verificado" para reconocer explícitamente el modo `NORMAL (Activo)`, evitando que evalúe a "No confirmado" cuando la suite ya no está en `PRELAUNCH_FROZEN`.
 - `V6ModeActivation.jsx`: Se agregó un estado visual claro (`✓ Suite V6 Activa en Demo`) cuando el contrato ya opera en modo `NORMAL`, ocultando botones redundantes de activación y permitiendo conciliar o consultar la operación confirmada sin generar confusión.
+
+
+## [2026-11-17] Restauración de Consulta Readiness y Texto Técnico en Panel V6 Demo (Revisión CODEX-188)
+
+### Contexto
+- En atención al hallazgo preventivo de `CODEX-188` sobre el commit `a04708f`, se restauró la llamada secundaria a `/api/admin/web3/v6-mode/readiness` en `AdminWeb3Panel.jsx` y el texto de instrucción fidedigno en `V6ModeActivation.jsx`.
+- **Impacto en la suite actual:** Cero impacto negativo. La suite actual en modo `NORMAL` sigue mostrándose como `NORMAL (Activo)` con su insignia verde confirmada, mientras que cualquier candidato futuro en estado `PRELAUNCH_FROZEN` conserva su flujo completo de verificación `activationReady`.

@@ -86,8 +86,8 @@ export default function V6ModeActivation({ candidate, onVerified }) {
   }
   return <section aria-label="Activación V6 Demo">
     <h3>Activación V6 Demo</h3>
-    <p>Requiere el fin del Prelanzamiento y la confirmación de la billetera propietaria. La operación se verificará en blockchain.</p>
-    {!ready && <p>Activación no disponible: faltan condiciones verificadas por el servidor.</p>}
+    <p>Mantén Prelanzamiento encendido durante la firma. Espera la confirmación en blockchain antes de cambiar el switch.</p>
+    {!ready && <p>{candidate?.activationMessage || 'La activación está pendiente de verificación.'}</p>}
     <label>Escribe ACTIVAR V6 DEMO para confirmar
       <input value={confirmation} onChange={event => setConfirmation(event.target.value)} disabled={!ready || busy || !!pending} />
     </label>
