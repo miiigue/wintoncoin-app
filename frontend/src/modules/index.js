@@ -19,6 +19,7 @@ export * from './walletService.js';
 export * from './tableSort.js';
 export * from './formDraftManager.js';
 export * from './referralContext.js';
+export * from './phoneValidation.js';
 
 // ============================================================================
 // COMPATIBILIDAD GLOBAL (window.*)

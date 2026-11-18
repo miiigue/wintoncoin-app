@@ -11,6 +11,8 @@ import {
   getPendingReferralCode,
   clearPendingReferralCode,
   sanitizeReferralCode,
+  normalizePhoneNumber,
+  validatePhoneNumber,
 } from '../modules/index.js';
 import { initPWAInstall } from '../modules/pwa-install.js';
 import { syncPendingPushSubscription } from '../modules/pushManager.js';
@@ -59,6 +61,7 @@ function Register() {
   const [isUsernameTaken, setIsUsernameTaken] = useState(false);
   const [phoneFeedback, setPhoneFeedback] = useState({ text: '', isError: false });
   const [isPhoneTaken, setIsPhoneTaken] = useState(false);
+  const [isCountryRestrictionEnabled, setIsCountryRestrictionEnabled] = useState(null);
   const [countryNotice, setCountryNotice] = useState('Por el momento solo se aceptan registros de personas residentes en Venezuela (+58).');
   const [allowedPrefixes, setAllowedPrefixes] = useState(['+58']);
 
@@ -174,7 +177,16 @@ function Register() {
     fetch(`${API_URL}/api/public-settings`)
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
-        if (isCancelled || !data) return;
+        if (isCancelled) return;
+        if (!data) {
+          setIsCountryRestrictionEnabled(true);
+          return;
+        }
+        if (typeof data.registration_country_restriction_enabled === 'boolean') {
+          setIsCountryRestrictionEnabled(data.registration_country_restriction_enabled);
+        } else {
+          setIsCountryRestrictionEnabled(data.registration_country_restriction_enabled !== 'false');
+        }
         if (data.registration_allowed_country_prefixes) {
           const prefixes = data.registration_allowed_country_prefixes.split(',').map(p => p.trim()).filter(Boolean);
           setAllowedPrefixes(prefixes);
@@ -183,7 +195,10 @@ function Register() {
           setCountryNotice(data.registration_country_restriction_notice_text);
         }
       })
-      .catch(err => console.error('[Register] Error cargando public settings:', err));
+      .catch(err => {
+        console.error('[Register] Error cargando public settings:', err);
+        if (!isCancelled) setIsCountryRestrictionEnabled(true);
+      });
 
     // 3. Cargar configuración de referidos
     fetch(`${API_URL}/api/referral-settings`)
@@ -317,42 +332,56 @@ function Register() {
     }
   };
 
+  const isVenezuelaRestrictionActive = isCountryRestrictionEnabled === true && allowedPrefixes.includes('+58');
+
+  // Re-evaluar si el estado de restricción geográfica cambia mientras el usuario está en el formulario
+  useEffect(() => {
+    if (isCountryRestrictionEnabled === false && phoneFeedback.type === 'format') {
+      setPhoneFeedback({ text: '', isError: false, title: '', type: '' });
+      setIsPhoneTaken(false);
+    }
+  }, [isCountryRestrictionEnabled]);
+
   const handlePhoneChange = (e) => {
     let val = e.target.value;
 
-    // Normalización automática para usuarios de Venezuela:
-    // Si empieza con 0414, 0424, 0412, 0416, 0426 o 02... reemplaza el 0 inicial por +58
-    if (/^0[24]/.test(val)) {
-      val = '+58 ' + val.substring(1);
-    } else if (/^[42][0-9]/.test(val) && !val.startsWith('+')) {
-      // Si el usuario escribe directamente 414... o 424...
-      val = '+58 ' + val;
+    // Normalización automática solo cuando la restricción de Venezuela (+58) está activa
+    if (isVenezuelaRestrictionActive) {
+      if (/^0[24]/.test(val)) {
+        val = '+58 ' + val.substring(1);
+      } else if (/^[42][0-9]/.test(val) && !val.startsWith('+')) {
+        val = '+58 ' + val;
+      }
     }
 
     setPhone(val);
     setPhoneFeedback({ text: '', isError: false, title: '', type: '' });
+    setIsPhoneTaken(false);
   };
 
   const handlePhoneFocus = () => {
-    if (!phone.trim()) {
+    if (isVenezuelaRestrictionActive && !phone.trim()) {
       setPhone('+58 ');
     }
   };
 
   const checkPhoneAvailability = async () => {
-    const trimmed = phone.trim().replace(/[\s\-\(\)]/g, '');
-    if (!trimmed || trimmed === '+58' || trimmed === '+') {
+    const trimmed = normalizePhoneNumber(phone);
+    if (!trimmed || (isVenezuelaRestrictionActive && trimmed === '+58') || trimmed === '+') {
       setPhoneFeedback({ text: '', isError: false, title: '', type: '' });
       setIsPhoneTaken(false);
       return;
     }
 
-    // 1. Verificación de prefijo permitido (+58)
-    const isAllowed = allowedPrefixes.some(prefix => trimmed.startsWith(prefix));
-    if (!isAllowed) {
+    const validation = validatePhoneNumber(phone, {
+      isCountryRestrictionEnabled: isCountryRestrictionEnabled === true,
+      allowedPrefixes
+    });
+
+    if (!validation.valid) {
       setPhoneFeedback({
-        title: 'Formato o Prefijo no Admitido',
-        text: `Por ahora solo se admiten registros con prefijo ${allowedPrefixes.join(' o ')} (Venezuela). Escribe tu número iniciando con +58 o directamente 0414...`,
+        title: validation.title,
+        text: validation.text,
         isError: true,
         type: 'format'
       });
@@ -360,22 +389,10 @@ function Register() {
       return;
     }
 
-    // 2. Verificación de longitud mínima
-    if (trimmed.length < 11) {
-      setPhoneFeedback({
-        title: 'Número Incompleto',
-        text: 'El número telefónico parece demasiado corto. Asegúrate de incluir tus 10 u 11 dígitos.',
-        isError: true,
-        type: 'format'
-      });
-      setIsPhoneTaken(true);
-      return;
-    }
-
-    // 3. Verificación de existencia en la base de datos
+    // Verificación de existencia en la base de datos con número normalizado E.164
     const API_URL = getApiUrl();
     try {
-      const res = await fetch(`${API_URL}/api/check-phone/${encodeURIComponent(trimmed)}`);
+      const res = await fetch(`${API_URL}/api/check-phone/${encodeURIComponent(validation.cleaned)}`);
       const data = await res.json();
       if (!data.available) {
         setPhoneFeedback({
@@ -449,6 +466,20 @@ function Register() {
       showCustomAlert('El nombre de usuario no está disponible.');
       return;
     }
+    const phoneValidation = validatePhoneNumber(phone, {
+      isCountryRestrictionEnabled: isCountryRestrictionEnabled === true,
+      allowedPrefixes
+    });
+    if (!phoneValidation.valid) {
+      setPhoneFeedback({
+        title: phoneValidation.title,
+        text: phoneValidation.text,
+        isError: true,
+        type: 'format'
+      });
+      showCustomAlert(phoneValidation.text);
+      return;
+    }
     if (isPhoneTaken) {
       showCustomAlert('El número telefónico no es válido o ya está en uso.');
       return;
@@ -494,12 +525,13 @@ function Register() {
       content_hash: doc.content_hash,
     }));
 
+    const normalizedPhone = normalizePhoneNumber(phone);
     const effectiveReferralCode = sanitizeReferralCode(referralCode) || getPendingReferralCode() || undefined;
     const payload = {
       username: username.trim(),
       password,
       email: email.trim(),
-      phone: phone.trim(),
+      phone: normalizedPhone,
       date_of_birth: dateOfBirth,
       referral_code: effectiveReferralCode,
       acceptedLegalDocuments,
@@ -521,7 +553,7 @@ function Register() {
         showCustomAlert(result.message || 'Código de verificación enviado a tu correo.');
         localStorage.setItem('pendingVerificationStep', 'otp');
         localStorage.setItem('pendingVerificationTime', Date.now().toString());
-        localStorage.setItem('pendingVerificationPhone', phone.trim());
+        localStorage.setItem('pendingVerificationPhone', normalizedPhone);
         localStorage.setItem('pendingVerificationEmail', email.trim());
         setCurrentStep('otp');
         setResendTimer(60);
@@ -772,11 +804,13 @@ function Register() {
           <div className={styles.wizardFormContainer}>
             <h2 className={styles.stepTitle}>Configura tu Identidad</h2>
 
-            {/* Restricción de país (+58) */}
-            <div className={styles.countryBanner}>
-              <span style={{ fontSize: '1.25rem' }}>🇻🇪</span>
-              <span className={styles.countryBannerText}>{countryNotice}</span>
-            </div>
+            {/* Restricción geográfica dinámica controlada desde el Panel Admin */}
+            {isCountryRestrictionEnabled === true && (
+              <div className={styles.countryBanner}>
+                <span style={{ fontSize: '1.25rem' }}>{isVenezuelaRestrictionActive ? '🇻🇪' : '🌎'}</span>
+                <span className={styles.countryBannerText}>{countryNotice}</span>
+              </div>
+            )}
 
             <div className={styles.formGroup}>
               <label htmlFor="username">Nombre de Usuario (Pseudónimo / Alias)</label>
@@ -811,12 +845,16 @@ function Register() {
 
             <div className={styles.formGroup}>
               <label htmlFor="phone">Teléfono (con Código de País)</label>
-              <small className={styles.hintText}>Para seguridad y recuperación de cuenta (WhatsApp/SMS).</small>
+              <small className={styles.hintText}>
+                {isVenezuelaRestrictionActive
+                  ? 'Para seguridad y recuperación de cuenta (WhatsApp/SMS).'
+                  : 'Incluye el signo + y el código de tu país (ej: +54 1122334455).'}
+              </small>
               <input
                 type="tel"
                 id="phone"
                 required
-                placeholder="+58 414 123 4567"
+                placeholder={isVenezuelaRestrictionActive ? '+58 414 123 4567' : '+54 1122334455'}
                 value={phone}
                 onChange={handlePhoneChange}
                 onFocus={handlePhoneFocus}

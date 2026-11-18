@@ -13,6 +13,19 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-11-17 — Validación Telefónica Dinámica E.164 en Registro según Switch del Panel Admin
+* **Diagnóstico**:
+  - Aunque `/api/public-settings` y `authController.js` respetaban correctamente el switch `registration_country_restriction_enabled = false`, el componente React `frontend/src/pages/Register.jsx` no leía dicha bandera: mostraba siempre el banner de Venezuela (`+58`), forzaba `+58 ` al enfocar o editar, y bloqueaba números internacionales válidos como `+54`.
+* **Implementación Modular y Segura**:
+  - **Nuevo módulo `frontend/src/modules/phoneValidation.js`** (reexportado desde `frontend/src/modules/index.js`): Centraliza `normalizePhoneNumber` y `validatePhoneNumber` siguiendo el estándar internacional **ITU-T E.164** (`/^\+[1-9]\d{6,14}$/`) cuando el switch está apagado, y validación de prefijos configurados cuando está encendido.
+  - **`frontend/src/pages/Register.jsx`**: Lee `registration_country_restriction_enabled` (con respaldo `fail-closed` ante fallo de red), oculta el banner de Venezuela y desactiva la auto-inyección de `+58` cuando el switch está apagado, muestra el placeholder internacional `+54 1122334455`, valida sincrónicamente antes de avanzar al Paso 3 y normaliza el teléfono antes de consultar `/api/check-phone` y enviar `register-request`.
+* **Verificación Post-Edición**:
+  - `npm --prefix frontend run check:react` → PASS.
+  - `npm --prefix frontend run test:account-security` → PASS.
+  - `npm --prefix frontend run build:demo` → PASS.
+  - `node frontend/scripts/check-pwa-build.cjs dist-demo` → PASS.
+  - `node frontend/scripts/check-referral-routing-security.cjs` (incluye pruebas unitarias de `phoneValidation.js` y Flujo 6 E2E en Chromium aceptando `+54 1122334455` sin banner `+58`) → PASS.
+
 ### 2026-11-17 — Remediación de Seguridad de Dependencias Frontend y Guardián Fail-Closed en CI Demo
 * **Diagnóstico**:
   - El workflow `.github/workflows/deploy-frontend-demo.yml` fallaba en el paso de auditoría (`npm audit --audit-level=high`, runs `44169670723` y `44209057933`) debido a `serialize-javascript <7.1.3` (con parche oficial disponible), `fast-uri` y `picomatch <=4.0.7` (`GHSA-fc5q-39xc-vjpf`, herramienta de build sin versión `>= 4.0.8` publicada aún en npm), además de figurar `@vitejs/plugin-react` en `dependencies` en lugar de `devDependencies`.

@@ -23,6 +23,15 @@ const { chromium } = require('playwright');
   assert.equal(referralMod.buildSafeRegisterUrl('sos-2026'), '/register?ref=SOS-2026');
   assert.equal(referralMod.buildSafeRegisterUrl('https://evil.com'), '/register');
 
+  // 1b. Pruebas unitarias de validación telefónica dinámica (E.164 vs restricción de país)
+  const phoneMod = await import(pathToFileURL(path.join(frontendRoot, 'src/modules/phoneValidation.js')).href);
+  assert.equal(phoneMod.validatePhoneNumber('+54 1122334455', { isCountryRestrictionEnabled: false }).valid, true);
+  assert.equal(phoneMod.validatePhoneNumber('+54 1122334455', { isCountryRestrictionEnabled: false }).cleaned, '+541122334455');
+  assert.equal(phoneMod.validatePhoneNumber('+1 2125551234', { isCountryRestrictionEnabled: false }).valid, true);
+  assert.equal(phoneMod.validatePhoneNumber('1122334455', { isCountryRestrictionEnabled: false }).valid, false);
+  assert.equal(phoneMod.validatePhoneNumber('+54 1122334455', { isCountryRestrictionEnabled: true, allowedPrefixes: ['+58'] }).valid, false);
+  assert.equal(phoneMod.validatePhoneNumber('+58 4141234567', { isCountryRestrictionEnabled: true, allowedPrefixes: ['+58'] }).valid, true);
+
   // 2. Verificación estática de reglas críticas en sw-source.js y .htaccess
   const swSource = fs.readFileSync(path.join(frontendRoot, 'src/sw-source.js'), 'utf8');
   assert(!swSource.includes("createHandlerBoundToURL('/index.html')"), 'sw-source.js no debe enrutar SPA hacia /index.html');
@@ -97,7 +106,18 @@ const { chromium } = require('playwright');
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ referral_reward_amount: 1000 }) });
       }
       if (url.includes('/api/public-settings')) {
-        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({}) });
+        return route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify({
+            registration_country_restriction_enabled: false,
+            registration_allowed_country_prefixes: '+58',
+            registration_country_restriction_notice_text: 'Por el momento solo se aceptan registros de personas residentes en Venezuela (+58).'
+          })
+        });
+      }
+      if (url.includes('/api/check-email/') || url.includes('/api/check-username/') || url.includes('/api/check-phone/')) {
+        return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ available: true }) });
       }
       if (url.includes('/api/legal/documents/active')) {
         return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ activeDocuments: [] }) });
@@ -148,7 +168,28 @@ const { chromium } = require('playwright');
     assert.equal(storedAfterXss, null, 'Payload XSS en ?ref= nunca debe guardarse en localStorage');
     assert.equal(new URL(page.url()).pathname, '/', 'Payload XSS en ?ref= no debe redirigir');
 
-    console.log('PASS check-referral-routing-security: sanitización XSS/OpenRedirect, Service Worker SPA y los 5 flujos E2E verificados.');
+    // Flujo 6: Con restricción de país apagada, Step 2 oculta aviso +58 y acepta +54 1122334455
+    await page.goto(`${baseUrl}/register?ref=INTL_2026`, { waitUntil: 'networkidle' });
+    await page.waitForSelector('h1:has-text("Crear Cuenta")', { timeout: 15000 });
+    const entendidoBtn = page.locator('button:has-text("Entendido")');
+    if (await entendidoBtn.isVisible()) {
+      await entendidoBtn.click();
+    }
+    await page.fill('#email', 'intl_test@example.com');
+    await page.fill('#password', 'Password123!');
+    await page.fill('#confirmPassword', 'Password123!');
+    await page.click('button:has-text("Siguiente")');
+    await page.waitForSelector('#phone', { timeout: 10000 });
+
+    const pageTextStep2 = await page.textContent('body');
+    assert(!pageTextStep2.includes('residentes en Venezuela'), 'No debe mostrar aviso de Venezuela si el switch está desactivado');
+    const phonePlaceholder = await page.getAttribute('#phone', 'placeholder');
+    assert.equal(phonePlaceholder, '+54 1122334455', 'El placeholder internacional debe ser +54 1122334455');
+    await page.fill('#phone', '+54 1122334455');
+    await page.locator('#phone').blur();
+    await page.waitForSelector('text=Teléfono Disponible', { timeout: 10000 });
+
+    console.log('PASS check-referral-routing-security: sanitización XSS/OpenRedirect, validación telefónica dinámica, Service Worker SPA y los 6 flujos E2E verificados.');
   } finally {
     if (context) await context.close();
     await browser.close();
