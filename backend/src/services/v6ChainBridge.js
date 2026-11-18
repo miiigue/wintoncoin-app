@@ -55,7 +55,8 @@ const ENGINE_V6_ABI = [
 
 const MODE_V6_ABI = [
   'function mode() view returns (uint8)',
-  'function owner() view returns (address)'
+  'function owner() view returns (address)',
+  'function setMode(uint8 newMode)'
 ];
 
 const CONFIG_V6_ABI = [
@@ -363,17 +364,73 @@ async function mintMockUsdtV6(bridge, config, walletAddress, amountUnits) {
 }
 
 /**
- * Construye el plan de administración del propietario para RiskRegistry V6
- * conservando los campos existentes del perfil que no se están editando.
+ * Mapa estricto de acciones de contención y recuperación de modo en ProtocolModeController V6.
+ * - 0 (NORMAL): Operación regular activa.
+ * - 1 (PRELAUNCH_FROZEN): Congelamiento total absoluto (bloquea operaciones Y retiros de USDT).
+ * - 2 (EMERGENCY_EXIT_ONLY): Parada económica operativa (permite retiros de emergencia ordenados).
+ */
+const V6_MODE_ACTIONS = {
+  v6_mode_normal: { targetMode: 0, label: 'NORMAL' },
+  v6_mode_freeze_all: { targetMode: 1, label: 'PRELAUNCH_FROZEN' },
+  v6_mode_emergency_exit: { targetMode: 2, label: 'EMERGENCY_EXIT_ONLY' }
+};
+
+/**
+ * Construye el plan de administración del propietario para V6:
+ * 1) Control de emergencia y modos en ProtocolModeController (`setMode`).
+ * 2) Perfiles de cumplimiento/riesgo en RiskRegistry (`setProfile`),
+ *    conservando los campos existentes del perfil que no se están editando.
  */
 async function buildV6OwnerActionPlan(provider, config, action, input) {
   const { error } = require('./chainOperationStore');
+
+  // --- Rama 1: Control de Modos y Parada de Emergencia en ProtocolModeController V6 ---
+  if (Object.prototype.hasOwnProperty.call(V6_MODE_ACTIONS, action)) {
+    const { targetMode, label } = V6_MODE_ACTIONS[action];
+    const modeIface = new Interface(MODE_V6_ABI);
+    const modeAddress = getAddress(config.contracts.ProtocolModeController);
+    const modeContract = new Contract(modeAddress, MODE_V6_ABI, provider);
+
+    // Lectura on-chain del modo actual y propietario real (Zero-Trust: nunca confiar en caché)
+    const [currentModeRaw, ownerRaw] = await Promise.all([
+      modeContract.mode(),
+      modeContract.owner()
+    ]);
+    const currentMode = Number(currentModeRaw);
+    const owner = getAddress(ownerRaw);
+
+    // Evita preparar transacciones redundantes si el contrato ya opera en el modo solicitado
+    if (currentMode === targetMode) {
+      throw error(`El protocolo V6 ya se encuentra en modo ${label}; no se preparó una transacción redundante.`, 409);
+    }
+
+    const data = modeIface.encodeFunctionData('setMode', [targetMode]);
+
+    // Simulación estricta (eth_call) desde la billetera propietaria antes de registrar en BD
+    try {
+      await provider.call({ from: owner, to: modeAddress, data, value: 0n });
+    } catch {
+      throw error('La simulación on-chain del cambio de modo V6 desde la billetera propietaria revertiría; operación cancelada.', 409);
+    }
+
+    return {
+      target: modeAddress,
+      method: 'setMode',
+      data,
+      projection: {},
+      // Recurso aislado por acción para que cancelar una firma en Nivel 1 nunca bloquee
+      // escalar de inmediato a Nivel 2 (Congelamiento Total), manteniendo idempotencia por acción.
+      resource: `external-owner:${action}`
+    };
+  }
+
+  // --- Rama 2: Gestión de Perfiles en RiskRegistry V6 ---
   const riskIface = new Interface(RISK_V6_ABI);
   const riskAddress = getAddress(config.contracts.RiskRegistry);
   const riskContract = new Contract(riskAddress, RISK_V6_ABI, provider);
 
   if (!['kyc', 'credit_limit', 'user_benefits'].includes(action)) {
-    throw error('En V6 los parámetros globales usan timelock en ProtocolConfig/ExtensionManager; usa el activador V6 o perfiles de RiskRegistry.', 409);
+    throw error('En V6 los parámetros globales usan timelock en ProtocolConfig/ExtensionManager; usa el control de modos V6 o perfiles de RiskRegistry.', 409);
   }
 
   const wallet = getAddress(input.walletAddress);

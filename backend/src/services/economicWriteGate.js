@@ -5,9 +5,16 @@ const MAX_INDEXER_AGE_SECONDS = 120;
 const PRELAUNCH_SETTING = 'pre_launch_mode_enabled';
 
 function isContainmentAction(operation) {
-    return ['pause', 'pause_protocol', 'pause_vault', 'pause_exchange', 'pause_treasury',
-        'owner:pause_protocol', 'owner:pause_vault', 'owner:pause_exchange', 'owner:pause_treasury', 'recovery_cancel']
-        .includes(String(operation || ''));
+    // Las acciones de contención y control de modo de emergencia V6 (ProtocolModeController.setMode)
+    // deben permanecer siempre accesibles para el propietario incluso si Prelanzamiento está activo
+    // o el indexador presenta latencia, garantizando respuesta inmediata ante incidentes (SOC 2).
+    return [
+        'pause', 'pause_protocol', 'pause_vault', 'pause_exchange', 'pause_treasury',
+        'owner:pause_protocol', 'owner:pause_vault', 'owner:pause_exchange', 'owner:pause_treasury',
+        'v6_mode_emergency_exit', 'v6_mode_freeze_all', 'v6_mode_normal',
+        'owner:v6_mode_emergency_exit', 'owner:v6_mode_freeze_all', 'owner:v6_mode_normal',
+        'recovery_cancel'
+    ].includes(String(operation || ''));
 }
 
 function configOf(config, env) {

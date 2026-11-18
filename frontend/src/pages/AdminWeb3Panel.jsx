@@ -17,6 +17,7 @@ import ContractConfiguration from '../components/ContractConfiguration.jsx';
 import IdentityDocumentReview from '../components/IdentityDocumentReview.jsx';
 import Web3Readiness from '../components/Web3Readiness.jsx';
 import V6ModeActivation from '../components/V6ModeActivation.jsx';
+import V6EmergencyControl from '../components/V6EmergencyControl.jsx';
 import { administerContract } from '../modules/ownerWalletAdministration.js';
 import styles from './AdminWeb3Panel.module.css';
 
@@ -103,27 +104,37 @@ export default function AdminWeb3Panel() {
     }
   };
 
+  const fetchV6Candidate = async (signal) => {
+    if (!['demo.wintoncoin.com', 'www.demo.wintoncoin.com'].includes(window.location.hostname)) return;
+    try {
+      setV6CandidateError('');
+      const response = await fetch(`${getApiUrl()}/api/admin/web3/v6-candidate`, { credentials: 'include', cache: 'no-store', signal });
+      if (!response.ok) throw new Error('No se pudo verificar el candidato V6.');
+      const data = await response.json();
+      if (data.success !== true || typeof data.configured !== 'boolean') throw new Error('La respuesta de V6 no se pudo verificar.');
+      // Si el candidato no está configurado, se almacena el estado base directamente
+      if (!data.configured) { setV6Candidate(data); return; }
+      // Se consulta la preparación operativa (readiness) para habilitar la activación desde PRELAUNCH_FROZEN
+      const readiness = await fetch(`${getApiUrl()}/api/admin/web3/v6-mode/readiness`, {
+        credentials:'include', cache:'no-store', signal
+      });
+      const state = readiness.ok ? await readiness.json() : {};
+      // Se combinan los datos del candidato (incluyendo mode: 'NORMAL') con el estado de readiness
+      setV6Candidate({...data, activationReady:state.success === true && state.activationReady === true,
+        activationMessage:state.message});
+    } catch (error) {
+      if (error.name !== 'AbortError') setV6CandidateError(error.message);
+    }
+  };
+
+  const refreshProtocolState = async () => {
+    await Promise.all([fetchStatus(), fetchV6Candidate()]);
+  };
+
   useEffect(() => {
     fetchStatus();
-    if (!['demo.wintoncoin.com', 'www.demo.wintoncoin.com'].includes(window.location.hostname)) return undefined;
     const controller = new AbortController();
-    fetch(`${getApiUrl()}/api/admin/web3/v6-candidate`, { credentials: 'include', cache: 'no-store', signal: controller.signal })
-      .then(async response => {
-        if (!response.ok) throw new Error('No se pudo verificar el candidato V6.');
-        const data = await response.json();
-        if (data.success !== true || typeof data.configured !== 'boolean') throw new Error('La respuesta de V6 no se pudo verificar.');
-        // Si el candidato no está configurado, se almacena el estado base directamente
-        if (!data.configured) { setV6Candidate(data); return; }
-        // Se consulta la preparación operativa (readiness) para habilitar la activación desde PRELAUNCH_FROZEN
-        const readiness = await fetch(`${getApiUrl()}/api/admin/web3/v6-mode/readiness`, {
-          credentials:'include', cache:'no-store', signal:controller.signal
-        });
-        const state = readiness.ok ? await readiness.json() : {};
-        // Se combinan los datos del candidato (incluyendo mode: 'NORMAL') con el estado de readiness
-        setV6Candidate({...data, activationReady:state.success === true && state.activationReady === true,
-          activationMessage:state.message});
-      })
-      .catch(error => { if (error.name !== 'AbortError') setV6CandidateError(error.message); });
+    fetchV6Candidate(controller.signal);
     return () => controller.abort();
   }, []);
 
@@ -423,12 +434,12 @@ export default function AdminWeb3Panel() {
           : !v6Candidate.configured ? <p>No hay un candidato V6 configurado.</p>
           : <><p>Modo verificado: <strong>{
               v6Candidate.mode === 'NORMAL' ? 'NORMAL (Activo)' :
-              v6Candidate.mode === 'PRELAUNCH_FROZEN' ? 'Prelanzamiento congelado' :
-              v6Candidate.mode === 'PAUSED' ? 'Pausado' :
+              v6Candidate.mode === 'PRELAUNCH_FROZEN' ? 'Prelanzamiento congelado (PRELAUNCH_FROZEN)' :
+              v6Candidate.mode === 'EMERGENCY_EXIT_ONLY' ? 'Parada Operativa (EMERGENCY_EXIT_ONLY)' :
               'No confirmado'
             }</strong></p>
             <p>Red: {v6Candidate.chainId} · Bloque: {v6Candidate.blockNumber}</p></>}
-        <V6ModeActivation candidate={v6Candidate} onVerified={fetchStatus} />
+        <V6ModeActivation candidate={v6Candidate} onVerified={refreshProtocolState} />
       </section>}
 
       <Web3Readiness />
@@ -717,7 +728,18 @@ export default function AdminWeb3Panel() {
             </form>
           </div>
 
-          {/* Paradas de Emergencia */}
+          {/* Paradas de Emergencia: En V6 se utiliza exclusivamente ProtocolModeController (Circuit Breaker atómico) */}
+          {statusData?.epoch === 'V6_DEMO' ? (
+            <V6EmergencyControl
+              currentMode={statusData?.mode || v6Candidate?.mode || null}
+              loadingStatus={loadingStatus}
+              actionLoading={actionLoading}
+              setActionLoading={setActionLoading}
+              setLastOwnerOperation={setLastOwnerOperation}
+              showToast={showToast}
+              onModeChanged={refreshProtocolState}
+            />
+          ) : (
           <div className={styles.actionPanel}>
             <h3 className={styles.actionPanelTitle}>🚨 Paradas de Emergencia (Pausa)</h3>
             <p className={styles.actionPanelDesc}>
@@ -773,6 +795,7 @@ export default function AdminWeb3Panel() {
               La reactivación no está disponible en este botón de emergencia. Requiere una decisión de gobierno separada y que Prelanzamiento esté desactivado.
             </p>
           </div>
+          )}
         </div>
       )}
 

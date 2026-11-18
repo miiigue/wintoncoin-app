@@ -8609,3 +8609,18 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
 ### Contexto
 - En atención al hallazgo preventivo de `CODEX-188` sobre el commit `a04708f`, se restauró la llamada secundaria a `/api/admin/web3/v6-mode/readiness` en `AdminWeb3Panel.jsx` y el texto de instrucción fidedigno en `V6ModeActivation.jsx`.
 - **Impacto en la suite actual:** Cero impacto negativo. La suite actual en modo `NORMAL` sigue mostrándose como `NORMAL (Activo)` con su insignia verde confirmada, mientras que cualquier candidato futuro en estado `PRELAUNCH_FROZEN` conserva su flujo completo de verificación `activationReady`.
+
+
+## [2026-11-18] Panel Oficial de Control de Emergencia V6 (Circuit Breaker Atómico en `ProtocolModeController`)
+
+### Contexto
+- Se reemplazó visualmente en `V6_DEMO` la tarjeta heredada de 4 pausas de V5 por el **Panel de Control de Emergencia V6** (`ProtocolModeController.setMode`), reflejando los dos niveles de contención exigidos por la industria bancaria y FinTech:
+  - **Nivel 1 (`EMERGENCY_EXIT_ONLY`, modo `2`):** detiene operaciones económicas y nuevos compromisos RED, permitiendo salidas ordenadas.
+  - **Nivel 2 (`PRELAUNCH_FROZEN`, modo `1`):** congelamiento total absoluto, bloqueando incluso cualquier retiro de USDT (`ExitsNotAllowed` / `OperationsFrozen`).
+  - **Recuperación (`NORMAL`, modo `0`):** reactivación controlada tras auditoría.
+
+### Cambios Implementados
+- **`backend/src/services/v6ChainBridge.js`:** Soporte para `v6_mode_emergency_exit`, `v6_mode_freeze_all` y `v6_mode_normal` con lectura on-chain en tiempo real, prevención de transacciones redundantes (`409`), simulación obligatoria `provider.call` desde el `owner()` real y recurso serializado `external-owner:v6-mode`.
+- **`backend/src/services/economicWriteGate.js`:** Inclusión de las acciones de contención/recuperación de modo V6 en `isContainmentAction` para garantizar disponibilidad incluso con Prelanzamiento activo o caída del indexador.
+- **`frontend/src/components/V6EmergencyControl.jsx` y `frontend/src/pages/AdminWeb3Panel.jsx`:** Componente modular y responsive con frases de confirmación estrictas (`PAUSAR OPERACIONES V6`, `CONGELAR TODO V6`, `REACTIVAR V6 NORMAL`), firma directa desde la billetera propietaria (Zero Hardcoded Secrets) y refresco automático del estado on-chain.
+- **`backend/__tests__/v6EmergencyControl.node.test.cjs`:** Suite de pruebas unitarias cubriendo las 3 transiciones, simulación on-chain, rechazo de redundancias, puerta de contención y validaciones de UI.
