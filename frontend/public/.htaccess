@@ -63,7 +63,7 @@
 # 5. ENRUTAMIENTO SPA (Single Page Application) - Apache / LiteSpeed (Hostinger)
 # ============================================================================
 # Permite que rutas como /register, /login y /forgot-password sean atendidas por
-# la SPA React en index.html sin arrojar error 404 en Hostinger.
+# la SPA React en dashboard.html sin arrojar error 404 en Hostinger.
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteBase /
@@ -73,6 +73,6 @@
     RewriteCond %{REQUEST_FILENAME} -d
     RewriteRule ^ - [L]
 
-    # Rutas SPA Web3 React: enrutar internamente a dashboard.html (preservando query string)
-    RewriteRule ^(dashboard|wallet|exchange|admin/web3|admin-web3)$ dashboard.html [L,QSA]
+    # Rutas SPA React: enrutar internamente a dashboard.html (preservando query string ?ref=...)
+    RewriteRule ^(dashboard|wallet|exchange|register|login|forgot-password|recovery|flows|architecture|admin/flows|admin/web3|admin-web3)/?$ dashboard.html [L,QSA]
 </IfModule>

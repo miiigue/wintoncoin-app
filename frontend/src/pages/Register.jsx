@@ -1,8 +1,18 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import styles from './Register.module.css';
-import { getApiUrl, showCustomAlert, getSafeReturnTo, checkAuthStatus } from '../modules/index.js';
-import { initPWAInstall, restoreReferralCode, isPWAInstalled } from '../modules/pwa-install.js';
+import {
+  getApiUrl,
+  showCustomAlert,
+  getSafeReturnTo,
+  checkAuthStatus,
+  extractReferralFromSearch,
+  persistPendingReferralCode,
+  getPendingReferralCode,
+  clearPendingReferralCode,
+  sanitizeReferralCode,
+} from '../modules/index.js';
+import { initPWAInstall } from '../modules/pwa-install.js';
 import { syncPendingPushSubscription } from '../modules/pushManager.js';
 
 /**
@@ -18,9 +28,15 @@ import { syncPendingPushSubscription } from '../modules/pushManager.js';
  * - Zero Hardcoded Secrets: Endpoints y prefijos dinámicos.
  * ============================================================================
  */
+function clearPendingVerificationStorage() {
+  localStorage.removeItem('pendingVerificationStep');
+  localStorage.removeItem('pendingVerificationTime');
+  localStorage.removeItem('pendingVerificationPhone');
+  localStorage.removeItem('pendingVerificationEmail');
+}
+
 function Register() {
   const location = useLocation();
-  const navigate = useNavigate();
 
   // Paso actual: 1, 2, 3 o 'otp'
   const [currentStep, setCurrentStep] = useState(1);
@@ -79,30 +95,76 @@ function Register() {
   const returnTo = getSafeReturnTo(urlParams.get('returnTo'));
 
   // --------------------------------------------------------------------------
-  // INICIALIZACIÓN Y CARGA DE POLÍTICAS
+  // CAPTURA Y PERSISTENCIA INMEDIATA DE REFERIDO (URL + LOCALSTORAGE)
   // --------------------------------------------------------------------------
   useEffect(() => {
-    initPWAInstall();
-
-    // Captura de referido en URL o PWA
-    const refFromUrl = urlParams.get('ref');
+    const refFromUrl = extractReferralFromSearch(location.search);
     if (refFromUrl) {
-      const cleanRef = refFromUrl.trim().toUpperCase();
-      setReferralCode(cleanRef);
-      localStorage.setItem('pending_referral_code', cleanRef);
-    } else if (isPWAInstalled()) {
-      restoreReferralCode();
-      const savedRef = localStorage.getItem('pending_referral_code');
-      if (savedRef) setReferralCode(savedRef);
+      persistPendingReferralCode(refFromUrl);
+      setReferralCode(refFromUrl);
+      return;
     }
 
+    // Restaurar en CUALQUIER navegador o PWA si el usuario ya traía invitación guardada
+    const savedRef = getPendingReferralCode();
+    if (savedRef) {
+      setReferralCode(savedRef);
+    }
+  }, [location.search]);
+
+  // --------------------------------------------------------------------------
+  // INICIALIZACIÓN, GUARDIA DE SESIÓN Y CARGA DE POLÍTICAS
+  // --------------------------------------------------------------------------
+  useEffect(() => {
+    let isCancelled = false;
+    initPWAInstall();
+
+    const effectiveRef = extractReferralFromSearch(location.search) || getPendingReferralCode();
     const API_URL = getApiUrl();
+    const openWelcomeModalsIfGuest = () => {
+      if (isCancelled) return;
+      if (!effectiveRef) {
+        if (sessionStorage.getItem('referralModalShown') !== 'true') {
+          setShowReferralModal(true);
+          sessionStorage.setItem('referralModalShown', 'true');
+        } else if (sessionStorage.getItem('policyModalShown') !== 'true') {
+          setShowPolicyModal(true);
+          sessionStorage.setItem('policyModalShown', 'true');
+        }
+      } else if (sessionStorage.getItem('policyModalShown') !== 'true') {
+        setShowPolicyModal(true);
+        sessionStorage.setItem('policyModalShown', 'true');
+      }
+    };
+
+    // 0. Guardia de sesión Zero-Trust: si ya está autenticado y verificado, pasar al dashboard
+    checkAuthStatus()
+      .then((session) => {
+        if (isCancelled) return;
+        if (session?.isAuthenticated) {
+          if (session.is_verified) {
+            clearPendingVerificationStorage();
+            window.location.replace(returnTo || '/dashboard');
+          } else {
+            if (session.email) setEmail(session.email);
+            setShowReferralModal(false);
+            setShowPolicyModal(false);
+            setCurrentStep('otp');
+          }
+          return;
+        }
+        openWelcomeModalsIfGuest();
+      })
+      .catch(() => {
+        // Invitado o error temporal de red: permitir continuar flujo de registro
+        openWelcomeModalsIfGuest();
+      });
 
     // 1. Cargar documentos legales activos
     fetch(`${API_URL}/api/legal/documents/active`)
-      .then(res => res.json())
+      .then(res => (res.ok ? res.json() : null))
       .then(data => {
-        if (Array.isArray(data.activeDocuments)) {
+        if (!isCancelled && data && Array.isArray(data.activeDocuments)) {
           setActiveLegalDocs(data.activeDocuments);
         }
       })
@@ -110,8 +172,9 @@ function Register() {
 
     // 2. Cargar ajustes de país
     fetch(`${API_URL}/api/public-settings`)
-      .then(res => res.json())
+      .then(res => (res.ok ? res.json() : null))
       .then(data => {
+        if (isCancelled || !data) return;
         if (data.registration_allowed_country_prefixes) {
           const prefixes = data.registration_allowed_country_prefixes.split(',').map(p => p.trim()).filter(Boolean);
           setAllowedPrefixes(prefixes);
@@ -124,9 +187,9 @@ function Register() {
 
     // 3. Cargar configuración de referidos
     fetch(`${API_URL}/api/referral-settings`)
-      .then(res => res.json())
+      .then(res => (res.ok ? res.json() : null))
       .then(data => {
-        if (data) {
+        if (!isCancelled && data) {
           setReferralModalData({
             isSpecial: !!data.referral_custom_share_code_enabled,
             code: data.referral_custom_share_code || 'SOSVENEZUELA',
@@ -137,21 +200,7 @@ function Register() {
       })
       .catch(err => console.error('[Register] Error cargando referral settings:', err));
 
-    // 4. Modales de bienvenida (si no hay referido en URL)
-    if (!refFromUrl) {
-      if (sessionStorage.getItem('referralModalShown') !== 'true') {
-        setShowReferralModal(true);
-        sessionStorage.setItem('referralModalShown', 'true');
-      } else if (sessionStorage.getItem('policyModalShown') !== 'true') {
-        setShowPolicyModal(true);
-        sessionStorage.setItem('policyModalShown', 'true');
-      }
-    } else if (sessionStorage.getItem('policyModalShown') !== 'true') {
-      setShowPolicyModal(true);
-      sessionStorage.setItem('policyModalShown', 'true');
-    }
-
-    // 5. Comprobar si ya había una verificación pendiente en localStorage (Persistencia al cerrar o cambiar de app en móvil)
+    // 4. Comprobar si ya había una verificación pendiente en localStorage (Persistencia al cerrar o cambiar de app en móvil)
     const pendingStep = localStorage.getItem('pendingVerificationStep');
     const pendingEmail = localStorage.getItem('pendingVerificationEmail');
     const pendingPhone = localStorage.getItem('pendingVerificationPhone');
@@ -182,14 +231,11 @@ function Register() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ phone: pendingPhone, email: pendingEmail }),
           })
-            .then(res => res.json())
+            .then(res => (res.ok ? res.json() : null))
             .then(statusData => {
-              if (statusData && statusData.isValid === false) {
+              if (!isCancelled && statusData && statusData.isValid === false) {
                 // Si expiró o ya no existe en el servidor, limpiar y volver a paso 1
-                localStorage.removeItem('pendingVerificationStep');
-                localStorage.removeItem('pendingVerificationTime');
-                localStorage.removeItem('pendingVerificationPhone');
-                localStorage.removeItem('pendingVerificationEmail');
+                clearPendingVerificationStorage();
                 setCurrentStep(1);
               }
             })
@@ -199,12 +245,13 @@ function Register() {
         }
       } else {
         // Expirado por tiempo local
-        localStorage.removeItem('pendingVerificationStep');
-        localStorage.removeItem('pendingVerificationTime');
-        localStorage.removeItem('pendingVerificationPhone');
-        localStorage.removeItem('pendingVerificationEmail');
+        clearPendingVerificationStorage();
       }
     }
+
+    return () => {
+      isCancelled = true;
+    };
   }, []);
 
   // Temporizador para reenvío de OTP
@@ -447,13 +494,14 @@ function Register() {
       content_hash: doc.content_hash,
     }));
 
+    const effectiveReferralCode = sanitizeReferralCode(referralCode) || getPendingReferralCode() || undefined;
     const payload = {
       username: username.trim(),
       password,
       email: email.trim(),
       phone: phone.trim(),
       date_of_birth: dateOfBirth,
-      referral_code: referralCode.trim() || undefined,
+      referral_code: effectiveReferralCode,
       acceptedLegalDocuments,
     };
 
@@ -467,6 +515,9 @@ function Register() {
       const result = await response.json();
 
       if (response.ok) {
+        if (effectiveReferralCode) {
+          persistPendingReferralCode(effectiveReferralCode);
+        }
         showCustomAlert(result.message || 'Código de verificación enviado a tu correo.');
         localStorage.setItem('pendingVerificationStep', 'otp');
         localStorage.setItem('pendingVerificationTime', Date.now().toString());
@@ -499,6 +550,7 @@ function Register() {
 
     setIsLoading(true);
     const API_URL = getApiUrl();
+    const effectiveReferralCode = sanitizeReferralCode(referralCode) || getPendingReferralCode();
 
     try {
       const response = await fetch(`${API_URL}/api/register-verify`, {
@@ -508,7 +560,7 @@ function Register() {
         body: JSON.stringify({
           email: email.trim(),
           verificationCode: code,
-          referral_code: referralCode.trim(),
+          referral_code: effectiveReferralCode,
         }),
       });
 
@@ -519,11 +571,8 @@ function Register() {
         localStorage.setItem('token', result.token);
         localStorage.setItem('username', result.username);
 
-        localStorage.removeItem('pendingVerificationStep');
-        localStorage.removeItem('pendingVerificationTime');
-        localStorage.removeItem('pendingVerificationPhone');
-        localStorage.removeItem('pendingVerificationEmail');
-        localStorage.removeItem('pending_referral_code');
+        clearPendingVerificationStorage();
+        clearPendingReferralCode();
 
         try {
           await syncPendingPushSubscription();
@@ -582,6 +631,22 @@ function Register() {
             Inicia sesión aquí
           </Link>
         </div>
+
+        {/* Banner de Invitación / Referido Preaplicado (visible desde el Paso 1) */}
+        {referralCode && (
+          <div className={styles.referralAppliedBanner} role="status" aria-live="polite">
+            <span className={styles.referralAppliedIcon} aria-hidden="true">🎁</span>
+            <div>
+              <div className={styles.referralAppliedTitle}>
+                Código de referido aplicado:{' '}
+                <span className={styles.referralAppliedCode}>{referralCode}</span>
+              </div>
+              <div className={styles.referralAppliedSub}>
+                Quedará vinculado automáticamente al completar tu registro.
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Barra de progreso Wizard (solo en pasos 1, 2 y 3) */}
         {currentStep !== 'otp' && (
@@ -879,9 +944,18 @@ function Register() {
               <input
                 type="text"
                 id="referral_code"
+                maxLength={40}
                 placeholder="Ej: JUAN-A1B2C3D4"
                 value={referralCode}
-                onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+                onChange={(e) => {
+                  const normalized = e.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, '');
+                  setReferralCode(normalized);
+                  if (!normalized) {
+                    clearPendingReferralCode();
+                  } else if (sanitizeReferralCode(normalized)) {
+                    persistPendingReferralCode(normalized);
+                  }
+                }}
               />
               <small className={styles.hintText}>Ingrésalo para recibir bonos de bienvenida en tokens BLUE IOU.</small>
             </div>
@@ -959,9 +1033,9 @@ function Register() {
         )}
 
         {/* Enlace de regreso al sitio principal */}
-        <Link to="/" className={styles.backHomeLink}>
+        <a href="/" className={styles.backHomeLink}>
           ← Volver al sitio principal
-        </Link>
+        </a>
       </div>
 
       {/* Modal de Referidos */}
@@ -984,7 +1058,8 @@ function Register() {
                   className={styles.btnPrimary}
                   style={{ width: '100%', background: 'linear-gradient(135deg, #00d2ff, #0072ff)' }}
                   onClick={() => {
-                    setReferralCode(referralModalData.code);
+                    const cleanSpecial = persistPendingReferralCode(referralModalData.code);
+                    setReferralCode(cleanSpecial || referralModalData.code);
                     setShowReferralModal(false);
                   }}
                 >

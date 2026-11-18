@@ -1,24 +1,52 @@
 import '../../landing.css';
 import '../../landing-fomo.css';
+import {
+    extractReferralFromSearch,
+    persistPendingReferralCode,
+    getPendingReferralCode,
+    buildSafeRegisterUrl,
+} from '../modules/referralContext.js';
 
 /**
  * ============================================================================
  * [WINTONCOIN] - LANDING PAGE CORE SCRIPT
  * ============================================================================
- * Maneja las interacciones principales, optimizaciones de rendimiento y
- * animaciones visuales (Parallax y Scroll) de la página de aterrizaje.
- * 
+ * Maneja las interacciones principales, captura/redirección segura de enlaces
+ * de referido, optimizaciones de rendimiento y animaciones visuales.
+ *
  * Estandarización Profesional:
+ * - Zero-Trust / Anti-XSS & Anti-Open Redirect en parámetros ?ref=.
  * - Renderizado Fluido (60 FPS) usando RequestAnimationFrame.
  * - Mobile-First: Bloqueo de cálculos innecesarios en dispositivos táctiles.
  * - Eficiencia de Memoria: Desconexión (Unobserve) automática en IntersectionObserver.
- * - Código estructurado, auditable y modular.
  * ============================================================================
  */
+(() => {
+    const refFromUrl = extractReferralFromSearch(window.location.search);
+    if (!refFromUrl) return;
+
+    persistPendingReferralCode(refFromUrl);
+
+    // Solo redirigir cuando el usuario aterrizó en la Landing Page (/, /index, /index.html).
+    // Si pathname ya es /register* (p.ej. caché transitoria de un SW antiguo), NO redirigimos
+    // para evitar bucles: swRegistration.js recargará la pestaña al activarse el nuevo Worker.
+    const currentPath = window.location.pathname;
+    if (currentPath === '/' || currentPath === '/index.html' || currentPath === '/index') {
+        window.location.replace(buildSafeRegisterUrl(refFromUrl, '/register'));
+    }
+})();
+
 console.log('[Landing] Módulos inicializados. Motor gráfico listo.');
 
 // Módulo de animaciones y observadores (Ejecutado cuando el DOM está listo)
 document.addEventListener('DOMContentLoaded', () => {
+    const activeRefCode = extractReferralFromSearch(window.location.search) || getPendingReferralCode();
+    if (activeRefCode) {
+        const safeRegisterHref = buildSafeRegisterUrl(activeRefCode, '/register');
+        document.querySelectorAll('a[href="register.html"], a[href="/register.html"], a[href="/register"]').forEach((anchor) => {
+            anchor.setAttribute('href', safeRegisterHref);
+        });
+    }
     
     // ------------------------------------------------------------------------
     // 1. MÓDULO DE INTERSECCIÓN (ANIMACIONES DE SCROLL)

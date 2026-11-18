@@ -3,9 +3,21 @@ export function registerAppWorker(win = window, doc = document) {
   if (!('serviceWorker' in win.navigator)) return;
   const sw = win.navigator.serviceWorker;
   const isAdmin = () => /^\/(?:admin(?:[/.\-]|$)|governance-panel|momentum-admin)/.test(win.location.pathname);
+  const isMigratedSpaPath = () => /^\/(?:dashboard|wallet(?:\.html)?|exchange(?:\.html)?|login(?:\.html)?|register(?:\.html)?|forgot-password(?:\.html)?|recovery(?:\.html)?|flows|architecture|contract_interaction\.html)\/?$/.test(win.location.pathname);
   let dirty = false, reloaded = false, registration, checking = false, lastCheck = 0;
   doc.addEventListener('input', () => { dirty = true; }, true);
   doc.addEventListener('change', () => { dirty = true; }, true);
+  const handleControllerChange = () => {
+    if (reloaded) return;
+    // Auto-curación: si un SW previo sirvió erróneamente la landing (sin #root) en una ruta SPA,
+    // recargamos una sola vez al tomar control el nuevo Worker para montar React sin intervención.
+    if (isMigratedSpaPath() && !doc.getElementById('root')) {
+      reloaded = true;
+      win.location.reload();
+      return;
+    }
+    refreshAdmin();
+  };
   const refreshAdmin = () => {
     if (!isAdmin() || reloaded) return;
     if (dirty) {
@@ -21,7 +33,7 @@ export function registerAppWorker(win = window, doc = document) {
     reloaded = true;
     win.location.reload();
   };
-  sw.addEventListener('controllerchange', refreshAdmin);
+  sw.addEventListener('controllerchange', handleControllerChange);
   win.addEventListener('pageshow', event => { if (event.persisted) refreshAdmin(); });
   const check = async () => {
     if (!registration || checking || doc.visibilityState === 'hidden' || Date.now() - lastCheck < 60000) return;

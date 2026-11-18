@@ -1,4 +1,10 @@
 import React, { useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+  extractReferralFromSearch,
+  persistPendingReferralCode,
+  buildSafeRegisterUrl,
+} from '../modules/referralContext.js';
 import EmergencyBanner from '../components/landing/EmergencyBanner';
 import HeroSection from '../components/landing/HeroSection';
 import CommunitySection from '../components/landing/CommunitySection';
@@ -29,6 +35,16 @@ import SolidarioSection from '../components/landing/SolidarioSection';
  */
 function Home() {
   const containerRef = useRef(null);
+  const location = useLocation();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const refFromUrl = extractReferralFromSearch(location.search);
+    if (refFromUrl) {
+      persistPendingReferralCode(refFromUrl);
+      navigate(buildSafeRegisterUrl(refFromUrl), { replace: true });
+    }
+  }, [location.search, navigate]);
 
   useEffect(() => {
     if (!containerRef.current) return;

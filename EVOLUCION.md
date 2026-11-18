@@ -13,6 +13,24 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-11-17 — Corrección Integral de Enlaces de Referido, Service Worker SPA y Persistencia Zero-Trust de Registro (Opción 1)
+* **Diagnóstico de Causa Raíz**:
+  - *Secuestro de Rutas por Service Worker (`frontend/src/sw-source.js`)*: `NavigationRoute` estaba enlazada a `/index.html` (la Landing Page estática) con una `allowlist` que interceptaba `/register`, `/register.html`, `/login`, `/login.html`, `/forgot-password`, `/dashboard`, `/wallet` y `/exchange`. Esto provocaba que tanto los enlaces de referido como el botón *"Registrarme"* de `sos-venezuela.html` devolvieran al usuario a la Landing Page.
+  - *Faltantes de Reescritura HTTP (`frontend/public/.htaccess` y `frontend/vite.config.js`)*: Rutas limpias sin extensión (`/register`, `/login`, `/forgot-password`, `/recovery`) generadas por `ReferralPromoCard.jsx` no estaban enrutadas hacia `dashboard.html`.
+  - *Pérdida de Contexto y Duplicidad*: `Landing` no capturaba `?ref=` ni redirigía a registro; `Register.jsx` solo restauraba `pending_referral_code` si `isPWAInstalled()` era verdadero y no ejecutaba `checkAuthStatus()`; `register.html` mantenía un shell legado duplicado; y el backend (`authController.js`) guardaba `null` en `pending_verifications.referral_code`.
+* **Controles de Ingeniería y Seguridad Aplicados (Zero-Trust / OWASP / DRY)**:
+  - **Módulo Centralizado `frontend/src/modules/referralContext.js`**: Lista blanca estricta (`/^[A-Z0-9_-]{2,40}$/`) anti-XSS en parámetros `?ref=`/`?referral=`/`?r=` y construcción fija de ruta relativa anti-Open-Redirect (`/register`).
+  - **Service Worker y Auto-curación (`sw-source.js`, `swRegistration.js`)**: `NavigationRoute` enlazada exclusivamente a `/dashboard.html` excluyendo `/`, `/index.html`, `sos-venezuela.html` y rutas `/admin*` (`NetworkOnly`). Purga de caché `wintoncoin-html-v2` al activar y recarga única automática si una pestaña SPA fue servida sin `#root` por un Worker previo.
+  - **Unificación React SPA y Enrutamiento (`register.html`, `.htaccess`, `vite.config.js`, `Register.jsx`, `landing.js`, `Home.jsx`)**: `register.html` unificado como shell React SPA preservando meta tags Open Graph para `seoMiddlewareReferrals`; retiro de `frontend/src/pages/register.js` por regla DRY; guardia de sesión `checkAuthStatus()` activa en `Register.jsx`; restauración universal de `pending_referral_code` y banner visible desde el Paso 1; redirección segura desde Landing cuando llega `?ref=`.
+  - **Respaldo Transaccional en Servidor (`backend/src/controllers/authController.js`)**: Sanitización y guardado de `referral_code` en `pending_verifications` durante `registerRequest` con recuperación automática en `registerVerify`.
+* **Verificación Post-Edición**:
+  - `npm --prefix frontend run check:react` → PASS.
+  - `npm --prefix frontend run test:account-security` → PASS.
+  - `npm --prefix frontend run build:demo` (incluye `check:demo-isolation`) → PASS.
+  - `node frontend/scripts/check-pwa-build.cjs dist-demo` → PASS.
+  - `node frontend/scripts/check-referral-routing-security.cjs` (E2E Chromium con SW activo + anti-XSS/OpenRedirect) → PASS.
+  - `npm --prefix backend test -- __tests__/authReferralPersistence.test.js` → PASS (3/3).
+
 ### 2026-10-29 — Contención operativa V5, reparación del indexador y evidencia reproducible
 * **Contención por defecto**: cualquier época Demo consulta primero `pre_launch_mode_enabled`; mientras Prelanzamiento esté activo —o su estado no pueda comprobarse de forma válida— no se autoriza ninguna escritura blockchain. Después de esa barrera universal, V5 exige además habilitación explícita, fingerprint exacto e indexador `ready`, sin errores y reciente. Las pausas de emergencia siguen disponibles; el desbloqueo queda impedido mientras exista contención.
 * **Indexador alineado con la época**: el backend deriva dirección y bloque inicial del Exchange desde `V5_CODEX_163`, evitando depender de variables V4 retiradas y permitiendo recuperar la cola del Exchange tras el despliegue.

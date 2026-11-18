@@ -17,9 +17,18 @@ const jwtSecret = process.env.JWT_SECRET;
 const saltRounds = 10;
 const MAX_PASSWORD_RESET_ATTEMPTS = 5;
 
+const REFERRAL_CODE_ALLOWLIST_REGEX = /^[A-Z0-9_-]{2,40}$/;
+
+function sanitizeReferralCodeInput(rawCode) {
+    if (typeof rawCode !== 'string') return null;
+    const normalized = rawCode.trim().toUpperCase();
+    return REFERRAL_CODE_ALLOWLIST_REGEX.test(normalized) ? normalized : null;
+}
+
 exports.registerRequest = async (req, res) => {
-    const { username, email, password, phone, date_of_birth, acceptedLegalDocuments } = req.body;
+    const { username, email, password, phone, date_of_birth, referral_code, acceptedLegalDocuments } = req.body;
     const normalizedEmail = normalizeEmail(email);
+    const sanitizedReferralCode = sanitizeReferralCodeInput(referral_code);
 
     // --- Validación Estricta de Usuario (Estándar de Industria) ---
     // 1. Longitud mínima
@@ -158,7 +167,7 @@ exports.registerRequest = async (req, res) => {
                 normalizedEmail,
                 passwordHash,
                 phone,
-                null,
+                sanitizedReferralCode,
                 verificationCodeHash,
                 lastSentAt,
                 expiresAt,
@@ -332,10 +341,11 @@ exports.registerVerify = async (req, res) => {
         console.log(`[AUDIT] Evidencia legal registrada para usuario ${newUser.username} (IP: ${ipAddress})`);
 
         // --- 3. [LÓGICA REINTEGRADA - PRINCIPIO DRY] Aplicar bonos de bienvenida y referidos vía Servicio Centralizado ---
+        const effectiveReferralCode = sanitizeReferralCodeInput(referral_code) || sanitizeReferralCodeInput(pendingUser.referral_code) || '';
         await referralRewardService.processReferralReward({
             client,
             newUser,
-            referralCode: referral_code
+            referralCode: effectiveReferralCode
         });
 
         // --- 4. Limpiar la tabla de pendientes ---

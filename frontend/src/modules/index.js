@@ -18,6 +18,7 @@ export * from './clipboard.js';
 export * from './walletService.js';
 export * from './tableSort.js';
 export * from './formDraftManager.js';
+export * from './referralContext.js';
 
 // ============================================================================
 // COMPATIBILIDAD GLOBAL (window.*)

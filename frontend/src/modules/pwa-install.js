@@ -12,6 +12,11 @@
 
 // --- Importar estilos separados (Vite los inyecta automáticamente) ---
 import '../styles/pwa-install.css';
+import {
+    extractReferralFromSearch,
+    persistPendingReferralCode,
+    getPendingReferralCode
+} from './referralContext.js';
 
 // --- Variables globales persistentes entre navegaciones SPA ---
 // MOTIVO: En una SPA, los módulos se re-ejecutan al navegar.
@@ -41,14 +46,10 @@ const PWA_INSTALL_DISMISSED_KEY = `pwa_install_dismissed_${HOSTNAME}`; // Marca 
  * @returns {boolean} true si había un código de referido en la URL
  */
 function saveReferralCodeFromUrl() {
-    // Extraer parámetro ?ref=CODIGO de la URL actual
-    const urlParams = new URLSearchParams(window.location.search);
-    const refCode = urlParams.get('ref');
-
-    if (refCode) {
-        // Guardar en localStorage para que sobreviva la instalación de la PWA
-        localStorage.setItem('pending_referral_code', refCode.trim().toUpperCase());
-        console.log('[PWA] Código de referido guardado:', refCode);
+    const cleanRef = extractReferralFromSearch(window.location.search);
+    if (cleanRef) {
+        persistPendingReferralCode(cleanRef);
+        console.log('[PWA] Código de referido guardado:', cleanRef);
         return true;
     }
     return false;
@@ -61,10 +62,10 @@ function saveReferralCodeFromUrl() {
  * @returns {boolean} true si hay registro pendiente
  */
 function hasPendingRegistration() {
-    const pendingRefCode = localStorage.getItem('pending_referral_code');
+    const pendingRefCode = getPendingReferralCode();
     const token = localStorage.getItem('token');
     // Si hay código de referido Y no hay sesión activa = registro pendiente
-    return pendingRefCode && !token;
+    return Boolean(pendingRefCode) && !token;
 }
 
 /**
@@ -74,7 +75,7 @@ function hasPendingRegistration() {
  * que el usuario no tenga que volver a escribirlo.
  */
 export function restoreReferralCode() {
-    const savedRefCode = localStorage.getItem('pending_referral_code');
+    const savedRefCode = getPendingReferralCode();
     const referralInput = document.getElementById('referral_code');
 
     // Solo restaurar si hay código guardado, existe el input y está vacío

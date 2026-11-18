@@ -38,6 +38,11 @@ self.addEventListener('activate', event => event.waitUntil((async () => {
   // clientes con la política nueva. Nunca se reproducen automáticamente.
   await clearLegacyApiRetryQueue();
   for (const name of await caches.keys()) {
+    // Purga caché HTML obsoleta (v2) para erradicar respuestas cacheadas previas al fix de rutas SPA.
+    if (name === 'wintoncoin-html-v2') {
+      await caches.delete(name);
+      continue;
+    }
     if (!name.startsWith('wintoncoin-') && !name.startsWith('workbox-precache')) continue;
     const cache = await caches.open(name);
     for (const request of await cache.keys()) if (isAdminPath(new URL(request.url).pathname)) await cache.delete(request);
@@ -58,12 +63,14 @@ registerRoute(
     new NetworkOnly({fetchOptions:{cache:'no-store'}})
 );
 
-// SPA Navigation Route: Rutas limpias de React SPA (/dashboard, /wallet, /login, /exchange, etc.)
-// Permite que la app cargue instantáneamente y funcione offline entregando el shell React
+// SPA Navigation Route: Rutas React SPA (/dashboard, /wallet, /exchange, /register, /login, etc.)
+// CRÍTICO: Apunta a /dashboard.html (el shell React con <div id="root">), NUNCA a /index.html
+// (que es la Landing Page estática). Tampoco incluye / ni /index.html en allowlist para
+// preservar la Landing Page estática y sus flujos independientes.
 try {
-    const spaNavigationHandler = createHandlerBoundToURL('/index.html');
+    const spaNavigationHandler = createHandlerBoundToURL('/dashboard.html');
     const spaNavigationRoute = new NavigationRoute(spaNavigationHandler, {
-        allowlist: [/^\/(?:index(?:\.html)?|dashboard|wallet(?:\.html)?|exchange(?:\.html)?|login(?:\.html)?|register(?:\.html)?|forgot-password(?:\.html)?|contract_interaction\.html)?(?:\?.*)?$/],
+        allowlist: [/^\/(?:dashboard|wallet(?:\.html)?|exchange(?:\.html)?|login(?:\.html)?|register(?:\.html)?|forgot-password(?:\.html)?|recovery(?:\.html)?|flows|architecture|contract_interaction\.html)\/?(?:\?.*)?$/],
         denylist: [
             /^\/api\//,
             /^\/notifications\//,
@@ -80,7 +87,7 @@ try {
 registerRoute(
     /\.html$/,
     new NetworkFirst({
-        cacheName: 'wintoncoin-html-v2',
+        cacheName: 'wintoncoin-html-v3',
         networkTimeoutSeconds: 1,
         plugins: [
             new ExpirationPlugin({ maxEntries: 50, maxAgeSeconds: 86400 }),

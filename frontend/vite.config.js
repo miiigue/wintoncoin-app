@@ -87,15 +87,37 @@ const demoModePlugin = (mode) => {
   };
 };
 
-// Plugin para enrutar rutas SPA React Web3 (/dashboard, /wallet, /exchange, /admin/web3) hacia dashboard.html
+// Plugin para enrutar rutas SPA React (/dashboard, /wallet, /exchange, /register, /login, etc.) hacia dashboard.html
+const SPA_FALLBACK_ROUTES = new Set([
+  '/wallet',
+  '/wallet.html',
+  '/exchange',
+  '/exchange.html',
+  '/dashboard',
+  '/register',
+  '/register.html',
+  '/login',
+  '/login.html',
+  '/forgot-password',
+  '/forgot-password.html',
+  '/admin/web3',
+  '/admin-web3',
+  '/flows',
+  '/architecture',
+  '/admin/flows',
+  '/recovery',
+  '/recovery.html',
+]);
+
 const spaFallbackPlugin = () => {
   return {
     name: 'spa-fallback-plugin',
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
-        const pathname = req.url ? req.url.split('?')[0] : '';
-        // Rutas Web3 React SPA 2026: servir dashboard.html para montar React SPA
-        if (['/wallet', '/exchange', '/dashboard', '/admin/web3', '/admin-web3', '/flows', '/architecture', '/admin/flows', '/recovery', '/recovery.html'].includes(pathname)) {
+        const rawPathname = req.url ? req.url.split('?')[0] : '';
+        const pathname = rawPathname.length > 1 && rawPathname.endsWith('/') ? rawPathname.slice(0, -1) : rawPathname;
+        // Rutas React SPA 2026: servir dashboard.html para montar React SPA preservando query params
+        if (SPA_FALLBACK_ROUTES.has(pathname)) {
           const query = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
           req.url = '/dashboard.html' + query;
         }
@@ -247,7 +269,7 @@ export default defineConfig(({ mode }) => ({
   // ============================================================================
   plugins: [
     react(), // Soporte para React SPA
-    spaFallbackPlugin(), // Enruta /register, /login, /forgot-password hacia index.html (SPA)
+    spaFallbackPlugin(), // Enruta /register, /login, /forgot-password y rutas React SPA hacia dashboard.html
     demoModePlugin(mode), // Inyecta listones visuales si mode === 'demo'
     {
       name: 'versioned-worker-registration',
