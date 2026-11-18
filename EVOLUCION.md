@@ -13,6 +13,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-11-17 — Remediación de Seguridad de Dependencias Frontend y Guardián Fail-Closed en CI Demo
+* **Diagnóstico**:
+  - El workflow `.github/workflows/deploy-frontend-demo.yml` fallaba en el paso de auditoría (`npm audit --audit-level=high`, runs `44169670723` y `44209057933`) debido a `serialize-javascript <7.1.3` (con parche oficial disponible), `fast-uri` y `picomatch <=4.0.7` (`GHSA-fc5q-39xc-vjpf`, herramienta de build sin versión `>= 4.0.8` publicada aún en npm), además de figurar `@vitejs/plugin-react` en `dependencies` en lugar de `devDependencies`.
+* **Controles Aplicados**:
+  - `frontend/package.json` y `frontend/package-lock.json`: Movido `@vitejs/plugin-react` a `devDependencies` y ejecutado `npm audit fix` limpio (sin `--force`), eliminando las vulnerabilidades de `serialize-javascript` y `fast-uri` y dejando `0` vulnerabilidades `high/critical` en dependencias de runtime (`--omit=dev`).
+  - `frontend/scripts/check-ci-audit.cjs`: Nuevo guardián `fail-closed` que exige `0` vulnerabilidades `high/critical` en `--omit=dev`, bloquea cualquier `critical` en `devDependencies` y bloquea todo `high` en `devDependencies` distinto de la única excepción acotada de build-time (`GHSA-fc5q-39xc-vjpf`), con 4 pruebas automáticas propias.
+  - `.github/workflows/deploy-frontend-demo.yml`: Integrado `node scripts/check-ci-audit.cjs` antes de `build:demo` y añadida ejecución E2E post-build de `node scripts/check-referral-routing-security.cjs`.
+* **Verificación Post-Edición**:
+  - `node frontend/scripts/check-ci-audit.cjs` (4/4 self-tests + `--omit=dev` PASS) → PASS.
+  - `npm --prefix frontend run test:wallet`, `test:account-security`, `build:demo`, `check-pwa-build.cjs dist-demo`, `check-referral-routing-security.cjs` y `check-repo-structure.cjs` → PASS.
+
 ### 2026-11-17 — Corrección Integral de Enlaces de Referido, Service Worker SPA y Persistencia Zero-Trust de Registro (Opción 1)
 * **Diagnóstico de Causa Raíz**:
   - *Secuestro de Rutas por Service Worker (`frontend/src/sw-source.js`)*: `NavigationRoute` estaba enlazada a `/index.html` (la Landing Page estática) con una `allowlist` que interceptaba `/register`, `/register.html`, `/login`, `/login.html`, `/forgot-password`, `/dashboard`, `/wallet` y `/exchange`. Esto provocaba que tanto los enlaces de referido como el botón *"Registrarme"* de `sos-venezuela.html` devolvieran al usuario a la Landing Page.

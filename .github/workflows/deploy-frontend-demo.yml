@@ -26,12 +26,13 @@ jobs:
         run: |
           cd frontend
           npm ci
-          npm audit --audit-level=high
+          node scripts/check-ci-audit.cjs
           npx playwright install --with-deps chromium
           npm run test:wallet
           npm run test:account-security
           npm run build:demo
           npm run test:pwa -- dist-demo
+          node scripts/check-referral-routing-security.cjs
 
       - name: 🚀 Instalar cliente seguro LFTP
         run: sudo apt-get update && sudo apt-get install -y lftp

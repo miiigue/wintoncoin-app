@@ -20,6 +20,7 @@
   "devDependencies": {
     "@babel/parser": "7.29.9",
     "@babel/traverse": "7.29.10",
+    "@vitejs/plugin-react": "^4.7.0",
     "esbuild": "0.28.2",
     "playwright": "1.62.1",
     "sharp": "0.35.5",
@@ -34,7 +35,6 @@
     "@safe-global/protocol-kit": "8.0.7",
     "@safe-global/safe-modules-deployments": "3.0.10",
     "@simplewebauthn/browser": "^9.0.1",
-    "@vitejs/plugin-react": "^4.7.0",
     "buffer": "6.0.3",
     "ethers": "^6.17.0",
     "react": "^19.2.8",
