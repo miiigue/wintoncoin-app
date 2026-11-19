@@ -45,7 +45,7 @@ class ChainRpcProvider extends JsonRpcProvider{
     const rangeLimited = entries.every(entry=>entry.method==='eth_getLogs') &&
       results.some(result=>result.error && /block range|range.{0,30}(limit|wide)|limit.{0,35}blocks/i.test(String(result.error.message)));
     const historyUnavailable = entries.every(entry=>['eth_getCode','eth_call','eth_getBlockByNumber','eth_getLogs'].includes(entry.method)) &&
-      results.some(result=>result.error && /insufficient changesets|missing trie node|historical state|state.*pruned/i.test(String(result.error.message)));
+      results.some(result=>result.error && (result.error.code===4444 || /insufficient changesets|missing trie node|historical state|pruned.*history|state.*pruned/i.test(String(result.error.message))));
     if((rangeLimited || historyUnavailable) && offset+1<this.urls.length)
       throw makeError('El RPC limita el rango de bloques.','SERVER_ERROR',{});
     // Preserve contract reverts and business errors; they are not transport failures.

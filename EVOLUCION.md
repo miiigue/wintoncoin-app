@@ -8645,3 +8645,16 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
 - **`backend/src/services/economicWriteGate.js`:** Actualizado `configOf` a `marketplaceDeployment` y `assertStatic` para validar huella SHA-256 en suites `isV6Epoch` tras el paso previo por `assertOperational`.
 - **`backend/src/services/safeExecution.js` y `backend/src/services/gasSponsorship.js`:** Actualizada la lectura de configuración hacia `marketplaceDeployment.configuration()` para habilitar ejecución patrocinada V6 sin errores `503`.
 - **`backend/src/services/chainOperationStore.js` (unificación de `deployment` por defecto):** Actualizado el parámetro por defecto de `ChainOperationStore` hacia `marketplaceDeployment` para evitar falsas cuarentenas (`DEPLOYMENT_CHANGED_QUARANTINED`) en servicios o workers que instancian el almacén sin pasar `{ deployment }` explícito en Demo V6.
+
+
+## [2026-11-19] Recuperación Automática del Indexador V6 ante Estado Histórico Podado (`code: 4444 pruned history unavailable`) en Render Free Tier
+
+### Causa Raíz Detectada en Logs de Render
+- Tras horas de inactividad en la instancia gratuita de Render, el cursor `web3_exchange_v6_sync.cursor_block` quedó en `51585398` mientras la red avanzó más de 77.000 bloques (`~51662800`).
+- Al intentar avanzar de a `1.000` bloques (`51586398`), `eth_getCode(address, 51586398)` fallaba con `error={ "code": 4444, "message": "pruned history unavailable: requested 51586398, earliest available 51652837" }` en nodos RPC no-archivo, dejando el indexador en `status = 'error'` e impidiendo que `prelaunchExitReadiness` aprobara `indexer_ready`.
+
+### Solución Implementada
+- **`backend/src/services/chainRpcProvider.js`:** Ampliado `historyUnavailable` para detectar `code === 4444` y `pruned.*history`, habilitando failover inmediato hacia el endpoint con historial disponible.
+- **`backend/src/services/exchangeIndexerV6.js`:** Paginación de `logsInRange` en ventanas de hasta `10.000` bloques (con bisección recursiva automática), soporte de `options.stateBlock` en `readPage` para verificar código contra un bloque finalizado disponible cuando el lote histórico está podado, y helper `isPrunedHistoryError`.
+- **`backend/src/services/exchangeIndexerV6Worker.js`:** Cuando un lote intermedio (`end < target.number`) encuentra estado histórico podado (`isPrunedHistoryError`), el worker avanza de forma paginada en tramos controlados de hasta `10.000` bloques verificando código, órdenes y solvencia en `stateBlock = target.number` con `status = 'syncing'` (*fail-closed*), y al alcanzar `end === target.number` ejecuta la conciliación matemática global 1:1 (`totalReserved` y `totalPendingRefund`) antes de marcar `status = 'ready'`.
+- **`backend/__tests__/test-exchangeIndexerV6Worker.js`:** Añadido caso de prueba de recuperación paginada ante error `4444 pruned history unavailable` verificando transición `syncing` -> `ready`.

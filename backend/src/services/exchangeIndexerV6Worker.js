@@ -1,6 +1,6 @@
 'use strict';
 const { Contract, id } = require('ethers');
-const { readPage } = require('./exchangeIndexerV6');
+const { readPage, isPrunedHistoryError } = require('./exchangeIndexerV6');
 const bookAbi = ['function order(uint64) view returns (tuple(uint64 id,uint64 sequence,uint128 remaining,address user,uint8 status,uint8 side,uint48 createdAt,uint128 original,uint128 refunded))'];
 const custodyAbi = ['function pendingRefund(address,uint8) view returns (uint128)', 'function solvent(uint8) view returns (bool)', 'function totalReserved(uint256) view returns (uint128)', 'function totalPendingRefund(uint256) view returns (uint128)'];
 class ExchangeIndexerV6Worker {
@@ -42,41 +42,62 @@ class ExchangeIndexerV6Worker {
       }
       const lastDeployment = Math.max(...this.config.streams.map(x => x.startBlock));
       if (target.number < lastDeployment) return { status: 'waiting_deployment' };
-      const end = Math.min(target.number, Math.max(Number(cursor.cursor_block) + this.batchBlocks, lastDeployment));
+      const fromBlock = Number(cursor.cursor_block) + 1;
+      let end = Math.min(target.number, Math.max(Number(cursor.cursor_block) + this.batchBlocks, lastDeployment));
       if (end < this.start) return { status: 'waiting_deployment' };
-      const page = await readPage(this.provider, this.config, Number(cursor.cursor_block) + 1, end);
-      const ids = new Set(), users = new Set();
-      for (const log of page.logs) {
-        if (log.stream === 'book') ids.add(log.args[0]);
-        if (log.stream === 'router' && ['OrderOpened','OrderCancelled','OrderSkipped'].includes(log.event)) ids.add(log.args[0]);
-        if (log.event === 'OrdersMatched') { ids.add(log.args[0]); ids.add(log.args[1]); }
-        if (log.stream === 'custody' && ['Refunded','PendingReleased'].includes(log.event)) users.add(log.args[1].toLowerCase());
+      const loadAndVerifyAt = async (toBlock, stateBlock = toBlock) => {
+        const page = await readPage(this.provider, this.config, fromBlock, toBlock, { stateBlock });
+        const ids = new Set(), users = new Set();
+        for (const log of page.logs) {
+          if (log.stream === 'book') ids.add(log.args[0]);
+          if (log.stream === 'router' && ['OrderOpened','OrderCancelled','OrderSkipped'].includes(log.event)) ids.add(log.args[0]);
+          if (log.event === 'OrdersMatched') { ids.add(log.args[0]); ids.add(log.args[1]); }
+          if (log.stream === 'custody' && ['Refunded','PendingReleased'].includes(log.event)) users.add(log.args[1].toLowerCase());
+        }
+        const orders = [];
+        for (const id of ids) {
+          const o = await this.book.order(id, { blockTag: stateBlock });
+          if (o.id.toString() !== id || Number(o.status) < 1 || Number(o.status) > 5) throw Error('INVALID_ORDER');
+          orders.push({ id, data: { id, sequence: o.sequence.toString(), remaining: o.remaining.toString(), user: o.user.toLowerCase(), status: Number(o.status), side: Number(o.side), createdAt: o.createdAt.toString(), original: o.original.toString(), refunded: o.refunded.toString() } });
+        }
+        const refunds = [];
+        for (const user of users) refunds.push({ user, blue: (await this.custody.pendingRefund(user,0,{blockTag:stateBlock})).toString(), usdt: (await this.custody.pendingRefund(user,1,{blockTag:stateBlock})).toString() });
+        if (!(await this.custody.solvent(0,{blockTag:stateBlock})) || !(await this.custody.solvent(1,{blockTag:stateBlock}))) throw Error('V6_CUSTODY_INSOLVENT');
+        if ((await this.provider.getBlock(toBlock)).hash !== page.target.hash) throw Error('V6_CHAIN_CHANGED');
+        if (stateBlock !== toBlock && (await this.provider.getBlock(stateBlock)).hash !== page.stateTarget.hash) throw Error('V6_CHAIN_CHANGED');
+        return { page, orders, refunds, stateBlock };
+      };
+      let loaded;
+      try {
+        loaded = await loadAndVerifyAt(end, end);
+      } catch (err) {
+        if (end < target.number && isPrunedHistoryError(err)) {
+          const catchupSpan = Math.max(this.batchBlocks * 10, 10000);
+          end = Math.min(target.number, Math.max(end, Number(cursor.cursor_block) + catchupSpan));
+          loaded = await loadAndVerifyAt(end, target.number);
+        } else {
+          throw err;
+        }
       }
-      const orders = [];
-      for (const id of ids) {
-        const o = await this.book.order(id, { blockTag: end });
-        if (o.id.toString() !== id || Number(o.status) < 1 || Number(o.status) > 5) throw Error('INVALID_ORDER');
-        orders.push({ id, data: { id, sequence: o.sequence.toString(), remaining: o.remaining.toString(), user: o.user.toLowerCase(), status: Number(o.status), side: Number(o.side), createdAt: o.createdAt.toString(), original: o.original.toString(), refunded: o.refunded.toString() } });
-      }
-      const refunds = [];
-      for (const user of users) refunds.push({ user, blue: (await this.custody.pendingRefund(user,0,{blockTag:end})).toString(), usdt: (await this.custody.pendingRefund(user,1,{blockTag:end})).toString() });
-      if (!(await this.custody.solvent(0,{blockTag:end})) || !(await this.custody.solvent(1,{blockTag:end}))) throw Error('V6_CUSTODY_INSOLVENT');
-      if ((await this.provider.getBlock(end)).hash !== page.target.hash) throw Error('V6_CHAIN_CHANGED');
+      const { page, orders, refunds, stateBlock } = loaded;
       await client.query('BEGIN');
       try {
         for (const x of page.logs) await client.query(`INSERT INTO web3_exchange_v6_events(chain_id,router_address,block_number,block_hash,transaction_hash,log_index,emitter,stream,event_name,arguments) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb) ON CONFLICT DO NOTHING`, [...key, x.blockNumber,x.blockHash,x.transactionHash,x.logIndex,x.address.toLowerCase(),x.stream,x.event,JSON.stringify(x.args)]);
-        for (const x of orders) await client.query(`INSERT INTO web3_exchange_v6_orders(chain_id,router_address,order_id,data,block_number,block_hash) VALUES($1,$2,$3,$4::jsonb,$5,$6) ON CONFLICT(chain_id,router_address,order_id) DO UPDATE SET data=EXCLUDED.data,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash`, [...key,x.id,JSON.stringify(x.data),end,page.target.hash]);
-        for (const x of refunds) await client.query(`INSERT INTO web3_exchange_v6_refunds(chain_id,router_address,user_address,blue,usdt,block_number,block_hash) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(chain_id,router_address,user_address) DO UPDATE SET blue=EXCLUDED.blue,usdt=EXCLUDED.usdt,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash`, [...key,x.user,x.blue,x.usdt,end,page.target.hash]);
-        const totals = (await client.query(`SELECT
-          COALESCE(sum((data->>'remaining')::numeric) FILTER (WHERE data->>'side'='0' AND data->>'status' IN ('1','2','5')),0)::text AS blue,
-          COALESCE(sum((data->>'remaining')::numeric) FILTER (WHERE data->>'side'='1' AND data->>'status' IN ('1','2','5')),0)::text AS usdt
-          FROM web3_exchange_v6_orders WHERE chain_id=$1 AND router_address=$2`, key)).rows[0];
-        const held = (await client.query(`SELECT COALESCE(sum(blue),0)::text AS blue,COALESCE(sum(usdt),0)::text AS usdt FROM web3_exchange_v6_refunds WHERE chain_id=$1 AND router_address=$2`, key)).rows[0];
-        for (const [i,name] of [[0,'blue'],[1,'usdt']]) {
-          if (BigInt(totals[name]) !== await this.custody.totalReserved(i,{blockTag:end}) || BigInt(held[name]) !== await this.custody.totalPendingRefund(i,{blockTag:end})) throw Error('V6_RECONCILIATION_MISMATCH');
+        for (const x of orders) await client.query(`INSERT INTO web3_exchange_v6_orders(chain_id,router_address,order_id,data,block_number,block_hash) VALUES($1,$2,$3,$4::jsonb,$5,$6) ON CONFLICT(chain_id,router_address,order_id) DO UPDATE SET data=EXCLUDED.data,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash`, [...key,x.id,JSON.stringify(x.data),stateBlock,page.stateTarget.hash]);
+        for (const x of refunds) await client.query(`INSERT INTO web3_exchange_v6_refunds(chain_id,router_address,user_address,blue,usdt,block_number,block_hash) VALUES($1,$2,$3,$4,$5,$6,$7) ON CONFLICT(chain_id,router_address,user_address) DO UPDATE SET blue=EXCLUDED.blue,usdt=EXCLUDED.usdt,block_number=EXCLUDED.block_number,block_hash=EXCLUDED.block_hash`, [...key,x.user,x.blue,x.usdt,stateBlock,page.stateTarget.hash]);
+        if (stateBlock === end) {
+          const totals = (await client.query(`SELECT
+            COALESCE(sum((data->>'remaining')::numeric) FILTER (WHERE data->>'side'='0' AND data->>'status' IN ('1','2','5')),0)::text AS blue,
+            COALESCE(sum((data->>'remaining')::numeric) FILTER (WHERE data->>'side'='1' AND data->>'status' IN ('1','2','5')),0)::text AS usdt
+            FROM web3_exchange_v6_orders WHERE chain_id=$1 AND router_address=$2`, key)).rows[0];
+          const held = (await client.query(`SELECT COALESCE(sum(blue),0)::text AS blue,COALESCE(sum(usdt),0)::text AS usdt FROM web3_exchange_v6_refunds WHERE chain_id=$1 AND router_address=$2`, key)).rows[0];
+          for (const [i,name] of [[0,'blue'],[1,'usdt']]) {
+            if (BigInt(totals[name]) !== await this.custody.totalReserved(i,{blockTag:end}) || BigInt(held[name]) !== await this.custody.totalPendingRefund(i,{blockTag:end})) throw Error('V6_RECONCILIATION_MISMATCH');
+          }
         }
         if ((await this.provider.getBlock(end)).hash !== page.target.hash) throw Error('V6_CHAIN_CHANGED');
-        const status = end === target.number ? 'ready' : 'syncing';
+        if (stateBlock !== end && (await this.provider.getBlock(stateBlock)).hash !== page.stateTarget.hash) throw Error('V6_CHAIN_CHANGED');
+        const status = (end === target.number && stateBlock === end) ? 'ready' : 'syncing';
         await client.query(`UPDATE web3_exchange_v6_sync SET cursor_block=$3,cursor_hash=$4,status=$5,updated_at=now() WHERE chain_id=$1 AND router_address=$2`, [...key,end,page.target.hash,status]);
         await client.query('COMMIT'); return { status, block: end };
       } catch (e) { await client.query('ROLLBACK'); throw e; }

@@ -27,3 +27,42 @@ test('no reescribe histórico si cambia el bloque previamente finalizado',async(
   assert(!f.calls.includes('BEGIN')); assert(f.calls.some(s=>s.includes("status='error'")));
 });
 
+test('se recupera automáticamente de forma paginada cuando lotes intermedios tienen estado histórico podado (error 4444) y solo marca ready al conciliar en el bloque finalizado',async()=>{
+  let currentCursor = '51585398';
+  const calls=[];
+  const client={
+    release:()=>{},
+    query:async(sql, params)=>{
+      calls.push(sql);
+      if(sql.startsWith('SELECT pg_try'))return{rows:[{locked:true}]};
+      if(sql.startsWith('SELECT *'))return{rows:[{start_block:'10',stream_fingerprint:id(JSON.stringify(configFromManifest(manifest).streams)),cursor_block:currentCursor,cursor_hash:hash}]};
+      if(sql.startsWith('SELECT\n') || sql.startsWith('SELECT COALESCE'))return{rows:[{blue:'0',usdt:'0'}]};
+      if(sql.startsWith('UPDATE web3_exchange_v6_sync SET cursor_block')) {
+        currentCursor = String(params[2]);
+      }
+      return{rows:[]};
+    }
+  };
+  const provider={
+    getNetwork:async()=>({chainId:11155420n}),
+    getBlock:async(tag)=>({number:tag==='finalized'?51600000:tag,hash}),
+    getCode:async(_a,block)=>{
+      if(block < 51598000) {
+        const err = new Error('could not coalesce error (error={ "code": 4444, "message": "pruned history unavailable: requested 51586398, earliest available 51598000" })');
+        err.error = { code: 4444, message: 'pruned history unavailable: requested 51586398, earliest available 51598000' };
+        throw err;
+      }
+      return code;
+    },
+    getLogs:async()=>[]
+  };
+  const worker=new ExchangeIndexerV6Worker({connect:async()=>client},provider,configFromManifest(manifest));
+  worker.custody={solvent:async()=>true,totalReserved:async()=>0n,totalPendingRefund:async()=>0n};
+  // Primer tick: avanza ventana controlada de 10,000 bloques en modo syncing (fail-closed)
+  assert.deepEqual(await worker.tick(),{status:'syncing',block:51595398});
+  // Segundo tick: alcanza el bloque finalizado 51600000, ejecuta conciliación estricta y marca ready
+  assert.deepEqual(await worker.tick(),{status:'ready',block:51600000});
+  assert(calls.includes('BEGIN'));
+  assert(calls.includes('COMMIT'));
+});
+
