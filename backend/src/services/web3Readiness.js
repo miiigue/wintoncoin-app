@@ -1,6 +1,7 @@
 'use strict';
 const {Wallet, Contract}=require('ethers');
-const deployment=require('./chainDeployment');
+const deployment=require('./marketplaceDeployment');
+const { isV6Epoch } = deployment;
 
 // Read-only diagnostics: no secret values, transaction signing or DB writes.
 async function inspect({pool, env=process.env, rpc=deployment.provider(), validate=deployment.validate, contract=(address,abi)=>new Contract(address,abi,rpc),validateAccounts=async(rpc,env,chainId)=>{const p=require('./safeAccountPolicy');const c=p.configuration(env);if(String(c.chainId)!==String(chainId))throw new Error('Account network mismatch');await p.validateInfrastructure(rpc,c);}}={}) {
@@ -23,26 +24,40 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
     add('recovery_budget','Presupuesto de emergencia configurado',emergencyBudget);
     let config;
     try{
-        config=await validate(rpc,deployment.configuration(env));
+        const baseConfig=deployment.configuration(env);
+        const validated=await validate(rpc,baseConfig);
+        config=validated&&validated.contracts
+            ? {...baseConfig,...validated,contracts:{...baseConfig.contracts,...validated.contracts}}
+            : {...baseConfig,...validated};
         add('deployment','Red, contratos y enlaces correctos',true);
         try{await validateAccounts(rpc,env,config.chainId);add('recoverable_accounts','Contratos de acceso y recuperación verificados',true);}catch{add('recoverable_accounts','Contratos de acceso y recuperación verificados',false);}
         add('recovery_funds','Fondos para al menos una cancelación de emergencia',emergencyBudget&&emergencyAddress&&await rpc.getBalance(emergencyAddress)>=max);
         const head=await rpc.getBlock('latest');
         const age=Math.floor(Date.now()/1000)-head?.timestamp;
         add('rpc_fresh','Proveedor de blockchain actualizado',Number.isSafeInteger(head?.timestamp)&&age>=-60&&age<=300);
+        const isV6=isV6Epoch(config?.epoch);
+        const ownerKeys=isV6
+            ? [['ProtocolModeController','el controlador de modo'],[config.contracts.CollateralVaultV6?'CollateralVaultV6':'CollateralVault','el colateral']]
+            : [['CoreProtocol','el protocolo'],['CollateralVault','el colateral']];
         let externalOwner;
-        for(const key of ['CoreProtocol','CollateralVault']){
+        for(const [key,label] of ownerKeys){
             const owner=await contract(config.contracts[key],['function owner() view returns(address)']).owner();
             if(!signers.ADMIN_CHAIN_PRIVATE_KEY)externalOwner ??= owner;
-            add('owner_'+key,'Permiso para administrar '+(key==='CoreProtocol'?'el protocolo':'el colateral'),owner.toLowerCase()===(signers.ADMIN_CHAIN_PRIVATE_KEY||externalOwner)?.toLowerCase());
+            add('owner_'+key,'Permiso para administrar '+label,owner.toLowerCase()===(signers.ADMIN_CHAIN_PRIVATE_KEY||externalOwner)?.toLowerCase());
         }
         if(!signers.ADMIN_CHAIN_PRIVATE_KEY){
             add('external_owner','Firma administrativa desde billetera propietaria; se conecta al ejecutar cada cambio',Boolean(externalOwner)&&![signers.RELAYER_PRIVATE_KEY,signers.GAS_SPONSOR_PRIVATE_KEY].some(address=>address?.toLowerCase()===externalOwner.toLowerCase()));
         }
-        const relayer=await contract(config.contracts.CoreProtocol,['function relayer() view returns(address)']).relayer();
-        add('relayer_permission','Procesador de pagos autorizado por el contrato',relayer.toLowerCase()===signers.RELAYER_PRIVATE_KEY?.toLowerCase());
-        for(const [key,label] of [['CoreProtocol','Protocolo'],['CollateralVault','Colateral'],['FifoExchange','Exchange']]){
-            add('active_'+key,label+' sin pausa de emergencia',!await contract(config.contracts[key],['function paused() view returns(bool)']).paused());
+        if(isV6){
+            add('relayer_permission','Procesador de pagos patrocinados configurado',Boolean(signers.RELAYER_PRIVATE_KEY));
+            const mode=await contract(config.contracts.ProtocolModeController,['function mode() view returns(uint8)']).mode();
+            add('active_ProtocolModeController','Protocolo V6 en modo NORMAL (sin pausa de emergencia)',Number(mode)===0);
+        }else{
+            const relayer=await contract(config.contracts.CoreProtocol,['function relayer() view returns(address)']).relayer();
+            add('relayer_permission','Procesador de pagos autorizado por el contrato',relayer.toLowerCase()===signers.RELAYER_PRIVATE_KEY?.toLowerCase());
+            for(const [key,label] of [['CoreProtocol','Protocolo'],['CollateralVault','Colateral'],['FifoExchange','Exchange']]){
+                add('active_'+key,label+' sin pausa de emergencia',!await contract(config.contracts[key],['function paused() view returns(bool)']).paused());
+            }
         }
         for(const [key,label] of [['ADMIN_CHAIN_PRIVATE_KEY','administración'],['RELAYER_PRIVATE_KEY','procesamiento de pagos'],['GAS_SPONSOR_PRIVATE_KEY','patrocinio']]){
             const address=key==='ADMIN_CHAIN_PRIVATE_KEY'?(signers[key]||externalOwner):signers[key];
@@ -61,8 +76,14 @@ async function inspect({pool, env=process.env, rpc=deployment.provider(), valida
         const maximum=s.gas_sponsor_maintenance_max_step_wei||'0',daily=s.gas_sponsor_maintenance_daily_budget_wei||'0';
         add('maintenance_budget','Amortización automática con presupuesto de gas',/^\d+$/.test(maximum)&&/^\d+$/.test(daily)&&BigInt(maximum)>0n&&BigInt(daily)>=BigInt(maximum));
         if(config){
-            const result=await pool.query("SELECT status,error_code,(last_checked_at>clock_timestamp()-interval '120 seconds') AS fresh FROM web3_exchange_sync WHERE chain_id=$1 AND exchange_address=$2",[config.chainId,config.contracts.FifoExchange.toLowerCase()]);
-            add('indexer','Sincronización del Exchange al día',result.rows[0]?.status==='ready'&&result.rows[0]?.fresh===true);
+            if(isV6Epoch(config.epoch)){
+                const router=(config.contracts.ExchangeRouter||config.contracts.FifoExchange).toLowerCase();
+                const result=await pool.query("SELECT status,cursor_hash,(updated_at>clock_timestamp()-interval '120 seconds') AS fresh FROM web3_exchange_v6_sync WHERE chain_id=$1 AND router_address=$2",[config.chainId,router]);
+                add('indexer','Sincronización del Exchange V6 al día',result.rows[0]?.status==='ready'&&Boolean(result.rows[0]?.cursor_hash)&&result.rows[0]?.fresh===true);
+            }else{
+                const result=await pool.query("SELECT status,error_code,(last_checked_at>clock_timestamp()-interval '120 seconds') AS fresh FROM web3_exchange_sync WHERE chain_id=$1 AND exchange_address=$2",[config.chainId,config.contracts.FifoExchange.toLowerCase()]);
+                add('indexer','Sincronización del Exchange al día',result.rows[0]?.status==='ready'&&result.rows[0]?.fresh===true);
+            }
         }else add('indexer','Sincronización del Exchange verificable',false);
     }catch{add('database_unavailable','Lectura completa de la preparación de datos',false);}
     return {ready:checks.every(x=>x.ready),checkedAt:new Date().toISOString(),checks};

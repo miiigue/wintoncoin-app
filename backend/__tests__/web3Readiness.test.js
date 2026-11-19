@@ -66,3 +66,35 @@ test('ejecutor compartido bloqueado; no filtra secretos',async()=>{
  const result=await inspect(f);expect(result.checks.find(c=>c.id==='recovery_signer').ready).toBe(false);
  expect(JSON.stringify(result)).not.toContain(f.env.RECOVERY_RELAYER_PRIVATE_KEY);expect(JSON.stringify(result)).not.toContain(f.env.IDENTITY_DOCUMENT_HMAC_KEY);
 });
+
+test('inspecciona arquitectura V6 usando ProtocolModeController e indexador web3_exchange_v6_sync',async()=>{
+ const f=fixture();
+ const ownerAddress=new Wallet(f.env.ADMIN_CHAIN_PRIVATE_KEY).address;
+ delete f.env.ADMIN_CHAIN_PRIVATE_KEY;
+ const v6Config={
+  chainId:'11155420',
+  epoch:'V6_MAINNET',
+  contracts:{
+   ProtocolModeController:'0x0000000000000000000000000000000000000010',
+   CollateralVaultV6:'0x0000000000000000000000000000000000000020',
+   ExchangeRouter:'0x0000000000000000000000000000000000000030'
+  }
+ };
+ const pool={query:jest.fn(async sql=>{
+  if(sql.includes('schema_migrations'))return {rowCount:7,rows:[]};
+  if(sql.includes('GROUP BY'))return {rowCount:0,rows:[]};
+  if(sql.includes('app_settings'))return {rows:Object.entries(f.settings).map(([setting_key,setting_value])=>({setting_key,setting_value}))};
+  if(sql.includes('web3_exchange_v6_sync'))return {rows:[{status:'ready',cursor_hash:'0xabc',fresh:true}]};
+  throw Error('Unexpected SQL: '+sql);
+ })};
+ const result=await inspect({
+  ...f,
+  pool,
+  validate:async()=>v6Config,
+  contract:()=>({owner:async()=>ownerAddress,mode:async()=>0n})
+ });
+ expect(result.ready).toBe(true);
+ expect(result.checks.find(c=>c.id==='active_ProtocolModeController')?.ready).toBe(true);
+ expect(result.checks.find(c=>c.id==='indexer')?.ready).toBe(true);
+ expect(result.checks.find(c=>c.id==='owner_ProtocolModeController')?.ready).toBe(true);
+});

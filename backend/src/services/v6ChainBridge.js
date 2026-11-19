@@ -75,7 +75,7 @@ const MODE_NAMES = ['NORMAL', 'PRELAUNCH_FROZEN', 'EMERGENCY_EXIT_ONLY'];
 function activeV6Config(env = process.env) {
   if (env.IS_DEMO_ENV !== 'true' || env.WINTON_ENVIRONMENT_ID !== 'demo') return null;
   const config = marketplaceDeployment.configuration(env);
-  return config?.epoch === 'V6_DEMO' ? config : null;
+  return marketplaceDeployment.isV6Epoch(config?.epoch) ? config : null;
 }
 
 /**
@@ -207,7 +207,7 @@ async function getUserAuditDetailedV6({
 
     return {
       success: true,
-      epoch: 'V6_DEMO',
+      epoch: config.epoch || 'V6_DEMO',
       wallet,
       blockNumber: block.number,
       blockHash: block.hash,
@@ -284,7 +284,7 @@ async function getProtocolStatusV6({ provider, wallet, config }) {
 
     return {
       success: true,
-      epoch: 'V6_DEMO',
+      epoch: config.epoch || 'V6_DEMO',
       mode: MODE_NAMES[Number(modeNum)] || 'UNKNOWN',
       network: net.name || 'optimismSepolia',
       chainId: net.chainId.toString(),

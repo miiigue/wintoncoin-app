@@ -128,6 +128,22 @@ test('V6EmergencyControl.jsx aplica frases de confirmación fuertes y sin secret
   assert.ok(!uiSource.includes('PRIVATE_KEY'));
   assert.ok(!uiSource.includes('privateKey'));
   assert.ok(!uiSource.includes('mnemonic'));
-  assert.ok(panelSource.includes("statusData?.epoch === 'V6_DEMO'"));
+  assert.ok(panelSource.includes("statusData?.epoch === 'V6_DEMO'") || panelSource.includes('/^V6(?:_|$)/'));
   assert.ok(panelSource.includes('<V6EmergencyControl'));
+});
+
+test('economicWriteGate.assertStatic admite V6 solo con huella SHA-256 válida y rechaza huellas inválidas', () => {
+  const valid = economicWriteGate.assertStatic({
+    config: { epoch: 'V6_DEMO', fingerprint: '0x' + 'ab'.repeat(32) },
+    operation: 'Pago autorizado'
+  });
+  assert.equal(valid.epoch, 'V6_DEMO');
+
+  assert.throws(
+    () => economicWriteGate.assertStatic({
+      config: { epoch: 'V6_MAINNET', fingerprint: '0xbad' },
+      operation: 'Pago autorizado'
+    }),
+    (err) => err.status === 503 && err.code === 'V6_RELEASE_MISMATCH'
+  );
 });

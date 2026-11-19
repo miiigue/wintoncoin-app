@@ -8624,3 +8624,24 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
 - **`backend/src/services/economicWriteGate.js`:** Inclusión de las acciones de contención/recuperación de modo V6 en `isContainmentAction` para garantizar disponibilidad incluso con Prelanzamiento activo o caída del indexador.
 - **`frontend/src/components/V6EmergencyControl.jsx` y `frontend/src/pages/AdminWeb3Panel.jsx`:** Componente modular y responsive con frases de confirmación estrictas (`PAUSAR OPERACIONES V6`, `CONGELAR TODO V6`, `REACTIVAR V6 NORMAL`), firma directa desde la billetera propietaria (Zero Hardcoded Secrets) y refresco automático del estado on-chain.
 - **`backend/__tests__/v6EmergencyControl.node.test.cjs`:** Suite de pruebas unitarias cubriendo las 3 transiciones, simulación on-chain, rechazo de redundancias, puerta de contención y validaciones de UI.
+
+
+## [2026-11-19] Estandarización de Arquitectura V6 (`isV6Epoch`) y Actualización de Verificadores de Prelanzamiento y Servicio (`prelaunchExitReadiness` / `web3Readiness`)
+
+### Contexto y Causa Raíz
+- Al intentar desactivar **Modo Pre-Lanzamiento** en `/admin-panel.html`, `prelaunchExitReadiness.js` bloqueaba el cambio porque seguía evaluando contratos `.paused()` e indexador `web3_exchange_sync` de la versión anterior (V5).
+- Asimismo, `web3Readiness.js` evaluaba funciones V5 (`.relayer()`, `.paused()`) y diversos servicios comparaban literalmente contra `'V6_DEMO'` en lugar de reconocer de forma estandarizada cualquier despliegue de arquitectura V6 (`V6_DEMO`, `V6_MAINNET`, `V6_PROD`).
+
+### Cambios Implementados
+- **`backend/src/services/marketplaceDeployment.js` (`isV6Epoch`):** Helper canónico centralizado (`/^V6(?:_|$)/`) para distinguir la arquitectura V6 de forma independiente del entorno (Demo o Producción), manteniendo el aislamiento estricto por variables de entorno y huella SHA-256.
+- **Desacoplamiento V6 en servicios backend y UI:** `economicWriteGate.js`, `v6ChainBridge.js`, `web3Routes.js`, `chainMaintenance.js`, `marketplacePayments.js`, `walletOperations.js` y `frontend/src/pages/AdminWeb3Panel.jsx`.
+- **`backend/src/services/prelaunchExitReadiness.js`:** Validación V6 real en blockchain (`validateV6Demo`, paridad `BLUE == RED`, bloque reciente, `ProtocolModeController.mode() === 0` (`NORMAL`)) e indexador `web3_exchange_v6_sync` listo y fresco, conservando soporte V5 para pruebas históricas.
+- **`backend/src/services/web3Readiness.js`:** Diagnóstico V6 de `ProtocolModeController`, `CollateralVaultV6`, patrocinador y tabla `web3_exchange_v6_sync`.
+- **Pruebas:** Ampliados `prelaunchExitReadiness.test.js` y `web3Readiness.test.js` cubriendo tanto `V6_DEMO` como `V6_MAINNET`.
+
+
+### Auditoría Profunda End-to-End de Contención V6 y Patrocinio (`2026-11-19` — Segunda Revisión)
+- **`backend/src/services/chainOperationStore.js`:** Añadidas las operaciones de emergencia y recuperación V6 (`v6_mode_*` y `owner:v6_mode_*`) a `SAFE_CONTAINMENT_KINDS` y a `containmentIntentMatches`, validando mediante helper compartido `verifySignedStepsMatch` que destino, selector `setMode(0|1|2)`, valor `0n`, `chainId` y `from` coincidan criptográficamente con `ProtocolModeController`.
+- **`backend/src/services/economicWriteGate.js`:** Actualizado `configOf` a `marketplaceDeployment` y `assertStatic` para validar huella SHA-256 en suites `isV6Epoch` tras el paso previo por `assertOperational`.
+- **`backend/src/services/safeExecution.js` y `backend/src/services/gasSponsorship.js`:** Actualizada la lectura de configuración hacia `marketplaceDeployment.configuration()` para habilitar ejecución patrocinada V6 sin errores `503`.
+- **`backend/src/services/chainOperationStore.js` (unificación de `deployment` por defecto):** Actualizado el parámetro por defecto de `ChainOperationStore` hacia `marketplaceDeployment` para evitar falsas cuarentenas (`DEPLOYMENT_CHANGED_QUARANTINED`) en servicios o workers que instancian el almacén sin pasar `{ deployment }` explícito en Demo V6.

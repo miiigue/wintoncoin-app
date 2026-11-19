@@ -31,7 +31,7 @@ router.get('/deployment', async(req,res)=>{
     try {
         const selected=deployment.configuration();
         const validated=await deployment.validate(rpc,selected);
-        const contracts=selected.epoch==='V6_DEMO'
+        const contracts=deployment.isV6Epoch(selected.epoch)
             ? require('../services/v6ChainBridge').withCompatibilityAliases(validated.contracts)
             : validated.contracts;
         const config={...selected,...validated,contracts};

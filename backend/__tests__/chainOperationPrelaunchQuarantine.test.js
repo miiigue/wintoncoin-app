@@ -204,4 +204,52 @@ describe('cuarentena de operaciones durante Prelanzamiento',()=>{
         expect(db.query).toHaveBeenCalledWith(expect.stringContaining('error_code=$2'),[row.id,PRELAUNCH_QUARANTINE]);
         expect(provider.broadcastTransaction).not.toHaveBeenCalled();
     });
+
+    test('permite acciones de modo V6 en ProtocolModeController y pone en cuarentena calldata alterado',async()=>{
+        const {Interface}=require('ethers');
+        const modeController='0x0000000000000000000000000000000000000090';
+        const v6Config={
+            chainId:'11155420',
+            epoch:'V6_DEMO',
+            fingerprint:'0x'+'ab'.repeat(32),
+            contracts:{...addresses,ProtocolModeController:modeController}
+        };
+        const modeIface=new Interface(['function setMode(uint8)']);
+        const v6Gate={
+            operationalStatus:jest.fn(async()=>({enabled:false,preLaunchActive:true,reason:'PRELAUNCH_ACTIVE'})),
+            isContainmentAction:jest.fn(op=>['owner:v6_mode_emergency_exit','owner:v6_mode_freeze_all','owner:v6_mode_normal'].includes(op))
+        };
+        const db=client();
+        const store=new ChainOperationStore({}, {},{
+            writeGate:v6Gate,
+            deployment:{configuration:jest.fn(()=>v6Config)},
+            env:{IS_DEMO_ENV:'true'}
+        });
+
+        const validRow=baseRow({
+            state:'prepared',
+            kind:'owner:v6_mode_freeze_all',
+            payload:{
+                fingerprint:v6Config.fingerprint,
+                to:modeController,
+                data:modeIface.encodeFunctionData('setMode',[1])
+            }
+        });
+        const ok=await store.ensureBroadcastAllowed(validRow,db);
+        expect(ok.allowed).toBe(true);
+        expect(db.query).not.toHaveBeenCalled();
+
+        const tamperedRow=baseRow({
+            state:'prepared',
+            kind:'owner:v6_mode_freeze_all',
+            payload:{
+                fingerprint:v6Config.fingerprint,
+                to:modeController,
+                data:modeIface.encodeFunctionData('setMode',[0])
+            }
+        });
+        const blocked=await store.ensureBroadcastAllowed(tamperedRow,db);
+        expect(blocked.allowed).toBe(false);
+        expect(db.query.mock.calls.at(-1)[1][1]).toBe('CONTAINMENT_INTENT_INVALID_QUARANTINED');
+    });
 });

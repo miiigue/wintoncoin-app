@@ -52,10 +52,11 @@ class WalletOperations {
     async prepare(userId,input) {
         await require('./economicWriteGate').assertOperational({pool:this.pool,config:this.config,operation:'wallet_prepare'});
         const p=normalized(input),user=await this.identity(userId),c=this.config.contracts;
-        if(this.config.epoch==='V6_DEMO' && v6Capabilities[p.action]===false)throw error('Esta modalidad todavía no está disponible en V6.',409);
+        const isV6=deployment.isV6Epoch(this.config.epoch);
+        if(isV6 && v6Capabilities[p.action]===false)throw error('Esta modalidad todavía no está disponible en V6.',409);
         if(p.action==='autoCollateral'&&p.enabled)await this.consentService.assertCurrentConsent(this.pool,userId,user.address);
         await deployment.validate(this.rpc,this.config);
-        const kycContract=this.config.epoch==='V6_DEMO'?c.RiskRegistry:c.CoreProtocol;
+        const kycContract=isV6?c.RiskRegistry:c.CoreProtocol;
         if(!await new this.ContractClass(kycContract,coreABI,this.rpc).isKYCVerified(user.address))throw error('Necesitas KYC aprobado para esta operación.',403);
         const plan=[],amount=p.amount?parseUnits(p.amount,6):null;
         const approve=async(token,spender,value=amount)=>{
@@ -67,7 +68,7 @@ class WalletOperations {
                 plan.push(call(token,tokenABI,'approve',[spender,value],'Autorizar únicamente este importe'));
             }
         };
-        if(this.config.epoch==='V6_DEMO') {
+        if(isV6) {
             plan.push(...await buildV6WalletPlan({action:p.action,amount,orderId:p.orderId,destination:p.destination,enabled:p.enabled,user:user.address,contracts:c,rpc:this.rpc,ContractClass:this.ContractClass}));
         } else switch(p.action) {
             case 'deposit': await approve(c.USDT,c.CollateralVault);plan.push(call(c.CollateralVault,vaultABI,'deposit',[amount],labels.deposit));break;
@@ -128,7 +129,7 @@ class WalletOperations {
             await deployment.validate(this.rpc,this.config);
             if(row.kind==='autoCollateral'&&row.payload.enabled===true)
                 await this.consentService.assertCurrentConsent(client,userId,user.address);
-            const kycContract=this.config.epoch==='V6_DEMO'?this.config.contracts.RiskRegistry:this.config.contracts.CoreProtocol;
+            const kycContract=deployment.isV6Epoch(this.config.epoch)?this.config.contracts.RiskRegistry:this.config.contracts.CoreProtocol;
             if(!await new this.ContractClass(kycContract,coreABI,this.rpc).isKYCVerified(user.address))throw error('Tu KYC no está aprobado.',403);
             const config=safePolicy.configuration();
             if(String(config.chainId)!==this.config.chainId)throw error('Red de cuenta incorrecta.');

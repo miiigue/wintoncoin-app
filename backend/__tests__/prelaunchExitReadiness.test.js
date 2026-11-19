@@ -109,4 +109,79 @@ describe('preflight de salida de Prelanzamiento', () => {
         expect(f.contractFactory).not.toHaveBeenCalled();
         expect(f.provider).not.toHaveProperty('sendTransaction');
     });
+
+    test.each(['V6_DEMO', 'V6_MAINNET'])('aprueba suite V6 (%s) cuando ProtocolModeController está en NORMAL e indexador V6 listo', async (epoch) => {
+        const v6Config = {
+            chainId: '11155420',
+            epoch,
+            fingerprint: '0x' + 'ab'.repeat(32),
+            contracts: {
+                ProtocolModeController: '0x0000000000000000000000000000000000000010',
+                ExchangeRouter: '0x0000000000000000000000000000000000000020'
+            }
+        };
+        const provider = {
+            getBlock: jest.fn(async () => ({ timestamp: 1_000 })),
+            destroy: jest.fn()
+        };
+        const deployment = {
+            configuration: jest.fn(() => v6Config),
+            validate: jest.fn(async () => ({ chainId: '11155420', mode: 'NORMAL', contracts: v6Config.contracts }))
+        };
+        const pool = {
+            query: jest.fn(async () => ({
+                rowCount: 1,
+                rows: [{ status: 'ready', cursor_hash: '0x' + 'cd'.repeat(32), fresh: true }]
+            }))
+        };
+
+        const result = await readiness.evaluate({
+            pool,
+            env: { IS_DEMO_ENV: 'true' },
+            deployment,
+            providerFactory: jest.fn(() => provider),
+            contractFactory: jest.fn(() => ({ mode: jest.fn(async () => 0n) })),
+            nowSeconds: () => 1_100
+        });
+
+        expect(result.ready).toBe(true);
+        expect(result.deployment).toMatchObject({ chainId: '11155420', epoch, fingerprint: v6Config.fingerprint });
+        expect(result.checks).toContainEqual(expect.objectContaining({ id: 'protocol_mode_normal', ready: true }));
+        expect(pool.query).toHaveBeenCalledWith(expect.stringContaining('web3_exchange_v6_sync'),
+            ['11155420', v6Config.contracts.ExchangeRouter.toLowerCase(), 120]);
+        expect(provider.destroy).toHaveBeenCalledTimes(1);
+    });
+
+    test('bloquea suite V6 si ProtocolModeController no está en NORMAL o el indexador V6 está desactualizado', async () => {
+        const v6Config = {
+            chainId: '11155420',
+            epoch: 'V6_DEMO',
+            fingerprint: '0x' + 'ab'.repeat(32),
+            contracts: {
+                ProtocolModeController: '0x0000000000000000000000000000000000000010',
+                ExchangeRouter: '0x0000000000000000000000000000000000000020'
+            }
+        };
+        const provider = {
+            getBlock: jest.fn(async () => ({ timestamp: 1_000 })),
+            destroy: jest.fn()
+        };
+        const result = await readiness.evaluate({
+            pool: { query: jest.fn(async () => ({ rowCount: 1, rows: [{ status: 'ready', cursor_hash: '0x1234', fresh: false }] })) },
+            env: { IS_DEMO_ENV: 'true' },
+            deployment: {
+                configuration: () => v6Config,
+                validate: async () => ({ chainId: '11155420', mode: 'PRELAUNCH_FROZEN', contracts: v6Config.contracts })
+            },
+            providerFactory: () => provider,
+            contractFactory: () => ({ mode: async () => 1n }),
+            nowSeconds: () => 1_100
+        });
+
+        expect(result.ready).toBe(false);
+        expect(result.checks).toEqual(expect.arrayContaining([
+            expect.objectContaining({ id: 'protocol_mode_normal', ready: false }),
+            expect.objectContaining({ id: 'indexer_ready', ready: false, detail: 'V6_INDEXER_STALE' })
+        ]));
+    });
 });

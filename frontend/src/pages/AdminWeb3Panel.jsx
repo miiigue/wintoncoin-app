@@ -728,8 +728,8 @@ export default function AdminWeb3Panel() {
             </form>
           </div>
 
-          {/* Paradas de Emergencia: En V6 se utiliza exclusivamente ProtocolModeController (Circuit Breaker atómico) */}
-          {statusData?.epoch === 'V6_DEMO' ? (
+          {/* Paradas de Emergencia: En suites V6 se utiliza exclusivamente ProtocolModeController (Circuit Breaker atómico) */}
+          {(/^V6(?:_|$)/.test(String(statusData?.epoch || v6Candidate?.epoch || '')) || statusData?.epoch === 'V6_DEMO') ? (
             <V6EmergencyControl
               currentMode={statusData?.mode || v6Candidate?.mode || null}
               loadingStatus={loadingStatus}

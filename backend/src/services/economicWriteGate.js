@@ -1,5 +1,7 @@
 'use strict';
 
+const { isV6Epoch } = require('./marketplaceDeployment');
+
 const V5_EPOCH = 'V5_CODEX_163';
 const MAX_INDEXER_AGE_SECONDS = 120;
 const PRELAUNCH_SETTING = 'pre_launch_mode_enabled';
@@ -18,12 +20,12 @@ function isContainmentAction(operation) {
 }
 
 function configOf(config, env) {
-    return config || require('./chainDeployment').configuration(env);
+    return config || require('./marketplaceDeployment').configuration(env);
 }
 
 function staticStatus({ env = process.env, config } = {}) {
     const selected = configOf(config, env);
-    if (selected.epoch === 'V6_DEMO') {
+    if (isV6Epoch(selected.epoch)) {
         return { enabled:false, mode:'read_only', epoch:selected.epoch, fingerprint:selected.fingerprint,
             reason:'V6_OPERATIONAL_CHECK_REQUIRED' };
     }
@@ -47,7 +49,7 @@ function staticStatus({ env = process.env, config } = {}) {
 
 async function operationalStatus({ pool, env = process.env, config, maxAgeSeconds = MAX_INDEXER_AGE_SECONDS } = {}) {
     const state = staticStatus({ env, config });
-    const managedDemoEpoch = ['V4_ACTIVE', V5_EPOCH, 'V6_DEMO'].includes(state.epoch);
+    const managedDemoEpoch = ['V4_ACTIVE', V5_EPOCH].includes(state.epoch) || isV6Epoch(state.epoch);
     if (!managedDemoEpoch) return state;
     if (!pool || typeof pool.query !== 'function') {
         return { ...state, enabled: false, mode: 'read_only', preLaunchVerified: false,
@@ -68,7 +70,7 @@ async function operationalStatus({ pool, env = process.env, config, maxAgeSecond
         return { ...state, enabled: false, mode: 'read_only', preLaunchVerified: false,
             indexerReady: false, reason: 'PRELAUNCH_STATUS_UNAVAILABLE' };
     }
-    if (state.epoch === 'V6_DEMO') {
+    if (isV6Epoch(state.epoch)) {
         try {
             const current = require('./marketplaceDeployment').configuration(env);
             if (current.epoch !== state.epoch || current.fingerprint !== state.fingerprint)
@@ -114,6 +116,12 @@ function containedError(reason) {
 function assertStatic({ env = process.env, config, operation } = {}) {
     if (isContainmentAction(operation)) return staticStatus({ env, config });
     const state = staticStatus({ env, config });
+    if (isV6Epoch(state.epoch)) {
+        // La verificación operativa completa V6 (Prelanzamiento, blockchain e indexador) se ejecuta en assertOperational.
+        // Aquí aseguramos que ningún llamador de firma pueda operar sin una huella criptográfica SHA-256 válida.
+        if (!/^0x[0-9a-f]{64}$/i.test(String(state.fingerprint || ''))) throw containedError('V6_RELEASE_MISMATCH');
+        return state;
+    }
     if (!state.enabled) throw containedError(state.reason);
     return state;
 }
@@ -125,5 +133,5 @@ async function assertOperational({ pool, env = process.env, config, operation } 
     return state;
 }
 
-module.exports = { V5_EPOCH, MAX_INDEXER_AGE_SECONDS, PRELAUNCH_SETTING, staticStatus, operationalStatus,
+module.exports = { V5_EPOCH, MAX_INDEXER_AGE_SECONDS, PRELAUNCH_SETTING, isV6Epoch, staticStatus, operationalStatus,
     assertStatic, assertOperational, isContainmentAction, containedError };

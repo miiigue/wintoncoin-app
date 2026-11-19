@@ -3,6 +3,7 @@
 const { Contract, Wallet, Interface, getAddress, parseUnits } = require('ethers');
 const { randomUUID } = require('crypto');
 const deployment = require('./chainDeployment');
+const { isV6Epoch } = require('./marketplaceDeployment');
 const { ChainOperationStore, locked } = require('./chainOperationStore');
 const { signStep } = require('./chainSigning');
 
@@ -45,7 +46,7 @@ async function executeMaintenance({ pool, rpc, config, wallet, kind, orderIds = 
     }
     const signer = new Wallet(env.RELAYER_PRIVATE_KEY);
     let target, data, needed;
-    if (config.epoch === 'V6_DEMO') {
+    if (isV6Epoch(config.epoch)) {
         const modeController = new Contract(config.contracts.ProtocolModeController, ['function mode() view returns(uint8)'], rpc);
         const risk = new Contract(config.contracts.RiskRegistry, ['function isKYCVerified(address) view returns(bool)'], rpc);
         const ledger = new Contract(config.contracts.CommitmentLedger, ['function matured(address) view returns(uint256)'], rpc);
@@ -120,7 +121,7 @@ async function settle(input) { return executeMaintenance({ ...input, kind: 'sett
 async function collateralizeMatured(input) { return executeMaintenance({ ...input, kind: 'collateralizeMatured' }); }
 
 async function collateralOrderIds(pool, config, wallet, maxAgeSeconds = 120) {
-    if (config.epoch === 'V6_DEMO') {
+    if (isV6Epoch(config.epoch)) {
         const routerAddress = config.contracts.ExchangeRouter.toLowerCase();
         const sync = await pool.query(`SELECT 1 FROM web3_exchange_v6_sync WHERE chain_id=$1 AND router_address=$2
             AND status='ready' AND cursor_hash IS NOT NULL AND updated_at>clock_timestamp()-($3*interval '1 second')`,
@@ -164,7 +165,7 @@ function createMaintenanceWorker(pool, { bridge, rpc, config, batchSize = 20, ex
             bridge ||= require('./web3BridgeService');
             rpc ||= bridge.provider;
             config ||= require('./v6ChainBridge').activeV6Config() || deployment.configuration();
-            if (config.epoch === 'V6_DEMO') await require('./marketplaceDeployment').validate(rpc, config);
+            if (isV6Epoch(config.epoch)) await require('./marketplaceDeployment').validate(rpc, config);
             else await deployment.validate(rpc, config);
             const coreAddress = (config.contracts.CoreProtocol || config.contracts.PaymentEngine).toLowerCase();
             const rows = (await pool.query(`SELECT id,web3_wallet_address FROM users WHERE id>$1
@@ -183,7 +184,7 @@ function createMaintenanceWorker(pool, { bridge, rpc, config, batchSize = 20, ex
                     [config.chainId, coreAddress, wallet.toLowerCase(), snapshot.blockNumber, snapshot.blockHash, JSON.stringify(snapshot)]);
                     if (snapshot.credit.isKYCVerified && snapshot.credit.isDelinquent) {
                         let result;
-                        const supports = config.epoch === 'V6_DEMO' || config.epoch === 'V5_CODEX_163' || config.supportsExchangeCollateral === true;
+                        const supports = isV6Epoch(config.epoch) || config.epoch === 'V5_CODEX_163' || config.supportsExchangeCollateral === true;
                         const automatic = snapshot.collateral?.automaticAtMaturity === true || snapshot.collateralVault?.automaticAtMaturity === true;
                         if (supports && automatic
                             && await checkCollateralConsent(pool, user.id, wallet)) {

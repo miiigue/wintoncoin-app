@@ -6,6 +6,14 @@ const {Contract,getAddress,keccak256} = require('ethers');
 const legacy = require('./chainDeployment');
 const {validateV6Demo} = require('./validateV6Demo');
 
+/**
+ * Determina de forma canónica si una época corresponde a la arquitectura modular V6
+ * (ej. V6_DEMO, V6_MAINNET, V6_PROD), desacoplando la lógica V6 del entorno Demo.
+ */
+function isV6Epoch(epoch) {
+  return /^V6(?:_|$)/.test(String(epoch || ''));
+}
+
 function configuration(env = process.env) {
   const base = legacy.configuration(env);
   if (env.IS_DEMO_ENV !== 'true' || env.WINTON_ENVIRONMENT_ID !== 'demo') return base;
@@ -18,8 +26,8 @@ function configuration(env = process.env) {
   return {chainId:base.chainId, epoch:manifest.epoch, contracts:manifest.contracts, fingerprint:'0x'+digest, manifest};
 }
 async function validate(rpc,config) {
-  if(config.epoch !== 'V6_DEMO') return legacy.validate(rpc,config);
+  if(!isV6Epoch(config?.epoch)) return legacy.validate(rpc,config);
   return validateV6Demo({provider:rpc,contracts:config.contracts,manifest:config.manifest,
     Contract,getAddress,keccak256,requireFrozen:false});
 }
-module.exports = {configuration,validate,provider:legacy.provider};
+module.exports = {configuration,validate,isV6Epoch,provider:legacy.provider};

@@ -1,16 +1,19 @@
 'use strict';
 const {randomUUID}=require('crypto');
-const {keccak256,Transaction,Contract,id:signatureId}=require('ethers');
+const {keccak256,Transaction,Contract,Interface,id:signatureId}=require('ethers');
 const {confirmedReceipt}=require('./chainConfirmation');
 const economicWriteGate=require('./economicWriteGate');
-const chainDeployment=require('./chainDeployment');
+const marketplaceDeployment=require('./marketplaceDeployment');
 const error=(message,status=409)=>Object.assign(new Error(message),{status});
 const PRELAUNCH_QUARANTINE='PRELAUNCH_QUARANTINED';
 const WRITE_GATE_QUARANTINE='ECONOMIC_WRITE_GATE_QUARANTINED';
 const DEPLOYMENT_QUARANTINE='DEPLOYMENT_CHANGED_QUARANTINED';
 const CONTAINMENT_INTENT_QUARANTINE='CONTAINMENT_INTENT_INVALID_QUARANTINED';
 const SAFE_CONTAINMENT_KINDS=['pause','pause_protocol','pause_vault','pause_exchange','pause_treasury',
-    'owner:pause_protocol','owner:pause_vault','owner:pause_exchange','owner:pause_treasury','recovery_cancel','accountRecoveryCancel'];
+    'owner:pause_protocol','owner:pause_vault','owner:pause_exchange','owner:pause_treasury',
+    'v6_mode_emergency_exit','v6_mode_freeze_all','v6_mode_normal',
+    'owner:v6_mode_emergency_exit','owner:v6_mode_freeze_all','owner:v6_mode_normal',
+    'recovery_cancel','accountRecoveryCancel'];
 
 // Session advisory locks survive SQL commits but are released on connection loss.
 // Never send a transaction before its exact signed bytes have committed.
@@ -40,6 +43,27 @@ function gateOperation(kind) {
 const addressOf=value=>typeof value==='string'?value:value?.address;
 const lower=value=>typeof value==='string'?value.toLowerCase():'';
 const PAUSE_SELECTOR=signatureId('pause()').slice(0,10).toLowerCase();
+const V6_MODE_CALLDATA=(()=>{
+    const modeIface=new Interface(['function setMode(uint8)']);
+    const normal=lower(modeIface.encodeFunctionData('setMode',[0]));
+    const freeze=lower(modeIface.encodeFunctionData('setMode',[1]));
+    const emergency=lower(modeIface.encodeFunctionData('setMode',[2]));
+    return {
+        v6_mode_normal:normal,'owner:v6_mode_normal':normal,
+        v6_mode_freeze_all:freeze,'owner:v6_mode_freeze_all':freeze,
+        v6_mode_emergency_exit:emergency,'owner:v6_mode_emergency_exit':emergency
+    };
+})();
+function verifySignedStepsMatch(row,expectedTarget,expectedData){
+    if(!expectedTarget||lower(row.payload?.to)!==expectedTarget||lower(row.payload?.data)!==expectedData)return false;
+    try{
+        return (row.steps||[]).every(step=>{
+            const tx=Transaction.from(step.raw);
+            return lower(tx.to)===expectedTarget&&lower(tx.data)===expectedData&&tx.value===0n&&
+                String(tx.chainId)===String(row.chain_id)&&lower(tx.from)===lower(row.sender);
+        });
+    }catch{return false;}
+}
 async function project(client,row) {
     const p=row.projection;
     if(p.type==='setting') {
@@ -55,7 +79,7 @@ async function project(client,row) {
     }
 }
 class ChainOperationStore {
-    constructor(pool,provider,{confirmations=2,finality='safe',writeGate=economicWriteGate,deployment=chainDeployment,env=process.env,
+    constructor(pool,provider,{confirmations=2,finality='safe',writeGate=economicWriteGate,deployment=marketplaceDeployment,env=process.env,
         recoveryConfiguration=currentEnv=>require('./safeAccountPolicy').configuration(currentEnv),
         recoveryValidator=(config,row,call)=>require('./recoveryEmergency').assertCancellation(config,row,call)}={}) {
         this.pool=pool;this.provider=provider;this.confirmations=confirmations;this.finality=finality;
@@ -117,6 +141,9 @@ class ChainOperationStore {
                 return true;
             } catch { return false; }
         }
+        if(Object.prototype.hasOwnProperty.call(V6_MODE_CALLDATA,operation)) {
+            return verifySignedStepsMatch(row,lower(addressOf(config.contracts?.ProtocolModeController)),V6_MODE_CALLDATA[operation]);
+        }
         const targets={
             pause_protocol:addressOf(config.contracts?.CoreProtocol),
             pause_vault:addressOf(config.contracts?.CollateralVault),
@@ -129,14 +156,8 @@ class ChainOperationStore {
         };
         const economicTargets=Object.values(targets).filter(Boolean).map(lower);
         const expected=operation==='pause'?lower(row.payload?.to):lower(targets[operation]);
-        if(!expected||!economicTargets.includes(expected)||lower(row.payload?.to)!==expected||lower(row.payload?.data)!==PAUSE_SELECTOR)return false;
-        try {
-            return (row.steps||[]).every(step=>{
-                const tx=Transaction.from(step.raw);
-                return lower(tx.to)===expected&&lower(tx.data)===PAUSE_SELECTOR&&tx.value===0n&&
-                    String(tx.chainId)===String(row.chain_id)&&lower(tx.from)===lower(row.sender);
-            });
-        } catch { return false; }
+        if(!expected||!economicTargets.includes(expected))return false;
+        return verifySignedStepsMatch(row,expected,PAUSE_SELECTOR);
     }
     async ensureBroadcastAllowed(row,client) {
         let config;
