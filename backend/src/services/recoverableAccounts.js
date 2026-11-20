@@ -144,6 +144,9 @@ class RecoverableAccounts {
                 await client.query('UPDATE users SET web3_wallet_address=$1 WHERE id=$2',[a.address,userId]);
                 await client.query("UPDATE smart_accounts SET state='active' WHERE identity_id=$1 AND chain_id=$2",[a.identity_id,String(this.config.chainId)]);
                 await client.query('COMMIT');
+                require('./creditScoringService').syncCreditLimitOnChain(userId).catch(err=>{
+                    console.warn('[RECOVERABLE_ACCOUNTS] Sincronización inicial de límite RED diferida:',err.message);
+                });
             }catch(e){await client.query('ROLLBACK');throw e;}finally{client.release();}
         }
         const next=row.payload.plan[row.steps.length];

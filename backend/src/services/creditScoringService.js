@@ -230,13 +230,33 @@ class CreditScoringService {
             // Si el RPC de Optimism Sepolia se encuentra atrasado, congestionado o desconectado,
             // la operación debe abortar de inmediato arrojando CHAIN_READ_FAILED sin mutar límites.
             // NUNCA asumir que el usuario no está en mora ante un fallo de red.
-            let onChainUnits, isDelinquent;
+            let onChainUnits, isDelinquent, overdueDueAt = 0;
             try {
-                const protocol = bridge._getProtocol();
-                [onChainUnits, isDelinquent] = await Promise.all([
-                    protocol.creditLimits(wallet),
-                    protocol.isDelinquent(wallet)
-                ]);
+                const v6Bridge = require('./v6ChainBridge');
+                const v6Config = v6Bridge.activeV6Config();
+                if (v6Config) {
+                    const risk = new ethers.Contract(v6Config.contracts.RiskRegistry, ['function profile(address) view returns (tuple(uint128 creditLimit, uint8 level, bool kycVerified))'], bridge.provider);
+                    const ledger = new ethers.Contract(v6Config.contracts.CommitmentLedger, ['function matured(address) view returns (uint256)', 'function firstLotId(address) view returns (uint256)', 'function lot(address,uint256) view returns (uint256 dueAt, uint256 amount, uint256 fee, uint256 margin, bool active)'], bridge.provider);
+                    const [profile, maturedUnits] = await Promise.all([
+                        risk.profile(wallet),
+                        ledger.matured(wallet)
+                    ]);
+                    onChainUnits = profile.creditLimit;
+                    isDelinquent = maturedUnits > 0n;
+                    if (isDelinquent) {
+                        const firstId = await ledger.firstLotId(wallet);
+                        if (firstId > 0n) {
+                            const lot = await ledger.lot(wallet, firstId);
+                            overdueDueAt = Number(lot.dueAt || 0);
+                        }
+                    }
+                } else {
+                    const protocol = bridge._getProtocol();
+                    [onChainUnits, isDelinquent] = await Promise.all([
+                        protocol.creditLimits(wallet),
+                        protocol.isDelinquent(wallet)
+                    ]);
+                }
             } catch (err) {
                 console.error(`[SCORING] Falla de lectura on-chain para billetera ${wallet}:`, err.message);
                 throw Object.assign(new Error(`CHAIN_READ_FAILED: No se pudo verificar el estado on-chain del protocolo (${err.message})`), { status: 503 });
@@ -247,17 +267,20 @@ class CreditScoringService {
             let delinquentCycles = 1;
             if (isDelinquent) {
                 try {
-                    const protocol = bridge._getProtocol();
-                    const headIndex = await protocol.userActiveLotHead(wallet);
-                    const count = await protocol.getUserDebtLotsCount(wallet);
-                    if (headIndex < count) {
-                        const lot = await protocol.userDebtLots(wallet, headIndex);
-                        const nowSec = Math.floor(Date.now() / 1000);
-                        const dueAt = Number(lot.dueAt);
-                        if (dueAt > 0 && nowSec > dueAt) {
-                            const daysOverdue = Math.floor((nowSec - dueAt) / 86400);
-                            delinquentCycles = 1 + Math.floor(daysOverdue / 30);
+                    let dueAt = overdueDueAt;
+                    if (!dueAt) {
+                        const protocol = bridge._getProtocol();
+                        const headIndex = await protocol.userActiveLotHead(wallet);
+                        const count = await protocol.getUserDebtLotsCount(wallet);
+                        if (headIndex < count) {
+                            const lot = await protocol.userDebtLots(wallet, headIndex);
+                            dueAt = Number(lot.dueAt);
                         }
+                    }
+                    const nowSec = Math.floor(Date.now() / 1000);
+                    if (dueAt > 0 && nowSec > dueAt) {
+                        const daysOverdue = Math.floor((nowSec - dueAt) / 86400);
+                        delinquentCycles = 1 + Math.floor(daysOverdue / 30);
                     }
                 } catch (lotErr) {
                     console.error(`[SCORING] Falla al consultar lotes vencidos para ${wallet}:`, lotErr.message);

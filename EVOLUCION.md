@@ -8696,3 +8696,10 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
   - Unificado `deployment` hacia `marketplaceDeployment`.
   - Configurado `RecoverableAccounts` con `{ finality: null, confirmations: 2 }` (confirmación L2 verificada en ~4s por paso).
   - Reemplazado el `catch {}` silencioso en `activationStatus()` por registro explícito en log.
+
+
+## [2026-11-20] Adaptación V6 de `syncCreditLimitOnChain`, Sincronización Inicial al Activar Billetera y Skill `v6-canonical-architecture`
+
+- **`backend/src/services/creditScoringService.js` (`syncCreditLimitOnChain`):** Adaptado a la arquitectura modular V6 leyendo `RiskRegistry.profile(wallet)` (`creditLimit`) y `CommitmentLedger.matured(wallet)` / `firstLotId` / `lot` en lugar de `CoreProtocol.creditLimits` / `isDelinquent`.
+- **`backend/src/services/recoverableAccounts.js` (`activationStatus`):** Dispara automáticamente `creditScoringService.syncCreditLimitOnChain(userId)` al confirmarse la activación de una billetera para que nazca en `RiskRegistry` con la política vigente (`red_credit_base_limit`).
+- **`.agents/skills/v6-canonical-architecture/SKILL.md`:** Creada skill canónica obligatoria para que cualquier cambio futuro en el repositorio use exclusivamente los contratos modulares V6 y `marketplaceDeployment`.
