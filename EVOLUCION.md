@@ -13,6 +13,16 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-11-20 — Reordenamiento del Menú de Navegación (Billetera Web3 tras ¿Cómo funciona?)
+* **Contexto UX**:
+  - El acceso a **Billetera Web3** estaba ubicado al final del menú desplegable del usuario (debajo de *Perfil de Impulsor* / *Mi Perfil*), reduciendo su visibilidad frente a funciones financieras principales como el *Exchange BLUE/USDT*.
+* **Cambio Implementado (Consistencia React + Legado)**:
+  - **`frontend/src/components/dashboard/DashboardHeader.jsx`**: Reubicado `<Link to="/wallet">` (**Billetera Web3**) inmediatamente después de `¿Cómo funciona?` y antes de `Exchange BLUE/USDT` en `#profileDropdown`.
+  - **`frontend/src/components/sidebar.js`**: Reubicado el enlace `/wallet.html` (**Billetera Web3**) inmediatamente después de `❓ ¿Cómo funciona?` y antes de `💱 Exchange BLUE/USDT` en la barra lateral de escritorio.
+  - **`frontend/contract_interaction.html`**: Reubicado `<a href="/wallet.html">` (**Billetera Web3**) inmediatamente después de `¿Cómo funciona?` y antes de `Exchange BLUE/USDT` en `#profileDropdown` legado.
+* **Impacto**:
+  - Jerarquía uniforme (`¿Cómo funciona?` → `Billetera Web3` → `Exchange BLUE/USDT` → `Historial`...) tanto en la SPA de React como en las vistas legadas de escritorio y móvil.
+
 ### 2026-11-17 — Validación Telefónica Dinámica E.164 en Registro según Switch del Panel Admin
 * **Diagnóstico**:
   - Aunque `/api/public-settings` y `authController.js` respetaban correctamente el switch `registration_country_restriction_enabled = false`, el componente React `frontend/src/pages/Register.jsx` no leía dicha bandera: mostraba siempre el banner de Venezuela (`+58`), forzaba `+58 ` al enfocar o editar, y bloqueaba números internacionales válidos como `+54`.

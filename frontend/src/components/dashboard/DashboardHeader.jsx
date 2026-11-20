@@ -190,6 +190,9 @@ export default function DashboardHeader({
           {profileOpen && (
             <div className="dropdown-content" id="profileDropdown" style={{ display: 'block' }}>
               <a href="como-funciona.html" onClick={() => setProfileOpen(false)}>¿Cómo funciona?</a>
+              <Link to="/wallet" style={{ color: '#10B981', fontWeight: 600 }} onClick={() => setProfileOpen(false)}>
+                Billetera Web3
+              </Link>
               <Link to="/exchange" style={{ color: '#38bdf8', fontWeight: 600 }} onClick={() => setProfileOpen(false)}>
                 Exchange BLUE/USDT
               </Link>
@@ -199,9 +202,6 @@ export default function DashboardHeader({
               <a href="booster-profile.html" onClick={() => setProfileOpen(false)}>Perfil de Impulsor</a>
               <a href="profile.html" id="menuUserProfile" style={{ color: '#ffffff', fontWeight: 600 }}
                 onClick={() => setProfileOpen(false)}>👤 Mi Perfil</a>
-              <Link to="/wallet" style={{ color: '#10B981', fontWeight: 600 }} onClick={() => setProfileOpen(false)}>
-                Billetera Web3
-              </Link>
 
               {/* Enlace dinámico Donaciones ❤️ (oculto por defecto, visible si tiene causas) */}
               {hasDonations && (
