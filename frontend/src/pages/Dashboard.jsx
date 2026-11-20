@@ -574,7 +574,7 @@ export default function Dashboard() {
 
         {/* 4. Feed de Publicaciones del Marketplace (publications-section legacy) */}
         <div id="publications-feed-section" className="publications-section">
-          {/* Botones de Acción Rápida (Crear Nueva Publicación / Venta Rápida) con paridad de márgenes y settings */}
+          {/* Botones de Acción Rápida (Publicar / Venta Rápida / Exchange) con paridad de márgenes y settings */}
           <QuickActions
             onOpenCreatePublication={() => setPublicationTypeModalOpen(true)}
             onOpenQuickSale={() => setQuickSaleModalOpen(true)}

@@ -13,6 +13,17 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-11-20 — Barra de 3 Acciones Rápidas (Publicar / Venta Rápida / Exchange) y Retiro de Banner Comunitario
+* **Contexto UX Móvil y Simplificación Visual**:
+  - Se eliminó el banner informativo `Respaldo Comunitario Descentralizado` debajo de los balances para limpiar la lectura principal en teléfonos.
+  - Se acortó `Crear Nueva Publicación` a `Publicar` y se incorporó el botón directo `Exchange` junto a `⚡ Venta Rápida` en diseño proporcional adaptado a pantallas pequeñas.
+* **Cambios Implementados (Paridad React + Legado + Estilos)**:
+  - **`frontend/src/components/dashboard/WalletTabs.jsx`** y **`frontend/contract_interaction.html`**: Removido el bloque `.community-guarantor-banner`.
+  - **`frontend/src/components/dashboard/QuickActions.jsx`** y **`frontend/contract_interaction.html`**: Renombrado el botón `#openPublicationModalBtn` a `Publicar` y añadido `#openExchangeActionBtn` (`Exchange` hacia `/exchange` o `/exchange.html`) con estructura uniforme `.action-btn-icon` + `.action-btn-label`.
+  - **`frontend/style.css`**: Añadida variante `.exchange-action` acorde al tema FinTech (`#38bdf8`), distribución equitativa (`flex: 1 1 0; min-width: 0;`) y diseño compacto vertical de icono sobre etiqueta en móviles (`@media (max-width: 600px)`).
+* **Impacto**:
+  - Tres acciones principales visibles sin desbordes ni recortes en pantalla móvil y menor ruido vertical encima del módulo de referidos.
+
 ### 2026-11-20 — Reordenamiento del Menú de Navegación (Billetera Web3 tras ¿Cómo funciona?)
 * **Contexto UX**:
   - El acceso a **Billetera Web3** estaba ubicado al final del menú desplegable del usuario (debajo de *Perfil de Impulsor* / *Mi Perfil*), reduciendo su visibilidad frente a funciones financieras principales como el *Exchange BLUE/USDT*.

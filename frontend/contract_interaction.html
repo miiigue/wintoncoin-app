@@ -526,21 +526,6 @@
                         </div>
                     </div>
                 </div>
-
-                <!-- Banner de Cultura Comunitaria: Todos somos garantes del compromiso -->
-                <div class="community-guarantor-banner" style="margin-top: 16px; padding: 14px 16px; border-radius: 12px; background: linear-gradient(135deg, rgba(30, 41, 59, 0.7) 0%, rgba(15, 23, 42, 0.85) 100%); border: 1px solid rgba(56, 189, 248, 0.25); box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25); display: flex; align-items: center; gap: 12px;">
-                    <div style="width: 40px; height: 40px; border-radius: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.3); display: flex; align-items: center; justify-content: center; font-size: 1.25rem; flex-shrink: 0;">
-                        🤝
-                    </div>
-                    <div style="flex: 1; min-width: 0;">
-                        <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: #38bdf8; margin-bottom: 2px;">
-                            Respaldo Comunitario Descentralizado
-                        </div>
-                        <p style="margin: 0; font-size: 0.84rem; line-height: 1.38; color: #e2e8f0;">
-                            Aquí no existen intermediarios externos: <strong>todos somos garantes y todos somos parte del compromiso</strong> que sostiene y da vida a nuestro ecosistema.
-                        </p>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -610,9 +595,31 @@
 
         <div class="publications-section">
 
-            <div class="main-actions-container">
-                <a href="#" id="openPublicationModalBtn" class="button-link primary-action">Crear Nueva Publicación</a>
-                <a href="#" id="openQuickSaleModalBtn" class="button-link secondary-action">⚡ Venta Rápida</a>
+            <div class="main-actions-container" role="navigation" aria-label="Acciones rápidas principales">
+                <a href="#" id="openPublicationModalBtn" class="button-link primary-action">
+                    <span class="action-btn-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <line x1="12" y1="5" x2="12" y2="19"></line>
+                            <line x1="5" y1="12" x2="19" y2="12"></line>
+                        </svg>
+                    </span>
+                    <span class="action-btn-label">Publicar</span>
+                </a>
+                <a href="#" id="openQuickSaleModalBtn" class="button-link secondary-action">
+                    <span class="action-btn-icon" aria-hidden="true">⚡</span>
+                    <span class="action-btn-label">Venta Rápida</span>
+                </a>
+                <a href="/exchange.html" id="openExchangeActionBtn" class="button-link exchange-action">
+                    <span class="action-btn-icon" aria-hidden="true">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="17 1 21 5 17 9"></polyline>
+                            <path d="M3 11V9a4 4 0 0 1 4-4h14"></path>
+                            <polyline points="7 23 3 19 7 15"></polyline>
+                            <path d="M21 13v2a4 4 0 0 1-4 4H3"></path>
+                        </svg>
+                    </span>
+                    <span class="action-btn-label">Exchange</span>
+                </a>
             </div>
 
             <div class="publications-title">
