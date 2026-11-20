@@ -1,6 +1,6 @@
 'use strict';
 const policy=require('./safeAccountPolicy');
-const deployment=require('./chainDeployment');
+const deployment=require('./marketplaceDeployment');
 const signing=require('./safeExecution');
 const {error}=require('./chainOperationStore');
 const {usage}=require('./gasBudgetUsage');

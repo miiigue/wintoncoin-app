@@ -168,7 +168,7 @@ describe('cuarentena de operaciones durante Prelanzamiento',()=>{
 
         expect(result).toEqual({checked:2,confirmed:0});
         expect(pool.query).toHaveBeenCalledWith(expect.stringContaining("state='prepared'"),[
-            7,SAFE_CONTAINMENT_KINDS,'pre_launch_mode_enabled'
+            7,SAFE_CONTAINMENT_KINDS,'pre_launch_mode_enabled',[PRELAUNCH_QUARANTINE,WRITE_GATE_QUARANTINE]
         ]);
         expect(store.reconcile).toHaveBeenCalledTimes(2);
     });
@@ -251,5 +251,39 @@ describe('cuarentena de operaciones durante Prelanzamiento',()=>{
         const blocked=await store.ensureBroadcastAllowed(tamperedRow,db);
         expect(blocked.allowed).toBe(false);
         expect(db.query.mock.calls.at(-1)[1][1]).toBe('CONTAINMENT_INTENT_INVALID_QUARANTINED');
+    });
+
+    test('libera automáticamente cuarentenas temporales (PRELAUNCH/WRITE_GATE) cuando la compuerta vuelve a estar operativa',async()=>{
+        const db=client();
+        const store=new ChainOperationStore({},{},storeOptions(normalGate));
+        const row=baseRow({
+            state:'conflict',
+            error_code:WRITE_GATE_QUARANTINE,
+            steps:[{hash:'0xabc',confirmed:true}]
+        });
+
+        const released=await store.releaseRecoverableQuarantine(row,db);
+
+        expect(released.state).toBe('prepared');
+        expect(released.error_code).toBeNull();
+        expect(db.query).toHaveBeenCalledWith(
+            expect.stringContaining("UPDATE chain_operations SET state=$2,error_code=NULL"),
+            [row.id,'prepared',[PRELAUNCH_QUARANTINE,WRITE_GATE_QUARANTINE]]
+        );
+    });
+
+    test('libera cuarentena con 0 pasos a prepared, con paso sin confirmar a pending y nunca libera conflictos reales de reorg',async()=>{
+        const db=client();
+        const store=new ChainOperationStore({},{},storeOptions(normalGate));
+
+        const zeroSteps=await store.releaseRecoverableQuarantine(baseRow({state:'conflict',error_code:PRELAUNCH_QUARANTINE,steps:[]}),db);
+        expect(zeroSteps.state).toBe('prepared');
+
+        const unconfirmed=await store.releaseRecoverableQuarantine(baseRow({state:'conflict',error_code:WRITE_GATE_QUARANTINE,steps:[{hash:'0x1',confirmed:false}]}),db);
+        expect(unconfirmed.state).toBe('pending');
+
+        const reorg=await store.releaseRecoverableQuarantine(baseRow({state:'conflict',error_code:'REORG_AFTER_CONFIRMATION',steps:[{hash:'0x1',confirmed:true}]}),db);
+        expect(reorg.state).toBe('conflict');
+        expect(reorg.error_code).toBe('REORG_AFTER_CONFIRMATION');
     });
 });

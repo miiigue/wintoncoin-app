@@ -26,7 +26,7 @@ const SENTINEL='0x0000000000000000000000000000000000000001';
 function configuration(env=process.env) {
     // Use the same validated deployment selection as the economic contracts.
     // An explicit custom path always wins and an invalid path never falls back.
-    const activeChainId=require('./chainDeployment').configuration(env).chainId;
+    const activeChainId=require('./marketplaceDeployment').configuration(env).chainId;
     const file=env.SMART_ACCOUNT_MANIFEST || (activeChainId==='11155420'
         ? path.resolve(__dirname,'../../config/accounts/optimism-sepolia.json') : null);
     if(!file)throw error('La activación de cuentas recuperables está pendiente de configurar y verificar.',503);

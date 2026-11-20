@@ -8658,3 +8658,20 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
 - **`backend/src/services/exchangeIndexerV6.js`:** Paginación de `logsInRange` en ventanas de hasta `10.000` bloques (con bisección recursiva automática), soporte de `options.stateBlock` en `readPage` para verificar código contra un bloque finalizado disponible cuando el lote histórico está podado, y helper `isPrunedHistoryError`.
 - **`backend/src/services/exchangeIndexerV6Worker.js`:** Cuando un lote intermedio (`end < target.number`) encuentra estado histórico podado (`isPrunedHistoryError`), el worker avanza de forma paginada en tramos controlados de hasta `10.000` bloques verificando código, órdenes y solvencia en `stateBlock = target.number` con `status = 'syncing'` (*fail-closed*), y al alcanzar `end === target.number` ejecuta la conciliación matemática global 1:1 (`totalReserved` y `totalPendingRefund`) antes de marcar `status = 'ready'`.
 - **`backend/__tests__/test-exchangeIndexerV6Worker.js`:** Añadido caso de prueba de recuperación paginada ante error `4444 pruned history unavailable` verificando transición `syncing` -> `ready`.
+
+
+## [2026-11-20] Desbloqueo Multi-Usuario del Relayer, Auto-Recuperación de Cuarentenas Temporales y Confirmación Rápida L2 en Activación de Billetera
+
+### Causa Raíz Detectada en `chain_operations` y Optimism Sepolia
+- **Bloqueo cruzado del Relayer (`sender`):** En `chainOperationStore.js`, `authorize()` bloqueaba al `sender` compartido (Relayer) si existía cualquier fila en `state IN ('pending','conflict')`, incluyendo filas viejas en `PRELAUNCH_QUARANTINED` o `ECONOMIC_WRITE_GATE_QUARANTINED` con `steps = []` o pasos ya `confirmed: true`, deteniendo a todos los demás usuarios (`@Test11` y `@Test8`).
+- **Cuarentena sin salida:** Las operaciones puestas en `conflict` por `PRELAUNCH_QUARANTINED` o por latencia de arranque en Render (`ECONOMIC_WRITE_GATE_QUARANTINED`) nunca salían de `conflict` al restablecerse la compuerta.
+- **Latencia L1 en `RecoverableAccounts`:** `RecoverableAccounts` usaba `finality: 'safe'` (que en Optimism Sepolia espera ~106-300s por el batcher L1) en cada uno de los 4 pasos.
+
+### Solución Implementada
+- **`backend/src/services/chainOperationStore.js`:**
+  - `authorize()` ahora solo bloquea al `sender` cuando otra operación tiene un paso firmado aún no confirmado (`COALESCE((s->>'confirmed')::boolean, false) = false`), manteniendo el bloqueo estricto por `resource_key`.
+  - Añadido `releaseRecoverableQuarantine()` en `reconcile()`, `authorize()` y `sweep()` para rehabilitar automáticamente operaciones en `PRELAUNCH_QUARANTINED` o `ECONOMIC_WRITE_GATE_QUARANTINED` cuando `ensureBroadcastAllowed()` confirma que la plataforma está operativa.
+- **`backend/src/services/recoverableAccounts.js`, `accountActivationReadiness.js`, `safeAccountPolicy.js`:**
+  - Unificado `deployment` hacia `marketplaceDeployment`.
+  - Configurado `RecoverableAccounts` con `{ finality: null, confirmations: 2 }` (confirmación L2 verificada en ~4s por paso).
+  - Reemplazado el `catch {}` silencioso en `activationStatus()` por registro explícito en log.

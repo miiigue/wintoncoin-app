@@ -9,6 +9,7 @@ const PRELAUNCH_QUARANTINE='PRELAUNCH_QUARANTINED';
 const WRITE_GATE_QUARANTINE='ECONOMIC_WRITE_GATE_QUARANTINED';
 const DEPLOYMENT_QUARANTINE='DEPLOYMENT_CHANGED_QUARANTINED';
 const CONTAINMENT_INTENT_QUARANTINE='CONTAINMENT_INTENT_INVALID_QUARANTINED';
+const RECOVERABLE_QUARANTINE_CODES=[PRELAUNCH_QUARANTINE,WRITE_GATE_QUARANTINE];
 const SAFE_CONTAINMENT_KINDS=['pause','pause_protocol','pause_vault','pause_exchange','pause_treasury',
     'owner:pause_protocol','owner:pause_vault','owner:pause_exchange','owner:pause_treasury',
     'v6_mode_emergency_exit','v6_mode_freeze_all','v6_mode_normal',
@@ -103,11 +104,19 @@ class ChainOperationStore {
     async authorize(id,userId,build) {
         const initial=await this.get(id,userId);
         return locked(this.pool,'signer:'+initial.chain_id+':'+initial.sender,async client=>{
-            const row=await this.get(id,userId);
+            let row=await this.get(id,userId);
+            if(row.state==='conflict' && RECOVERABLE_QUARANTINE_CODES.includes(row.error_code)) {
+                row=await this.releaseRecoverableQuarantine(row,client);
+            }
             if(row.state!=='prepared')return publicResult(row);
             const gate=await this.ensureBroadcastAllowed(row,client);
             if(!gate.allowed)return gate.result;
-            const blocked=await client.query("SELECT id FROM chain_operations WHERE chain_id=$1 AND (sender=$2 OR resource_key=$3) AND state IN ('pending','conflict') AND id<>$4 LIMIT 1",[row.chain_id,row.sender,row.resource_key,row.id]);
+            const blocked=await client.query(`SELECT id FROM chain_operations
+                WHERE chain_id=$1 AND state IN ('pending','conflict') AND id<>$4
+                  AND (resource_key=$3 OR (sender=$2 AND EXISTS(
+                      SELECT 1 FROM jsonb_array_elements(steps) AS s
+                      WHERE COALESCE((s->>'confirmed')::boolean,false)=false
+                  ))) LIMIT 1`,[row.chain_id,row.sender,row.resource_key,row.id]);
             if(blocked.rowCount)throw error('Hay una operación pendiente de confirmación o recuperación.');
             const additions=await build(row,client);
             if(!Array.isArray(additions)||additions.length!==1)throw error('Solo se firma un paso después de confirmar el anterior.');
@@ -124,6 +133,16 @@ class ChainOperationStore {
     async quarantine(row,client,errorCode) {
         await client.query("UPDATE chain_operations SET state='conflict',error_code=$2,updated_at=NOW() WHERE id=$1 AND state IN ('prepared','pending')",[row.id,errorCode]);
         return publicResult({...row,state:'conflict',error_code:errorCode});
+    }
+    async releaseRecoverableQuarantine(row,client) {
+        if(row.state!=='conflict' || !RECOVERABLE_QUARANTINE_CODES.includes(row.error_code))return row;
+        const gate=await this.ensureBroadcastAllowed(row,client);
+        if(!gate.allowed)return row;
+        const hasUnconfirmed=(row.steps || []).some(s=>!s.confirmed);
+        const nextState=hasUnconfirmed?'pending':'prepared';
+        await client.query("UPDATE chain_operations SET state=$2,error_code=NULL,updated_at=NOW() WHERE id=$1 AND state='conflict' AND error_code=ANY($3::text[])",
+            [row.id,nextState,RECOVERABLE_QUARANTINE_CODES]);
+        return {...row,state:nextState,error_code:null};
     }
     containmentIntentMatches(row,config) {
         const operation=gateOperation(row.kind);
@@ -260,7 +279,10 @@ class ChainOperationStore {
     async reconcile(id) {
         const row=await this.get(id);
         return locked(this.pool,'signer:'+row.chain_id+':'+row.sender,async client=>{
-            const current=await this.get(id);
+            let current=await this.get(id);
+            if(current.state==='conflict' && RECOVERABLE_QUARANTINE_CODES.includes(current.error_code)) {
+                current=await this.releaseRecoverableQuarantine(current,client);
+            }
             if(current.state==='prepared') {
                 const gate=await this.ensureBroadcastAllowed(current,client);
                 return gate.allowed?publicResult(current):gate.result;
@@ -270,10 +292,13 @@ class ChainOperationStore {
     }
     async sweep(limit=25) {
         const rows=await this.pool.query(`SELECT id FROM chain_operations
-            WHERE state='pending' OR (state='prepared' AND kind<>ALL($2::text[]) AND EXISTS(
-                SELECT 1 FROM app_settings WHERE setting_key=$3 AND setting_value='true'))
+            WHERE state='pending'
+               OR (state='conflict' AND error_code=ANY($4::text[]) AND NOT EXISTS(
+                   SELECT 1 FROM app_settings WHERE setting_key=$3 AND setting_value='true'))
+               OR (state='prepared' AND kind<>ALL($2::text[]) AND EXISTS(
+                   SELECT 1 FROM app_settings WHERE setting_key=$3 AND setting_value='true'))
             ORDER BY CASE WHEN state='pending' THEN 0 ELSE 1 END,updated_at LIMIT $1`,
-        [limit,SAFE_CONTAINMENT_KINDS,economicWriteGate.PRELAUNCH_SETTING]);
+        [limit,SAFE_CONTAINMENT_KINDS,economicWriteGate.PRELAUNCH_SETTING,RECOVERABLE_QUARANTINE_CODES]);
         let confirmed=0;
         for(const row of rows.rows)try {if((await this.reconcile(row.id)).success)confirmed++;}catch { /* Retry next cycle; never erase a signed intent. */ }
         return {checked:rows.rowCount,confirmed};

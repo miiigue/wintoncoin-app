@@ -8,14 +8,18 @@ const {ChainOperationStore,publicResult,error}=require('./chainOperationStore');
 const {ensureIdentity}=require('./accountIdentity');
 const policy=require('./safeAccountPolicy');
 const signing=require('./safeExecution');
-const deployment=require('./chainDeployment');
+const deployment=require('./marketplaceDeployment');
 const legacyMigration=require('./legacyWalletMigration');
 const migrationExecution=require('./legacyMigrationExecution');
 const factoryAbi=['function proxyCreationCode() view returns(bytes)','function createProxyWithNonce(address,bytes,uint256) returns(address)'];
 const passkeyAbi=['function getSigner(uint256,uint256,uint176) view returns(address)','function createSigner(uint256,uint256,uint176) returns(address)'];
 function backupMessage(id,userId,config){return ['WintonCoin: confirmar respaldo de recuperación',id,String(userId),String(config.chainId),config.hash].join('\n');}
 class RecoverableAccounts {
-    constructor(pool,rpc=deployment.provider(),config=policy.configuration()) {this.pool=pool;this.rpc=rpc;this.config=config;this.store=new ChainOperationStore(pool,rpc);}
+    constructor(pool,rpc=deployment.provider(),config=policy.configuration()) {
+        this.pool=pool;this.rpc=rpc;this.config=config;
+        const isDemoFastFinality=String(config?.chainId)==='11155420';
+        this.store=new ChainOperationStore(pool,rpc,isDemoFastFinality?{finality:null,confirmations:2}:{});
+    }
     async activationReadiness(userId) {
         const context=await this.status(userId); // Also checks the account schema.
         const user=(await this.pool.query('SELECT web3_wallet_address,account_status FROM users WHERE id=$1',[userId])).rows[0];
@@ -144,7 +148,8 @@ class RecoverableAccounts {
         }
         const next=row.payload.plan[row.steps.length];
         if(row.state==='prepared'&&next&&!next.userSignature) {
-            try { return await this.activate(userId,id); } catch {}
+            try { return await this.activate(userId,id); }
+            catch(err) { console.warn('[RECOVERABLE_ACCOUNTS] Paso automático diferido:', err.message); }
         }
         const needsUserSignature=Boolean(result.requiresSignature&&next?.userSignature);
         return {...result,requiresSignature:needsUserSignature,next:next?.label,authorization:needsUserSignature?
