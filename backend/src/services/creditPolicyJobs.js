@@ -139,6 +139,46 @@ async function retryIssue(pool, version, user) {
 }
 
 /**
+ * Encola de forma durable la sincronización de política RED para un usuario específico
+ * (ej. al activar una billetera nueva o recuperar una cuenta ya activa sin perfil on-chain).
+ * Se ejecuta dentro de la misma transacción SQL del llamador para garantizar atomicidad.
+ */
+async function enqueueUserSync(client, userId, reason = 'WALLET_ACTIVATED') {
+    let version = (await client.query('SELECT id FROM credit_policy_versions ORDER BY id DESC LIMIT 1')).rows[0];
+    if (!version) {
+        const snapshot = await client.query("SELECT setting_key, setting_value FROM app_settings WHERE setting_key LIKE 'red_credit_%'");
+        version = (await client.query(
+            'INSERT INTO credit_policy_versions(settings, actor_id) VALUES($1, NULL) RETURNING id',
+            [JSON.stringify(Object.fromEntries(snapshot.rows.map(x => [x.setting_key, x.setting_value])))]
+        )).rows[0];
+        await client.query(
+            "INSERT INTO credit_policy_jobs(version_id, state) VALUES($1, 'complete_with_issues') ON CONFLICT DO NOTHING",
+            [version.id]
+        );
+    }
+    await client.query(`
+        INSERT INTO credit_policy_issues(
+            version_id, user_id, operation_id, reason, status, retry_requested,
+            retry_count, next_retry_at, max_retries, last_error, updated_at
+        ) VALUES(
+            $1, $2, NULL, $3, 'open', TRUE,
+            0, NOW(), 5, NULL, NOW()
+        )
+        ON CONFLICT(version_id, user_id) DO UPDATE SET
+            reason = EXCLUDED.reason,
+            status = CASE WHEN credit_policy_issues.status = 'retrying' THEN 'retrying' ELSE 'open' END,
+            retry_requested = TRUE,
+            next_retry_at = NOW(),
+            updated_at = NOW()
+    `, [version.id, userId, reason]);
+    await client.query(
+        "UPDATE credit_policy_jobs SET state = 'complete_with_issues', updated_at = NOW() WHERE version_id = $1 AND state = 'complete'",
+        [version.id]
+    );
+    return { versionId: version.id, userId };
+}
+
+/**
  * Ciclo periódico del Worker de Políticas de Compromiso RED (invocado por cron en server.js).
  * @param {import('pg').Pool} pool 
  * @param {any} scoreService 
@@ -203,8 +243,33 @@ async function tick(pool, scoreService) {
             }
         }
 
-        // 3. Si el job principal ya culminó su recorrido inicial, verificar si todas las incidencias están resueltas
+        // 3. Si el job principal ya culminó su recorrido inicial, recuperar cuentas ya activadas sin política aplicada
+        //    y verificar si todas las incidencias están resueltas.
         if (job.state !== 'pending') {
+            if (!issue) {
+                const unassigned = await client.query(`
+                    SELECT u.id
+                    FROM users u
+                    JOIN account_identities ai ON ai.user_id = u.id
+                    JOIN smart_accounts sa ON sa.identity_id = ai.id AND sa.state = 'active'
+                    WHERE u.web3_wallet_address IS NOT NULL
+                      AND u.red_credit_limit_override IS NULL
+                      AND NOT EXISTS (
+                          SELECT 1 FROM credit_policy_issues i
+                          WHERE i.version_id = $1 AND i.user_id = u.id
+                      )
+                      AND NOT EXISTS (
+                          SELECT 1 FROM chain_operations o
+                          WHERE o.resource_key = 'credit:' || LOWER(u.web3_wallet_address)
+                            AND o.state IN ('confirmed', 'pending', 'prepared')
+                      )
+                    ORDER BY u.id
+                    LIMIT 5
+                `, [job.version_id]);
+                for (const row of unassigned.rows) {
+                    await enqueueUserSync(client, row.id, 'ACTIVE_WALLET_POLICY_RECOVERY');
+                }
+            }
             await client.query(`
                 UPDATE credit_policy_jobs 
                 SET state = 'complete' 
@@ -287,4 +352,4 @@ async function tick(pool, scoreService) {
     });
 }
 
-module.exports = { savePolicy, tick, retryIssue, recordIssue };
+module.exports = { savePolicy, tick, retryIssue, recordIssue, enqueueUserSync };

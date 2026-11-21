@@ -8703,3 +8703,11 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
 - **`backend/src/services/creditScoringService.js` (`syncCreditLimitOnChain`):** Adaptado a la arquitectura modular V6 leyendo `RiskRegistry.profile(wallet)` (`creditLimit`) y `CommitmentLedger.matured(wallet)` / `firstLotId` / `lot` en lugar de `CoreProtocol.creditLimits` / `isDelinquent`.
 - **`backend/src/services/recoverableAccounts.js` (`activationStatus`):** Dispara automáticamente `creditScoringService.syncCreditLimitOnChain(userId)` al confirmarse la activación de una billetera para que nazca en `RiskRegistry` con la política vigente (`red_credit_base_limit`).
 - **`.agents/skills/v6-canonical-architecture/SKILL.md`:** Creada skill canónica obligatoria para que cualquier cambio futuro en el repositorio use exclusivamente los contratos modulares V6 y `marketplaceDeployment`.
+
+
+## [2026-11-21] Ruta Completa de Escritura V6 (`RiskRegistry.setProfile`), Recuperación Durable de Políticas y Validación V6 en Publicaciones (`CODEX-195`)
+
+- **`backend/src/services/durableAdministration.js`:** Migrado a `marketplaceDeployment`; en suites V6, `credit()` lee `RiskRegistry.profile(wallet)` y escribe mediante `RiskRegistry.setProfile(wallet, kycVerified, amount, level)` preservando KYC y nivel bajo el firmante administrativo autorizado (`ADMIN_CHAIN_PRIVATE_KEY` == `RiskRegistry.owner()`).
+- **`backend/src/services/creditPolicyJobs.js` y `backend/src/services/recoverableAccounts.js`:** Añadido `enqueueUserSync(client, userId, reason)` invocado dentro de la misma transacción SQL de activación de billetera, más recuperación automática acotada en `tick()` para cuentas previamente activadas sin operación `credit:` confirmada (como `@Test8`).
+- **`backend/src/controllers/publicationController.js`:** Validación de publicaciones `request` en modo normal V6 basada en capacidad confirmada on-chain (`web3BridgeService.getUserAuditDetailed`: `credit.availableCapacity` + `blueAvailable` descontando `web3_escrow_holds`), con fallo cerrado `412`/`503`/`402`.
+- **`backend/__tests__/v6CreditAndPublication.test.js`:** Suite unitaria verificando escritura V6 en `RiskRegistry.setProfile`, encolado durable al activar billetera y recuperación automática de cuentas activas.

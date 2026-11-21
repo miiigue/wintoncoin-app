@@ -262,17 +262,18 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 // Si dos solicitudes llegan al mismo tiempo, la segunda ESPERA a que
                 // la primera termine antes de leer el saldo. Estándar bancario (ISO 27001).
                 const currentRedRes = await client.query(
-                    'SELECT red_balance, liquid_blue_balance FROM users WHERE id = $1 FOR UPDATE',
+                    'SELECT red_balance, liquid_blue_balance, web3_wallet_address FROM users WHERE id = $1 FOR UPDATE',
                     [debtResponsible.user_id]
                 );
-                const currentRed = parseFloat(currentRedRes.rows[0].red_balance) || 0;
-                const liquidBlue = parseFloat(currentRedRes.rows[0].liquid_blue_balance) || 0;
+                const userFinRow = currentRedRes.rows[0] || {};
+                const currentRed = parseFloat(userFinRow.red_balance) || 0;
+                const liquidBlue = parseFloat(userFinRow.liquid_blue_balance) || 0;
                 
                 // ═══════════════════════════════════════════════════════════════
                 // CÁLCULO DE PODER ADQUISITIVO:
                 // Restar los fondos ya bloqueados en Escrow Web3 activos.
-                // Esto previene el ataque de doble gasto: si el usuario ya tiene
-                // publicaciones activas, su poder adquisitivo real es MENOR.
+                // En V6 se valida estrictamente contra la capacidad confirmada on-chain
+                // (RiskRegistry + CollateralVaultV6 - CommitmentLedger + BlueTokenV6 libre).
                 // ═══════════════════════════════════════════════════════════════
                 const escrowLockedRes = await client.query(
                     `SELECT COALESCE(SUM(amount_locked), 0) as total_locked
@@ -282,13 +283,31 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                 );
                 const alreadyLocked = parseFloat(escrowLockedRes.rows[0].total_locked) || 0;
 
-                const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
-                const availableCredit = Math.max(0, scoreLimit - currentRed - alreadyLocked);
+                const v6Bridge = require('../services/v6ChainBridge');
+                const v6Config = v6Bridge.activeV6Config();
+                let totalAvailableCoverage;
+                if (v6Config) {
+                    if (!userFinRow.web3_wallet_address) {
+                        throw { status: 412, message: 'Activa tu billetera Web3 antes de publicar una solicitud de pago.' };
+                    }
+                    const web3Bridge = require('../services/web3BridgeService');
+                    const onChainAudit = await web3Bridge.getUserAuditDetailed(userFinRow.web3_wallet_address, 0, 1, 'latest');
+                    if (!onChainAudit?.success) {
+                        throw { status: 503, message: 'No se pudo confirmar tu capacidad on-chain en V6. Intenta nuevamente.' };
+                    }
+                    const confirmedCreditCapacity = parseFloat(onChainAudit.credit?.availableCapacity) || 0;
+                    const confirmedBlueAvailable = parseFloat(onChainAudit.blueAvailable) || 0;
+                    totalAvailableCoverage = Math.max(0, confirmedCreditCapacity - alreadyLocked) + confirmedBlueAvailable;
+                } else {
+                    const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
+                    const availableCredit = Math.max(0, scoreLimit - currentRed - alreadyLocked);
+                    totalAvailableCoverage = availableCredit + liquidBlue;
+                }
 
-                // El usuario puede publicar si tiene suficiente crédito disponible
+                // El usuario puede publicar si tiene suficiente capacidad confirmada
                 // (descontando lo que ya tiene bloqueado en otras publicaciones activas).
-                if (totalRisk > (availableCredit + liquidBlue)) {
-                    throw { status: 402, message: `Fondos Insuficientes para publicar. Esta tarea requiere garantizar ${totalRisk.toFixed(4)} BLUE/RED. Tu límite disponible es ${(availableCredit + liquidBlue).toFixed(2)} (ya tienes ${alreadyLocked.toFixed(2)} bloqueados en otras publicaciones).` };
+                if (totalRisk > totalAvailableCoverage) {
+                    throw { status: 402, message: `Fondos Insuficientes para publicar. Esta tarea requiere garantizar ${totalRisk.toFixed(4)} BLUE/RED. Tu capacidad disponible confirmada es ${totalAvailableCoverage.toFixed(2)} (ya tienes ${alreadyLocked.toFixed(2)} bloqueados en otras publicaciones).` };
                 }
             }
             // ----------------------------------------------------

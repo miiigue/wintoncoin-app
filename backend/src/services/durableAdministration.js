@@ -2,9 +2,14 @@
 const {Wallet,parseUnits,Contract}=require('ethers');
 const {randomUUID}=require('crypto');
 const pool=require('../config/db');
-const deployment=require('./chainDeployment');
+const deployment=require('./marketplaceDeployment');
 const {ChainOperationStore,locked,publicResult}=require('./chainOperationStore');
 const {signStep}=require('./chainSigning');
+const RISK_REGISTRY_V6_ABI=[
+    'function profile(address) view returns (tuple(uint128 creditLimit, uint8 level, bool kycVerified))',
+    'function setProfile(address account, bool verified, uint128 newCreditLimit, uint8 level)',
+    'function owner() view returns (address)'
+];
 async function execute(bridge,contract,method,args,projection={},resource) {
     const config=await deployment.validate(bridge.provider);
     await require('./economicWriteGate').assertOperational({pool,config,operation:method});
@@ -26,7 +31,24 @@ async function execute(bridge,contract,method,args,projection={},resource) {
     return {...result,success:result.success||result.pending,pending:result.pending};
 }
 async function credit(bridge,wallet,amount,{manual=true,alreadyLocked=false}={}) {
-    const act=async()=>execute(bridge,bridge._getProtocol(),'setCreditLimit',[wallet,parseUnits(String(amount),6)],manual?{type:'credit_manual',value:String(amount),wallet}: {},'credit:'+wallet.toLowerCase());
+    const act=async()=>{
+        const config=await deployment.validate(bridge.provider);
+        const projection=manual?{type:'credit_manual',value:String(amount),wallet}:{};
+        const resource='credit:'+wallet.toLowerCase();
+        if(deployment.isV6Epoch(config.epoch)) {
+            const risk=new Contract(config.contracts.RiskRegistry,RISK_REGISTRY_V6_ABI,bridge.provider);
+            const current=await risk.profile(wallet);
+            return execute(
+                bridge,
+                risk,
+                'setProfile',
+                [wallet,Boolean(current.kycVerified),parseUnits(String(amount),6),Number(current.level)],
+                projection,
+                resource
+            );
+        }
+        return execute(bridge,bridge._getProtocol(),'setCreditLimit',[wallet,parseUnits(String(amount),6)],projection,resource);
+    };
     return alreadyLocked?act():locked(pool,'credit:'+wallet.toLowerCase(),act);
 }
 async function reconcile() {
