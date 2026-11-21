@@ -8711,3 +8711,11 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
 - **`backend/src/services/creditPolicyJobs.js` y `backend/src/services/recoverableAccounts.js`:** Añadido `enqueueUserSync(client, userId, reason)` invocado dentro de la misma transacción SQL de activación de billetera, más recuperación automática acotada en `tick()` para cuentas previamente activadas sin operación `credit:` confirmada (como `@Test8`).
 - **`backend/src/controllers/publicationController.js`:** Validación de publicaciones `request` en modo normal V6 basada en capacidad confirmada on-chain (`web3BridgeService.getUserAuditDetailed`: `credit.availableCapacity` + `blueAvailable` descontando `web3_escrow_holds`), con fallo cerrado `412`/`503`/`402`.
 - **`backend/__tests__/v6CreditAndPublication.test.js`:** Suite unitaria verificando escritura V6 en `RiskRegistry.setProfile`, encolado durable al activar billetera y recuperación automática de cuentas activas.
+
+
+## [2026-11-21] Corrección de Hallazgos Altos `CODEX-196` en `publicationController.js` (Precisión 6 Decimales, Cero Doble Conteo y Reservas de Tutelados)
+
+- **`backend/src/controllers/publicationController.js`:**
+  - Corregido el cálculo de cobertura disponible usando aritmética exacta de 6 decimales (`BigInt`/microunidades) y descontando `alreadyLocked` sobre la cobertura total elegible `(confirmedCreditUnits + confirmedBlueUnits)` (evitando el doble conteo de BLUE cuando `creditCapacity === 0`).
+  - Corregida la consulta `SUM(amount_locked)` en `web3_escrow_holds` a `WHERE COALESCE(responsible_user_id, author_id) = $1 AND status = 'locked'` para agregar correctamente las reservas de tutelados contra su tutor bajo bloqueo `FOR UPDATE`.
+- **`backend/__tests__/v6CreditAndPublication.test.js`:** Añadidas 4 pruebas invocando `publicationController.createPublication` real (caso `0/100/100 -> 402`, cobertura válida `100` -> `201`, tutelado contra tutor -> `402` y venta `sell` con límite `0` -> `201`).

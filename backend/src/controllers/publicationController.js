@@ -249,43 +249,56 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // Solo aplica a publicaciones tipo 'request' (solicitud de trabajo) en modo normal Web3.
             // En modo pre-lanzamiento, no se generan compromisos RED circulantes ni transferencias Web3 inmediatas.
             const isPreLaunch = settings.pre_launch_mode_enabled === 'true';
+            let preAuthLockAmount = null;
+            let preAuthCommissionPct = 0;
+            let preAuthResponsibleUserId = null;
             if (publicationType === 'request' && !isPreLaunch) {
-                const commissionPercentage = parseFloat(settings.platform_commission_percentage || '0');
-                const costPerTask = cost * (1 + commissionPercentage / 100);
-                const totalRisk = costPerTask * slots * maxRepeat;
+                const { parseUnits, formatUnits } = require('ethers');
+                const toMicroUnits = (val) => {
+                    const num = Number(val);
+                    if (!Number.isFinite(num) || num <= 0) return 0n;
+                    return parseUnits(num.toFixed(6), 6);
+                };
+                preAuthCommissionPct = parseFloat(settings.platform_commission_percentage || '0') || 0;
+                const commissionBps = BigInt(Math.max(0, Math.round(preAuthCommissionPct * 100)));
+                const costUnits = toMicroUnits(cost);
+                const costPerTaskUnits = (costUnits * (10000n + commissionBps) + 9999n) / 10000n;
+                const totalRiskUnits = costPerTaskUnits * BigInt(slots) * BigInt(maxRepeat);
 
                 const { getDebtResponsibleUserById } = require('../services/publicationService');
                 const creditScoringService = require('../services/creditScoringService');
 
                 const debtResponsible = await getDebtResponsibleUserById(client, authorId, { useTutor: true });
-                // FOR UPDATE: Bloqueo pesimista para prevenir doble gasto concurrente.
-                // Si dos solicitudes llegan al mismo tiempo, la segunda ESPERA a que
-                // la primera termine antes de leer el saldo. Estándar bancario (ISO 27001).
+                preAuthResponsibleUserId = debtResponsible.user_id;
+                preAuthLockAmount = formatUnits(totalRiskUnits, 6);
+                // FOR UPDATE: Bloqueo pesimista sobre la fila del responsable (o tutor en caso de tutelados)
+                // para prevenir doble gasto concurrente. Estándar bancario (ISO 27001).
                 const currentRedRes = await client.query(
                     'SELECT red_balance, liquid_blue_balance, web3_wallet_address FROM users WHERE id = $1 FOR UPDATE',
                     [debtResponsible.user_id]
                 );
                 const userFinRow = currentRedRes.rows[0] || {};
-                const currentRed = parseFloat(userFinRow.red_balance) || 0;
-                const liquidBlue = parseFloat(userFinRow.liquid_blue_balance) || 0;
-                
+                const currentRedUnits = toMicroUnits(userFinRow.red_balance);
+                const liquidBlueUnits = toMicroUnits(userFinRow.liquid_blue_balance);
+
                 // ═══════════════════════════════════════════════════════════════
-                // CÁLCULO DE PODER ADQUISITIVO:
-                // Restar los fondos ya bloqueados en Escrow Web3 activos.
-                // En V6 se valida estrictamente contra la capacidad confirmada on-chain
-                // (RiskRegistry + CollateralVaultV6 - CommitmentLedger + BlueTokenV6 libre).
+                // CÁLCULO DE PODER ADQUISITIVO (PRECISIÓN EXACTA 6 DECIMALES):
+                // Agrega todas las reservas activas por responsable (incluidos tutelados
+                // mediante COALESCE(responsible_user_id, author_id)) y las descuenta
+                // sobre la cobertura total elegible sin doble conteo de activos.
                 // ═══════════════════════════════════════════════════════════════
                 const escrowLockedRes = await client.query(
-                    `SELECT COALESCE(SUM(amount_locked), 0) as total_locked
+                    `SELECT COALESCE(SUM(amount_locked), 0) AS total_locked
                      FROM web3_escrow_holds
-                     WHERE author_id = $1 AND status = 'locked'`,
+                     WHERE COALESCE(responsible_user_id, author_id) = $1
+                       AND status = 'locked'`,
                     [debtResponsible.user_id]
                 );
-                const alreadyLocked = parseFloat(escrowLockedRes.rows[0].total_locked) || 0;
+                const alreadyLockedUnits = toMicroUnits(escrowLockedRes.rows[0]?.total_locked);
 
                 const v6Bridge = require('../services/v6ChainBridge');
                 const v6Config = v6Bridge.activeV6Config();
-                let totalAvailableCoverage;
+                let totalEligibleUnits;
                 if (v6Config) {
                     if (!userFinRow.web3_wallet_address) {
                         throw { status: 412, message: 'Activa tu billetera Web3 antes de publicar una solicitud de pago.' };
@@ -295,19 +308,26 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
                     if (!onChainAudit?.success) {
                         throw { status: 503, message: 'No se pudo confirmar tu capacidad on-chain en V6. Intenta nuevamente.' };
                     }
-                    const confirmedCreditCapacity = parseFloat(onChainAudit.credit?.availableCapacity) || 0;
-                    const confirmedBlueAvailable = parseFloat(onChainAudit.blueAvailable) || 0;
-                    totalAvailableCoverage = Math.max(0, confirmedCreditCapacity - alreadyLocked) + confirmedBlueAvailable;
+                    const confirmedCreditUnits = toMicroUnits(onChainAudit.credit?.availableCapacity);
+                    const confirmedBlueUnits = toMicroUnits(onChainAudit.blueAvailable);
+                    totalEligibleUnits = confirmedCreditUnits + confirmedBlueUnits;
                 } else {
-                    const scoreLimit = await creditScoringService.calculateUserScore(debtResponsible.user_id);
-                    const availableCredit = Math.max(0, scoreLimit - currentRed - alreadyLocked);
-                    totalAvailableCoverage = availableCredit + liquidBlue;
+                    const scoreLimitUnits = toMicroUnits(await creditScoringService.calculateUserScore(debtResponsible.user_id));
+                    const grossCreditUnits = scoreLimitUnits > currentRedUnits ? (scoreLimitUnits - currentRedUnits) : 0n;
+                    totalEligibleUnits = grossCreditUnits + liquidBlueUnits;
                 }
+
+                const totalAvailableUnits = totalEligibleUnits > alreadyLockedUnits
+                    ? (totalEligibleUnits - alreadyLockedUnits)
+                    : 0n;
 
                 // El usuario puede publicar si tiene suficiente capacidad confirmada
                 // (descontando lo que ya tiene bloqueado en otras publicaciones activas).
-                if (totalRisk > totalAvailableCoverage) {
-                    throw { status: 402, message: `Fondos Insuficientes para publicar. Esta tarea requiere garantizar ${totalRisk.toFixed(4)} BLUE/RED. Tu capacidad disponible confirmada es ${totalAvailableCoverage.toFixed(2)} (ya tienes ${alreadyLocked.toFixed(2)} bloqueados en otras publicaciones).` };
+                if (totalRiskUnits > totalAvailableUnits) {
+                    const riskFmt = Number(formatUnits(totalRiskUnits, 6)).toFixed(4);
+                    const availFmt = Number(formatUnits(totalAvailableUnits, 6)).toFixed(2);
+                    const lockedFmt = Number(formatUnits(alreadyLockedUnits, 6)).toFixed(2);
+                    throw { status: 402, message: `Fondos Insuficientes para publicar. Esta tarea requiere garantizar ${riskFmt} BLUE/RED. Tu capacidad disponible confirmada es ${availFmt} (ya tienes ${lockedFmt} bloqueados en otras publicaciones).` };
                 }
             }
             // ----------------------------------------------------
@@ -366,24 +386,16 @@ module.exports = function (router, pool, requireAcceptedLegalByUsernameField, ve
             // insertada en esta misma transacción (aún no commiteada).
             // Solo aplica en modo Web3 real (NO en pre-lanzamiento).
             // ═══════════════════════════════════════════════════════════════
-            if (publicationType === 'request' && !isPreLaunch && cost > 0) {
-                const commissionPct = parseFloat(settings.platform_commission_percentage || '0');
-                const costPerTask = cost * (1 + commissionPct / 100);
-                const totalToLock = costPerTask * slots * maxRepeat;
-
-                // Determinar responsable de la deuda (tutor si es menor).
-                const { getDebtResponsibleUserById } = require('../services/publicationService');
-                const debtResponsible = await getDebtResponsibleUserById(client, authorId, { useTutor: true });
-
-                // Insertar el bloqueo de fondos en la tabla web3_escrow_holds.
-                // Usa el mismo 'client' de la transacción para garantizar atomicidad.
+            if (publicationType === 'request' && !isPreLaunch && cost > 0 && preAuthLockAmount && preAuthResponsibleUserId) {
+                // Insertar el bloqueo de fondos en la tabla web3_escrow_holds reutilizando exactamente
+                // el importe de 6 decimales y el responsable validados en la pre-autorización (cero deriva flotante).
                 await client.query(
                     `INSERT INTO web3_escrow_holds
                         (publication_id, author_id, responsible_user_id, amount_locked, commission_rate_locked, status)
                      VALUES ($1, $2, $3, $4, $5, 'locked')`,
-                    [result.rows[0].id, authorId, debtResponsible.user_id, totalToLock, commissionPct]
+                    [result.rows[0].id, authorId, preAuthResponsibleUserId, preAuthLockAmount, preAuthCommissionPct]
                 );
-                console.log(`[ESCROW WEB3] ✅ Bloqueados ${totalToLock.toFixed(4)} BLUE/RED para publicación #${result.rows[0].id}`);
+                console.log(`[ESCROW WEB3] ✅ Bloqueados ${Number(preAuthLockAmount).toFixed(4)} BLUE/RED para publicación #${result.rows[0].id}`);
             }
 
             await client.query('COMMIT');
