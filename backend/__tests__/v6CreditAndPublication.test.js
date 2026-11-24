@@ -131,6 +131,44 @@ describe('V6 Credit Write Path, Durable Policy Recovery & Publication Capacity',
         expect(queries.some(q => q.sql.includes('INSERT INTO credit_policy_issues') && q.params[1] === 7 && q.params[2] === 'ACTIVE_WALLET_POLICY_RECOVERY')).toBe(true);
     });
 
+    test('chainOperationStore.advanceLocked al confirmar proyección kyc=true encola de forma durable al usuario y a su referente', async () => {
+        jest.dontMock('../src/services/chainOperationStore');
+        const enqueueSpy = jest.fn(async () => ({ versionId: 1 }));
+        jest.doMock('../src/services/creditPolicyJobs', () => ({ enqueueUserSync: enqueueSpy }));
+        jest.doMock('../src/services/chainConfirmation', () => ({
+            confirmedReceipt: jest.fn(async () => ({ status: 1, blockHash: '0xblock' }))
+        }));
+        const { ChainOperationStore } = require('../src/services/chainOperationStore');
+        const db = {
+            query: jest.fn(async sql => {
+                if (sql.startsWith('UPDATE users SET kyc_verified=')) {
+                    return { rowCount: 1, rows: [{ id: 15, referrer_id: 4 }] };
+                }
+                return { rowCount: 1, rows: [] };
+            })
+        };
+        const provider = {
+            getNetwork: jest.fn(async () => ({ chainId: 11155420n })),
+            getTransactionReceipt: jest.fn(async () => ({ status: 1, blockHash: '0xblock' }))
+        };
+        const store = new ChainOperationStore({}, provider);
+        const row = {
+            id: 'op-kyc-1',
+            chain_id: '11155420',
+            sender: '0x0000000000000000000000000000000000000001',
+            kind: 'owner:kyc',
+            state: 'pending',
+            payload: { planLength: 1 },
+            projection: { type: 'kyc', wallet: '0x0000000000000000000000000000000000000015', value: true },
+            steps: [{ hash: '0xtx', confirmed: false, raw: '0x00' }]
+        };
+
+        const res = await store.advanceLocked(row, db);
+        expect(res.success).toBe(true);
+        expect(enqueueSpy).toHaveBeenCalledWith(db, 15, 'KYC_VERIFIED');
+        expect(enqueueSpy).toHaveBeenCalledWith(db, 4, 'REFERRAL_KYC_VERIFIED');
+    });
+
     describe('publicationController.createPublication — Validación Real de Cobertura V6 y Reservas', () => {
         function buildControllerFixture({
             category = 'request',

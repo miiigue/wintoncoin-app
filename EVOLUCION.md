@@ -13,6 +13,18 @@ Para el detalle “tipo release”, ver `CHANGELOG.md`.
 - **Evidencia**: commits (hash corto) que anclan cada cambio al historial real.
 - **Impacto**: qué problema resolvió y qué habilita hacer.
 
+### 2026-11-21 — Tarjetas de Saldo Abren la Billetera Web3 y Retiro del Estado de Cuenta Legado
+* **Diagnóstico**:
+  - Las tarjetas `LIQUIDEZ` y `TU COMPROMISO` del Dashboard navegaban a `estado-cuenta.html`, una vista vanilla obsoleta (sin migrar a React) que duplicaba información ya presente en la Billetera Web3.
+* **Cambios Implementados**:
+  - **`frontend/src/components/dashboard/WalletTabs.jsx`**: Ambas tarjetas usan `useNavigate()` hacia la ruta SPA fija `/wallet` (sin recarga completa ni URL construida dinámicamente).
+  - **`frontend/contract_interaction.html`**: Paridad legada apuntando a `/wallet.html`.
+  - **Eliminado `frontend/src/pages/estado-cuenta.js`** (sin imports en otros módulos).
+  - **`frontend/estado-cuenta.html`**: Reducido a redirección permanente sin JavaScript (`meta refresh` a `/wallet.html`, `noindex`, destino fijo del mismo origen) para que marcadores y accesos antiguos no terminen en 404.
+  - **`MIGRACION_REACT_CATALOGO.md`**: Fila 16 marcada como *Retirada*. **`backend/scripts/run_booster_payments_now.js`**: Instrucción de consola actualizada a "Billetera Web3".
+* **Impacto**:
+  - Una sola fuente de verdad para saldos (Billetera Web3) y menos código legado que mantener y auditar.
+
 ### 2026-11-20 — Barra de 3 Acciones Rápidas (Publicar / Venta Rápida / Exchange) y Retiro de Banner Comunitario
 * **Contexto UX Móvil y Simplificación Visual**:
   - Se eliminó el banner informativo `Respaldo Comunitario Descentralizado` debajo de los balances para limpiar la lectura principal en teléfonos.
@@ -8719,3 +8731,10 @@ En respuesta al encargo de `CODEX-185` para el entorno aislado **Demo (`demo-v6-
   - Corregido el cálculo de cobertura disponible usando aritmética exacta de 6 decimales (`BigInt`/microunidades) y descontando `alreadyLocked` sobre la cobertura total elegible `(confirmedCreditUnits + confirmedBlueUnits)` (evitando el doble conteo de BLUE cuando `creditCapacity === 0`).
   - Corregida la consulta `SUM(amount_locked)` en `web3_escrow_holds` a `WHERE COALESCE(responsible_user_id, author_id) = $1 AND status = 'locked'` para agregar correctamente las reservas de tutelados contra su tutor bajo bloqueo `FOR UPDATE`.
 - **`backend/__tests__/v6CreditAndPublication.test.js`:** Añadidas 4 pruebas invocando `publicationController.createPublication` real (caso `0/100/100 -> 402`, cobertura válida `100` -> `201`, tutelado contra tutor -> `402` y venta `sell` con límite `0` -> `201`).
+
+
+## [2026-11-23] Encolado Durable de Sincronización RED para Usuario y Referente al Confirmarse KYC
+
+- **`backend/src/services/chainOperationStore.js` (`project` tipo `kyc`):** Al confirmarse on-chain `kyc_verified = true`, encola de forma atómica y durable (`creditPolicyJobs.enqueueUserSync`) tanto al usuario verificado (`KYC_VERIFIED`) como a su referente (`REFERRAL_KYC_VERIFIED`) dentro de la misma transacción SQL de proyección.
+- **`backend/src/controllers/admin/adminUserController.js`:** Encola de forma durable al usuario y al referente al detectar `kycResult.verified === true`, y solo emite la notificación de bonificación de límite RED al referente cuando la actualización queda confirmada on-chain (nunca antes).
+- **`backend/__tests__/v6CreditAndPublication.test.js`:** Añadida prueba unitaria verificando el encolado atómico de `KYC_VERIFIED` y `REFERRAL_KYC_VERIFIED` al confirmarse una proyección KYC.

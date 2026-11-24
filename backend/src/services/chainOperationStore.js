@@ -75,8 +75,14 @@ async function project(client,row) {
         const result=await client.query('UPDATE users SET red_credit_limit_override=$1 WHERE LOWER(web3_wallet_address)=LOWER($2)',[p.value,p.wallet]);
         if(result.rowCount!==1)throw error('La identidad requiere conciliación.');
     } else if(p.type==='kyc') {
-        const result=await client.query('UPDATE users SET kyc_verified=$1 WHERE LOWER(web3_wallet_address)=LOWER($2)',[p.value,p.wallet]);
+        const result=await client.query('UPDATE users SET kyc_verified=$1 WHERE LOWER(web3_wallet_address)=LOWER($2) RETURNING id, referrer_id',[p.value,p.wallet]);
         if(result.rowCount!==1)throw error('La identidad requiere conciliación.');
+        if(p.value===true) {
+            const { enqueueUserSync }=require('./creditPolicyJobs');
+            const verifiedUser=result.rows?.[0];
+            if(verifiedUser?.id)await enqueueUserSync(client,verifiedUser.id,'KYC_VERIFIED');
+            if(verifiedUser?.referrer_id)await enqueueUserSync(client,verifiedUser.referrer_id,'REFERRAL_KYC_VERIFIED');
+        }
     }
 }
 class ChainOperationStore {
