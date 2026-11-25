@@ -64,6 +64,16 @@ const DEFAULT_TIMEOUT_MS = 15000;
 const MAX_ALLOWED_TIMEOUT_MS = 30000;
 const DEFAULT_EXCHANGE_QUEUE_WARN_LATENCY_MS = 8000;
 
+// Presupuesto acotado de arranque en frío (cold-start) exclusivo para GET read-only a Render Demo
+const DEFAULT_CLI_COLD_START_BUDGET_MS = 90000;
+const MAX_ALLOWED_COLD_START_BUDGET_MS = 180000;
+const DEFAULT_COLD_START_INTERVAL_MS = 15000;
+const MIN_ALLOWED_COLD_START_INTERVAL_MS = 1000;
+const DEFAULT_PROGRAMMATIC_COLD_START_BUDGET_MS = 0;
+// Alcance explícito del presupuesto: cubre la ventana acumulada de espera + reintentos
+// tras detectar un fallo compatible con arranque en frío (no impone un cap global sobre el intento inicial).
+const COLD_START_BUDGET_SCOPE = 'post_detection_warmup_and_retries';
+
 // Estados controlados reconocidos en respuestas HTTP 503 fail-closed del indexador
 const CONTROLLED_QUEUE_503_STATUSES = Object.freeze([
     'syncing',
@@ -377,6 +387,146 @@ async function performReadonlyGet(url, { timeoutMs, fetchImpl }) {
 }
 
 /**
+ * Espera asíncrona estándar usada entre sondeos de arranque en frío de Render.
+ *
+ * @param {number} ms
+ * @returns {Promise<void>}
+ */
+function defaultSleep(ms) {
+    return new Promise((resolve) => {
+        // NO usar timer.unref() aquí: este temporizador debe mantener vivo el event loop
+        // mientras el proceso aguarda el siguiente sondeo de cold-start de Render.
+        setTimeout(resolve, ms);
+    });
+}
+
+/**
+ * Determina de forma estricta si una respuesta HTTP GET del backend Demo
+ * corresponde a un fallo compatible con arranque en frío (cold-start) de Render:
+ *  - Timeout de solicitud (`REQUEST_TIMEOUT`) o error transitorio de red (`NETWORK_ERROR`), O
+ *  - `HTTP 503` con cuerpo NO-JSON / HTML (ej. página de waking-up o indisponibilidad transitoria).
+ *
+ * NUNCA clasifica como fallo compatible con cold-start:
+ *  - `HTTP 503` con cuerpo JSON estructurado de la aplicación (`syncing`/`stale`/`fail-closed`)
+ *  - `HTTP 500`, `4xx`, `3xx`, ni `HTTP 200` (aunque `usable === false` o `status !== "ready"`).
+ *
+ * @param {{ ok: boolean, status: number|null, bodyText: string|null, errorCode: string|null }} res
+ * @returns {boolean}
+ */
+function isRenderColdStartResponse(res) {
+    if (!res) return false;
+    if (!res.ok) {
+        return res.errorCode === 'REQUEST_TIMEOUT' || res.errorCode === 'NETWORK_ERROR';
+    }
+    if (res.status !== 503) {
+        return false;
+    }
+
+    const body = typeof res.bodyText === 'string' ? res.bodyText.trim() : '';
+    if (body.length === 0) {
+        return true;
+    }
+
+    // Si el 503 trae un objeto JSON válido, proviene de la aplicación (no es fallo compatible con cold-start)
+    try {
+        const parsed = JSON.parse(body);
+        if (parsed && typeof parsed === 'object') {
+            return false;
+        }
+    } catch {
+        // Cuerpo HTML (<!doctype html>) o texto plano -> fallo compatible con arranque en frío
+        return true;
+    }
+    return true;
+}
+
+/**
+ * Ejecuta un GET read-only hacia el backend Demo en Render con espera acotada
+ * ante fallos compatibles con arranque en frío (`coldStartBudgetMs`).
+ *
+ * Alcance del presupuesto (`budgetScope = 'post_detection_warmup_and_retries'`):
+ * - Comparte un único presupuesto acumulado (`coldStartState`) entre los checks del backend
+ *   (`deployment` y `exchange-queue`) a partir del momento en que se detecta el primer fallo
+ *   compatible con arranque en frío (sin imponer un cap global sobre el intento inicial).
+ * - Después de cada espera (`sleepImpl`), recalcula `remainingAfterSleep`; si es `<= 0`,
+ *   termina sin lanzar una petición HTTP adicional.
+ * - Al iniciar cada reintento dentro del presupuesto, acota el timeout efectivo a
+ *   `Math.min(timeoutMs, remainingAfterSleep)` para nunca exceder `coldStartBudgetMs`.
+ */
+async function performBackendReadonlyGetWithColdStart(
+    url,
+    { timeoutMs, fetchImpl, coldStartState, coldStartIntervalMs, sleepImpl, nowFn }
+) {
+    let res = await performReadonlyGet(url, { timeoutMs, fetchImpl });
+    let checkRetries = 0;
+
+    if (coldStartState.budgetMs <= 0 || !isRenderColdStartResponse(res)) {
+        return { res, coldStartRetries: checkRetries };
+    }
+
+    // Registramos con total transparencia que se observó un fallo compatible con arranque en frío
+    coldStartState.observed = true;
+    if (coldStartState.startedAtMs === null) {
+        coldStartState.startedAtMs = nowFn();
+    }
+
+    while (isRenderColdStartResponse(res)) {
+        const wallElapsedBeforeSleep = Math.max(0, nowFn() - coldStartState.startedAtMs);
+        const effectiveElapsedBeforeSleep = Math.max(
+            wallElapsedBeforeSleep,
+            coldStartState.budgetConsumedMs
+        );
+        const remainingBeforeSleep = coldStartState.budgetMs - effectiveElapsedBeforeSleep;
+
+        if (remainingBeforeSleep <= 0) {
+            coldStartState.warmupDurationMs = effectiveElapsedBeforeSleep;
+            break;
+        }
+
+        const waitMs = Math.min(coldStartIntervalMs, remainingBeforeSleep);
+        const beforeSleepMs = nowFn();
+        await sleepImpl(waitMs);
+        const sleepWallDelta = Math.max(0, nowFn() - beforeSleepMs);
+
+        // Acumulamos el mayor entre tiempo real y waitMs para garantizar determinismo
+        // tanto en producción como en pruebas unitarias con sleepImpl mockeado.
+        coldStartState.budgetConsumedMs += Math.max(sleepWallDelta, waitMs);
+
+        // Recalculamos el presupuesto restante DESPUÉS de esperar:
+        // si se agotó, NO iniciamos ninguna petición HTTP extra.
+        const elapsedAfterSleep = Math.max(
+            Math.max(0, nowFn() - coldStartState.startedAtMs),
+            coldStartState.budgetConsumedMs
+        );
+        const remainingAfterSleep = coldStartState.budgetMs - elapsedAfterSleep;
+        if (remainingAfterSleep <= 0) {
+            coldStartState.warmupDurationMs = elapsedAfterSleep;
+            break;
+        }
+
+        // Acotamos el timeout efectivo del siguiente intento al tiempo restante del presupuesto
+        const attemptTimeoutMs = Math.min(timeoutMs, remainingAfterSleep);
+        coldStartState.warmupAttempts += 1;
+        checkRetries += 1;
+
+        const beforeAttemptMs = nowFn();
+        res = await performReadonlyGet(url, { timeoutMs: attemptTimeoutMs, fetchImpl });
+        const attemptWallDelta = Math.max(0, nowFn() - beforeAttemptMs);
+
+        // Acumulamos también el tiempo consumido por el intento HTTP en el presupuesto compartido
+        coldStartState.budgetConsumedMs += Math.max(attemptWallDelta, res.latencyMs || 0);
+
+        const afterAttemptElapsed = Math.max(
+            Math.max(0, nowFn() - coldStartState.startedAtMs),
+            coldStartState.budgetConsumedMs
+        );
+        coldStartState.warmupDurationMs = afterAttemptElapsed;
+    }
+
+    return { res, coldStartRetries: checkRetries };
+}
+
+/**
  * Construye una entrada de alerta accionable normalizada.
  */
 function createAlert({ checkId, priority, severity, code, message, recommendedAction }) {
@@ -398,6 +548,10 @@ function createAlert({ checkId, priority, severity, code, message, recommendedAc
  * @param {Partial<typeof DEFAULT_TARGETS>} [options.targets] - URLs objetivo (deben pasar allowlist).
  * @param {number} [options.timeoutMs=15000] - Timeout estricto por solicitud.
  * @param {number} [options.exchangeQueueLatencyWarnMs=8000] - Umbral de latencia de advertencia para exchange-queue.
+ * @param {number} [options.coldStartBudgetMs=0] - Presupuesto máximo (ms) para espera de cold-start de Render (en CLI default 90000).
+ * @param {number} [options.coldStartIntervalMs=15000] - Espera (ms) entre intentos durante cold-start.
+ * @param {Function} [options.sleepImpl=defaultSleep] - Función sleep inyectable para pruebas instantáneas.
+ * @param {boolean} [options.failOnDegraded=false] - Si es true, cualquier estado degraded devuelve exitCode 1.
  * @param {Function} [options.fetchImpl=global.fetch] - Función fetch inyectable para pruebas unitarias.
  * @param {Function} [options.nowFn=Date.now] - Reloj inyectable para trazabilidad determinista.
  * @returns {Promise<object>} Reporte JSON estructurado sin secretos ni PII.
@@ -405,6 +559,7 @@ function createAlert({ checkId, priority, severity, code, message, recommendedAc
 async function runDemoReadonlySmoke(options = {}) {
     const fetchImpl = options.fetchImpl || global.fetch;
     const nowFn = typeof options.nowFn === 'function' ? options.nowFn : Date.now;
+    const sleepImpl = typeof options.sleepImpl === 'function' ? options.sleepImpl : defaultSleep;
     const failOnDegraded = Boolean(options.failOnDegraded || options.strictReadiness);
     const startedMs = nowFn();
     const startedAt = new Date(startedMs).toISOString();
@@ -422,6 +577,33 @@ async function runDemoReadonlySmoke(options = {}) {
         Number.isFinite(requestedWarnLatency) && requestedWarnLatency > 0
             ? Math.floor(requestedWarnLatency)
             : DEFAULT_EXCHANGE_QUEUE_WARN_LATENCY_MS;
+
+    const requestedColdStartBudget = Number(
+        options.coldStartBudgetMs ?? DEFAULT_PROGRAMMATIC_COLD_START_BUDGET_MS
+    );
+    const coldStartBudgetMs =
+        Number.isFinite(requestedColdStartBudget) && requestedColdStartBudget > 0
+            ? Math.min(Math.floor(requestedColdStartBudget), MAX_ALLOWED_COLD_START_BUDGET_MS)
+            : 0;
+
+    const requestedColdStartInterval = Number(
+        options.coldStartIntervalMs ?? DEFAULT_COLD_START_INTERVAL_MS
+    );
+    // Piso mínimo razonable (>= 1000 ms) para evitar bucles agresivos de reintentos
+    const coldStartIntervalMs =
+        Number.isFinite(requestedColdStartInterval) && requestedColdStartInterval > 0
+            ? Math.max(Math.floor(requestedColdStartInterval), MIN_ALLOWED_COLD_START_INTERVAL_MS)
+            : DEFAULT_COLD_START_INTERVAL_MS;
+
+    // Estado compartido de arranque en frío de Render (totalmente visible en el reporte JSON)
+    const coldStartState = {
+        budgetMs: coldStartBudgetMs,
+        startedAtMs: null,
+        budgetConsumedMs: 0,
+        observed: false,
+        warmupAttempts: 0,
+        warmupDurationMs: 0
+    };
 
     const targets = {
         ...DEFAULT_TARGETS,
@@ -500,10 +682,19 @@ async function runDemoReadonlySmoke(options = {}) {
                 expectedEpoch: EXPECTED_DEMO_EPOCH,
                 timeoutMs,
                 exchangeQueueLatencyWarnMs,
+                coldStartBudgetMs,
+                coldStartIntervalMs,
                 failOnDegraded,
                 maxRetries: 0,
                 exchangeQueue503Policy:
                     'HTTP 503 con chainId 11155420 y estado controlado (syncing/stale/fail-closed) reporta degraded + alerta P2 (exitCode 0 en diagnóstico, exitCode 1 con --fail-on-degraded); cualquier otro 5xx/4xx/timeout/deriva de chainId o 200 no listo falla con exitCode 1.'
+            },
+            coldStart: {
+                budgetMs: coldStartState.budgetMs,
+                budgetScope: COLD_START_BUDGET_SCOPE,
+                observed: false,
+                warmupAttempts: 0,
+                warmupDurationMs: 0
             },
             summary: {
                 total: checks.length,
@@ -718,7 +909,14 @@ async function runDemoReadonlySmoke(options = {}) {
     {
         const checkId = 'backend_web3_deployment';
         const url = validatedTargets[checkId];
-        const res = await performReadonlyGet(url, { timeoutMs, fetchImpl });
+        const { res, coldStartRetries } = await performBackendReadonlyGetWithColdStart(url, {
+            timeoutMs,
+            fetchImpl,
+            coldStartState,
+            coldStartIntervalMs,
+            sleepImpl,
+            nowFn
+        });
 
         if (!res.ok) {
             checks.push({
@@ -728,6 +926,7 @@ async function runDemoReadonlySmoke(options = {}) {
                 severity: 'critical',
                 httpStatus: null,
                 latencyMs: res.latencyMs,
+                coldStartRetries,
                 details: { errorCode: res.errorCode, errorMessage: res.errorMessage }
             });
             alerts.push(
@@ -748,6 +947,7 @@ async function runDemoReadonlySmoke(options = {}) {
                 severity: 'critical',
                 httpStatus: res.status,
                 latencyMs: res.latencyMs,
+                coldStartRetries,
                 details: { expectedHttpStatus: 200 }
             });
             alerts.push(
@@ -777,6 +977,7 @@ async function runDemoReadonlySmoke(options = {}) {
                     severity: 'critical',
                     httpStatus: res.status,
                     latencyMs: res.latencyMs,
+                    coldStartRetries,
                     details: { validJson: false, parseError }
                 });
                 alerts.push(
@@ -830,6 +1031,7 @@ async function runDemoReadonlySmoke(options = {}) {
                     severity,
                     httpStatus: res.status,
                     latencyMs: res.latencyMs,
+                    coldStartRetries,
                     details: {
                         success: payload.success === true,
                         chainId,
@@ -899,7 +1101,14 @@ async function runDemoReadonlySmoke(options = {}) {
     {
         const checkId = 'backend_web3_exchange_queue';
         const url = validatedTargets[checkId];
-        const res = await performReadonlyGet(url, { timeoutMs, fetchImpl });
+        const { res, coldStartRetries } = await performBackendReadonlyGetWithColdStart(url, {
+            timeoutMs,
+            fetchImpl,
+            coldStartState,
+            coldStartIntervalMs,
+            sleepImpl,
+            nowFn
+        });
 
         if (!res.ok) {
             checks.push({
@@ -909,6 +1118,7 @@ async function runDemoReadonlySmoke(options = {}) {
                 severity: 'critical',
                 httpStatus: null,
                 latencyMs: res.latencyMs,
+                coldStartRetries,
                 details: { errorCode: res.errorCode, errorMessage: res.errorMessage }
             });
             alerts.push(
@@ -938,6 +1148,7 @@ async function runDemoReadonlySmoke(options = {}) {
                     severity: 'critical',
                     httpStatus: res.status,
                     latencyMs: res.latencyMs,
+                    coldStartRetries,
                     details: { validJson: false, parseError }
                 });
                 alerts.push(
@@ -969,6 +1180,7 @@ async function runDemoReadonlySmoke(options = {}) {
                         severity: 'critical',
                         httpStatus: res.status,
                         latencyMs: res.latencyMs,
+                        coldStartRetries,
                         details: {
                             chainId,
                             expectedChainId: EXPECTED_DEMO_CHAIN_ID,
@@ -1014,6 +1226,7 @@ async function runDemoReadonlySmoke(options = {}) {
                             severity: 'critical',
                             httpStatus: res.status,
                             latencyMs: res.latencyMs,
+                            coldStartRetries,
                             details: {
                                 chainId,
                                 success: payload.success === true,
@@ -1047,6 +1260,7 @@ async function runDemoReadonlySmoke(options = {}) {
                             severity,
                             httpStatus: res.status,
                             latencyMs: res.latencyMs,
+                            coldStartRetries,
                             details: {
                                 chainId,
                                 queueStatus,
@@ -1085,6 +1299,7 @@ async function runDemoReadonlySmoke(options = {}) {
                         severity: 'warning',
                         httpStatus: res.status,
                         latencyMs: res.latencyMs,
+                        coldStartRetries,
                         details: {
                             chainId,
                             queueStatus: queueStatus || 'fail-closed',
@@ -1115,6 +1330,7 @@ async function runDemoReadonlySmoke(options = {}) {
                         severity: 'critical',
                         httpStatus: res.status,
                         latencyMs: res.latencyMs,
+                        coldStartRetries,
                         details: {
                             chainId,
                             queueStatus,
@@ -1170,10 +1386,19 @@ async function runDemoReadonlySmoke(options = {}) {
             expectedEpoch: EXPECTED_DEMO_EPOCH,
             timeoutMs,
             exchangeQueueLatencyWarnMs,
+            coldStartBudgetMs,
+            coldStartIntervalMs,
             failOnDegraded,
             maxRetries: 0,
             exchangeQueue503Policy:
                 'HTTP 503 con chainId 11155420 y estado controlado (syncing/stale/fail-closed) reporta degraded + alerta P2 (exitCode 0 en diagnóstico, exitCode 1 con --fail-on-degraded); cualquier otro 5xx/4xx/timeout/deriva de chainId o 200 no listo falla con exitCode 1.'
+        },
+        coldStart: {
+            budgetMs: coldStartState.budgetMs,
+            budgetScope: COLD_START_BUDGET_SCOPE,
+            observed: coldStartState.observed,
+            warmupAttempts: coldStartState.warmupAttempts,
+            warmupDurationMs: coldStartState.warmupDurationMs
         },
         summary,
         alerts,
@@ -1183,14 +1408,20 @@ async function runDemoReadonlySmoke(options = {}) {
 
 /**
  * Parsea argumentos CLI mínimos (`--out <ruta>`, `--timeout-ms <ms>`,
+ * `--cold-start-budget-ms <ms>`, `--cold-start-interval-ms <ms>`,
  * `--fail-on-degraded`, `--strict-readiness`).
  *
+ * En CLI el presupuesto por defecto de arranque en frío es 90 000 ms (cap 180 000 ms)
+ * con intervalo de 15 000 ms para absorber el despertar normal de Render Demo.
+ *
  * @param {string[]} argv
- * @returns {{ outPath: string|null, timeoutMs: number|undefined, failOnDegraded: boolean }}
+ * @returns {{ outPath: string|null, timeoutMs: number|undefined, coldStartBudgetMs: number, coldStartIntervalMs: number, failOnDegraded: boolean }}
  */
 function parseCliArgs(argv) {
     let outPath = null;
     let timeoutMs;
+    let coldStartBudgetMs = DEFAULT_CLI_COLD_START_BUDGET_MS;
+    let coldStartIntervalMs = DEFAULT_COLD_START_INTERVAL_MS;
     let failOnDegraded = false;
 
     for (let i = 0; i < argv.length; i += 1) {
@@ -1205,12 +1436,30 @@ function parseCliArgs(argv) {
             i += 1;
         } else if (arg.startsWith('--timeout-ms=')) {
             timeoutMs = Number(arg.slice('--timeout-ms='.length));
+        } else if (arg === '--cold-start-budget-ms') {
+            coldStartBudgetMs = Number(argv[i + 1]);
+            i += 1;
+        } else if (arg.startsWith('--cold-start-budget-ms=')) {
+            coldStartBudgetMs = Number(arg.slice('--cold-start-budget-ms='.length));
+        } else if (arg === '--cold-start-interval-ms') {
+            const parsed = Number(argv[i + 1]);
+            coldStartIntervalMs =
+                Number.isFinite(parsed) && parsed > 0
+                    ? Math.max(Math.floor(parsed), MIN_ALLOWED_COLD_START_INTERVAL_MS)
+                    : DEFAULT_COLD_START_INTERVAL_MS;
+            i += 1;
+        } else if (arg.startsWith('--cold-start-interval-ms=')) {
+            const parsed = Number(arg.slice('--cold-start-interval-ms='.length));
+            coldStartIntervalMs =
+                Number.isFinite(parsed) && parsed > 0
+                    ? Math.max(Math.floor(parsed), MIN_ALLOWED_COLD_START_INTERVAL_MS)
+                    : DEFAULT_COLD_START_INTERVAL_MS;
         } else if (arg === '--fail-on-degraded' || arg === '--strict-readiness') {
             failOnDegraded = true;
         }
     }
 
-    return { outPath, timeoutMs, failOnDegraded };
+    return { outPath, timeoutMs, coldStartBudgetMs, coldStartIntervalMs, failOnDegraded };
 }
 
 /**
@@ -1218,14 +1467,25 @@ function parseCliArgs(argv) {
  * y opcionalmente guarda una copia en `backend/scratch/` si se indicó `--out`.
  */
 async function main() {
-    const { outPath, timeoutMs, failOnDegraded } = parseCliArgs(process.argv.slice(2));
+    const {
+        outPath,
+        timeoutMs,
+        coldStartBudgetMs,
+        coldStartIntervalMs,
+        failOnDegraded
+    } = parseCliArgs(process.argv.slice(2));
     let safeOutFile = null;
 
     if (outPath !== null) {
         safeOutFile = resolveSafeScratchOutPath(outPath);
     }
 
-    const report = await runDemoReadonlySmoke({ timeoutMs, failOnDegraded });
+    const report = await runDemoReadonlySmoke({
+        timeoutMs,
+        coldStartBudgetMs,
+        coldStartIntervalMs,
+        failOnDegraded
+    });
     const serialized = JSON.stringify(report, null, 2);
 
     if (safeOutFile) {
@@ -1259,8 +1519,14 @@ module.exports = {
     EXPECTED_DEMO_EPOCH,
     DEFAULT_TIMEOUT_MS,
     DEFAULT_EXCHANGE_QUEUE_WARN_LATENCY_MS,
+    DEFAULT_CLI_COLD_START_BUDGET_MS,
+    MAX_ALLOWED_COLD_START_BUDGET_MS,
+    DEFAULT_COLD_START_INTERVAL_MS,
+    MIN_ALLOWED_COLD_START_INTERVAL_MS,
+    COLD_START_BUDGET_SCOPE,
     CONTROLLED_QUEUE_503_STATUSES,
     DEFAULT_TARGETS,
+    isRenderColdStartResponse,
     redactUrlCredentials,
     isPositiveIntegerBlock,
     validateDemoSmokeTarget,

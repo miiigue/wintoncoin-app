@@ -613,14 +613,348 @@ describe('demo-readonly-smoke (AG-07 / D06)', () => {
             expect(report.checks[0].url).toBe('https://[REDACTED]@demo.wintoncoin.com/');
         });
 
-        test('parseCliArgs reconoce --fail-on-degraded y --strict-readiness', () => {
-            expect(parseCliArgs(['--fail-on-degraded'])).toMatchObject({ failOnDegraded: true });
-            expect(parseCliArgs(['--strict-readiness', '--timeout-ms=10000'])).toMatchObject({
+        test('parseCliArgs reconoce --fail-on-degraded, --strict-readiness, defaults de cold-start y piso mínimo de intervalo >= 1000ms', () => {
+            expect(parseCliArgs(['--fail-on-degraded'])).toMatchObject({
                 failOnDegraded: true,
-                timeoutMs: 10000
+                coldStartBudgetMs: 90000,
+                coldStartIntervalMs: 15000
             });
-            expect(parseCliArgs([])).toMatchObject({ failOnDegraded: false });
+            expect(
+                parseCliArgs(['--strict-readiness', '--timeout-ms=10000', '--cold-start-budget-ms=120000'])
+            ).toMatchObject({
+                failOnDegraded: true,
+                timeoutMs: 10000,
+                coldStartBudgetMs: 120000
+            });
+            expect(parseCliArgs(['--cold-start-budget-ms', '0'])).toMatchObject({
+                failOnDegraded: false,
+                coldStartBudgetMs: 0
+            });
+            expect(parseCliArgs(['--cold-start-interval-ms=50'])).toMatchObject({
+                coldStartIntervalMs: 1000
+            });
+            expect(parseCliArgs(['--cold-start-interval-ms', '250'])).toMatchObject({
+                coldStartIntervalMs: 1000
+            });
         });
+    });
+
+    describe('Espera acotada y transparente de cold-start de Render Demo', () => {
+        test('despierta tras 2 respuestas 503 HTML -> 200 válido con sleepImpl mockeado y documenta coldStart.observed=true y budgetScope', async () => {
+            const validResponses = buildValidDemoResponses();
+            let deploymentCalls = 0;
+            const sleepImpl = jest.fn(async () => {});
+
+            const mockFetch = jest.fn(async (url) => {
+                if (url.endsWith('/api/web3/deployment')) {
+                    deploymentCalls += 1;
+                    if (deploymentCalls <= 2) {
+                        return buildMockResponse({
+                            status: 503,
+                            body: '<!doctype html><html><body>Render service waking up</body></html>'
+                        });
+                    }
+                }
+                return validResponses[url];
+            });
+
+            const report = await runDemoReadonlySmoke({
+                fetchImpl: mockFetch,
+                sleepImpl,
+                coldStartBudgetMs: 90000,
+                coldStartIntervalMs: 15000,
+                failOnDegraded: true
+            });
+
+            expect(deploymentCalls).toBe(3);
+            expect(sleepImpl).toHaveBeenCalledTimes(2);
+            expect(report.overallStatus).toBe('ok');
+            expect(report.exitCode).toBe(0);
+            expect(report.coldStart).toMatchObject({
+                budgetMs: 90000,
+                budgetScope: 'post_detection_warmup_and_retries',
+                observed: true,
+                warmupAttempts: 2
+            });
+            expect(report.coldStart.warmupDurationMs).toBeGreaterThanOrEqual(30000);
+
+            const deploymentCheck = report.checks.find((c) => c.id === 'backend_web3_deployment');
+            expect(deploymentCheck.status).toBe('ok');
+            expect(deploymentCheck.coldStartRetries).toBe(2);
+        });
+
+        test('falla cerrado (P1 / exitCode 1) si 503 HTML persiste hasta agotar coldStartBudgetMs sin lanzar petición extra tras agotar presupuesto', async () => {
+            const validResponses = buildValidDemoResponses();
+            const sleepImpl = jest.fn(async () => {});
+            let deploymentCalls = 0;
+
+            const mockFetch = jest.fn(async (url) => {
+                if (url.endsWith('/api/web3/deployment')) {
+                    deploymentCalls += 1;
+                    return buildMockResponse({
+                        status: 503,
+                        body: '<!doctype html><html><body>Service Unavailable</body></html>'
+                    });
+                }
+                return validResponses[url];
+            });
+
+            const report = await runDemoReadonlySmoke({
+                fetchImpl: mockFetch,
+                sleepImpl,
+                coldStartBudgetMs: 30000,
+                coldStartIntervalMs: 15000
+            });
+
+            // 1 intento inicial -> sleep 15s (quedan 15s) -> 1 reintento -> sleep 15s (quedan 0s -> NO lanza 3ra petición HTTP)
+            expect(deploymentCalls).toBe(2);
+            expect(sleepImpl).toHaveBeenCalledTimes(2);
+            expect(report.overallStatus).toBe('fail');
+            expect(report.exitCode).toBe(1);
+            expect(report.coldStart).toMatchObject({
+                budgetMs: 30000,
+                budgetScope: 'post_detection_warmup_and_retries',
+                observed: true,
+                warmupAttempts: 1
+            });
+
+            const deploymentCheck = report.checks.find((c) => c.id === 'backend_web3_deployment');
+            expect(deploymentCheck.status).toBe('fail');
+            expect(deploymentCheck.coldStartRetries).toBe(1);
+        });
+
+        test('límite exacto del presupuesto: si el primer sleep agota remaining <= 0, NO se lanza ninguna petición extra', async () => {
+            const validResponses = buildValidDemoResponses();
+            const sleepImpl = jest.fn(async () => {});
+            let deploymentCalls = 0;
+
+            const mockFetch = jest.fn(async (url) => {
+                if (url.endsWith('/api/web3/deployment')) {
+                    deploymentCalls += 1;
+                    return buildMockResponse({
+                        status: 503,
+                        body: '<!doctype html><html><body>Waking up</body></html>'
+                    });
+                }
+                return validResponses[url];
+            });
+
+            const report = await runDemoReadonlySmoke({
+                fetchImpl: mockFetch,
+                sleepImpl,
+                coldStartBudgetMs: 15000,
+                coldStartIntervalMs: 15000
+            });
+
+            // Intento inicial -> sleep(15000) agota los 15000 ms -> remainingAfterSleep === 0 -> 0 peticiones extra
+            expect(deploymentCalls).toBe(1);
+            expect(sleepImpl).toHaveBeenCalledTimes(1);
+            expect(sleepImpl).toHaveBeenCalledWith(15000);
+            expect(report.overallStatus).toBe('fail');
+            expect(report.exitCode).toBe(1);
+            expect(report.coldStart).toMatchObject({
+                budgetMs: 15000,
+                budgetScope: 'post_detection_warmup_and_retries',
+                observed: true,
+                warmupAttempts: 0
+            });
+        });
+
+        test('timeout lento acotado al tiempo restante: el reintento usa Math.min(timeoutMs, remainingAfterSleep) sin exceder coldStartBudgetMs', async () => {
+            const validResponses = buildValidDemoResponses();
+            const sleepImpl = jest.fn(async () => {});
+            let deploymentCalls = 0;
+
+            const mockFetch = jest.fn((url, init) => {
+                if (url.endsWith('/api/web3/deployment')) {
+                    deploymentCalls += 1;
+                    if (deploymentCalls === 1) {
+                        return Promise.resolve(
+                            buildMockResponse({
+                                status: 503,
+                                body: '<!doctype html><html><body>Waking up</body></html>'
+                            })
+                        );
+                    }
+                    // El 2do intento simula un servidor colgado; debe abortarse en ~60ms (remaining), NO en 10000ms (timeoutMs)
+                    return new Promise((_resolve, reject) => {
+                        init.signal.addEventListener('abort', () => {
+                            const err = new Error('The operation was aborted');
+                            err.name = 'AbortError';
+                            reject(err);
+                        });
+                    });
+                }
+                return Promise.resolve(validResponses[url]);
+            });
+
+            const started = Date.now();
+            const report = await runDemoReadonlySmoke({
+                fetchImpl: mockFetch,
+                sleepImpl,
+                timeoutMs: 10000,
+                coldStartBudgetMs: 1060,
+                coldStartIntervalMs: 1000
+            });
+            const elapsedWallMs = Date.now() - started;
+
+            expect(deploymentCalls).toBe(2);
+            expect(sleepImpl).toHaveBeenCalledTimes(1);
+            expect(sleepImpl).toHaveBeenCalledWith(1000);
+            // Si no hubiese acotado a remainingAfterSleep (60ms), habría tardado ~10000ms
+            expect(elapsedWallMs).toBeLessThan(1500);
+            expect(report.overallStatus).toBe('fail');
+            expect(report.exitCode).toBe(1);
+
+            const deploymentCheck = report.checks.find((c) => c.id === 'backend_web3_deployment');
+            expect(deploymentCheck.details.errorCode).toBe('REQUEST_TIMEOUT');
+            expect(deploymentCheck.details.errorMessage).toMatch(/60 ms/);
+            expect(deploymentCheck.coldStartRetries).toBe(1);
+        });
+
+        test('dos checks (deployment y exchange-queue) comparten el mismo presupuesto coldStartState y el segundo respeta lo ya consumido', async () => {
+            const validResponses = buildValidDemoResponses();
+            const sleepCalls = [];
+            const sleepImpl = jest.fn(async (ms) => {
+                sleepCalls.push(ms);
+            });
+            let deploymentCalls = 0;
+            let queueCalls = 0;
+
+            const mockFetch = jest.fn(async (url) => {
+                if (url.endsWith('/api/web3/deployment')) {
+                    deploymentCalls += 1;
+                    if (deploymentCalls === 1) {
+                        return buildMockResponse({
+                            status: 503,
+                            body: '<!doctype html><html><body>Waking up</body></html>'
+                        });
+                    }
+                    return validResponses[url];
+                }
+                if (url.endsWith('/api/web3/exchange-queue')) {
+                    queueCalls += 1;
+                    return buildMockResponse({
+                        status: 503,
+                        body: '<!doctype html><html><body>Still warming</body></html>'
+                    });
+                }
+                return validResponses[url];
+            });
+
+            const report = await runDemoReadonlySmoke({
+                fetchImpl: mockFetch,
+                sleepImpl,
+                coldStartBudgetMs: 20000,
+                coldStartIntervalMs: 15000
+            });
+
+            // deployment consume 15000ms en sleep y recupera en su 2do intento (warmupAttempts = 1).
+            // exchange-queue solo recibe los <= 5000ms restantes del presupuesto compartido y tras agotarlo NO lanza petición extra.
+            expect(deploymentCalls).toBe(2);
+            expect(queueCalls).toBe(1);
+            expect(sleepCalls).toHaveLength(2);
+            expect(sleepCalls[0]).toBe(15000);
+            expect(sleepCalls[1]).toBeLessThanOrEqual(5000);
+            expect(sleepCalls[1]).toBeGreaterThan(0);
+            expect(report.overallStatus).toBe('fail');
+            expect(report.exitCode).toBe(1);
+            expect(report.coldStart).toMatchObject({
+                budgetMs: 20000,
+                budgetScope: 'post_detection_warmup_and_retries',
+                observed: true,
+                warmupAttempts: 1
+            });
+
+            const deploymentCheck = report.checks.find((c) => c.id === 'backend_web3_deployment');
+            const queueCheck = report.checks.find((c) => c.id === 'backend_web3_exchange_queue');
+            expect(deploymentCheck.status).toBe('ok');
+            expect(deploymentCheck.coldStartRetries).toBe(1);
+            expect(queueCheck.status).toBe('fail');
+            expect(queueCheck.coldStartRetries).toBe(0);
+        });
+
+        test.each([
+            [
+                'HTTP 500 en deployment',
+                'https://wintoncoin-backend-demo.onrender.com/api/web3/deployment',
+                buildMockResponse({ status: 500, body: { success: false, error: 'INTERNAL_ERROR' } }),
+                1
+            ],
+            [
+                'HTTP 200 con usable:false en exchange-queue',
+                'https://wintoncoin-backend-demo.onrender.com/api/web3/exchange-queue',
+                buildMockResponse({
+                    status: 200,
+                    body: {
+                        success: true,
+                        chainId: '11155420',
+                        status: 'ready',
+                        usable: false,
+                        verifiedThroughBlock: '51880155'
+                    }
+                }),
+                1
+            ],
+            [
+                'CHAIN_ID_DRIFT en deployment',
+                'https://wintoncoin-backend-demo.onrender.com/api/web3/deployment',
+                buildMockResponse({
+                    status: 200,
+                    body: {
+                        success: true,
+                        chainId: '10',
+                        epoch: 'V6_DEMO'
+                    }
+                }),
+                1
+            ],
+            [
+                'HTTP 503 JSON controlado de la app en exchange-queue',
+                'https://wintoncoin-backend-demo.onrender.com/api/web3/exchange-queue',
+                buildMockResponse({
+                    status: 503,
+                    body: {
+                        success: false,
+                        chainId: '11155420',
+                        usable: false,
+                        status: 'syncing',
+                        verifiedThroughBlock: '51877845',
+                        data: null
+                    }
+                }),
+                0
+            ]
+        ])(
+            'NO dispara reintentos de cold-start ante %s (fetchCalls exacto = 1)',
+            async (_label, targetUrl, responseObj, expectedExitCode) => {
+                const responses = buildValidDemoResponses({ [targetUrl]: responseObj });
+                const sleepImpl = jest.fn(async () => {});
+                const callsByUrl = new Map();
+
+                const mockFetch = jest.fn(async (url) => {
+                    callsByUrl.set(url, (callsByUrl.get(url) || 0) + 1);
+                    return responses[url];
+                });
+
+                const report = await runDemoReadonlySmoke({
+                    fetchImpl: mockFetch,
+                    sleepImpl,
+                    coldStartBudgetMs: 90000,
+                    coldStartIntervalMs: 15000
+                });
+
+                expect(callsByUrl.get(targetUrl)).toBe(1);
+                expect(sleepImpl).not.toHaveBeenCalled();
+                expect(report.coldStart).toMatchObject({
+                    budgetMs: 90000,
+                    observed: false,
+                    warmupAttempts: 0,
+                    warmupDurationMs: 0
+                });
+                expect(report.exitCode).toBe(expectedExitCode);
+            }
+        );
     });
 
     describe('Confinamiento seguro de --out en backend/scratch/', () => {

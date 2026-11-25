@@ -36,7 +36,7 @@ jobs:
   demo-readonly-smoke:
     name: Smoke Read-Only Demo (Frontend + Web3 V6)
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 6
     steps:
       - name: Descargar repositorio en rama demo (solo lectura)
         uses: actions/checkout@v4
@@ -75,7 +75,7 @@ jobs:
           if [ "${FAIL_ON_DEGRADED}" = "true" ]; then
             EXTRA_ARGS="--fail-on-degraded"
           fi
-          node scripts/demo-readonly-smoke.cjs --out backend/scratch/demo-readonly-smoke-report.json ${EXTRA_ARGS}
+          node scripts/demo-readonly-smoke.cjs --cold-start-budget-ms 90000 --out backend/scratch/demo-readonly-smoke-report.json ${EXTRA_ARGS}
 
       - name: Publicar resumen de estado y alertas en Step Summary
         if: always()
@@ -89,12 +89,14 @@ jobs:
               process.exit(0);
             }
             const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const cs = report.coldStart || { budgetMs: 0, budgetScope: "post_detection_warmup_and_retries", observed: false, warmupAttempts: 0, warmupDurationMs: 0 };
             const lines = [
               "## Demo Read-Only Smoke Report",
               "",
               `- **Overall Status:** \`${report.overallStatus}\``,
               `- **Exit Code:** \`${report.exitCode}\``,
               `- **Fail on Degraded:** \`${Boolean(report.policy && report.policy.failOnDegraded)}\``,
+              `- **Cold-Start Render:** observed=\`${cs.observed}\`, attempts=\`${cs.warmupAttempts}\`, warmupMs=\`${cs.warmupDurationMs}\` / budget=\`${cs.budgetMs}\` (scope=\`${cs.budgetScope || "post_detection_warmup_and_retries"}\`)`,
               `- **Checks:** ${report.summary.ok} ok / ${report.summary.degraded} degraded / ${report.summary.failed} failed (total: ${report.summary.total})`,
               `- **Duration:** ${report.durationMs} ms`,
               ""
