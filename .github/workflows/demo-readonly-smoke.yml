@@ -1,0 +1,120 @@
+name: Demo - Supervisión Read-Only Horaria
+
+# ESTADO DE ACTIVACIÓN: PREPARADO, NO ACTIVO.
+# En GitHub Actions, tanto `schedule` como `workflow_dispatch` requieren que
+# este workflow exista en la rama por defecto (`default_branch`) del repositorio.
+# Este archivo se conserva en `demo` sin tocar `main` ni cambiar `default_branch`
+# hasta revisión de Codex y autorización humana explícita.
+#
+# ALTERNATIVA EXPLÍCITA MIENTRAS NO EXISTA EN LA RAMA POR DEFECTO:
+# Ejecutar de forma horaria mediante tarea programada local (`schtasks` en Windows
+# o `cron` en Linux/macOS):
+#   node scripts/demo-readonly-smoke.cjs --out backend/scratch/demo-readonly-smoke-report.json
+# Dependencia operativa documentada: requiere equipo/runner local encendido y con
+# conectividad saliente HTTPS hacia demo.wintoncoin.com y
+# wintoncoin-backend-demo.onrender.com.
+
+on:
+  schedule:
+    - cron: '0 * * * *'
+  workflow_dispatch:
+    inputs:
+      fail_on_degraded:
+        description: 'Fallar (exitCode 1) si algún check queda degraded (ej. 503 sostenido o indexerReady=false)'
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: demo-readonly-smoke
+  cancel-in-progress: false
+
+jobs:
+  demo-readonly-smoke:
+    name: Smoke Read-Only Demo (Frontend + Web3 V6)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Descargar repositorio en rama demo (solo lectura)
+        uses: actions/checkout@v4
+        with:
+          ref: demo
+
+      - name: Guarda de contexto (verificar rama demo y script read-only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          CURRENT_BRANCH="$(git rev-parse --abbrev-ref HEAD)"
+          echo "Rama descargada: ${CURRENT_BRANCH}"
+          echo "Commit verificado: $(git rev-parse --short HEAD)"
+          if [ "${CURRENT_BRANCH}" != "demo" ]; then
+            echo "ERROR: El checkout debe ejecutarse estrictamente sobre la rama 'demo' (actual: '${CURRENT_BRANCH}')."
+            exit 1
+          fi
+          if [ ! -f "scripts/demo-readonly-smoke.cjs" ]; then
+            echo "ERROR: No se encontró scripts/demo-readonly-smoke.cjs en el checkout de demo."
+            exit 1
+          fi
+
+      - name: Configurar Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Ejecutar supervisión 100% read-only sobre Demo
+        id: smoke
+        shell: bash
+        env:
+          FAIL_ON_DEGRADED: ${{ inputs.fail_on_degraded || false }}
+        run: |
+          set -euo pipefail
+          EXTRA_ARGS=""
+          if [ "${FAIL_ON_DEGRADED}" = "true" ]; then
+            EXTRA_ARGS="--fail-on-degraded"
+          fi
+          node scripts/demo-readonly-smoke.cjs --out backend/scratch/demo-readonly-smoke-report.json ${EXTRA_ARGS}
+
+      - name: Publicar resumen de estado y alertas en Step Summary
+        if: always()
+        shell: bash
+        run: |
+          node -e '
+            const fs = require("node:fs");
+            const reportPath = "backend/scratch/demo-readonly-smoke-report.json";
+            if (!fs.existsSync(reportPath)) {
+              console.log("No se generó archivo de reporte.");
+              process.exit(0);
+            }
+            const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+            const lines = [
+              "## Demo Read-Only Smoke Report",
+              "",
+              `- **Overall Status:** \`${report.overallStatus}\``,
+              `- **Exit Code:** \`${report.exitCode}\``,
+              `- **Fail on Degraded:** \`${Boolean(report.policy && report.policy.failOnDegraded)}\``,
+              `- **Checks:** ${report.summary.ok} ok / ${report.summary.degraded} degraded / ${report.summary.failed} failed (total: ${report.summary.total})`,
+              `- **Duration:** ${report.durationMs} ms`,
+              ""
+            ];
+            if (Array.isArray(report.alerts) && report.alerts.length > 0) {
+              lines.push("### Alertas accionables");
+              for (const alert of report.alerts) {
+                lines.push(`- **[${alert.priority} / ${alert.severity}]** \`${alert.code}\` (${alert.checkId}): ${alert.message} — *Acción:* ${alert.recommendedAction}`);
+              }
+            } else {
+              lines.push("Sin alertas activas.");
+            }
+            fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join("\n") + "\n");
+          '
+
+      - name: Conservar reporte JSON auditable (sin secretos ni PII)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: demo-readonly-smoke-${{ github.run_id }}
+          path: backend/scratch/demo-readonly-smoke-report.json
+          if-no-files-found: ignore
+          retention-days: 14
