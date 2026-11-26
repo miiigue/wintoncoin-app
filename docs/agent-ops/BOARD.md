@@ -14,11 +14,12 @@
 |---|---|---|---|---|---|
 | `AG-01` Arquitectura/Tech Lead | `ag-01-architect` | `fde22b23-cf43-42da-a2a8-7ae6adae941b` | `inherit` | Revisión independiente `D01` | completado (`APROBADO`) |
 | `AG-02` Blockchain/Economía | `ag-02-blockchain-econ` | `e6eec398-2c19-4219-942b-28c0c53f9545` | `inherit` (propiedad exclusiva D02) | Ola 2: corrección `CODEX-205` #3-#5 (actividad relevante post-bloque, declaración contención, preservación SQL vs migrador) | completado (`35/35` Jest PASS) |
-| `AG-03` Backend/Datos | `ag-03-backend-data` | `7b54f5bd-e340-46fe-8cc8-3d8bdbe7e45f` | `inherit` | Cierre bloqueante `CODEX-206` D02: ensayo real PostgreSQL 17 (`v6-pg-isolated:55471`) con migraciones `128..131` | completado (`3/3` PG17 real PASS + `35/35` unitarias PASS) |
-| `AG-06` Seguridad/Adversarial | `ag-06-security-audit` | `866bd47c-cb4b-4e7b-8a21-fe026bb61d28` | `inherit` | Re-auditoría `CODEX-206` sobre `D06` (falso OK línea 884 + `--fail-on-degraded` + `ref: demo`) | completado (`APROBADO` D06 — 0 hallazgos) |
-| `AG-07` SRE/Plataforma | `ag-07-sre-platform` | `825c5baf-e6cb-4a81-b898-a71f0f0afba8` | `inherit` | Cierre bloqueante `CODEX-206` D06: corregir falso OK línea 884 + `indexerReady` + `--fail-on-degraded` + `ref: demo` | completado (`33/33` Jest PASS) |
-| `AG-08` Auditoría Económica | `ag-08-econ-auditor` | `cf5f6690-38d3-4c81-b23b-df38430a1c1d` | `inherit` | Auditoría `CODEX-206` integración real PG17 (`v6DemoInventoryExporter.pg.test.js`) | completado (`APROBADO` D02 PG17) |
-| `AG-11` Guardián Reglas Económicas y Estándares | `ag-11-standards-econ-guard` | `6c9a9607-092a-45c2-a329-7ce883c3b6a9` | `inherit` | Auditoría `CODEX-206` cierre final (`D02` PG17 + `D06` falso OK) | completado (`APROBADO` D02 y D06) |
+| `AG-03` Backend/Datos | `ag-03-backend-data` | `7b54f5bd-e340-46fe-8cc8-3d8bdbe7e45f` | `inherit` | Cierre `CODEX-211`/`212` Opción 1 (`auditService` real, `client.release(true)`, proyección SQL escalar, bytes post-metadatos, `AbortSignal` + fix `req.complete` Node 22) | completado (`18/18` + `35/35` + `4/4` PG17 real PASS) |
+| `AG-04` Frontend/UX React | `ag-04-frontend-react` | `bc151ec6-4999-4f43-ad93-28933c3dff29` | `inherit` | Opción 1 (`CODEX-209`): `DemoInventoryPanel.jsx` en `/admin/web3` + pruebas UI + `build:demo` | completado (`12/12` UI PASS + `build:demo` EXIT 0) |
+| `AG-06` Seguridad/Adversarial | `ag-06-security-audit` | `866bd47c-cb4b-4e7b-8a21-fe026bb61d28` | `inherit` | Auditoría adversarial `CODEX-212` (detectó y verificó cierre de `req.on('close')` Node 22 + listeners) | completado (`APROBADO` — 0 hallazgos) |
+| `AG-07` SRE/Plataforma | `ag-07-sre-platform` | `825c5baf-e6cb-4a81-b898-a71f0f0afba8` | `inherit` | `D06` publicado en `origin/demo` (`991f9bb`) | completado (`42/42` Jest PASS, `991f9bb`) |
+| `AG-08` Auditoría Económica | `ag-08-econ-auditor` | `cf5f6690-38d3-4c81-b23b-df38430a1c1d` | `inherit` | Auditoría adversarial `CODEX-212` (proyección SQL, `maxReportBytes` post-metadatos, `AbortSignal`, `client.release(true)`) | completado (`APROBADO` — 0 hallazgos) |
+| `AG-11` Guardián Reglas Económicas y Estándares | `ag-11-standards-econ-guard` | `6c9a9607-092a-45c2-a329-7ce883c3b6a9` | `inherit` | Auditoría obligatoria `D06` + Opción 1 (reglas económicas y estándares) | completado (`APROBADO` D06 y Opción 1) |
 
 ---
 

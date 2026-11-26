@@ -2,7 +2,7 @@ const express = require('express');
 const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { authenticateAdmin } = require('../middleware/authMiddleware');
-const { loginLimiter, web3RpcLimiter, forgotPasswordLimiter } = require('../middleware/rateLimiters');
+const { loginLimiter, web3RpcLimiter, demoInventoryLimiter, forgotPasswordLimiter } = require('../middleware/rateLimiters');
 
 // Alias para compatibilidad con código existente que espera verifyAdminToken
 const verifyAdminToken = authenticateAdmin;
@@ -124,8 +124,10 @@ router.post('/email-templates/:key/preview', verifyAdminToken, emailTemplateCont
 // GOBERNANZA, AUDITORÍA Y LABORATORIO WEB3 SUITE V4
 // ========================================================================
 const adminWeb3Controller = require('../controllers/admin/adminWeb3Controller');
+const adminDemoInventoryController = require('../controllers/admin/adminDemoInventoryController');
 const contractAdmin = require('../middleware/contractAdministration');
 router.use('/web3', verifyAdminToken, contractAdmin.guard);
+router.get('/web3/demo-inventory', demoInventoryLimiter, adminDemoInventoryController.getDemoInventory);
 router.get('/web3/v6-mode/readiness', web3RpcLimiter, async(req,res)=>{
     res.set('Cache-Control','no-store');
     try { res.json(await require('../services/v6ModeGovernance').status({pool:require('../config/db')})); }

@@ -64,6 +64,22 @@ const web3RpcLimiter = rateLimit({
     message: { error: 'Límite de seguridad RPC alcanzado. Demasiadas solicitudes a la blockchain desde esta IP. Por favor, espera 1 minuto.' }
 });
 
+// Rate limiter para inventario SQL Demo read-only (CODEX-209: máx. 6 req/min con Cache-Control: no-store)
+const demoInventoryLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 6,
+    standardHeaders: true,
+    legacyHeaders: false,
+    handler: (req, res) => {
+        res.set('Cache-Control', 'no-store');
+        return res.status(429).json({
+            success: false,
+            code: 'DEMO_INVENTORY_RATE_LIMITED',
+            message: 'Límite de consultas de inventario Demo alcanzado (máx. 6/min). Espera 1 minuto.'
+        });
+    }
+});
+
 module.exports = {
     loginLimiter,
     registerRequestLimiter,
@@ -71,6 +87,7 @@ module.exports = {
     resendOtpLimiter,
     forgotPasswordLimiter,
     breakGlassLimiter,
-    web3RpcLimiter
+    web3RpcLimiter,
+    demoInventoryLimiter
 };
 

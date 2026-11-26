@@ -50,6 +50,7 @@ const { LINKS: V6_LINKS } = require('./validateV6Demo');
 const DEMO_CHAIN_ID = 11155420n;
 const DEMO_CHAIN_ID_STR = '11155420';
 const DEMO_EPOCH = 'V6_DEMO';
+const SCHEMA_VERSION = 'v6-demo-inventory/1.0';
 const ZERO_ADDRESS = '0x0000000000000000000000000000000000000000';
 const DEFAULT_MANIFEST_PATH = path.resolve(__dirname, '../../../web3-contracts/deployments/v6-demo-candidate.json');
 
@@ -444,8 +445,10 @@ function sanitizeRpcUrl(rawUrl) {
 /**
  * Sanitiza un mensaje de error o texto libre para evitar filtrar credenciales,
  * URLs con API keys, tokens Bearer, correos, teléfonos o blobs hex largos.
+ * Soporta límite opcional `maxLength` para acotar el tamaño de respuesta.
  */
-function sanitizeText(input) {
+function sanitizeText(input, options = {}) {
+  const { maxLength = null } = options;
   let text = String(input ?? '');
   // Redactar URLs de PostgreSQL completas
   text = text.replace(/postgres(?:ql)?:\/\/[^\s'"]+/gi, 'postgresql://[REDACTED]');
@@ -465,6 +468,9 @@ function sanitizeText(input) {
   text = text.replace(/\+\d{1,3}[\s.-]?\(?\d{2,4}\)?[\s.-]?\d{3,4}[\s.-]?\d{3,5}/g, '[REDACTED_PHONE]');
   // Redactar blobs hexadecimales largos (calldata/tx firmadas crudas >= 65 bytes)
   text = text.replace(/0x[0-9a-fA-F]{130,}/g, '0x[REDACTED_HEX_BLOB]');
+  if (Number.isSafeInteger(maxLength) && maxLength > 0 && text.length > maxLength) {
+    text = `${text.slice(0, maxLength)}...[TRUNCATED]`;
+  }
   return text;
 }
 
@@ -975,6 +981,8 @@ async function resolveContractStartBlocks(provider, manifest, finalizedBlockNumb
 /**
  * Sanitiza un paso de `chain_operations` conservando solo metadatos de auditoría
  * y eliminando cualquier transacción firmada cruda (`raw`, `rawSignedTx`) o `calldata`.
+ * Soporta tanto la proyección SQL escalar (`target`, `op_nonce`, `tx_hash`, `steps_count`)
+ * como objetos de prueba con `payload`/`steps`.
  */
 function sanitizeChainOperationRow(row) {
   const rawSteps = Array.isArray(row.steps) ? row.steps : [];
@@ -990,6 +998,19 @@ function sanitizeChainOperationRow(row) {
     confirmed: Boolean(step?.confirmed)
   }));
 
+  const projectedTarget = typeof row.target === 'string' && row.target.trim() !== ''
+    ? normalizeNonZeroAddress(row.target.trim())
+    : null;
+  const projectedNonce = row.op_nonce !== undefined && row.op_nonce !== null && String(row.op_nonce).trim() !== ''
+    ? String(row.op_nonce).trim()
+    : null;
+  const projectedTxHash = typeof row.tx_hash === 'string' && row.tx_hash.trim() !== ''
+    ? row.tx_hash.trim()
+    : null;
+  const stepsCount = row.steps_count !== undefined && row.steps_count !== null
+    ? Number(row.steps_count)
+    : sanitizedSteps.length;
+
   return {
     id: String(row.id),
     user_id: row.user_id !== null && row.user_id !== undefined ? Number(row.user_id) : null,
@@ -999,9 +1020,10 @@ function sanitizeChainOperationRow(row) {
     kind: String(row.kind),
     state: String(row.state),
     error_code: row.error_code ? String(row.error_code) : null,
-    target: normalizeNonZeroAddress(payload?.to) || sanitizedSteps[0]?.to || null,
-    nonce: sanitizedSteps[0]?.nonce ?? (payload?.nonce !== undefined ? String(payload.nonce) : null),
-    tx_hash: sanitizedSteps.at(-1)?.tx_hash || null,
+    target: projectedTarget || normalizeNonZeroAddress(payload?.to) || sanitizedSteps[0]?.to || null,
+    nonce: projectedNonce ?? sanitizedSteps[0]?.nonce ?? (payload?.nonce !== undefined ? String(payload.nonce) : null),
+    tx_hash: projectedTxHash || sanitizedSteps.at(-1)?.tx_hash || null,
+    steps_count: stepsCount,
     steps: sanitizedSteps,
     created_at: row.created_at ? new Date(row.created_at).toISOString() : null,
     updated_at: row.updated_at ? new Date(row.updated_at).toISOString() : null
@@ -1046,18 +1068,19 @@ const FORBIDDEN_OUTPUT_KEYS = new Set([
   'evidence_urls'
 ]);
 
-function deepSanitizeReport(value) {
+function deepSanitizeReport(value, options = {}) {
+  const { maxTextLength = null } = options;
   if (value === null || value === undefined) return value;
   if (typeof value === 'bigint') return value.toString();
-  if (typeof value === 'string') return sanitizeText(value);
-  if (Array.isArray(value)) return value.map((item) => deepSanitizeReport(item));
+  if (typeof value === 'string') return sanitizeText(value, { maxLength: maxTextLength });
+  if (Array.isArray(value)) return value.map((item) => deepSanitizeReport(item, options));
   if (typeof value === 'object') {
     const out = {};
     for (const [k, v] of Object.entries(value)) {
       if (FORBIDDEN_OUTPUT_KEYS.has(k.toLowerCase())) {
         continue;
       }
-      out[k] = deepSanitizeReport(v);
+      out[k] = deepSanitizeReport(v, options);
     }
     return out;
   }
@@ -1069,15 +1092,102 @@ function deepSanitizeReport(value) {
 // ----------------------------------------------------------------------------
 
 /**
- * Ejecuta la extracción SQL Demo dentro de una transacción `REPEATABLE READ READ ONLY`
- * con `statement_timeout` acotado y paginación determinista.
+ * Adquiere un cliente de `pool.connect()` acotado a un `timeoutMs` y a un
+ * `AbortSignal` opcional. Si `pool.connect()` resuelve tarde después de expirar
+ * el timeout o de abortarse la señal, libera inmediatamente (`lateClient.release()`)
+ * sin dejar clientes huérfanos en el pool.
+ */
+async function acquirePoolClientWithTimeout(pool, timeoutMs, { signal = null, stage = 'pool_connect' } = {}) {
+  if (signal?.aborted) {
+    const abortErr = new Error(`SQL_CLIENT_ABORTED: Operación cancelada antes de ${stage}.`);
+    abortErr.code = 'SQL_CLIENT_ABORTED';
+    abortErr.isAborted = true;
+    abortErr.stage = stage;
+    throw abortErr;
+  }
+
+  const hasTimeout = Number.isSafeInteger(timeoutMs) && timeoutMs > 0;
+  if (!hasTimeout && !signal) {
+    return pool.connect();
+  }
+
+  let settledEarly = false;
+  let timer = null;
+  let onAbort = null;
+
+  const connectPromise = Promise.resolve().then(() => pool.connect());
+  connectPromise
+    .then((lateClient) => {
+      if (settledEarly && lateClient && typeof lateClient.release === 'function') {
+        try { lateClient.release(); } catch { /* noop */ }
+      }
+    })
+    .catch(() => { /* ignorar rechazo tardío si ya expiró o fue abortado */ });
+
+  const racers = [connectPromise];
+
+  if (hasTimeout) {
+    racers.push(new Promise((_, reject) => {
+      timer = setTimeout(() => {
+        settledEarly = true;
+        const err = new Error(
+          `SQL_MAX_EXECUTION_TIME_EXCEEDED: pool.connect() excedió el tiempo máximo (${timeoutMs}ms) en etapa ${stage}.`
+        );
+        err.code = 'SQL_MAX_EXECUTION_TIME_EXCEEDED';
+        err.isBudgetExceeded = true;
+        err.stage = stage;
+        reject(err);
+      }, timeoutMs);
+    }));
+  }
+
+  if (signal && typeof signal.addEventListener === 'function') {
+    racers.push(new Promise((_, reject) => {
+      onAbort = () => {
+        settledEarly = true;
+        const abortErr = new Error(`SQL_CLIENT_ABORTED: Operación cancelada durante ${stage}.`);
+        abortErr.code = 'SQL_CLIENT_ABORTED';
+        abortErr.isAborted = true;
+        abortErr.stage = stage;
+        reject(abortErr);
+      };
+      signal.addEventListener('abort', onAbort, { once: true });
+    }));
+  }
+
+  try {
+    return await Promise.race(racers);
+  } finally {
+    if (timer) clearTimeout(timer);
+    if (signal && onAbort && typeof signal.removeEventListener === 'function') {
+      signal.removeEventListener('abort', onAbort);
+    }
+  }
+}
+
+/**
+ * Ejecuta la extracción SQL Demo dentro de una única transacción
+ * `REPEATABLE READ READ ONLY` con `statement_timeout` acotado, paginación
+ * determinista, cancelación vía `AbortSignal` y límites opcionales de filas
+ * (`maxTotalRows`) y tiempo global (`maxExecutionMs`).
+ *
+ * Adaptador seguro de pool:
+ * - Si se recibe `pool`, adquiere un único cliente con `pool.connect()` y lo
+ *   devuelve con `client.release()` en `finally` (si `ROLLBACK` falla, destruye
+ *   la conexión con `client.release(true)`; NUNCA llama `pool.end()` ni doble release).
+ * - Si se excede `maxTotalRows` o `maxExecutionMs`, marca `truncated = true` y
+ *   `complete = false` añadiendo error explícito en `sqlErrors`.
  */
 async function collectSqlDemoInventory({
   databaseUrl,
   dbValidation,
-  sqlClientFactory,
+  pool = null,
+  sqlClientFactory = null,
   statementTimeoutMs = DEFAULT_SQL_STATEMENT_TIMEOUT_MS,
   pageSize = DEFAULT_SQL_PAGE_SIZE,
+  maxTotalRows = null,
+  maxExecutionMs = null,
+  signal = null,
   allowLocalSql = false,
   allowedDbNames = null
 }) {
@@ -1085,9 +1195,12 @@ async function collectSqlDemoInventory({
     skipped: false,
     target: dbValidation.sanitizedTarget,
     databaseNameObserved: null,
+    databaseIdentityConfirmed: false,
     isolationLevel: 'REPEATABLE READ',
     readOnlyEnforced: true,
     statementTimeoutMs,
+    truncated: false,
+    aborted: false,
     schema: {
       requiredTablesPresent: [],
       missingRequiredTables: [],
@@ -1176,25 +1289,143 @@ async function collectSqlDemoInventory({
 
   const sqlErrors = [];
   let client = null;
+  let acquiredFromPool = false;
+  let clientReleased = false;
+  let destroyClientOnRelease = false;
   let inTransaction = false;
 
+  // Presupuestos globales opcionales (fail-closed: si se exceden -> truncated=true, complete=false)
+  const hasMaxRowsBudget = Number.isSafeInteger(maxTotalRows) && maxTotalRows > 0;
+  const hasMaxTimeBudget = Number.isSafeInteger(maxExecutionMs) && maxExecutionMs > 0;
+  const startedAtMs = Date.now();
+  const deadlineMs = hasMaxTimeBudget ? startedAtMs + maxExecutionMs : null;
+  const perQueryTimeoutMs = Math.trunc(
+    Math.max(1000, Math.min(Number(statementTimeoutMs) || DEFAULT_SQL_STATEMENT_TIMEOUT_MS, 120_000))
+  );
+  let totalRowsCollected = 0;
+
+  const checkAborted = (stage) => {
+    if (signal?.aborted) {
+      sqlResult.aborted = true;
+      sqlResult.complete = false;
+      const err = new Error(`SQL_CLIENT_ABORTED: Escaneo cancelado por desconexión del cliente en etapa ${stage}.`);
+      err.code = 'SQL_CLIENT_ABORTED';
+      err.isAborted = true;
+      err.stage = stage;
+      throw err;
+    }
+  };
+
+  const getRemainingMs = (stage) => {
+    checkAborted(stage);
+    if (!hasMaxTimeBudget) return null;
+    const remaining = deadlineMs - Date.now();
+    if (remaining <= 0) {
+      sqlResult.truncated = true;
+      const err = new Error(
+        `SQL_MAX_EXECUTION_TIME_EXCEEDED: Se superó el tiempo máximo global (${maxExecutionMs}ms) en etapa ${stage}.`
+      );
+      err.code = 'SQL_MAX_EXECUTION_TIME_EXCEEDED';
+      err.isBudgetExceeded = true;
+      err.stage = stage;
+      throw err;
+    }
+    return remaining;
+  };
+
+  const assertBudgets = (stage, addedRows = 0) => {
+    checkAborted(stage);
+    totalRowsCollected += addedRows;
+    if (hasMaxRowsBudget && totalRowsCollected > maxTotalRows) {
+      sqlResult.truncated = true;
+      const err = new Error(
+        `SQL_MAX_ROWS_EXCEEDED: Se superó el límite global de filas (${maxTotalRows}) en etapa ${stage}.`
+      );
+      err.code = 'SQL_MAX_ROWS_EXCEEDED';
+      err.isBudgetExceeded = true;
+      err.stage = stage;
+      throw err;
+    }
+    getRemainingMs(stage);
+  };
+
+  /**
+   * Calcula el LIMIT efectivo para la siguiente página respetando `maxTotalRows`.
+   * Solicita hasta `remainingRows + 1` para detectar con certeza si existen filas
+   * por encima del presupuesto y marcar `truncated = true`, `complete = false`.
+   */
+  const computePageLimit = (stage) => {
+    checkAborted(stage);
+    if (!hasMaxRowsBudget) return pageSize;
+    const remainingRows = maxTotalRows - totalRowsCollected;
+    if (remainingRows <= 0) {
+      assertBudgets(stage, 1);
+    }
+    return Math.min(pageSize, remainingRows + 1);
+  };
+
+  const acquireClientWithDeadline = async () => {
+    checkAborted('pool_connect');
+    if (pool && typeof pool.connect === 'function') {
+      acquiredFromPool = true;
+      const remaining = hasMaxTimeBudget ? getRemainingMs('pool_connect') : null;
+      try {
+        return await acquirePoolClientWithTimeout(pool, remaining, { signal, stage: 'pool_connect' });
+      } catch (err) {
+        if (err?.code === 'SQL_MAX_EXECUTION_TIME_EXCEEDED') sqlResult.truncated = true;
+        if (err?.isAborted) sqlResult.aborted = true;
+        throw err;
+      }
+    }
+    if (typeof sqlClientFactory === 'function') {
+      return sqlClientFactory(databaseUrl);
+    }
+    throw new Error('SQL_CLIENT_INVALID: Se requiere pool o sqlClientFactory para consultar PostgreSQL.');
+  };
+
+  /**
+   * Ejecuta una sentencia SQL dentro de la transacción READ ONLY aplicando
+   * cancelación por `AbortSignal` y deadline global compartido: antes de CADA
+   * consulta verifica `signal?.aborted`, recalcula `remainingMs` y ajusta
+   * `SET LOCAL statement_timeout` al mínimo entre `perQueryTimeoutMs` y `remainingMs`.
+   */
+  const runTimedQuery = async (stage, sql, params) => {
+    checkAborted(stage);
+    if (hasMaxTimeBudget) {
+      const remaining = getRemainingMs(stage);
+      const effectiveTimeout = Math.max(50, Math.min(perQueryTimeoutMs, remaining));
+      await client.query(`SET LOCAL statement_timeout = '${effectiveTimeout}ms'`);
+    }
+    const res = params !== undefined
+      ? await client.query(sql, params)
+      : await client.query(sql);
+    checkAborted(stage);
+    if (hasMaxTimeBudget) {
+      getRemainingMs(stage);
+    }
+    return res;
+  };
+
   try {
-    client = await sqlClientFactory(databaseUrl);
+    client = await acquireClientWithDeadline();
     if (!client || typeof client.query !== 'function') {
       throw new Error('SQL_CLIENT_INVALID: El cliente SQL inyectado no implementa query().');
     }
+
+    // Verificar deadline ANTES de iniciar la transacción
+    getRemainingMs('sql_begin');
 
     // 1. Iniciar snapshot transaccional estrictamente READ ONLY
     await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY');
     inTransaction = true;
 
-    const safeTimeout = Math.trunc(
-      Math.max(1000, Math.min(Number(statementTimeoutMs) || DEFAULT_SQL_STATEMENT_TIMEOUT_MS, 120_000))
-    );
-    await client.query(`SET LOCAL statement_timeout = '${safeTimeout}ms'`);
+    const initialTimeout = hasMaxTimeBudget
+      ? Math.max(50, Math.min(perQueryTimeoutMs, getRemainingMs('sql_set_timeout')))
+      : perQueryTimeoutMs;
+    await client.query(`SET LOCAL statement_timeout = '${initialTimeout}ms'`);
 
     // 2. Verificar identidad real del servidor (current_database()) contra allowlist Demo
-    const dbRes = await client.query('SELECT current_database() AS db');
+    const dbRes = await runTimedQuery('current_database', 'SELECT current_database() AS db');
     const observedDb = String(dbRes?.rows?.[0]?.db || '');
     sqlResult.databaseNameObserved = observedDb || null;
 
@@ -1219,8 +1450,12 @@ async function collectSqlDemoInventory({
       throw new Error(`SQL_IDENTITY_REJECTED: current_database() "${observedDb}" no está marcada como Demo.`);
     }
 
+    // Identidad Demo confirmada en el servidor PostgreSQL: habilita auditoría externa segura
+    sqlResult.databaseIdentityConfirmed = true;
+
     // 3. Inspeccionar information_schema.tables e information_schema.columns
-    const tablesRes = await client.query(
+    const tablesRes = await runTimedQuery(
+      'information_schema_tables',
       `SELECT table_name
        FROM information_schema.tables
        WHERE table_schema = 'public' AND table_type = 'BASE TABLE'`
@@ -1236,7 +1471,8 @@ async function collectSqlDemoInventory({
       else sqlResult.schema.missingOptionalTables.push(tbl);
     }
 
-    const colsRes = await client.query(
+    const colsRes = await runTimedQuery(
+      'information_schema_columns',
       `SELECT table_name, column_name, data_type, numeric_precision, numeric_scale
        FROM information_schema.columns
        WHERE table_schema = 'public'`
@@ -1363,16 +1599,19 @@ async function collectSqlDemoInventory({
 
       let lastId = 0;
       while (true) {
-        const pageRes = await client.query(
+        const reqLimit = computePageLimit('users');
+        const pageRes = await runTimedQuery(
+          'users',
           `SELECT ${userCols.join(', ')}
            FROM users
            WHERE id > $1
            ORDER BY id ASC
            LIMIT $2`,
-          [lastId, pageSize]
+          [lastId, reqLimit]
         );
         const rows = pageRes?.rows || [];
         if (rows.length === 0) break;
+        assertBudgets('users', rows.length);
 
         for (const r of rows) {
           const wallet = normalizeNonZeroAddress(r.web3_wallet_address);
@@ -1448,35 +1687,47 @@ async function collectSqlDemoInventory({
           lastId = Number(r.id);
         }
 
-        if (rows.length < pageSize) break;
+        if (rows.length < reqLimit) break;
       }
     }
 
-    // 5. Smart accounts (si existen; sin passkey ni PII)
+    // 5. Smart accounts (si existen; sin passkey ni PII; acotado a presupuesto de filas/tiempo)
     if (existingTables.has('smart_accounts')) {
-      const saRes = await client.query(
-        `SELECT identity_id, chain_id, address, state, created_at
-         FROM smart_accounts
-         WHERE chain_id = $1
-         ORDER BY created_at ASC`,
-        [DEMO_CHAIN_ID_STR]
-      );
-      for (const r of saRes?.rows || []) {
-        const addr = normalizeNonZeroAddress(r.address);
-        if (addr) walletSet.add(addr);
-        sqlResult.smartAccounts.push({
-          identityId: String(r.identity_id),
-          chainId: String(r.chain_id),
-          address: addr,
-          state: String(r.state),
-          createdAt: r.created_at ? new Date(r.created_at).toISOString() : null
-        });
+      let saOffset = 0;
+      while (true) {
+        const reqLimit = computePageLimit('smart_accounts');
+        const saRes = await runTimedQuery(
+          'smart_accounts',
+          `SELECT identity_id, chain_id, address, state, created_at
+           FROM smart_accounts
+           WHERE chain_id = $1
+           ORDER BY created_at ASC, identity_id ASC
+           LIMIT $2 OFFSET $3`,
+          [DEMO_CHAIN_ID_STR, reqLimit, saOffset]
+        );
+        const rows = saRes?.rows || [];
+        if (rows.length === 0) break;
+        assertBudgets('smart_accounts', rows.length);
+        for (const r of rows) {
+          const addr = normalizeNonZeroAddress(r.address);
+          if (addr) walletSet.add(addr);
+          sqlResult.smartAccounts.push({
+            identityId: String(r.identity_id),
+            chainId: String(r.chain_id),
+            address: addr,
+            state: String(r.state),
+            createdAt: r.created_at ? new Date(r.created_at).toISOString() : null
+          });
+        }
+        saOffset += rows.length;
+        if (rows.length < reqLimit) break;
       }
     }
 
     // 6. Política económica (app_settings filtrada por allowlist, sin secretos)
     if (existingTables.has('app_settings')) {
-      const settingsRes = await client.query(
+      const settingsRes = await runTimedQuery(
+        'app_settings',
         `SELECT setting_key, setting_value
          FROM app_settings
          WHERE setting_key = ANY($1::text[])
@@ -1489,7 +1740,8 @@ async function collectSqlDemoInventory({
     }
 
     if (existingTables.has('credit_policy_versions')) {
-      const verRes = await client.query(
+      const verRes = await runTimedQuery(
+        'credit_policy_versions',
         `SELECT id, settings, created_at
          FROM credit_policy_versions
          ORDER BY id DESC
@@ -1504,7 +1756,8 @@ async function collectSqlDemoInventory({
 
     if (existingTables.has('credit_policy_issues')) {
       // Conteo completo por estado (open, retrying, dead_letter, resolved, etc.)
-      const issueCountsRes = await client.query(
+      const issueCountsRes = await runTimedQuery(
+        'credit_policy_issues_counts',
         `SELECT status, COUNT(*)::text AS total
          FROM credit_policy_issues
          GROUP BY status`
@@ -1514,37 +1767,59 @@ async function collectSqlDemoInventory({
       }
 
       // Capturar TODAS las incidencias no resueltas (incluyendo 'dead_letter', 'open', 'retrying')
+      // paginadas y acotadas al presupuesto global de filas (`maxTotalRows`)
       const issueCols = ['version_id', 'user_id', 'operation_id', 'reason', 'status', 'retry_requested', 'updated_at'];
       if (hasColumn('credit_policy_issues', 'retry_count')) issueCols.push('retry_count');
       if (hasColumn('credit_policy_issues', 'next_retry_at')) issueCols.push('next_retry_at');
       if (hasColumn('credit_policy_issues', 'max_retries')) issueCols.push('max_retries');
       if (hasColumn('credit_policy_issues', 'last_error')) issueCols.push('last_error');
 
-      const issuesRes = await client.query(
-        `SELECT ${issueCols.join(', ')}
-         FROM credit_policy_issues
-         WHERE status NOT IN ('resolved', 'completed', 'closed')
-         ORDER BY version_id ASC, user_id ASC`
-      );
-      sqlResult.policy.openCreditPolicyIssues = (issuesRes?.rows || []).map((r) => ({
-        versionId: String(r.version_id),
-        userId: Number(r.user_id),
-        operationId: r.operation_id ? String(r.operation_id) : null,
-        reason: sanitizeText(r.reason),
-        status: String(r.status),
-        retryRequested: Boolean(r.retry_requested),
-        retryCount: r.retry_count !== undefined && r.retry_count !== null ? Number(r.retry_count) : null,
-        maxRetries: r.max_retries !== undefined && r.max_retries !== null ? Number(r.max_retries) : null,
-        nextRetryAt: r.next_retry_at ? new Date(r.next_retry_at).toISOString() : null,
-        lastError: r.last_error !== undefined && r.last_error !== null ? sanitizeText(r.last_error) : null,
-        updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null
-      }));
+      let issueOffset = 0;
+      let prevLastIssueKey = null;
+      while (true) {
+        const reqLimit = computePageLimit('credit_policy_issues');
+        const issuesRes = await runTimedQuery(
+          'credit_policy_issues',
+          `SELECT ${issueCols.join(', ')}
+           FROM credit_policy_issues
+           WHERE status NOT IN ('resolved', 'completed', 'closed')
+           ORDER BY version_id ASC, user_id ASC
+           LIMIT $1 OFFSET $2`,
+          [reqLimit, issueOffset]
+        );
+        const rows = issuesRes?.rows || [];
+        if (rows.length === 0) break;
+        const lastRow = rows[rows.length - 1];
+        const lastKey = `${lastRow.version_id}:${lastRow.user_id}`;
+        if (prevLastIssueKey !== null && lastKey === prevLastIssueKey) break;
+        prevLastIssueKey = lastKey;
+
+        assertBudgets('credit_policy_issues', rows.length);
+        for (const r of rows) {
+          sqlResult.policy.openCreditPolicyIssues.push({
+            versionId: String(r.version_id),
+            userId: Number(r.user_id),
+            operationId: r.operation_id ? String(r.operation_id) : null,
+            reason: sanitizeText(r.reason),
+            status: String(r.status),
+            retryRequested: Boolean(r.retry_requested),
+            retryCount: r.retry_count !== undefined && r.retry_count !== null ? Number(r.retry_count) : null,
+            maxRetries: r.max_retries !== undefined && r.max_retries !== null ? Number(r.max_retries) : null,
+            nextRetryAt: r.next_retry_at ? new Date(r.next_retry_at).toISOString() : null,
+            lastError: r.last_error !== undefined && r.last_error !== null ? sanitizeText(r.last_error) : null,
+            updatedAt: r.updated_at ? new Date(r.updated_at).toISOString() : null
+          });
+        }
+        issueOffset += rows.length;
+        if (rows.length < reqLimit) break;
+      }
     }
 
     // 7a. Outbox de notificaciones de política de compromiso RED (migración 129, si existe; CERO payload crudo)
     if (has129Outbox) {
       sqlResult.creditNotificationOutbox.tablePresent = true;
-      const outboxCountsRes = await client.query(
+      const outboxCountsRes = await runTimedQuery(
+        'credit_notification_outbox_counts',
         `SELECT status, COUNT(*)::text AS total
          FROM credit_notification_outbox
          GROUP BY status`
@@ -1555,17 +1830,20 @@ async function collectSqlDemoInventory({
 
       let lastOpId = '';
       while (true) {
-        const outboxRes = await client.query(
+        const reqLimit = computePageLimit('credit_notification_outbox');
+        const outboxRes = await runTimedQuery(
+          'credit_notification_outbox',
           `SELECT operation_id, user_id, confirmed_limit::text AS confirmed_limit, tx_hash, block_hash,
                   status, attempts, next_attempt_at, last_error, created_at, delivered_at
            FROM credit_notification_outbox
            WHERE status = 'pending' AND operation_id::text > $1
            ORDER BY operation_id::text ASC
            LIMIT $2`,
-          [lastOpId, pageSize]
+          [lastOpId, reqLimit]
         );
         const rows = outboxRes?.rows || [];
         if (rows.length === 0) break;
+        assertBudgets('credit_notification_outbox', rows.length);
 
         for (const r of rows) {
           const opId = String(r.operation_id);
@@ -1585,14 +1863,15 @@ async function collectSqlDemoInventory({
           lastOpId = opId;
         }
 
-        if (rows.length < pageSize) break;
+        if (rows.length < reqLimit) break;
       }
     }
 
     // 7b. Premios de referidos por episodio de compromiso RED (migración 130, si existe; CERO PII)
     if (has130Awards) {
       sqlResult.creditReferralAwards.tablePresent = true;
-      const awardCountsRes = await client.query(
+      const awardCountsRes = await runTimedQuery(
+        'credit_referral_awards_counts',
         `SELECT baseline, COUNT(*)::text AS total
          FROM credit_referral_awards
          GROUP BY baseline`
@@ -1607,16 +1886,19 @@ async function collectSqlDemoInventory({
 
       let lastReferredId = 0;
       while (true) {
-        const awardsRes = await client.query(
+        const reqLimit = computePageLimit('credit_referral_awards');
+        const awardsRes = await runTimedQuery(
+          'credit_referral_awards',
           `SELECT referred_user_id, referrer_user_id, amount::text AS amount, recorded_at, baseline
            FROM credit_referral_awards
            WHERE baseline = FALSE AND referred_user_id > $1
            ORDER BY referred_user_id ASC
            LIMIT $2`,
-          [lastReferredId, pageSize]
+          [lastReferredId, reqLimit]
         );
         const rows = awardsRes?.rows || [];
         if (rows.length === 0) break;
+        assertBudgets('credit_referral_awards', rows.length);
 
         for (const r of rows) {
           const refId = Number(r.referred_user_id);
@@ -1630,28 +1912,46 @@ async function collectSqlDemoInventory({
           lastReferredId = refId;
         }
 
-        if (rows.length < pageSize) break;
+        if (rows.length < reqLimit) break;
       }
     }
 
-    // 8. Retenciones escrow activas (web3_escrow_holds)
+    // 8. Retenciones escrow activas (web3_escrow_holds; paginado y acotado a presupuesto)
     if (existingTables.has('web3_escrow_holds')) {
-      const escrowRes = await client.query(
-        `SELECT id, publication_id, author_id, responsible_user_id, amount_locked, commission_rate_locked, status, created_at
-         FROM web3_escrow_holds
-         WHERE status IN ('locked', 'pending', 'disputed')
-         ORDER BY id ASC`
-      );
-      sqlResult.escrowHoldsActive = (escrowRes?.rows || []).map((r) => ({
-        id: String(r.id),
-        publicationId: r.publication_id !== null && r.publication_id !== undefined ? Number(r.publication_id) : null,
-        authorId: r.author_id !== null && r.author_id !== undefined ? Number(r.author_id) : null,
-        responsibleUserId: r.responsible_user_id !== null && r.responsible_user_id !== undefined ? Number(r.responsible_user_id) : null,
-        amountLocked: String(r.amount_locked ?? '0'),
-        commissionRateLocked: String(r.commission_rate_locked ?? '0'),
-        status: String(r.status),
-        createdAt: r.created_at ? new Date(r.created_at).toISOString() : null
-      }));
+      let lastEscrowId = 0;
+      while (true) {
+        const reqLimit = computePageLimit('web3_escrow_holds');
+        const escrowRes = await runTimedQuery(
+          'web3_escrow_holds',
+          `SELECT id, publication_id, author_id, responsible_user_id, amount_locked, commission_rate_locked, status, created_at
+           FROM web3_escrow_holds
+           WHERE id > $1 AND status IN ('locked', 'pending', 'disputed')
+           ORDER BY id ASC
+           LIMIT $2`,
+          [lastEscrowId, reqLimit]
+        );
+        const rows = escrowRes?.rows || [];
+        if (rows.length === 0) break;
+        const lastRowId = Number(rows[rows.length - 1].id);
+        if (lastRowId <= lastEscrowId) break;
+        assertBudgets('web3_escrow_holds', rows.length);
+
+        for (const r of rows) {
+          sqlResult.escrowHoldsActive.push({
+            id: String(r.id),
+            publicationId: r.publication_id !== null && r.publication_id !== undefined ? Number(r.publication_id) : null,
+            authorId: r.author_id !== null && r.author_id !== undefined ? Number(r.author_id) : null,
+            responsibleUserId: r.responsible_user_id !== null && r.responsible_user_id !== undefined ? Number(r.responsible_user_id) : null,
+            amountLocked: String(r.amount_locked ?? '0'),
+            commissionRateLocked: String(r.commission_rate_locked ?? '0'),
+            status: String(r.status),
+            createdAt: r.created_at ? new Date(r.created_at).toISOString() : null
+          });
+          lastEscrowId = Number(r.id);
+        }
+
+        if (rows.length < reqLimit) break;
+      }
     }
 
     // 9a. Publicaciones activas / con pago en curso (paginadas por id > $1, sin truncar ni texto libre PII)
@@ -1664,16 +1964,19 @@ async function collectSqlDemoInventory({
 
       let lastPubId = 0;
       while (true) {
-        const pubRes = await client.query(
+        const reqLimit = computePageLimit('publications');
+        const pubRes = await runTimedQuery(
+          'publications',
           `SELECT ${pubCols.join(', ')}
            FROM publications
            WHERE id > $1 AND status NOT IN ('completed', 'cancelled', 'deleted', 'expired', 'closed')
            ORDER BY id ASC
            LIMIT $2`,
-          [lastPubId, pageSize]
+          [lastPubId, reqLimit]
         );
         const rows = pubRes?.rows || [];
         if (rows.length === 0) break;
+        assertBudgets('publications', rows.length);
 
         for (const r of rows) {
           sqlResult.publicationsActive.push({
@@ -1688,13 +1991,14 @@ async function collectSqlDemoInventory({
           lastPubId = Number(r.id);
         }
 
-        if (rows.length < pageSize) break;
+        if (rows.length < reqLimit) break;
       }
     }
 
     // 9b. Aceptaciones / pagos pendientes en publication_acceptances (paginadas por pa.id > $1, CERO PII)
     if (existingTables.has('publication_acceptances')) {
-      const accCountsRes = await client.query(
+      const accCountsRes = await runTimedQuery(
+        'publication_acceptances_counts',
         `SELECT status, COUNT(*)::text AS total
          FROM publication_acceptances
          GROUP BY status`
@@ -1709,17 +2013,20 @@ async function collectSqlDemoInventory({
 
       let lastAccId = 0;
       while (true) {
-        const accRes = await client.query(
+        const reqLimit = computePageLimit('publication_acceptances');
+        const accRes = await runTimedQuery(
+          'publication_acceptances',
           `SELECT ${accCols.join(', ')}
            FROM publication_acceptances pa
            LEFT JOIN users u ON u.username = pa.acceptor_username
            WHERE pa.id > $1 AND pa.status NOT IN ('confirmed_paid', 'rejected', 'cancelled')
            ORDER BY pa.id ASC
            LIMIT $2`,
-          [lastAccId, pageSize]
+          [lastAccId, reqLimit]
         );
         const rows = accRes?.rows || [];
         if (rows.length === 0) break;
+        assertBudgets('publication_acceptances', rows.length);
 
         for (const r of rows) {
           sqlResult.publicationAcceptancesPending.push({
@@ -1734,13 +2041,14 @@ async function collectSqlDemoInventory({
           lastAccId = Number(r.id);
         }
 
-        if (rows.length < pageSize) break;
+        if (rows.length < reqLimit) break;
       }
     }
 
     // 10. Cursores de sincronización del Exchange V6
     if (existingTables.has('web3_exchange_v6_sync')) {
-      const syncRes = await client.query(
+      const syncRes = await runTimedQuery(
+        'web3_exchange_v6_sync',
         `SELECT chain_id, router_address, start_block, stream_fingerprint, cursor_block, cursor_hash, status, updated_at
          FROM web3_exchange_v6_sync
          ORDER BY chain_id ASC, router_address ASC`
@@ -1758,17 +2066,18 @@ async function collectSqlDemoInventory({
     }
 
     if (existingTables.has('web3_exchange_v6_orders')) {
-      const ordCnt = await client.query('SELECT COUNT(*)::text AS total FROM web3_exchange_v6_orders');
+      const ordCnt = await runTimedQuery('web3_exchange_v6_orders_count', 'SELECT COUNT(*)::text AS total FROM web3_exchange_v6_orders');
       sqlResult.exchangeV6ProjectionsCount.orders = String(ordCnt?.rows?.[0]?.total ?? '0');
     }
     if (existingTables.has('web3_exchange_v6_refunds')) {
-      const refCnt = await client.query('SELECT COUNT(*)::text AS total FROM web3_exchange_v6_refunds');
+      const refCnt = await runTimedQuery('web3_exchange_v6_refunds_count', 'SELECT COUNT(*)::text AS total FROM web3_exchange_v6_refunds');
       sqlResult.exchangeV6ProjectionsCount.refunds = String(refCnt?.rows?.[0]?.total ?? '0');
     }
 
-    // 11. Operaciones en cadena (prepared / pending / conflict) estrictamente sanitizadas
+    // 11. Operaciones en cadena (prepared / pending / conflict) paginadas y acotadas al presupuesto ANTES de materializar
     if (existingTables.has('chain_operations')) {
-      const countRes = await client.query(
+      const countRes = await runTimedQuery(
+        'chain_operations_counts',
         `SELECT state, COUNT(*)::text AS total
          FROM chain_operations
          GROUP BY state`
@@ -1777,45 +2086,94 @@ async function collectSqlDemoInventory({
         sqlResult.chainOperations.countsByState[String(r.state)] = String(r.total);
       }
 
-      const activeOpsRes = await client.query(
-        `SELECT id, user_id, chain_id, sender, resource_key, kind, state, error_code, payload, steps, created_at, updated_at
-         FROM chain_operations
-         WHERE state IN ('prepared', 'pending', 'conflict')
-         ORDER BY created_at ASC`
-      );
-      sqlResult.chainOperations.activeOperations = (activeOpsRes?.rows || []).map(sanitizeChainOperationRow);
+      let opsOffset = 0;
+      let prevLastOpId = null;
+      while (true) {
+        const reqLimit = computePageLimit('chain_operations');
+        // Proyección SQL estrictamente escalar: evita traer JSONB `payload` o `steps`
+        // potencialmente gigantes (con rawSignedTx/calldata) a memoria Node.
+        const activeOpsRes = await runTimedQuery(
+          'chain_operations',
+          `SELECT id, user_id, chain_id, sender, resource_key, kind, state, error_code,
+                  LEFT(COALESCE(payload->>'to', steps->0->>'to', ''), 256) AS target,
+                  LEFT(COALESCE(steps->0->>'nonce', payload->>'nonce', ''), 64) AS op_nonce,
+                  LEFT(COALESCE(steps->-1->>'hash', steps->-1->>'tx_hash', steps->-1->>'txHash', ''), 128) AS tx_hash,
+                  CASE WHEN jsonb_typeof(steps) = 'array' THEN jsonb_array_length(steps) ELSE 0 END AS steps_count,
+                  created_at, updated_at
+           FROM chain_operations
+           WHERE state IN ('prepared', 'pending', 'conflict')
+           ORDER BY created_at ASC, id ASC
+           LIMIT $1 OFFSET $2`,
+          [reqLimit, opsOffset]
+        );
+        const rows = activeOpsRes?.rows || [];
+        if (rows.length === 0) break;
+        const lastOpId = String(rows[rows.length - 1].id);
+        if (prevLastOpId !== null && lastOpId === prevLastOpId) break;
+        prevLastOpId = lastOpId;
+
+        // Verificar presupuesto ANTES de materializar/mapear registros
+        assertBudgets('chain_operations', rows.length);
+        for (const row of rows) {
+          sqlResult.chainOperations.activeOperations.push(sanitizeChainOperationRow(row));
+        }
+        opsOffset += rows.length;
+        if (rows.length < reqLimit) break;
+      }
     }
 
     sqlResult.discoveredWallets = Array.from(walletSet).sort();
 
+    // Verificación final de cancelación y deadline antes de cerrar COMMIT
+    getRemainingMs('sql_commit');
     await client.query('COMMIT');
     inTransaction = false;
 
-    sqlResult.complete = sqlErrors.length === 0;
+    sqlResult.complete = sqlErrors.length === 0 && !sqlResult.truncated && !sqlResult.aborted;
   } catch (error) {
     // Re-lanzar errores fatales de identidad de base de datos (fail-closed)
     if (/^SQL_IDENTITY_(REJECTED|MISMATCH|FAILED)/.test(String(error?.message || ''))) {
       throw error;
     }
-    sqlErrors.push({
-      stage: 'sql_read',
-      code: error.code ? String(error.code) : 'SQL_READ_ERROR',
-      message: sanitizeText(error.message)
-    });
-    sqlResult.complete = false;
+    if (error?.isAborted || error?.code === 'SQL_CLIENT_ABORTED') {
+      sqlResult.aborted = true;
+      sqlResult.complete = false;
+    } else {
+      if (error?.code === '57014') {
+        // PostgreSQL query_canceled (statement_timeout alcanzado)
+        sqlResult.truncated = true;
+      }
+      sqlErrors.push({
+        stage: error.stage || 'sql_read',
+        code: error?.code === '57014' ? 'SQL_STATEMENT_TIMEOUT' : (error.code ? String(error.code) : 'SQL_READ_ERROR'),
+        message: sanitizeText(error.message)
+      });
+      sqlResult.complete = false;
+    }
   } finally {
     if (client && inTransaction) {
       try {
         await client.query('ROLLBACK');
       } catch {
-        // Ignorar error de rollback en cierre seguro
+        // Si ROLLBACK falla, la conexión queda en estado incierto: destruirla al liberar
+        destroyClientOnRelease = true;
       }
+      inTransaction = false;
     }
-    if (client) {
-      if (typeof client.end === 'function') {
+    if (client && !clientReleased) {
+      clientReleased = true;
+      if (acquiredFromPool && typeof client.release === 'function') {
+        try {
+          if (destroyClientOnRelease) client.release(true);
+          else client.release();
+        } catch { /* noop */ }
+      } else if (!acquiredFromPool && typeof client.end === 'function') {
         try { await client.end(); } catch { /* noop */ }
       } else if (typeof client.release === 'function') {
-        try { client.release(); } catch { /* noop */ }
+        try {
+          if (destroyClientOnRelease) client.release(true);
+          else client.release();
+        } catch { /* noop */ }
       }
     }
   }
@@ -2041,6 +2399,95 @@ function evaluateInvariants({
 }
 
 /**
+ * Construye de forma determinista el bloque `sqlPreservationAndReconciliation`
+ * (reutilizable por `evaluateEligibility` y por el endpoint admin read-only, DRY).
+ */
+function buildSqlPreservationAndReconciliation(sqlResult, sqlComplete) {
+  const sqlPendingItems = [];
+  if (!sqlResult || sqlResult.skipped) {
+    sqlPendingItems.push({
+      category: 'sql_skipped',
+      count: null,
+      detail: 'Se omitió la lectura SQL (--skip-sql); la conciliación SQL es obligatoria antes de cualquier corte.'
+    });
+  } else {
+    if (sqlResult.truncated) {
+      sqlPendingItems.push({
+        category: 'sql_truncated',
+        count: null,
+        detail: 'La lectura SQL alcanzó un límite de filas o tiempo y quedó truncada (incompleta).'
+      });
+    }
+    if (!sqlComplete) {
+      sqlPendingItems.push({
+        category: 'sql_incomplete',
+        count: null,
+        detail: 'Lectura SQL incompleta o tablas requeridas ausentes.'
+      });
+    }
+    if (sqlResult.chainOperations?.activeOperations?.length > 0) {
+      sqlPendingItems.push({
+        category: 'chain_operations',
+        count: sqlResult.chainOperations.activeOperations.length,
+        detail: `Existen ${sqlResult.chainOperations.activeOperations.length} operación(es) SQL activas en chain_operations.`
+      });
+    }
+    if (sqlResult.escrowHoldsActive?.length > 0) {
+      sqlPendingItems.push({
+        category: 'web3_escrow_holds',
+        count: sqlResult.escrowHoldsActive.length,
+        detail: `Existen ${sqlResult.escrowHoldsActive.length} retención(es) activa(s) en web3_escrow_holds.`
+      });
+    }
+    if (sqlResult.policy?.openCreditPolicyIssues?.length > 0) {
+      const dlqCount = sqlResult.policy.openCreditPolicyIssues.filter((i) => i.status === 'dead_letter').length;
+      const dlqSuffix = dlqCount > 0 ? ` (incluyendo ${dlqCount} en dead_letter)` : '';
+      sqlPendingItems.push({
+        category: 'credit_policy_issues',
+        count: sqlResult.policy.openCreditPolicyIssues.length,
+        deadLetterCount: dlqCount,
+        detail: `Existen ${sqlResult.policy.openCreditPolicyIssues.length} incidencia(s) no resuelta(s) en credit_policy_issues${dlqSuffix}.`
+      });
+    }
+    if (sqlResult.moraEpisodes?.length > 0) {
+      sqlPendingItems.push({
+        category: 'mora_episodes',
+        count: sqlResult.moraEpisodes.length,
+        detail: `Existen ${sqlResult.moraEpisodes.length} episodio(s) de mora activo(s) en users (mora_episode_*).`
+      });
+    }
+    if (sqlResult.creditNotificationOutbox?.pendingItems?.length > 0) {
+      sqlPendingItems.push({
+        category: 'credit_notification_outbox',
+        count: sqlResult.creditNotificationOutbox.pendingItems.length,
+        detail: `Existen ${sqlResult.creditNotificationOutbox.pendingItems.length} notificación(es) pendiente(s) en credit_notification_outbox.`
+      });
+    }
+    if (sqlResult.publicationsActive?.length > 0) {
+      sqlPendingItems.push({
+        category: 'publications',
+        count: sqlResult.publicationsActive.length,
+        detail: `Existen ${sqlResult.publicationsActive.length} publicación(es) activa(s) en publications (preservar registros históricos y conciliar).`
+      });
+    }
+    if (sqlResult.publicationAcceptancesPending?.length > 0) {
+      sqlPendingItems.push({
+        category: 'publication_acceptances',
+        count: sqlResult.publicationAcceptancesPending.length,
+        detail: `Existen ${sqlResult.publicationAcceptancesPending.length} aceptación(es)/pago(s) pendiente(s) en publication_acceptances (preservar registros históricos y conciliar).`
+      });
+    }
+  }
+
+  return {
+    required: sqlPendingItems.length > 0,
+    preserveHistoricalRecords: true,
+    neverDeleteHistoricalPublicationsOrIous: true,
+    pendingItems: sqlPendingItems
+  };
+}
+
+/**
  * Evalúa por separado:
  * 1) `candidateEmptyAtBlock`: estado económico on-chain observado en el bloque `finalized`.
  * 2) `onchainMigratorRequired`: si se requiere migrador on-chain por estado vivo en contratos V6.
@@ -2126,81 +2573,8 @@ function evaluateEligibility({
   };
 
   // Eje 2 (CODEX-205 #5): Preservación y conciliación SQL (nunca borrar publicaciones ni IOUs históricos)
-  const sqlPendingItems = [];
-  if (sqlResult.skipped) {
-    sqlPendingItems.push({
-      category: 'sql_skipped',
-      count: null,
-      detail: 'Se omitió la lectura SQL (--skip-sql); la conciliación SQL es obligatoria antes de cualquier corte.'
-    });
-  } else {
-    if (!completeness.sqlComplete) {
-      sqlPendingItems.push({
-        category: 'sql_incomplete',
-        count: null,
-        detail: 'Lectura SQL incompleta o tablas requeridas ausentes.'
-      });
-    }
-    if (sqlResult.chainOperations?.activeOperations?.length > 0) {
-      sqlPendingItems.push({
-        category: 'chain_operations',
-        count: sqlResult.chainOperations.activeOperations.length,
-        detail: `Existen ${sqlResult.chainOperations.activeOperations.length} operación(es) SQL activas en chain_operations.`
-      });
-    }
-    if (sqlResult.escrowHoldsActive?.length > 0) {
-      sqlPendingItems.push({
-        category: 'web3_escrow_holds',
-        count: sqlResult.escrowHoldsActive.length,
-        detail: `Existen ${sqlResult.escrowHoldsActive.length} retención(es) activa(s) en web3_escrow_holds.`
-      });
-    }
-    if (sqlResult.policy?.openCreditPolicyIssues?.length > 0) {
-      const dlqCount = sqlResult.policy.openCreditPolicyIssues.filter((i) => i.status === 'dead_letter').length;
-      const dlqSuffix = dlqCount > 0 ? ` (incluyendo ${dlqCount} en dead_letter)` : '';
-      sqlPendingItems.push({
-        category: 'credit_policy_issues',
-        count: sqlResult.policy.openCreditPolicyIssues.length,
-        deadLetterCount: dlqCount,
-        detail: `Existen ${sqlResult.policy.openCreditPolicyIssues.length} incidencia(s) no resuelta(s) en credit_policy_issues${dlqSuffix}.`
-      });
-    }
-    if (sqlResult.moraEpisodes?.length > 0) {
-      sqlPendingItems.push({
-        category: 'mora_episodes',
-        count: sqlResult.moraEpisodes.length,
-        detail: `Existen ${sqlResult.moraEpisodes.length} episodio(s) de mora activo(s) en users (mora_episode_*).`
-      });
-    }
-    if (sqlResult.creditNotificationOutbox?.pendingItems?.length > 0) {
-      sqlPendingItems.push({
-        category: 'credit_notification_outbox',
-        count: sqlResult.creditNotificationOutbox.pendingItems.length,
-        detail: `Existen ${sqlResult.creditNotificationOutbox.pendingItems.length} notificación(es) pendiente(s) en credit_notification_outbox.`
-      });
-    }
-    if (sqlResult.publicationsActive?.length > 0) {
-      sqlPendingItems.push({
-        category: 'publications',
-        count: sqlResult.publicationsActive.length,
-        detail: `Existen ${sqlResult.publicationsActive.length} publicación(es) activa(s) en publications (preservar registros históricos y conciliar).`
-      });
-    }
-    if (sqlResult.publicationAcceptancesPending?.length > 0) {
-      sqlPendingItems.push({
-        category: 'publication_acceptances',
-        count: sqlResult.publicationAcceptancesPending.length,
-        detail: `Existen ${sqlResult.publicationAcceptancesPending.length} aceptación(es)/pago(s) pendiente(s) en publication_acceptances (preservar registros históricos y conciliar).`
-      });
-    }
-  }
-
-  const sqlPreservationAndReconciliation = {
-    required: sqlPendingItems.length > 0,
-    preserveHistoricalRecords: true,
-    neverDeleteHistoricalPublicationsOrIous: true,
-    pendingItems: sqlPendingItems
-  };
+  const sqlPreservationAndReconciliation = buildSqlPreservationAndReconciliation(sqlResult, completeness.sqlComplete);
+  const sqlPendingItems = sqlPreservationAndReconciliation.pendingItems;
 
   // Eje 3 (CODEX-205 #4): Declaración del operador vs evidencia externa verificable de contención
   const declaredByOperator = Boolean(writeContainmentDeclared || writeContainmentVerified);
@@ -3369,7 +3743,7 @@ async function exportV6DemoInventory(options = {}) {
   }));
 
   const rawReport = {
-    schemaVersion: 'v6-demo-inventory/1.0',
+    schemaVersion: SCHEMA_VERSION,
     generatedAt: new Date().toISOString(),
     environment: {
       epoch: DEMO_EPOCH,
@@ -3469,6 +3843,7 @@ module.exports = {
   DEMO_CHAIN_ID,
   DEMO_CHAIN_ID_STR,
   DEMO_EPOCH,
+  SCHEMA_VERSION,
   REQUIRED_V6_CONTRACTS,
   REQUIRED_SQL_TABLES,
   OPTIONAL_SQL_TABLES,
@@ -3485,6 +3860,9 @@ module.exports = {
   loadAndVerifyV6Manifest,
   createDefaultProvider,
   createPinnedRunner,
+  acquirePoolClientWithTimeout,
+  collectSqlDemoInventory,
+  buildSqlPreservationAndReconciliation,
   evaluateInvariants,
   evaluateEligibility,
   exportV6DemoInventory

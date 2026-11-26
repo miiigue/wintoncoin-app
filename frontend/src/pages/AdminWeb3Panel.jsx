@@ -16,6 +16,7 @@ import { getApiUrl } from '../modules/config.js';
 import ContractConfiguration from '../components/ContractConfiguration.jsx';
 import IdentityDocumentReview from '../components/IdentityDocumentReview.jsx';
 import Web3Readiness from '../components/Web3Readiness.jsx';
+import DemoInventoryPanel from '../components/admin/DemoInventoryPanel.jsx';
 import V6ModeActivation from '../components/V6ModeActivation.jsx';
 import V6EmergencyControl from '../components/V6EmergencyControl.jsx';
 import { administerContract } from '../modules/ownerWalletAdministration.js';
@@ -443,6 +444,9 @@ export default function AdminWeb3Panel() {
       </section>}
 
       <Web3Readiness />
+      {['demo.wintoncoin.com', 'www.demo.wintoncoin.com'].includes(window.location.hostname) && (
+        <DemoInventoryPanel />
+      )}
       {lastOwnerOperation?.operationId&&<p role="status">
         Última operación: <strong>{lastOwnerOperation.state|| (lastOwnerOperation.pending?'Pendiente':'Confirmada')}</strong>.
         Referencia: <code>{lastOwnerOperation.operationId}</code>

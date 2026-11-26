@@ -37,8 +37,13 @@ async function logAuditEvent(clientOrPool, req, {
             JSON.stringify(metadata || {})
         ];
         await clientOrPool.query(sql, params);
+        return { recorded: true };
     } catch (err) {
         console.error('[AUDIT_LOG] Failed to write audit event:', err);
+        return {
+            recorded: false,
+            errorCode: err?.code ? String(err.code) : 'AUDIT_INSERT_FAILED'
+        };
     }
 }
 
