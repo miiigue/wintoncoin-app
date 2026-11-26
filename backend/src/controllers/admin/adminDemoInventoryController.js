@@ -39,6 +39,7 @@
 const { randomUUID } = require('node:crypto');
 const defaultPool = require('../../config/db');
 const defaultAuditService = require('../../services/auditService');
+const defaultMarketplaceDeployment = require('../../services/marketplaceDeployment');
 const {
   DEMO_CHAIN_ID_STR,
   DEMO_EPOCH,
@@ -78,9 +79,15 @@ function resolveSafeRequestId(req) {
 /**
  * Valida las guardas pre-pool del entorno Demo ANTES de abrir cualquier conexión SQL.
  * Nunca imprime ni retorna credenciales ni la URL completa de base de datos.
- * Fail-closed: NO asume `chainId` Demo por fallback silencioso.
+ * Fail-closed: obtiene el `chainId` desde la configuración canónica validada
+ * (`marketplaceDeployment.configuration`, con verificación SHA-256 de manifiesto V6)
+ * y/o variables explícitas de entorno, rechazando cualquier ausencia o contradicción.
  */
-function evaluatePrePoolDemoGuard(env = process.env, allowlistOptions = {}) {
+function evaluatePrePoolDemoGuard(
+  env = process.env,
+  allowlistOptions = {},
+  deploymentResolver = defaultMarketplaceDeployment.configuration
+) {
   const envId = String(env.WINTON_ENVIRONMENT_ID || '').trim().toLowerCase();
   const isDemoMarker = env.IS_DEMO_ENV === 'true' || envId === 'demo';
   if (!isDemoMarker || envId === 'prod' || envId === 'production') {
@@ -91,8 +98,9 @@ function evaluatePrePoolDemoGuard(env = process.env, allowlistOptions = {}) {
     };
   }
 
-  // Exigir configuración explícita y consistente de chainId (sin fallback silencioso a 11155420)
+  // Recolectar cualquier variable explícita de chainId presente en el entorno
   const explicitChainIds = [
+    env.WINTON_CHAIN_ID,
     env.WEB3_CHAIN_ID,
     env.V6_CHAIN_ID,
     env.CHAIN_ID
@@ -100,16 +108,8 @@ function evaluatePrePoolDemoGuard(env = process.env, allowlistOptions = {}) {
     .filter((v) => v !== undefined && v !== null && String(v).trim() !== '')
     .map((v) => String(v).trim());
 
-  if (explicitChainIds.length === 0) {
-    return {
-      ok: false,
-      code: 'DEMO_CHAIN_ID_NOT_CONFIGURED',
-      message: `Configuración incompleta: debe definirse explícitamente chainId=${DEMO_CHAIN_ID_STR} (WEB3_CHAIN_ID / V6_CHAIN_ID / CHAIN_ID).`
-    };
-  }
-
-  const uniqueChainIds = new Set(explicitChainIds);
-  if (uniqueChainIds.size > 1) {
+  const uniqueExplicitChainIds = new Set(explicitChainIds);
+  if (uniqueExplicitChainIds.size > 1) {
     return {
       ok: false,
       code: 'DEMO_CHAIN_ID_CONFLICT',
@@ -117,13 +117,43 @@ function evaluatePrePoolDemoGuard(env = process.env, allowlistOptions = {}) {
     };
   }
 
-  const configuredChainId = explicitChainIds[0];
-  if (configuredChainId !== DEMO_CHAIN_ID_STR) {
-    return {
-      ok: false,
-      code: 'DEMO_CHAIN_ID_REQUIRED',
-      message: `Entorno no autorizado: se requiere chainId=${DEMO_CHAIN_ID_STR} (Demo Optimism Sepolia).`
-    };
+  // Consultar la configuración canónica validada del despliegue (DRY con marketplaceDeployment)
+  let canonicalConfig = null;
+  if (typeof deploymentResolver === 'function') {
+    try {
+      canonicalConfig = deploymentResolver(env);
+    } catch {
+      canonicalConfig = null;
+    }
+  }
+  const canonicalChainId = canonicalConfig?.chainId ? String(canonicalConfig.chainId).trim() : null;
+  const canonicalEpoch = canonicalConfig?.epoch ? String(canonicalConfig.epoch).trim() : null;
+
+  if (explicitChainIds.length === 0) {
+    // Sin variable explícita: exigir identidad canónica validada (11155420 + V6_DEMO)
+    if (canonicalChainId !== DEMO_CHAIN_ID_STR || canonicalEpoch !== DEMO_EPOCH) {
+      return {
+        ok: false,
+        code: 'DEMO_CHAIN_ID_NOT_CONFIGURED',
+        message: `Configuración incompleta: no se pudo validar chainId=${DEMO_CHAIN_ID_STR} (${DEMO_EPOCH}) desde marketplaceDeployment ni desde WEB3_CHAIN_ID / V6_CHAIN_ID / CHAIN_ID.`
+      };
+    }
+  } else {
+    const configuredChainId = explicitChainIds[0];
+    if (configuredChainId !== DEMO_CHAIN_ID_STR) {
+      return {
+        ok: false,
+        code: 'DEMO_CHAIN_ID_REQUIRED',
+        message: `Entorno no autorizado: se requiere chainId=${DEMO_CHAIN_ID_STR} (Demo Optimism Sepolia).`
+      };
+    }
+    if (canonicalChainId && canonicalChainId !== configuredChainId) {
+      return {
+        ok: false,
+        code: 'DEMO_CHAIN_ID_CONFLICT',
+        message: 'Configuración contradictoria entre variables de entorno y marketplaceDeployment.'
+      };
+    }
   }
 
   try {
@@ -214,7 +244,8 @@ function createDemoInventoryHandler(deps = {}) {
     maxTextLength = DEFAULT_HTTP_MAX_TEXT_LENGTH,
     allowLocalSql = false,
     allowedDbHosts = null,
-    allowedDbNames = null
+    allowedDbNames = null,
+    deploymentResolver = defaultMarketplaceDeployment.configuration
   } = deps;
 
   // Guard singleflight en proceso: impide múltiples escaneos paralelos sobre el pool
@@ -238,11 +269,15 @@ function createDemoInventoryHandler(deps = {}) {
 
     // 2. Guardas pre-pool estrictas ANTES de llamar a `pool.connect()` o `auditService`
     const env = getEnv();
-    const demoGuard = evaluatePrePoolDemoGuard(env, {
-      allowLocalSql,
-      allowedDbHosts,
-      allowedDbNames
-    });
+    const demoGuard = evaluatePrePoolDemoGuard(
+      env,
+      {
+        allowLocalSql,
+        allowedDbHosts,
+        allowedDbNames
+      },
+      deploymentResolver
+    );
     if (!demoGuard.ok) {
       return res.status(403).json({
         success: false,

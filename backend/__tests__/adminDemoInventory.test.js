@@ -743,11 +743,33 @@ describe('GET /api/admin/web3/demo-inventory — Seguridad y Contrato (CODEX-209
     expect(resBegin.body.auditRecorded).toBe(false);
     expect(auditBegin.logAuditEvent).not.toHaveBeenCalled();
 
-    // 13b. Sin chainId explícito o con conflicto entre variables -> 403 fail-closed (sin fallback silencioso)
+    // 13b. Sin WEB3_CHAIN_ID pero con configuración canónica validada por marketplaceDeployment -> 200 OK
+    const canonicalPool = createMockPool();
+    const canonicalResolver = jest.fn(() => ({ chainId: '11155420', epoch: 'V6_DEMO' }));
+    const handlerCanonical = createDemoInventoryHandler({
+      pool: canonicalPool,
+      auditService: { logAuditEvent: jest.fn().mockResolvedValue({ recorded: true }) },
+      deploymentResolver: canonicalResolver,
+      getEnv: () => ({
+        IS_DEMO_ENV: 'true',
+        WINTON_ENVIRONMENT_ID: 'demo',
+        DATABASE_URL: DEMO_DB_URL
+      })
+    });
+    const resCanonical = createMockRes();
+    await handlerCanonical(createMockReq(), resCanonical);
+    expect(resCanonical.statusCode).toBe(200);
+    expect(canonicalResolver).toHaveBeenCalledTimes(1);
+    expect(resCanonical.body.demoIdentity.chainId).toBe('11155420');
+
+    // Sin chainId explícito Y sin configuración canónica válida -> 403 fail-closed (sin fallback silencioso)
     const noChainPool = createMockPool();
     const handlerNoChain = createDemoInventoryHandler({
       pool: noChainPool,
       auditService: { logAuditEvent: jest.fn() },
+      deploymentResolver: () => {
+        throw new Error('Manifiesto V6 no reconocido');
+      },
       getEnv: () => ({ IS_DEMO_ENV: 'true', WINTON_ENVIRONMENT_ID: 'demo', DATABASE_URL: DEMO_DB_URL })
     });
     const resNoChain = createMockRes();

@@ -101,6 +101,24 @@ export function formatInventoryError(httpStatus, payload, error) {
       ? payload.message.trim()
       : null;
 
+  const serverCode =
+    typeof payload?.code === 'string' && payload.code.trim().length > 0
+      ? payload.code.trim()
+      : null;
+
+  // Un HTTP 403 con código DEMO_* proviene de la guarda fail-closed del entorno Demo,
+  // no de una sesión administrativa expirada o revocada.
+  if (httpStatus === 403 && serverCode && serverCode.startsWith('DEMO_')) {
+    return {
+      code: serverCode,
+      title: 'Configuración Demo no habilitada o incompleta',
+      message:
+        serverMessage ||
+        'La guarda del entorno Demo bloqueó esta consulta por configuración o identidad de red.',
+      requiresRelogin: false
+    };
+  }
+
   if (httpStatus === 401 || httpStatus === 403) {
     return {
       code: `HTTP_${httpStatus}`,
