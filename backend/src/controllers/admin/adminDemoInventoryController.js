@@ -40,6 +40,7 @@ const { randomUUID } = require('node:crypto');
 const defaultPool = require('../../config/db');
 const defaultAuditService = require('../../services/auditService');
 const defaultMarketplaceDeployment = require('../../services/marketplaceDeployment');
+const { assertDemoDatabase } = require('../../services/demoEnvironmentGuard');
 const {
   DEMO_CHAIN_ID_STR,
   DEMO_EPOCH,
@@ -156,9 +157,42 @@ function evaluatePrePoolDemoGuard(
     }
   }
 
+  // Si el entorno define huella SHA-256 oficial (`WINTON_DEMO_DATABASE_FINGERPRINT`),
+  // validamos criptográficamente `DATABASE_URL` mediante `demoEnvironmentGuard.assertDemoDatabase`
+  // (soporta hosts internos autogenerados por Render tipo `dpg-xxxx-a` sin relajar seguridad).
+  // Fail-closed: si hay huella configurada y NO coincide, rechazamos de inmediato.
+  let effectiveAllowlistOptions = { ...allowlistOptions };
+  const hasDbFingerprint =
+    typeof env.WINTON_DEMO_DATABASE_FINGERPRINT === 'string' &&
+    env.WINTON_DEMO_DATABASE_FINGERPRINT.trim() !== '';
+
+  if (hasDbFingerprint) {
+    try {
+      assertDemoDatabase(env);
+      const parsedUrl = new URL(env.DATABASE_URL);
+      const pinnedHost = parsedUrl.hostname.toLowerCase();
+      const pinnedDbName = decodeURIComponent(parsedUrl.pathname.replace(/^\/+/, ''));
+      effectiveAllowlistOptions = {
+        ...allowlistOptions,
+        allowedDbHosts: [pinnedHost],
+        allowedDbNames: [pinnedDbName]
+      };
+    } catch {
+      return {
+        ok: false,
+        code: 'DEMO_DATABASE_FINGERPRINT_MISMATCH',
+        message: 'La huella criptográfica de la base de datos no coincide con el entorno Demo autorizado.'
+      };
+    }
+  }
+
   try {
-    const dbValidation = validateDatabaseUrlAllowlist(env.DATABASE_URL, allowlistOptions);
-    return { ok: true, dbValidation };
+    const dbValidation = validateDatabaseUrlAllowlist(env.DATABASE_URL, effectiveAllowlistOptions);
+    return {
+      ok: true,
+      dbValidation,
+      allowedDbNames: effectiveAllowlistOptions.allowedDbNames || null
+    };
   } catch {
     return {
       ok: false,
@@ -350,7 +384,7 @@ function createDemoInventoryHandler(deps = {}) {
           maxExecutionMs,
           signal: abortController.signal,
           allowLocalSql,
-          allowedDbNames
+          allowedDbNames: demoGuard.allowedDbNames || allowedDbNames
         });
         sqlResult = out.sqlResult;
         sqlErrors = out.sqlErrors || [];

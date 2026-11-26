@@ -1093,4 +1093,50 @@ describe('GET /api/admin/web3/demo-inventory — Seguridad y Contrato (CODEX-209
       await new Promise((resolve) => abortServer.close(resolve));
     }
   });
+
+  test('19. [Render DB Pinning SHA-256] Host interno Render dpg-* pasa con WINTON_DEMO_DATABASE_FINGERPRINT exacto y falla 403 si no coincide', async () => {
+    const { databaseFingerprint } = require('../src/services/demoEnvironmentGuard');
+    const renderInternalDemoUrl = 'postgresql://winton_user:secret@dpg-ct8k9r5umphs73b8f9g0-a:5432/wintoncoin_demo_db';
+    const validFingerprint = databaseFingerprint(renderInternalDemoUrl);
+
+    // 19a. Fingerprint SHA-256 válido -> pasa pre-pool guard y current_database() -> 200 OK
+    const poolOk = createMockPool({ currentDatabase: 'wintoncoin_demo_db' });
+    const handlerOk = createDemoInventoryHandler({
+      pool: poolOk,
+      auditService: { logAuditEvent: jest.fn().mockResolvedValue({ recorded: true }) },
+      deploymentResolver: () => ({ chainId: '11155420', epoch: 'V6_DEMO' }),
+      getEnv: () => ({
+        IS_DEMO_ENV: 'true',
+        WINTON_ENVIRONMENT_ID: 'demo',
+        DATABASE_URL: renderInternalDemoUrl,
+        WINTON_DEMO_DATABASE_FINGERPRINT: validFingerprint
+      })
+    });
+    const resOk = createMockRes();
+    await handlerOk(createMockReq(), resOk);
+    expect(resOk.statusCode).toBe(200);
+    expect(resOk.body.demoIdentity.databaseNameObserved).toBe('wintoncoin_demo_db');
+    expect(resOk.body.completeness.sqlComplete).toBe(true);
+
+    // 19b. Fingerprint SHA-256 distinto -> 403 fail-closed con 0 llamadas a pool.connect()
+    const poolBad = createMockPool();
+    const auditBad = { logAuditEvent: jest.fn() };
+    const handlerBad = createDemoInventoryHandler({
+      pool: poolBad,
+      auditService: auditBad,
+      deploymentResolver: () => ({ chainId: '11155420', epoch: 'V6_DEMO' }),
+      getEnv: () => ({
+        IS_DEMO_ENV: 'true',
+        WINTON_ENVIRONMENT_ID: 'demo',
+        DATABASE_URL: renderInternalDemoUrl,
+        WINTON_DEMO_DATABASE_FINGERPRINT: '0'.repeat(64)
+      })
+    });
+    const resBad = createMockRes();
+    await handlerBad(createMockReq(), resBad);
+    expect(resBad.statusCode).toBe(403);
+    expect(resBad.body.code).toBe('DEMO_DATABASE_FINGERPRINT_MISMATCH');
+    expect(poolBad.connect).not.toHaveBeenCalled();
+    expect(auditBad.logAuditEvent).not.toHaveBeenCalled();
+  });
 });
